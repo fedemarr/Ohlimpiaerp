@@ -8,6 +8,17 @@ import { toast, abrirModal, cerrarModal, initModalClickOutside, makeTableSortabl
 import { doLogin, loginDemo, iniciarSesion, doLogout, loginAsociado, initLoginKeydown, registerAuthCallbacks } from '@shared/auth.js';
 import { SCREEN_CONFIG, registerScreens, currentScreen, navTo, topAction, construirMenu, busquedaGlobal, registerNavCallbacks, registerSearchFilters } from '@shared/nav.js';
 
+// ── Módulos ──
+import { candidatosScreenConfig, filtrarCandidatos, poblarFiltrosColumnasCandidatos, renderCandidatos } from './modules/candidatos/index.js';
+
+// Registrar pantallas de módulos
+registerScreens(candidatosScreenConfig);
+
+// Registrar filtros de búsqueda global
+registerSearchFilters({
+  candidatos: filtrarCandidatos,
+});
+
 console.log('Ohlimpia v2 — Vite cargado correctamente');
 console.log('Supabase client:', SUPA ? 'OK' : 'ERROR');
 console.log('DB servicios:', DB.servicios.length);
@@ -18,3 +29,4 @@ console.log('Helpers OK:', typeof $ === 'function' && typeof badge === 'function
 console.log('UI OK:', typeof toast === 'function' && typeof abrirModal === 'function' && typeof activarOrdenamiento === 'function');
 console.log('Auth OK:', typeof doLogin === 'function' && typeof loginAsociado === 'function');
 console.log('Nav OK:', typeof navTo === 'function' && typeof construirMenu === 'function' && typeof busquedaGlobal === 'function');
+console.log('Candidatos OK:', typeof renderCandidatos === 'function');
