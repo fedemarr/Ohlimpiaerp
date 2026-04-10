@@ -12,17 +12,20 @@ import { SCREEN_CONFIG, registerScreens, currentScreen, navTo, topAction, constr
 import { candidatosScreenConfig, filtrarCandidatos, poblarFiltrosColumnasCandidatos, renderCandidatos } from './modules/candidatos/index.js';
 import { psicoScreenConfig, filtrarPsico, poblarFiltrosColumnasPsico, renderPsico } from './modules/psicotecnico/index.js';
 import { altasScreenConfig, filtrarAltas, poblarFiltrosColumnasAltas, renderAltas } from './modules/altas/index.js';
+import { legajosScreenConfig, filtrarLegajos, renderLegajos } from './modules/legajos/index.js';
 
 // Registrar pantallas de módulos
 registerScreens(candidatosScreenConfig);
 registerScreens(psicoScreenConfig);
 registerScreens(altasScreenConfig);
+registerScreens(legajosScreenConfig);
 
 // Registrar filtros de búsqueda global
 registerSearchFilters({
   candidatos: filtrarCandidatos,
   psicotecnico: filtrarPsico,
   altas: filtrarAltas,
+  legajos: filtrarLegajos,
 });
 
 console.log('Ohlimpia v2 — Vite cargado correctamente');
@@ -38,3 +41,4 @@ console.log('Nav OK:', typeof navTo === 'function' && typeof construirMenu === '
 console.log('Candidatos OK:', typeof renderCandidatos === 'function');
 console.log('Psicotécnico OK:', typeof renderPsico === 'function');
 console.log('Altas OK:', typeof renderAltas === 'function');
+console.log('Legajos OK:', typeof renderLegajos === 'function');
