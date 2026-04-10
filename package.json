@@ -15,12 +15,14 @@
   "keywords": [],
   "author": "",
   "license": "ISC",
-
   "bugs": {
     "url": "https://github.com/SistemaOhl/ohlimpia/issues"
   },
   "homepage": "https://github.com/SistemaOhl/ohlimpia#readme",
   "devDependencies": {
     "vite": "^8.0.8"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.103.0"
   }
 }

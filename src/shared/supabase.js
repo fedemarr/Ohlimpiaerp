@@ -1,0 +1,134 @@
+import { createClient } from '@supabase/supabase-js';
+
+// Cliente Supabase
+export const SUPA = createClient(
+  'https://caeqsieiuunqvicfpudu.supabase.co',
+  'sb_publishable__SBdO6cSQXYfgR16FrztwA_Cf9sNosd'
+);
+
+// Mapa de claves JS → nombres de tabla en Supabase
+export const _SM = {
+  legajos: 'legajos',
+  candidatos: 'candidatos',
+  clientes: 'clientes',
+  sanciones: 'sanciones',
+  casosLegales: 'casos_legales',
+  enfermos: 'enfermos',
+  reasignaciones: 'reasignaciones',
+  feriados: 'feriados',
+  planillasAdelantos: 'planillas_adelantos',
+  prestamos: 'prestamos',
+  grillasLiq: 'grillas_liq',
+  monotributos: 'monotributos',
+  paritarias: 'paritarias',
+  retenes: 'retenes',
+};
+
+// camelCase → snake_case para guardar en Supabase
+export function _toSnake(obj) {
+  const m = {
+    nroLegajo: 'nro_legajo', estadoLegal: 'estado_legal', estadoMedico: 'estado_medico',
+    fechaBaja: 'fecha_baja', fechaReincorp: 'fecha_reincorp', estadoCivil: 'estado_civil',
+    periodoPrueba: 'periodo_prueba', fechaIngresoPrueba: 'fecha_ingreso_prueba',
+    adjuntosLegal: 'adjuntos_legal', adjuntosMedico: 'adjuntos_medico',
+    pctAumento: 'pct_aumento', fechaHomologacion: 'fecha_homologacion',
+    estadoAplicacion: 'estado_aplicacion', razonSocial: 'razon_social',
+    estadoPago: 'estado_pago', servicioOrigen: 'servicio_origen',
+    servicioDestino: 'servicio_destino', obraSocial: 'obra_social',
+    fechaInicio: 'fecha_inicio', ultimoContacto: 'ultimo_contacto',
+  };
+  const r = {};
+  for (const [k, v] of Object.entries(obj)) {
+    r[m[k] || k] = (v && typeof v === 'object' && !Array.isArray(v)) ? _toSnake(v) : v;
+  }
+  // Sanitizar campos con tipos conflictivos
+  if ('asistio' in r) r.asistio = (r.asistio === true || r.asistio === 'Sí') ? true : false;
+  if ('homologada' in r) r.homologada = r.homologada === true || r.homologada === 'true';
+  if ('jubilado' in r) r.jubilado = r.jubilado === true || r.jubilado === 'true';
+  if ('activo' in r) r.activo = r.activo === true || r.activo === 'true';
+  return r;
+}
+
+// snake_case → camelCase para leer de Supabase
+export function _toCamel(obj) {
+  const m = {
+    nro_legajo: 'nroLegajo', estado_legal: 'estadoLegal', estado_medico: 'estadoMedico',
+    fecha_baja: 'fechaBaja', fecha_reincorp: 'fechaReincorp', estado_civil: 'estadoCivil',
+    periodo_prueba: 'periodoPrueba', fecha_ingreso_prueba: 'fechaIngresoPrueba',
+    adjuntos_legal: 'adjuntosLegal', adjuntos_medico: 'adjuntosMedico',
+    pct_aumento: 'pctAumento', fecha_homologacion: 'fechaHomologacion',
+    estado_aplicacion: 'estadoAplicacion', razon_social: 'razonSocial',
+    estado_pago: 'estadoPago', servicio_origen: 'servicioOrigen',
+    servicio_destino: 'servicioDestino', obra_social: 'obraSocial',
+    fecha_inicio: 'fechaInicio', ultimo_contacto: 'ultimoContacto',
+    id_local: 'id_local', created_at: 'created_at', updated_at: 'updated_at',
+  };
+  const r = {};
+  for (const [k, v] of Object.entries(obj)) {
+    // Ignorar campos internos de Supabase que el sistema no usa
+    if (['id', 'created_at', 'updated_at'].includes(k)) continue;
+    const camelKey = m[k] || k;
+    r[camelKey] = (v && typeof v === 'object' && !Array.isArray(v)) ? _toCamel(v) : v;
+  }
+  return r;
+}
+
+// Guardar un registro en Supabase (upsert por id_local)
+export async function supaSync(dbKey, obj) {
+  const tabla = _SM[dbKey];
+  if (!tabla || !obj) return;
+  try {
+    const rawId = obj.nro || obj.id || Date.now();
+    const idLocal = String(rawId).slice(-9);
+    const raw = { ...obj };
+    delete raw.id;
+    delete raw.pass;
+    const d = _toSnake(raw);
+    d.id_local = idLocal;
+    const { data: existe } = await SUPA.from(tabla).select('id').eq('id_local', idLocal).maybeSingle();
+    if (existe) {
+      const { error } = await SUPA.from(tabla).update(d).eq('id_local', idLocal);
+      if (error) console.warn('supaSync update error:', tabla, error.message);
+      else console.log('✅ Actualizado en Supabase:', tabla, idLocal);
+    } else {
+      const { error } = await SUPA.from(tabla).insert(d);
+      if (error) console.warn('supaSync insert error:', tabla, error.message);
+      else console.log('✅ Guardado en Supabase:', tabla, idLocal);
+    }
+  } catch (e) {
+    console.warn('supaSync error:', tabla, e.message);
+  }
+}
+
+// Eliminar un registro por id_local
+export async function supaDel(dbKey, idLocal) {
+  const tabla = _SM[dbKey];
+  if (!tabla) return;
+  try {
+    await SUPA.from(tabla).delete().eq('id_local', String(idLocal));
+  } catch (e) {
+    console.warn('supaDel error:', e.message);
+  }
+}
+
+// Cargar todos los datos al iniciar
+// Recibe DB (estado global) y toast (notificación) para no depender de globales
+export async function supaInit(DB, toast) {
+  try {
+    let cargados = 0;
+    for (const [k, t] of Object.entries(_SM)) {
+      const { data, error } = await SUPA.from(t).select('*').order('created_at', { ascending: true });
+      if (error) { console.warn('supaInit error tabla:', t, error.message); continue; }
+      if (data && data.length > 0) {
+        DB[k] = data.map(row => _toCamel(row));
+        cargados += data.length;
+        console.log('☁️ Cargado:', k, data.length, 'registros');
+      }
+    }
+    if (cargados > 0) toast('☁️ ' + cargados + ' registros cargados desde la nube');
+    else toast('☁️ Conectado a Supabase — sin datos aún');
+  } catch (e) {
+    console.warn('supaInit error:', e.message);
+    toast('⚠️ Modo offline — usando datos locales');
+  }
+}
