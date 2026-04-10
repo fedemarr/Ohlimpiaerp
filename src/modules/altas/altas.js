@@ -11,21 +11,24 @@ const ALTA_TABS = 6;
 // ========== RENDER ==========
 
 export function renderAltas(lista) {
-  const aptos = lista || (DB.psicos || []).filter(p => p.estado === 'Ingreso');
+  const pendientes = lista || (DB.catAltPendientes || []).filter(a => a.estado === 'Pendiente de alta');
   const tbody = $('tbody-altas');
   if (!tbody) return;
-  if (!aptos.length) {
+  if (!pendientes.length) {
     tbody.innerHTML = '<tr><td colspan="6"><div class="empty-state"><div class="icon">✅</div><p>Sin candidatos pendientes de alta</p></div></td></tr>';
     return;
   }
-  tbody.innerHTML = aptos.map((p, i) => `<tr>
-    <td><div style="display:flex;align-items:center;gap:10px;">${avatarEl(p.nombre)}<div><div style="font-weight:500;">${p.nombre}</div><div class="text-muted">DNI: ${p.dni}</div></div></div></td>
+  tbody.innerHTML = pendientes.map(a => {
+    const psicoIdx = (DB.psicos || []).findIndex(p => p.id === a.psicoId);
+    return `<tr>
+    <td><div style="display:flex;align-items:center;gap:10px;">${avatarEl(a.nombre)}<div><div style="font-weight:500;">${a.nombre}</div><div class="text-muted">DNI: ${a.dni}</div></div></div></td>
     <td><div style="display:flex;gap:4px;">${badge('Confirmado')} ${badge('Apto')}</div></td>
     <td>${badge('Pendiente')}</td>
-    <td>${badge('En proceso')}</td>
-    <td><span class="${p.rrhh === 'Agente IA Ohlimpia' ? 'badge badge-ia' : 'chip'}">${p.rrhh}</span></td>
-    <td><button class="btn btn-primary btn-sm" onclick="abrirModalAlta(${(DB.psicos || []).indexOf(p)})">Registrar alta →</button></td>
-  </tr>`).join('');
+    <td>${badge(a.estado)}</td>
+    <td><span class="${a.rrhh === 'Agente IA Ohlimpia' ? 'badge badge-ia' : 'chip'}">${a.rrhh || '—'}</span></td>
+    <td><button class="btn btn-primary btn-sm" onclick="abrirModalAlta(${psicoIdx}, ${a.id})">Registrar alta →</button></td>
+  </tr>`;
+  }).join('');
 }
 
 // ========== FILTROS ==========
@@ -34,10 +37,10 @@ export function filtrarAltas() {
   const nombre = ($('cf-alt-nombre') || { value: '' }).value.toLowerCase();
   const resp = ($('cf-alt-resp') || { value: '' }).value;
   const bg = ($('buscador-global') || { value: '' }).value.toLowerCase();
-  renderAltas((DB.psicos || []).filter(p => p.estado === 'Ingreso').filter(p =>
-    (!nombre || p.nombre.toLowerCase().includes(nombre)) &&
-    (!resp || p.rrhh === resp) &&
-    (!bg || p.nombre.toLowerCase().includes(bg))
+  renderAltas((DB.catAltPendientes || []).filter(a => a.estado === 'Pendiente de alta').filter(a =>
+    (!nombre || a.nombre.toLowerCase().includes(nombre)) &&
+    (!resp || a.rrhh === resp) &&
+    (!bg || a.nombre.toLowerCase().includes(bg))
   ));
 }
 
@@ -184,9 +187,11 @@ function crearHTMLModalAlta() {
 
 // ========== ABRIR MODAL ==========
 
-export function abrirModalAlta(psicoIdx) {
+export function abrirModalAlta(psicoIdx, altaId) {
   ensureModal();
-  const p = (DB.psicos || [])[psicoIdx];
+  const p = psicoIdx >= 0 ? (DB.psicos || [])[psicoIdx] : null;
+  const altaReg = altaId ? (DB.catAltPendientes || []).find(a => a.id === altaId) : null;
+  const src = altaReg || p;
 
   // Limpiar todos los campos
   ['alt-nombre', 'alt-dni', 'alt-cuit', 'alt-fecnac', 'alt-nac', 'alt-tel', 'alt-mail',
@@ -208,18 +213,20 @@ export function abrirModalAlta(psicoIdx) {
   // Poblar selects de función y categoría
   poblarSelectsAltas();
 
-  // Pre-cargar datos del candidato si viene de psicotécnico
-  if (p) {
-    $('alta-idx').value = psicoIdx;
-    $('alta-nombre-display').textContent = p.nombre;
-    const nomEl = $('alt-nombre'); if (nomEl) nomEl.value = p.nombre || '';
-    const dniEl = $('alt-dni'); if (dniEl) dniEl.value = p.dni || '';
-    const telEl = $('alt-tel'); if (telEl) telEl.value = p.tel || '';
-    if (p.zona) {
-      const zEl = $('alt-zona'); if (zEl) { zEl.value = p.zona; onChangeZonaAlta(); }
+  // Pre-cargar datos si viene del flujo psicotécnico
+  if (src) {
+    $('alta-idx').value = psicoIdx >= 0 ? psicoIdx : '';
+    if (altaId) $('modal-alta-nuevo').dataset.altaId = altaId;
+    $('alta-nombre-display').textContent = src.nombre;
+    const nomEl = $('alt-nombre'); if (nomEl) nomEl.value = src.nombre || '';
+    const dniEl = $('alt-dni'); if (dniEl) dniEl.value = src.dni || '';
+    const telEl = $('alt-tel'); if (telEl) telEl.value = src.tel || '';
+    if (src.zona) {
+      const zEl = $('alt-zona'); if (zEl) { zEl.value = src.zona; onChangeZonaAlta(); }
     }
   } else {
     $('alta-idx').value = '';
+    delete $('modal-alta-nuevo').dataset.altaId;
     $('alta-nombre-display').textContent = 'Nuevo';
   }
 
@@ -336,8 +343,20 @@ export function confirmarAlta() {
   // Actualizar estado del psicotécnico si viene de ahí
   const psicoIdx = parseInt(($('alta-idx') || {}).value);
   if (!isNaN(psicoIdx) && DB.psicos[psicoIdx]) {
-    DB.psicos[psicoIdx].estado = 'Ingreso completado';
+    DB.psicos[psicoIdx].estado = 'Ingreso';
     supaSync('psicos', DB.psicos[psicoIdx]);
+  }
+
+  // Marcar registro de catAltPendientes como completado
+  const modal = $('modal-alta-nuevo');
+  const altaId = modal && modal.dataset.altaId ? parseInt(modal.dataset.altaId) : null;
+  if (altaId) {
+    const altaReg = (DB.catAltPendientes || []).find(a => a.id === altaId);
+    if (altaReg) {
+      altaReg.estado = 'Alta completada';
+      supaSync('catAltPendientes', altaReg);
+    }
+    delete modal.dataset.altaId;
   }
 
   cerrarModal('modal-alta-nuevo');

@@ -297,7 +297,7 @@ export function aprobarPsico() {
   // Crear registro en Alta
   const alta = {
     id: Date.now(), psicoId: p.id, candidatoId: p.candidatoId,
-    nombre: p.nombre, dni: p.dni, zona: p.zona, tel: p.tel,
+    nombre: p.nombre, dni: p.dni, zona: p.zona, tel: p.tel, rrhh: p.rrhh || '',
     estado: 'Pendiente de alta', fecha: new Date().toLocaleDateString('es-AR'),
     identificacion: {}, domicilio: {}, operativo: {}, uniforme: {}, capital: {}, seguros: {},
   };
