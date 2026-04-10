@@ -10,13 +10,16 @@ import { SCREEN_CONFIG, registerScreens, currentScreen, navTo, topAction, constr
 
 // ── Módulos ──
 import { candidatosScreenConfig, filtrarCandidatos, poblarFiltrosColumnasCandidatos, renderCandidatos } from './modules/candidatos/index.js';
+import { psicoScreenConfig, filtrarPsico, poblarFiltrosColumnasPsico, renderPsico } from './modules/psicotecnico/index.js';
 
 // Registrar pantallas de módulos
 registerScreens(candidatosScreenConfig);
+registerScreens(psicoScreenConfig);
 
 // Registrar filtros de búsqueda global
 registerSearchFilters({
   candidatos: filtrarCandidatos,
+  psicotecnico: filtrarPsico,
 });
 
 console.log('Ohlimpia v2 — Vite cargado correctamente');
@@ -30,3 +33,4 @@ console.log('UI OK:', typeof toast === 'function' && typeof abrirModal === 'func
 console.log('Auth OK:', typeof doLogin === 'function' && typeof loginAsociado === 'function');
 console.log('Nav OK:', typeof navTo === 'function' && typeof construirMenu === 'function' && typeof busquedaGlobal === 'function');
 console.log('Candidatos OK:', typeof renderCandidatos === 'function');
+console.log('Psicotécnico OK:', typeof renderPsico === 'function');
