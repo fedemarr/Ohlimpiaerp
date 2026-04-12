@@ -4,7 +4,7 @@ export {
   renderAltas, filtrarAltas, poblarFiltrosColumnasAltas, poblarSelectsAltas,
   abrirModalAlta, confirmarAlta,
   tabAlta, tabAltaSiguiente, tabAltaAnterior,
-  onChangeZonaAlta, toggleReingresante,
+  onChangeZonaAlta, onChangeServicioAlta, toggleReingresante,
 } from './altas.js';
 
 // ========== SCREEN CONFIG ==========
@@ -25,7 +25,7 @@ export const altasScreenConfig = {
 import {
   filtrarAltas, confirmarAlta,
   tabAlta, tabAltaSiguiente, tabAltaAnterior,
-  onChangeZonaAlta, toggleReingresante,
+  onChangeZonaAlta, onChangeServicioAlta, toggleReingresante,
 } from './altas.js';
 
 import { applyTitleCase } from '@shared/helpers.js';
@@ -38,5 +38,6 @@ window.tabAlta = tabAlta;
 window.tabAltaSiguiente = tabAltaSiguiente;
 window.tabAltaAnterior = tabAltaAnterior;
 window.onChangeZonaAlta = onChangeZonaAlta;
+window.onChangeServicioAlta = onChangeServicioAlta;
 window.toggleReingresante = toggleReingresante;
 window.applyTitleCase = applyTitleCase;

@@ -67,6 +67,38 @@ async function loadLegacy() {
       inicio: { title: 'Inicio', btn: '', fn: null, render: renderInicio },
     });
 
+    // Registrar pantallas legacy que necesitan btn en topbar
+    registerScreens({
+      capacitaciones: { title: 'Capacitaciones', btn: '+ Registrar capacitación', fn: () => abrirModal('modal-capacitacion'), render: () => { if (window.renderCapacitaciones) window.renderCapacitaciones(); } },
+      pedidos: { title: 'Pedidos de personal', btn: '+ Nuevo pedido', fn: () => abrirModal('modal-pedido'), render: () => { if (window.renderPedidos) window.renderPedidos(); } },
+      legal: { title: 'Situaciones legales', btn: '+ Nuevo caso', fn: () => abrirModal('modal-legal'), render: () => { if (window.renderLegal) window.renderLegal(); } },
+      enfermos: { title: 'Enfermos y accidentes', btn: '+ Nuevo caso', fn: () => abrirModal('modal-enfermo'), render: () => { if (window.renderEnfermos) window.renderEnfermos(); } },
+      reasignaciones: { title: 'Reasignaciones', btn: '+ Nueva reasignación', fn: () => abrirModal('modal-reasignacion'), render: () => { if (window.renderReasignaciones) window.renderReasignaciones(); } },
+      clientes: { title: 'Clientes', btn: '+ Nuevo cliente', fn: () => abrirModal('modal-cliente'), render: () => { if (window.renderClientes) window.renderClientes(); } },
+      objetivos: { title: 'Objetivos / Servicios', btn: '+ Nuevo objetivo', fn: () => abrirModal('modal-objetivo'), render: () => { if (window.renderObjetivos) window.renderObjetivos(); } },
+      vacaciones: { title: 'Vacaciones y descanso', btn: '', fn: null, render: () => { if (window.renderVacaciones) window.renderVacaciones(); } },
+      competencia: { title: 'Competencia anual', btn: '', fn: null, render: () => { if (window.renderCompetencia) window.renderCompetencia(); } },
+      configuracion: { title: 'Configuración', btn: '', fn: null, render: () => { if (window.renderConfiguracion) window.renderConfiguracion(); } },
+      smvm: { title: 'SMVM histórico', btn: '', fn: null, render: () => { if (window.renderSMVM) window.renderSMVM(); } },
+      feriados: { title: 'Feriados', btn: '+ Agregar feriado', fn: () => abrirModal('modal-feriado'), render: () => { if (window.renderFeriados) window.renderFeriados(); } },
+      cobros: { title: 'Gestión de cobros', btn: '', fn: null, render: () => { if (window.renderCobros) window.renderCobros(); } },
+      crm: { title: 'CRM Comercial', btn: '+ Nuevo lead', fn: () => abrirModal('modal-lead'), render: () => { if (window.renderCRM) window.renderCRM(); } },
+      reclamos: { title: 'Reclamos y NC', btn: '+ Nuevo reclamo', fn: () => abrirModal('modal-reclamo'), render: () => { if (window.renderReclamos) window.renderReclamos(); } },
+      precios: { title: 'Gestión de precios', btn: '', fn: null, render: () => { if (window.renderPrecios) window.renderPrecios(); } },
+      liquidacion: { title: 'Liquidación de horas', btn: '', fn: null, render: () => { if (window.renderLiquidacion) window.renderLiquidacion(); } },
+      liq_admin: { title: 'Liquidación Administración', btn: '', fn: null, render: () => { if (window.renderLiqAdmin) window.renderLiqAdmin(); } },
+      retenes: { title: 'Retenes', btn: '', fn: null, render: () => { if (window.renderRetenes) window.renderRetenes(); } },
+      mantenimiento: { title: 'Mantenimiento', btn: '', fn: null, render: () => { if (window.renderMantenimiento) window.renderMantenimiento(); } },
+      monotributos: { title: 'Monotributos', btn: '', fn: null, render: () => { if (window.renderMonotributos) window.renderMonotributos(); } },
+      uniformes: { title: 'Uniformes', btn: '', fn: null, render: () => { if (window.renderUniformes) window.renderUniformes(); } },
+      retenciones: { title: 'Retenciones', btn: '', fn: null, render: () => { if (window.renderRetenciones) window.renderRetenciones(); } },
+      sanciones: { title: 'Sanciones', btn: '+ Nueva sanción', fn: () => abrirModal('modal-sancion'), render: () => { if (window.renderSanciones) window.renderSanciones(); } },
+      paritarias: { title: 'Paritarias', btn: '', fn: null, render: () => { if (window.renderParitarias) window.renderParitarias(); } },
+      liquidaciones: { title: 'Liquidaciones', btn: '', fn: null, render: () => { if (window.renderLiquidaciones) window.renderLiquidaciones(); } },
+      pedidos_adelantos: { title: 'Pedidos de adelantos', btn: '', fn: null, render: () => { if (window.renderPedidosAdelantos) window.renderPedidosAdelantos(); } },
+      gestion_adelantos: { title: 'Gestión de adelantos', btn: '', fn: null, render: () => { if (window.renderGestionAdelantos) window.renderGestionAdelantos(); } },
+    });
+
     console.log('Legacy cargado correctamente');
   } catch (e) {
     console.error('Error cargando legacy.js:', e);

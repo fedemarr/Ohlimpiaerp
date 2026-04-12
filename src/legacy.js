@@ -49,6 +49,7 @@ export function poblarSelects(){
   fillCol('cf-cand-estado',DB.candidatos.map(c=>c.estado));
   fillCol('cf-cand-medio',DB.medios);
   fillCol('cf-cand-rrhh',nicksRRHH);
+  poblarSelectsCapacitaciones();
 }
 
 // ========== NAVEGACIÓN ==========
@@ -831,10 +832,41 @@ function poblarSelectsCapacitaciones(){
   fS('cap-tipo',DB.tiposCapacitacion);fS('cf-cap-tipo',DB.tiposCapacitacion);fS('cf-cap-tipo2',DB.tiposCapacitacion);
   fS('cap-instructor',DB.instructores);fS('cf-cap-inst',DB.instructores);fS('cf-cap-metodo',DB.metodosEval);
   const fDL=(id,items)=>{const el=$(id);if(el)el.innerHTML=items.map(i=>`<option value="${i}">`).join('');};
-  fDL('dl-asoc-cap',DB.legajos.map(l=>`${l.nombre} (N°${l.nro})`));
   fDL('dl-serv-cap',DB.servicios);
+}
+
+function buscarAsocCapacitacion(){
   const inp=$('cap-asociado');
-  if(inp) inp.addEventListener('input',()=>{const m=inp.value.match(/N°(\d+)/);if(m&&$('cap-nro-socio'))$('cap-nro-socio').value=m[1];});
+  const res=$('cap-asoc-results');
+  if(!inp||!res) return;
+  const q=inp.value.toLowerCase().trim();
+  if(q.length<2){res.style.display='none';res.innerHTML='';return;}
+  const activos=(DB.legajos||[]).filter(l=>l.estado==='Activo');
+  const matches=activos.filter(l=>l.nombre.toLowerCase().includes(q)||String(l.nro).includes(q)).slice(0,8);
+  if(!matches.length){res.style.display='none';res.innerHTML='';return;}
+  res.innerHTML=matches.map(l=>
+    '<div data-nro="'+l.nro+'" data-nombre="'+l.nombre+'" style="padding:8px 12px;cursor:pointer;font-size:13px;border-bottom:1px solid var(--borde);display:flex;justify-content:space-between;align-items:center;" onmouseenter="this.style.background=\'var(--azul-claro)\'" onmouseleave="this.style.background=\'white\'" onclick="seleccionarAsocCapacitacion(this)">'
+      +'<span style="font-weight:500;">'+l.nombre+'</span>'
+      +'<span style="font-size:11px;color:var(--texto-suave);font-family:\'DM Mono\',monospace;">N° '+l.nro+'</span>'
+    +'</div>'
+  ).join('');
+  res.style.display='block';
+}
+
+function seleccionarAsocCapacitacion(el){
+  const nombre=el.dataset.nombre;
+  const nro=el.dataset.nro;
+  const inp=$('cap-asociado');
+  const nroEl=$('cap-nro-socio');
+  const res=$('cap-asoc-results');
+  if(inp) inp.value=nombre;
+  if(nroEl) nroEl.value=nro;
+  if(res){res.style.display='none';res.innerHTML='';}
+  // Pre-cargar servicio del legajo
+  const leg=(DB.legajos||[]).find(l=>l.nro===parseInt(nro));
+  if(leg){
+    const sEl=$('cap-servicio');if(sEl&&leg.servicio) sEl.value=leg.servicio;
+  }
 }
 
 // ========== MÓDULO VACACIONES ==========
@@ -1006,11 +1038,57 @@ function poblarSelectsVacaciones(){
   fS('va-sector',DB.sectoresAdmin);fS('cf-va-sector',DB.sectoresAdmin);fS('cf-vac-sector',DB.sectoresAdmin);
   fS('vo-supervisor',DB.supervisores);fS('cf-vo-sup',DB.supervisores);
   const fDL=(id,items)=>{const el=$(id);if(el)el.innerHTML=items.map(i=>`<option value="${i}">`).join('');};
-  fDL('dl-asoc-va',DB.legajos.map(l=>`${l.nombre} (N°${l.nro})`));
   fDL('dl-asoc-va2',DB.legajos.map(l=>`${l.nombre} (N°${l.nro})`));
-  fDL('dl-asoc-vo',DB.legajos.map(l=>`${l.nombre} (N°${l.nro})`));
   fDL('dl-asoc-vo2',DB.legajos.map(l=>`${l.nombre} (N°${l.nro})`));
   fDL('dl-serv-vo',DB.servicios);
+}
+
+function buscarAsocVac(prefix){
+  var inp=$(prefix+'-asociado');
+  var res=$(prefix+'-asoc-results');
+  if(!inp||!res) return;
+  var q=inp.value.toLowerCase().trim();
+  if(q.length<2){res.style.display='none';res.innerHTML='';return;}
+  var activos=(DB.legajos||[]).filter(function(l){return l.estado==='Activo';});
+  var matches=activos.filter(function(l){return l.nombre.toLowerCase().includes(q)||String(l.nro).includes(q);}).slice(0,8);
+  if(!matches.length){res.style.display='none';res.innerHTML='';return;}
+  res.innerHTML=matches.map(function(l){
+    return '<div data-nro="'+l.nro+'" data-nombre="'+l.nombre+'" data-servicio="'+(l.servicio||'')+'" data-supervisor="'+(l.supervisor||'')+'" style="padding:8px 12px;cursor:pointer;font-size:13px;border-bottom:1px solid var(--borde);display:flex;justify-content:space-between;align-items:center;" onmouseenter="this.style.background=\'var(--azul-claro)\'" onmouseleave="this.style.background=\'white\'" onclick="seleccionarAsocVac(\''+prefix+'\',this)">'
+      +'<span style="font-weight:500;">'+l.nombre+'</span>'
+      +'<span style="font-size:11px;color:var(--texto-suave);font-family:\'DM Mono\',monospace;">N° '+l.nro+'</span>'
+    +'</div>';
+  }).join('');
+  res.style.display='block';
+}
+
+function seleccionarAsocVac(prefix,el){
+  var nombre=el.dataset.nombre;
+  var nro=el.dataset.nro;
+  var servicio=el.dataset.servicio;
+  var supervisor=el.dataset.supervisor;
+  var inp=$(prefix+'-asociado');
+  var res=$(prefix+'-asoc-results');
+  if(inp) inp.value=nombre;
+  if(res){res.style.display='none';res.innerHTML='';}
+  if(prefix==='va'){
+    // Modal admin: calcular días y pre-cargar nro socio en hidden
+    var nroEl=$('va-nro-socio');if(nroEl) nroEl.value=nro;
+    // Calcular antigüedad → días correspondientes
+    var leg=(DB.legajos||[]).find(function(l){return l.nro===parseInt(nro);});
+    if(leg&&leg.ingreso){
+      var p=leg.ingreso.split('/');
+      var antig=Math.floor((new Date()-new Date(p[2]+'-'+p[1]+'-'+p[0]))/(365.25*24*3600*1000));
+      var dias=antig>=20?35:antig>=15?28:antig>=10?21:14;
+      var dcEl=$('va-dias-corresp');if(dcEl) dcEl.value=dias;
+    }
+  } else {
+    // Modal operativo: pre-cargar nro, servicio, supervisor
+    var nroOp=$('vo-nro');if(nroOp) nroOp.value=nro;
+    var servEl=$('vo-servicio');if(servEl&&servicio) servEl.value=servicio;
+    var supEl=$('vo-supervisor');if(supEl&&supervisor){
+      for(var i=0;i<supEl.options.length;i++){if(supEl.options[i].text===supervisor){supEl.selectedIndex=i;break;}}
+    }
+  }
 }
 
 // ========== TABS CAPACITACIONES ==========
@@ -13089,6 +13167,8 @@ window.getValoresPeriodo = getValoresPeriodo;
 window.getVigenciaActual = getVigenciaActual;
 window.guardarArt42 = guardarArt42;
 window.guardarCapacitacion = guardarCapacitacion;
+window.buscarAsocCapacitacion = buscarAsocCapacitacion;
+window.seleccionarAsocCapacitacion = seleccionarAsocCapacitacion;
 window.guardarCategoriaSind = guardarCategoriaSind;
 window.guardarCliente = guardarCliente;
 window.guardarConceptoLiq = guardarConceptoLiq;
@@ -13122,6 +13202,8 @@ window.guardarSancion = guardarSancion;
 window.guardarUniforme = guardarUniforme;
 window.guardarUsuario = guardarUsuario;
 window.guardarVacAdmin = guardarVacAdmin;
+window.buscarAsocVac = buscarAsocVac;
+window.seleccionarAsocVac = seleccionarAsocVac;
 window.guardarVacOp = guardarVacOp;
 window.homologarParitaria = homologarParitaria;
 window.importarCobrosTango = importarCobrosTango;

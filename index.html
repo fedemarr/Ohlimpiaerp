@@ -1051,6 +1051,7 @@
       <div class="card-header">
         <h3>Vacaciones — Sector Administrativo</h3>
         <div class="filtros-bar">
+          <button class="btn btn-primary btn-sm" onclick="abrirModal('modal-vac-admin')">+ Registrar vacaciones</button>
           <select id="cf-vac-anio-admin" onchange="filtrarVacAdmin()"><option value="">Todos los años</option><option value="2026">2026</option><option value="2025">2025</option><option value="2024">2024</option><option value="2023">2023</option></select>
           <select id="cf-vac-sector" onchange="filtrarVacAdmin()"><option value="">Todos los sectores</option></select>
           <input type="text" placeholder="🔍 Buscar asociado..." id="buscar-vac-admin" oninput="filtrarVacAdmin()">
@@ -1083,6 +1084,7 @@
       <div class="card-header">
         <h3>Días de descanso — Sector Operativo</h3>
         <div class="filtros-bar">
+          <button class="btn btn-primary btn-sm" onclick="abrirModal('modal-vac-op')">+ Solicitar descanso</button>
           <input type="text" placeholder="🔍 Buscar asociado..." id="buscar-vac-op" oninput="filtrarVacOp()">
           <select id="cf-vo-estado" onchange="filtrarVacOp()"><option value="">Todos los estados</option><option>Pendiente</option><option>Aprobado</option><option>Rechazado</option></select>
           <select id="cf-vo-anio" onchange="filtrarVacOp()"><option value="">Todos los años</option><option>2026</option><option>2025</option><option>2024</option><option>2023</option></select>
@@ -4274,7 +4276,11 @@
       <div class="form-grid gap-12">
         <div class="form-section">Datos del asociado</div>
         <div class="form-grid form-grid-2">
-          <div class="form-group"><label>Asociado *</label><input type="text" id="cap-asociado" list="dl-asoc-cap" placeholder="Buscar por nombre o N° socio"><datalist id="dl-asoc-cap"></datalist></div>
+          <div class="form-group" style="position:relative;">
+            <label>Asociado *</label>
+            <input type="text" id="cap-asociado" placeholder="Buscar por nombre o N° socio..." autocomplete="off" oninput="buscarAsocCapacitacion()">
+            <div id="cap-asoc-results" style="display:none;position:absolute;top:100%;left:0;right:0;background:white;border:1px solid var(--borde);border-radius:0 0 var(--radio) var(--radio);max-height:180px;overflow-y:auto;z-index:200;box-shadow:var(--sombra);"></div>
+          </div>
           <div class="form-group"><label>N° Socio</label><input type="text" id="cap-nro-socio" placeholder="Se completa automáticamente" readonly style="background:var(--fondo);"></div>
         </div>
         <div class="form-section">Datos de la capacitación</div>
@@ -4318,7 +4324,11 @@
     <div class="modal-body">
       <div class="form-grid gap-12">
         <div class="form-grid form-grid-2">
-          <div class="form-group"><label>Asociado *</label><input type="text" id="va-asociado" list="dl-asoc-va" placeholder="Buscar por nombre o N° socio"><datalist id="dl-asoc-va"></datalist></div>
+          <div class="form-group" style="position:relative;">
+            <label>Asociado *</label>
+            <input type="text" id="va-asociado" placeholder="Buscar por nombre o N° socio..." autocomplete="off" oninput="buscarAsocVac('va')">
+            <div id="va-asoc-results" style="display:none;position:absolute;top:100%;left:0;right:0;background:white;border:1px solid var(--borde);border-radius:0 0 var(--radio) var(--radio);max-height:180px;overflow-y:auto;z-index:200;box-shadow:var(--sombra);"></div>
+          </div>
           <div class="form-group"><label>Sector</label><select id="va-sector"></select></div>
         </div>
         <div class="form-grid form-grid-3">
@@ -4354,7 +4364,11 @@
     <div class="modal-body">
       <div class="form-grid gap-12">
         <div class="form-grid form-grid-2">
-          <div class="form-group"><label>Asociado *</label><input type="text" id="vo-asociado" list="dl-asoc-vo" placeholder="Buscar por nombre o N° socio"><datalist id="dl-asoc-vo"></datalist></div>
+          <div class="form-group" style="position:relative;">
+            <label>Asociado *</label>
+            <input type="text" id="vo-asociado" placeholder="Buscar por nombre o N° socio..." autocomplete="off" oninput="buscarAsocVac('vo')">
+            <div id="vo-asoc-results" style="display:none;position:absolute;top:100%;left:0;right:0;background:white;border:1px solid var(--borde);border-radius:0 0 var(--radio) var(--radio);max-height:180px;overflow-y:auto;z-index:200;box-shadow:var(--sombra);"></div>
+          </div>
           <div class="form-group"><label>N° Socio</label><input type="text" id="vo-nro" readonly style="background:var(--fondo);"></div>
         </div>
         <div class="form-grid form-grid-2">

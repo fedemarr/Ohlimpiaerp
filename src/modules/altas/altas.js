@@ -64,6 +64,22 @@ export function poblarFiltrosColumnasAltas() {
 export function poblarSelectsAltas() {
   fillSelect('alt-funcion', DB.categorias, ['— Seleccionar —']);
   fillSelect('alt-categoria', DB.categorias, ['— Seleccionar —']);
+  // Poblar servicios desde objetivos activos
+  const servEl = $('alt-servicio');
+  if (servEl) {
+    const objetivos = (DB.objetivos || []).filter(o => o.estado === 'Activo');
+    servEl.innerHTML = '<option value="">— Sin asignar —</option>'
+      + objetivos.map(o => '<option value="' + o.codigo + '">' + o.codigo + '</option>').join('');
+  }
+}
+
+export function onChangeServicioAlta() {
+  const codigo = ($('alt-servicio') || {}).value || '';
+  const supEl = $('alt-supervisor');
+  if (!supEl) return;
+  if (!codigo) { supEl.value = ''; return; }
+  const obj = (DB.objetivos || []).find(o => o.codigo === codigo && o.estado === 'Activo');
+  supEl.value = obj ? obj.supervisor : '';
 }
 
 // ========== ZONA ==========
@@ -144,6 +160,8 @@ function crearHTMLModalAlta() {
           '<div class="form-grid form-grid-2">',
             '<div class="form-group"><label>Función *</label><select id="alt-funcion" style="width:100%;padding:8px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;"><option value="">Seleccionar...</option></select></div>',
             '<div class="form-group"><label>Categoría *</label><select id="alt-categoria" style="width:100%;padding:8px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;"><option value="">Seleccionar...</option></select></div>',
+            '<div class="form-group"><label>Servicio</label><select id="alt-servicio" onchange="onChangeServicioAlta()" style="width:100%;padding:8px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;"><option value="">— Sin asignar —</option></select></div>',
+            '<div class="form-group"><label>Supervisor</label><input type="text" id="alt-supervisor" style="background:var(--fondo);" readonly placeholder="Se completa con el servicio"></div>',
             '<div class="form-group"><label>Período de prueba (meses)</label><input type="number" id="alt-periodo-prueba" value="6" min="1" max="12"></div>',
           '</div>',
         '</div>',
@@ -196,7 +214,7 @@ export function abrirModalAlta(psicoIdx, altaId) {
   // Limpiar todos los campos
   ['alt-nombre', 'alt-dni', 'alt-cuit', 'alt-fecnac', 'alt-nac', 'alt-tel', 'alt-mail',
    'alt-fec-ingreso', 'alt-fec-egreso', 'alt-direccion', 'alt-banco', 'alt-cbu',
-   'alt-calzado', 'alt-integracion', 'alt-art', 'alt-obra-social'].forEach(id => {
+   'alt-calzado', 'alt-integracion', 'alt-art', 'alt-obra-social', 'alt-supervisor'].forEach(id => {
     const el = $(id); if (el) el.value = '';
   });
   const nacEl = $('alt-nac'); if (nacEl) nacEl.value = 'Argentina';
@@ -206,7 +224,7 @@ export function abrirModalAlta(psicoIdx, altaId) {
 
   // Resetear selects
   ['alt-estado-civil', 'alt-zona', 'alt-localidad', 'alt-funcion', 'alt-categoria',
-   'alt-ambo', 'alt-forma-pago', 'alt-seguro'].forEach(id => {
+   'alt-servicio', 'alt-ambo', 'alt-forma-pago', 'alt-seguro'].forEach(id => {
     const el = $(id); if (el) el.selectedIndex = 0;
   });
 
@@ -338,6 +356,8 @@ export function confirmarAlta() {
   const localidad = zona === 'CABA' ? 'CABA' : (($('alt-localidad') || {}).value || '');
   const banco = cleanText(($('alt-banco') || {}).value || '');
   const funcion = ($('alt-funcion') || {}).value || '';
+  const servicio = ($('alt-servicio') || {}).value || '— Sin asignar';
+  const supervisor = ($('alt-supervisor') || {}).value || '— Sin asignar';
   const periodoPrueba = parseInt(($('alt-periodo-prueba') || {}).value) || 6;
   const calzado = parseInt(($('alt-calzado') || {}).value) || 0;
   const ambo = ($('alt-ambo') || {}).value || '';
@@ -355,8 +375,8 @@ export function confirmarAlta() {
     nombre,
     dni,
     funcion: funcion || 'Operario',
-    servicio: '— Sin asignar',
-    supervisor: '— Sin asignar',
+    servicio: servicio,
+    supervisor: supervisor,
     ingreso: fIngreso,
     estado: 'Activo',
     estadoLegal: '',
