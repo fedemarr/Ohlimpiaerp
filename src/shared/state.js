@@ -50,6 +50,7 @@ export const DB = {
     { id: 2, asociado: 'Gomez Diego Alejandro', nroSocio: 71, tipo: 'Accidente laboral', fechaHecho: '01/03/2026', dias: 32, ultimoContacto: '30/03/2026', certif: 'Presentado', estado: 'En tratamiento', habilitado: 'No — en reposo médico', adjuntos: ['certif_medico.pdf'] },
     { id: 3, asociado: 'Torres Ana Beatriz', nroSocio: 98, tipo: 'Accidente in itinere', fechaHecho: '10/01/2026', dias: 82, ultimoContacto: '02/04/2026', certif: 'Presentado', estado: 'En tratamiento', habilitado: 'No — en reposo médico', adjuntos: ['certif_medico.pdf', 'estudio_rx.pdf', 'kine_informe.pdf'] },
   ],
+  sugerencias: [],
   usuarios: [
     { id: 1, nombre: 'Juan Peretti', email: 'admin@ohlimpia.coop', pass: 'admin123', perfil: 'Administrador total', funcion: 'Presidente', activo: true, nickname: 'Admin' },
     { id: 2, nombre: 'Jimena Rrhh', email: 'rrhh@ohlimpia.coop', pass: 'rrhh2024', perfil: 'RRHH', funcion: 'Coordinador/a', activo: true, nickname: 'Jimena' },
@@ -62,13 +63,13 @@ export const DB = {
 // ========== PERFILES Y ACCESOS ==========
 
 export const PERFILES = {
-  'Administrador total': { color: 'badge-rojo', modulos: ['candidatos', 'pedidos', 'psicotecnico', 'altas', 'legajos', 'reasignaciones', 'legal', 'enfermos', 'capacitaciones', 'vacaciones', 'competencia', 'clientes', 'objetivos', 'precios', 'paritarias', 'crm', 'reclamos', 'cobros', 'liquidacion', 'feriados', 'liq_admin', 'liquidaciones', 'retenes', 'mantenimiento', 'configuracion', 'smvm', 'monotributos', 'uniformes', 'retenciones', 'sanciones', 'adelantos', 'pedidos_adelantos', 'gestion_adelantos'], desc: 'Acceso completo.' },
-  'RRHH': { color: 'badge-azul', modulos: ['candidatos', 'psicotecnico', 'altas', 'legajos', 'reasignaciones', 'capacitaciones', 'vacaciones', 'competencia', 'reclamos', 'paritarias', 'liquidacion', 'liq_admin', 'liquidaciones', 'retenes', 'monotributos', 'uniformes', 'retenciones', 'sanciones', 'adelantos', 'pedidos_adelantos', 'gestion_adelantos'], desc: 'RRHH, legajos, capacitaciones.' },
-  'Operaciones': { color: 'badge-verde', modulos: ['pedidos', 'legajos', 'reasignaciones', 'capacitaciones', 'vacaciones', 'competencia', 'clientes', 'objetivos', 'precios', 'paritarias', 'crm', 'reclamos', 'cobros', 'liquidacion', 'retenes', 'mantenimiento', 'feriados', 'uniformes', 'sanciones', 'pedidos_adelantos'], desc: 'Operaciones y ventas.' },
-  'Finanzas': { color: 'badge-acento', modulos: ['legajos', 'smvm', 'cobros', 'paritarias', 'liquidacion', 'liq_admin', 'liquidaciones', 'retenes', 'mantenimiento', 'monotributos', 'retenciones', 'adelantos', 'gestion_adelantos'], desc: 'Finanzas y liquidación.' },
-  'Supervisor': { color: 'badge-gris', modulos: ['pedidos', 'legajos', 'competencia', 'liquidacion', 'liquidaciones', 'adelantos', 'pedidos_adelantos'], desc: 'Pedidos, legajos, competencia y liquidación de horas.' },
-  'Ventas': { color: 'badge-naranja', modulos: ['clientes', 'objetivos', 'crm', 'reclamos'], desc: 'Clientes, objetivos, CRM y reclamos.' },
-  'Logística': { color: 'badge-gris', modulos: ['legajos'], desc: 'Consulta de legajos.' },
+  'Administrador total': { color: 'badge-rojo', modulos: ['candidatos', 'pedidos', 'psicotecnico', 'altas', 'legajos', 'reasignaciones', 'legal', 'enfermos', 'capacitaciones', 'vacaciones', 'competencia', 'clientes', 'objetivos', 'precios', 'paritarias', 'crm', 'reclamos', 'cobros', 'liquidacion', 'feriados', 'liq_admin', 'liquidaciones', 'retenes', 'mantenimiento', 'configuracion', 'smvm', 'monotributos', 'uniformes', 'retenciones', 'sanciones', 'adelantos', 'pedidos_adelantos', 'gestion_adelantos', 'sugerencias'], desc: 'Acceso completo.' },
+  'RRHH': { color: 'badge-azul', modulos: ['candidatos', 'psicotecnico', 'altas', 'legajos', 'reasignaciones', 'capacitaciones', 'vacaciones', 'competencia', 'reclamos', 'paritarias', 'liquidacion', 'liq_admin', 'liquidaciones', 'retenes', 'monotributos', 'uniformes', 'retenciones', 'sanciones', 'adelantos', 'pedidos_adelantos', 'gestion_adelantos', 'sugerencias'], desc: 'RRHH, legajos, capacitaciones.' },
+  'Operaciones': { color: 'badge-verde', modulos: ['pedidos', 'legajos', 'reasignaciones', 'capacitaciones', 'vacaciones', 'competencia', 'clientes', 'objetivos', 'precios', 'paritarias', 'crm', 'reclamos', 'cobros', 'liquidacion', 'retenes', 'mantenimiento', 'feriados', 'uniformes', 'sanciones', 'pedidos_adelantos', 'sugerencias'], desc: 'Operaciones y ventas.' },
+  'Finanzas': { color: 'badge-acento', modulos: ['legajos', 'smvm', 'cobros', 'paritarias', 'liquidacion', 'liq_admin', 'liquidaciones', 'retenes', 'mantenimiento', 'monotributos', 'retenciones', 'adelantos', 'gestion_adelantos', 'sugerencias'], desc: 'Finanzas y liquidación.' },
+  'Supervisor': { color: 'badge-gris', modulos: ['pedidos', 'legajos', 'competencia', 'liquidacion', 'liquidaciones', 'adelantos', 'pedidos_adelantos', 'sugerencias'], desc: 'Pedidos, legajos, competencia y liquidación de horas.' },
+  'Ventas': { color: 'badge-naranja', modulos: ['clientes', 'objetivos', 'crm', 'reclamos', 'sugerencias'], desc: 'Clientes, objetivos, CRM y reclamos.' },
+  'Logística': { color: 'badge-gris', modulos: ['legajos', 'sugerencias'], desc: 'Consulta de legajos.' },
   'Asociado': { color: 'badge-verde', modulos: ['mis_adelantos'], desc: 'Portal del asociado — pedidos de adelanto y préstamo.' },
 };
 
@@ -125,6 +126,9 @@ export const MENU = [
   { section: 'Finanzas', items: [
     { key: 'liquidaciones', icon: '💰', label: 'Liquidaciones', perfiles: ['Administrador total', 'RRHH', 'Finanzas', 'Supervisor'] },
     { key: 'gestion_adelantos', icon: '🏦', label: 'Gestión de adelantos', perfiles: ['Administrador total', 'Finanzas', 'RRHH'] },
+  ]},
+  { section: '', items: [
+    { key: 'sugerencias', icon: '💬', label: 'Reportes y sugerencias', perfiles: ['Administrador total', 'RRHH', 'Operaciones', 'Finanzas', 'Supervisor', 'Ventas', 'Logística'] },
   ]},
   { section: 'Próximamente', items: [
     { key: 'stock', icon: '📦', label: 'Stock', disabled: true, perfiles: [] },

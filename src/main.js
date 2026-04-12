@@ -97,6 +97,7 @@ async function loadLegacy() {
       liquidaciones: { title: 'Liquidaciones', btn: '', fn: null, render: () => { if (window.renderLiquidaciones) window.renderLiquidaciones(); } },
       pedidos_adelantos: { title: 'Pedidos de adelantos', btn: '', fn: null, render: () => { if (window.renderPedidosAdelantos) window.renderPedidosAdelantos(); } },
       gestion_adelantos: { title: 'Gestión de adelantos', btn: '', fn: null, render: () => { if (window.renderGestionAdelantos) window.renderGestionAdelantos(); } },
+      sugerencias: { title: 'Reportes y sugerencias', btn: '+ Nueva sugerencia', fn: () => window.abrirModalSugerencia(), render: () => { if (window.renderSugerencias) window.renderSugerencias(); } },
     });
 
     console.log('Legacy cargado correctamente');

@@ -25,6 +25,7 @@ export const _SM = {
   monotributos: 'monotributos',
   paritarias: 'paritarias',
   retenes: 'retenes',
+  sugerencias: 'sugerencias',
 };
 
 // camelCase → snake_case para guardar en Supabase
