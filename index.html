@@ -117,40 +117,141 @@
 
 <!-- CANDIDATOS -->
 <div class="screen" id="screen-candidatos">
-  <div class="stats-grid">
-    <div class="stat-card azul"><div class="stat-label">Sin citar</div><div class="stat-valor" id="st-c-sincitar">0</div></div>
-    <div class="stat-card acento"><div class="stat-label">Citados</div><div class="stat-valor" id="st-c-citados">0</div></div>
-    <div class="stat-card verde"><div class="stat-label">Entrevistados</div><div class="stat-valor" id="st-c-entrevistados">0</div></div>
-    <div class="stat-card naranja"><div class="stat-label">Aprobados</div><div class="stat-valor" id="st-c-aprobados">0</div></div>
-  </div>
-  <div style="margin:0 20px;">
+  <!-- Tabs principales -->
+  <div style="margin:0 20px 16px;">
     <div style="display:flex;gap:0;border-bottom:2px solid #e2e8f0;">
-      <button onclick="tabCandidatos('activos')" id="tab-cand-activos" style="padding:10px 20px;border:none;background:#1e3a8a;color:white;font-size:13px;font-weight:600;cursor:pointer;border-radius:8px 8px 0 0;">👥 Activos</button>
-      <button onclick="tabCandidatos('historico')" id="tab-cand-historico" style="padding:10px 20px;border:none;background:#f1f5f9;color:#64748b;font-size:13px;font-weight:600;cursor:pointer;border-radius:8px 8px 0 0;">📁 Histórico</button>
+      <button onclick="tabCandPrincipal('base')" id="tab-cand-base" style="padding:10px 20px;border:none;background:#1e3a8a;color:white;font-size:13px;font-weight:600;cursor:pointer;border-radius:8px 8px 0 0;">👥 Base de candidatos</button>
+      <button onclick="tabCandPrincipal('calendario')" id="tab-cand-calendario" style="padding:10px 20px;border:none;background:#f1f5f9;color:#64748b;font-size:13px;font-weight:600;cursor:pointer;border-radius:8px 8px 0 0;">📅 Calendario de entrevistas</button>
+      <button onclick="tabCandPrincipal('link')" id="tab-cand-link" style="padding:10px 20px;border:none;background:#f1f5f9;color:#64748b;font-size:13px;font-weight:600;cursor:pointer;border-radius:8px 8px 0 0;">🔗 Link público</button>
     </div>
   </div>
-  <div style="margin:12px 20px;display:flex;gap:8px;flex-wrap:wrap;">
-    <input type="text" id="cand-buscar" placeholder="🔍 Buscar nombre o DNI..." oninput="renderCandidatos()" style="padding:7px 12px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;width:220px;">
-    <select id="cand-filtro-zona" onchange="renderCandidatos()" style="padding:7px 10px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;"><option value="">Todas las zonas</option></select>
-    <select id="cand-filtro-estado" onchange="renderCandidatos()" style="padding:7px 10px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;"><option value="">Todos los estados</option><option>Sin citar</option><option>Citado</option><option>Entrevistado</option><option>Aprobado</option></select>
+
+  <!-- TAB: Base de candidatos -->
+  <div id="cand-section-base">
+    <div class="stats-grid">
+      <div class="stat-card azul"><div class="stat-label">Sin citar</div><div class="stat-valor" id="st-c-sincitar">0</div></div>
+      <div class="stat-card acento"><div class="stat-label">Citados</div><div class="stat-valor" id="st-c-citados">0</div></div>
+      <div class="stat-card verde"><div class="stat-label">Entrevistados</div><div class="stat-valor" id="st-c-entrevistados">0</div></div>
+      <div class="stat-card naranja"><div class="stat-label">Aprobados</div><div class="stat-valor" id="st-c-aprobados">0</div></div>
+    </div>
+    <div style="margin:0 20px;">
+      <div style="display:flex;gap:0;border-bottom:2px solid #e2e8f0;">
+        <button onclick="tabCandidatos('activos')" id="tab-cand-activos" style="padding:10px 20px;border:none;background:#1e3a8a;color:white;font-size:13px;font-weight:600;cursor:pointer;border-radius:8px 8px 0 0;">👥 Activos</button>
+        <button onclick="tabCandidatos('historico')" id="tab-cand-historico" style="padding:10px 20px;border:none;background:#f1f5f9;color:#64748b;font-size:13px;font-weight:600;cursor:pointer;border-radius:8px 8px 0 0;">📁 Histórico</button>
+      </div>
+    </div>
+    <div style="margin:12px 20px;display:flex;gap:8px;flex-wrap:wrap;">
+      <input type="text" id="cand-buscar" placeholder="🔍 Buscar nombre o DNI..." oninput="filtrarCandidatos()" style="padding:7px 12px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;width:220px;">
+      <select id="cand-filtro-zona" onchange="filtrarCandidatos()" style="padding:7px 10px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;"><option value="">Todas las zonas</option></select>
+      <select id="cand-filtro-estado" onchange="filtrarCandidatos()" style="padding:7px 10px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;"><option value="">Todos los estados</option><option>Sin citar</option><option>Citado</option><option>Entrevistado</option><option>Aprobado</option></select>
+    </div>
+    <div style="margin:0 20px;overflow-x:auto;">
+      <table style="width:100%;border-collapse:collapse;font-size:13px;">
+        <thead><tr style="background:#1e3a8a;color:white;">
+          <th style="padding:10px 12px;text-align:left;">Nombre</th>
+          <th style="padding:10px 8px;text-align:left;">DNI</th>
+          <th style="padding:10px 8px;text-align:left;">Teléfono</th>
+          <th style="padding:10px 8px;text-align:left;">Zona</th>
+          <th style="padding:10px 8px;text-align:left;">Medio</th>
+          <th style="padding:10px 8px;text-align:center;">Fecha citación</th>
+          <th style="padding:10px 8px;text-align:center;">Hora</th>
+          <th style="padding:10px 8px;text-align:center;">Asistió</th>
+          <th style="padding:10px 8px;text-align:center;">Estado</th>
+          <th style="padding:10px 8px;text-align:left;">Motivo rechazo</th>
+          <th style="padding:10px 8px;text-align:center;">Acciones</th>
+        </tr></thead>
+        <tbody id="tbody-candidatos"></tbody>
+      </table>
+    </div>
   </div>
-  <div style="margin:0 20px;overflow-x:auto;">
-    <table style="width:100%;border-collapse:collapse;font-size:13px;">
-      <thead><tr style="background:#1e3a8a;color:white;">
-        <th style="padding:10px 12px;text-align:left;">Nombre</th>
-        <th style="padding:10px 8px;text-align:left;">DNI</th>
-        <th style="padding:10px 8px;text-align:left;">Teléfono</th>
-        <th style="padding:10px 8px;text-align:left;">Zona</th>
-        <th style="padding:10px 8px;text-align:left;">Medio</th>
-        <th style="padding:10px 8px;text-align:center;">Fecha citación</th>
-        <th style="padding:10px 8px;text-align:center;">Hora</th>
-        <th style="padding:10px 8px;text-align:center;">Asistió</th>
-        <th style="padding:10px 8px;text-align:center;">Estado</th>
-        <th style="padding:10px 8px;text-align:left;">Motivo rechazo</th>
-        <th style="padding:10px 8px;text-align:center;">Acciones</th>
-      </tr></thead>
-      <tbody id="tbody-candidatos"></tbody>
-    </table>
+
+  <!-- TAB: Calendario de entrevistas -->
+  <div id="cand-section-calendario" style="display:none;">
+    <div style="margin:0 20px;display:flex;gap:20px;align-items:flex-start;flex-wrap:wrap;">
+
+      <!-- Panel izquierdo: configuración + resumen -->
+      <div style="width:240px;flex-shrink:0;display:flex;flex-direction:column;gap:16px;">
+
+        <!-- Config agente IA -->
+        <div style="background:white;border:1px solid var(--borde);border-radius:var(--radio);padding:16px;">
+          <div style="font-size:13px;font-weight:600;color:var(--azul-oscuro);margin-bottom:12px;">Configuración del agente IA</div>
+
+          <div style="margin-bottom:10px;">
+            <label style="font-size:11px;color:var(--texto-suave);font-weight:600;display:block;margin-bottom:6px;">Días habilitados</label>
+            <div id="dias-habilitados" style="display:flex;flex-wrap:wrap;gap:4px;">
+              <label style="font-size:11px;display:flex;align-items:center;gap:3px;cursor:pointer;"><input type="checkbox" value="1" checked onchange="actualizarConfigAgente()">Lun</label>
+              <label style="font-size:11px;display:flex;align-items:center;gap:3px;cursor:pointer;"><input type="checkbox" value="2" checked onchange="actualizarConfigAgente()">Mar</label>
+              <label style="font-size:11px;display:flex;align-items:center;gap:3px;cursor:pointer;"><input type="checkbox" value="3" checked onchange="actualizarConfigAgente()">Mié</label>
+              <label style="font-size:11px;display:flex;align-items:center;gap:3px;cursor:pointer;"><input type="checkbox" value="4" checked onchange="actualizarConfigAgente()">Jue</label>
+              <label style="font-size:11px;display:flex;align-items:center;gap:3px;cursor:pointer;"><input type="checkbox" value="5" checked onchange="actualizarConfigAgente()">Vie</label>
+              <label style="font-size:11px;display:flex;align-items:center;gap:3px;cursor:pointer;"><input type="checkbox" value="6" onchange="actualizarConfigAgente()">Sáb</label>
+              <label style="font-size:11px;display:flex;align-items:center;gap:3px;cursor:pointer;"><input type="checkbox" value="0" onchange="actualizarConfigAgente()">Dom</label>
+            </div>
+          </div>
+
+          <div style="display:flex;gap:8px;margin-bottom:10px;">
+            <div style="flex:1;"><label style="font-size:11px;color:var(--texto-suave);display:block;margin-bottom:4px;">Desde</label><input type="time" id="hora-desde" value="09:00" onchange="actualizarConfigAgente()" style="width:100%;padding:6px;border:1px solid #cbd5e1;border-radius:6px;font-size:12px;"></div>
+            <div style="flex:1;"><label style="font-size:11px;color:var(--texto-suave);display:block;margin-bottom:4px;">Hasta</label><input type="time" id="hora-hasta" value="17:00" onchange="actualizarConfigAgente()" style="width:100%;padding:6px;border:1px solid #cbd5e1;border-radius:6px;font-size:12px;"></div>
+          </div>
+
+          <div style="display:flex;gap:8px;margin-bottom:10px;">
+            <div style="flex:1;"><label style="font-size:11px;color:var(--texto-suave);display:block;margin-bottom:4px;">Duración</label>
+              <select id="duracion-turno" onchange="actualizarConfigAgente()" style="width:100%;padding:6px;border:1px solid #cbd5e1;border-radius:6px;font-size:12px;">
+                <option value="15">15 min</option><option value="20" selected>20 min</option><option value="30">30 min</option><option value="40">40 min</option><option value="60">60 min</option>
+              </select></div>
+            <div style="flex:1;"><label style="font-size:11px;color:var(--texto-suave);display:block;margin-bottom:4px;">Máx por franja</label>
+              <select id="max-por-turno" onchange="actualizarConfigAgente()" style="width:100%;padding:6px;border:1px solid #cbd5e1;border-radius:6px;font-size:12px;">
+                <option value="1">1</option><option value="2" selected>2</option><option value="3">3</option><option value="4">4</option><option value="5">5</option>
+              </select></div>
+          </div>
+
+          <div>
+            <label style="font-size:11px;color:var(--texto-suave);display:block;margin-bottom:4px;">Responsable</label>
+            <select id="cal-responsable" style="width:100%;padding:6px;border:1px solid #cbd5e1;border-radius:6px;font-size:12px;">
+              <option value="">— Todos —</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Resumen semanal -->
+        <div style="background:white;border:1px solid var(--borde);border-radius:var(--radio);padding:16px;">
+          <div style="font-size:13px;font-weight:600;color:var(--azul-oscuro);margin-bottom:12px;">Resumen semanal</div>
+          <div id="resumen-semanal"></div>
+        </div>
+
+        <!-- Leyenda -->
+        <div style="font-size:11px;color:var(--texto-suave);display:flex;flex-direction:column;gap:6px;padding:0 4px;">
+          <div><span style="display:inline-block;width:10px;height:10px;background:var(--verde-claro);border:1px solid var(--verde);border-radius:2px;margin-right:4px;vertical-align:middle;"></span> Confirmado</div>
+          <div><span style="display:inline-block;width:10px;height:10px;background:var(--acento-suave);border:1px solid var(--acento);border-radius:2px;margin-right:4px;vertical-align:middle;"></span> Pendiente</div>
+          <div><span style="display:inline-block;width:10px;height:10px;background:var(--gris-suave);border:1px solid var(--borde);border-radius:2px;margin-right:4px;vertical-align:middle;"></span> Libre</div>
+        </div>
+      </div>
+
+      <!-- Panel derecho: navegación + grilla -->
+      <div style="flex:1;min-width:0;">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:16px;">
+          <button onclick="cambiarSemana(-1)" style="padding:6px 10px;border:1px solid #cbd5e1;background:white;border-radius:6px;cursor:pointer;font-size:14px;">←</button>
+          <span id="semana-label" style="font-size:14px;font-weight:600;min-width:200px;text-align:center;"></span>
+          <button onclick="cambiarSemana(1)" style="padding:6px 10px;border:1px solid #cbd5e1;background:white;border-radius:6px;cursor:pointer;font-size:14px;">→</button>
+          <button onclick="irHoy()" style="padding:6px 12px;border:1px solid var(--azul);background:var(--azul-claro);color:var(--azul);border-radius:6px;cursor:pointer;font-size:12px;font-weight:500;">Hoy</button>
+        </div>
+        <div id="calendario-entrevistas" style="overflow-x:auto;"></div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- TAB: Link público -->
+  <div id="cand-section-link" style="display:none;">
+    <div style="margin:0 20px;">
+      <div class="card" style="max-width:600px;">
+        <div class="card-header"><h3>🔗 Link público de postulación</h3></div>
+        <div style="padding:20px;">
+          <p style="font-size:13px;color:var(--texto-suave);margin-bottom:16px;">Este link permite a candidatos externos registrarse directamente en el sistema. Próximamente disponible.</p>
+          <div style="padding:14px;background:var(--gris-suave);border:1px dashed var(--borde);border-radius:var(--radio);text-align:center;color:var(--texto-muy-suave);font-size:13px;">Funcionalidad en desarrollo</div>
+        </div>
+      </div>
+    </div>
   </div>
 </div>
 <div class="screen" id="screen-pedidos">
@@ -3620,41 +3721,54 @@
 
 <!-- MODAL CANDIDATO -->
 <div class="modal-overlay" id="modal-candidato">
-  <div class="modal">
+  <div class="modal" style="max-width:680px;">
     <div class="modal-header"><h3 id="modal-cand-titulo">Nuevo candidato</h3><button class="btn-close" onclick="cerrarModal('modal-candidato')">×</button></div>
     <div class="modal-body">
       <div class="form-grid gap-12">
         <div class="form-grid form-grid-2">
           <div class="form-group"><label>Apellido y nombre *</label><input type="text" id="c-nombre"></div>
-          <div class="form-group"><label>DNI</label><input type="text" id="c-dni"></div>
+          <div class="form-group"><label>DNI *</label><input type="text" id="c-dni"></div>
+        </div>
+        <div class="form-grid form-grid-3">
+          <div class="form-group"><label>CUIT</label><input type="text" id="c-cuit" placeholder="XX-XXXXXXXX-X"></div>
+          <div class="form-group"><label>Fecha de nacimiento</label><input type="date" id="c-fecnac"></div>
+          <div class="form-group"><label>Estado civil</label>
+          <select id="c-estado-civil" style="width:100%;padding:8px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;">
+            <option value="">—</option><option>Soltero/a</option><option>Casado/a</option><option>Divorciado/a</option><option>Viudo/a</option><option>Conviviente</option>
+          </select></div>
         </div>
         <div class="form-grid form-grid-3">
           <div class="form-group"><label>Teléfono *</label><input type="text" id="c-tel"></div>
-          <div class="form-group"><label>Género</label><select id="c-genero"><option>Femenino</option><option>Masculino</option><option>Otro</option></select></div>
-          <div class="form-group"><label>Medio</label><select id="c-medio"></select></div>
+          <div class="form-group"><label>Email</label><input type="email" id="c-email"></div>
+          <div class="form-group"><label>Medio de contacto</label><select id="c-medio"></select></div>
         </div>
         <div class="form-grid form-grid-3">
+          <div class="form-group"><label>Calle y número *</label><input type="text" id="c-calle"></div>
+          <div class="form-group"><label>Piso / Depto</label><input type="text" id="c-piso" placeholder="Ej: 3° B"></div>
           <div class="form-group"><label>Provincia *</label>
           <select id="c-zona" onchange="onChangeZonaCand()" style="width:100%;padding:8px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;">
             <option value="">Seleccionar...</option>
             <option value="CABA">CABA</option>
             <option value="Buenos Aires">Provincia de Buenos Aires</option>
           </select></div>
+        </div>
+        <div class="form-grid form-grid-3">
           <div class="form-group"><label>Localidad</label>
           <select id="c-localidad" style="width:100%;padding:8px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;">
             <option value="">Seleccionar zona primero</option>
           </select></div>
           <div class="form-group"><label>Estado</label><select id="c-estado-i" onchange="onChangeEstadoCand()"><option>Sin citar</option><option>Citado</option></select></div>
+          <div class="form-group"><label>Género</label><select id="c-genero"><option>Femenino</option><option>Masculino</option><option>Otro</option></select></div>
         </div>
         <div id="cita-campos-row" style="display:none;flex-direction:column;gap:8px;background:#f0f9ff;border:1px solid #bae6fd;border-radius:8px;padding:12px;margin-bottom:8px;">
           <div style="font-size:12px;color:#0369a1;font-weight:600;margin-bottom:4px;">📅 Datos de la cita</div>
           <div class="form-grid form-grid-3">
-          <div class="form-group"><label>Fecha de cita *</label><input type="date" id="c-fecha" onfocus="this.min=hoyStr()"></div>
-          <div class="form-group"><label>Hora *</label><input type="time" id="c-hora"></div>
-          <div class="form-group"><label>Contactado por</label><select id="c-rrhh"></select></div>
+            <div class="form-group"><label>Fecha de cita *</label><input type="date" id="c-fecha" onfocus="this.min=hoyStr()"></div>
+            <div class="form-group"><label>Hora *</label><input type="time" id="c-hora"></div>
+            <div class="form-group"><label>Contactado por</label><select id="c-rrhh"></select></div>
+          </div>
         </div>
         <div class="form-group"><label>Observaciones</label><textarea id="c-obs"></textarea></div>
-      </div>
       </div>
     </div>
     <div class="modal-footer">

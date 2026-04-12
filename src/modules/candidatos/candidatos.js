@@ -221,23 +221,38 @@ export function onChangeEstadoCand() {
 // ========== CRUD ==========
 
 export function abrirNuevoCandidato() {
-  ['c-nombre', 'c-dni', 'c-tel', 'c-obs', 'c-rrhh'].forEach(id => {
+  ['c-nombre', 'c-dni', 'c-cuit', 'c-fecnac', 'c-tel', 'c-email', 'c-calle', 'c-piso',
+   'c-obs', 'c-rrhh', 'c-fecha', 'c-hora'].forEach(id => {
     const el = $(id); if (el) el.value = '';
   });
-  const zEl = $('c-zona'); if (zEl) { zEl.value = ''; onChangeZonaCand(); }
-  const mEl = $('c-medio'); if (mEl) mEl.value = '';
+  ['c-zona', 'c-medio', 'c-estado-civil', 'c-genero', 'c-estado-i'].forEach(id => {
+    const el = $(id); if (el) el.selectedIndex = 0;
+  });
+  onChangeZonaCand();
   const tit = $('modal-cand-titulo'); if (tit) tit.textContent = 'Nuevo candidato';
-  const modal = $('modal-candidato'); if (modal) delete modal.dataset.editIdx;
+  const modal = $('modal-candidato'); if (modal) delete modal.dataset.editId;
   onChangeEstadoCand();
   abrirModal('modal-candidato');
 }
 
 export function guardarCandidato() {
-  if (!validarCampos([{ id: 'c-nombre', label: 'Nombre' }, { id: 'c-tel', label: 'Teléfono' }, { id: 'c-zona', label: 'Zona' }], toast)) return;
+  if (!validarCampos([
+    { id: 'c-nombre', label: 'Nombre' },
+    { id: 'c-dni', label: 'DNI' },
+    { id: 'c-tel', label: 'Teléfono' },
+    { id: 'c-calle', label: 'Calle y número' },
+    { id: 'c-zona', label: 'Provincia' },
+  ], toast)) return;
 
   const nombre = toTitleCase($('c-nombre').value);
   const dni = cleanText($('c-dni').value);
+  const cuit = cleanText(($('c-cuit') || {}).value || '');
+  const fecnac = ($('c-fecnac') || {}).value || '';
+  const estadoCivil = ($('c-estado-civil') || {}).value || '';
   const tel = cleanText($('c-tel').value);
+  const email = cleanText(($('c-email') || {}).value || '');
+  const calle = cleanText(($('c-calle') || {}).value || '');
+  const piso = cleanText(($('c-piso') || {}).value || '');
   const zona = cleanText($('c-zona').value);
   const locEl = $('c-localidad');
   const localidad = zona === 'CABA' ? 'CABA' : (locEl ? cleanText(locEl.value) : '');
@@ -263,7 +278,8 @@ export function guardarCandidato() {
     const c = getCandById(editId);
     if (!c) { toast('⚠️ Candidato no encontrado'); return; }
     Object.assign(c, {
-      nombre, dni, tel, zona, localidad, medio, rrhh, obs,
+      nombre, dni, cuit, fecnac, estadoCivil, tel, email, calle, piso,
+      zona, localidad, medio, rrhh, obs,
       estado: estado || c.estado,
       fecha: fecha ? new Date(fecha).toLocaleDateString('es-AR') : c.fecha,
       hora: hora || c.hora,
@@ -273,7 +289,8 @@ export function guardarCandidato() {
     toast('✓ Candidato actualizado');
   } else {
     const nuevo = {
-      id: Date.now(), nombre, dni, tel, zona, localidad, medio, rrhh, obs,
+      id: Date.now(), nombre, dni, cuit, fecnac, estadoCivil, tel, email,
+      calle, piso, zona, localidad, medio, rrhh, obs,
       estado: estado || 'Sin citar',
       asistio: '—', fecha: '', hora: '',
     };
@@ -290,10 +307,17 @@ function editarCandidato(id) {
   const set = (elId, v) => { const el = $(elId); if (el) el.value = v || ''; };
   set('c-nombre', c.nombre);
   set('c-dni', c.dni);
+  set('c-cuit', c.cuit);
+  set('c-fecnac', c.fecnac);
   set('c-tel', c.tel);
+  set('c-email', c.email);
+  set('c-calle', c.calle);
+  set('c-piso', c.piso);
   set('c-rrhh', c.rrhh);
   set('c-obs', c.obs);
   set('c-medio', c.medio);
+  const ecEl = $('c-estado-civil');
+  if (ecEl) ecEl.value = c.estadoCivil || '';
   set('c-estado-i', c.estado);
   onChangeEstadoCand();
   if (c.fecha && c.fecha.includes('/')) {

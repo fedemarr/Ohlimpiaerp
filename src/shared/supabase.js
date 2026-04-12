@@ -12,6 +12,7 @@ export const _SM = {
   candidatos: 'candidatos',
   psicos: 'psicos',
   catAltPendientes: 'cat_alt_pendientes',
+  turnos: 'turnos',
   clientes: 'clientes',
   sanciones: 'sanciones',
   casosLegales: 'casos_legales',
@@ -42,6 +43,7 @@ export function _toSnake(obj) {
     libretaSanitaria: 'libreta_sanitaria', requiereAntecedentes: 'requiere_antecedentes',
     requiereLibreta: 'requiere_libreta', fechaAprobacion: 'fecha_aprobacion',
     motivoRechazo: 'motivo_rechazo', fechaRechazo: 'fecha_rechazo',
+    estadoCivil: 'estado_civil',
   };
   const r = {};
   for (const [k, v] of Object.entries(obj)) {

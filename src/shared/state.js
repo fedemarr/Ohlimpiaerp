@@ -21,6 +21,7 @@ export const DB = {
     { periodo: '2025-01', valor: 294000, resolucion: 'Res. 1/2025', vigente: true },
   ],
   candidatos: [],
+  turnos: [],
   pedidos: [
     { id: 1, fecha: '09/10/2023', supervisor: 'Claudia Cazenave', servicio: 'HOSPITAL.CAMPANA', zona: 'Buenos Aires', puesto: 'Operario', horario: '22hs a 06hs nocturno 6×1', urgencia: 'Alto', estado: 'Cubierto', candidato: 'Lima Romina', obs: '' },
     { id: 2, fecha: '27/11/2023', supervisor: 'Alvaro Uballes', servicio: 'HIT.LIBERTADOR.CEL', zona: 'CABA', puesto: 'Retén', horario: 'Rotativos full time 6×1', urgencia: 'Medio', estado: 'Pendiente', candidato: '', obs: '' },
