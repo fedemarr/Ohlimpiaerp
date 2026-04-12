@@ -10,6 +10,8 @@ export const SUPA = createClient(
 export const _SM = {
   legajos: 'legajos',
   candidatos: 'candidatos',
+  psicos: 'psicos',
+  catAltPendientes: 'cat_alt_pendientes',
   clientes: 'clientes',
   sanciones: 'sanciones',
   casosLegales: 'casos_legales',
@@ -36,6 +38,10 @@ export function _toSnake(obj) {
     estadoPago: 'estado_pago', servicioOrigen: 'servicio_origen',
     servicioDestino: 'servicio_destino', obraSocial: 'obra_social',
     fechaInicio: 'fecha_inicio', ultimoContacto: 'ultimo_contacto',
+    candidatoId: 'candidato_id', psicoId: 'psico_id',
+    libretaSanitaria: 'libreta_sanitaria', requiereAntecedentes: 'requiere_antecedentes',
+    requiereLibreta: 'requiere_libreta', fechaAprobacion: 'fecha_aprobacion',
+    motivoRechazo: 'motivo_rechazo', fechaRechazo: 'fecha_rechazo',
   };
   const r = {};
   for (const [k, v] of Object.entries(obj)) {
@@ -46,6 +52,8 @@ export function _toSnake(obj) {
   if ('homologada' in r) r.homologada = r.homologada === true || r.homologada === 'true';
   if ('jubilado' in r) r.jubilado = r.jubilado === true || r.jubilado === 'true';
   if ('activo' in r) r.activo = r.activo === true || r.activo === 'true';
+  if ('requiere_antecedentes' in r) r.requiere_antecedentes = r.requiere_antecedentes === true || r.requiere_antecedentes === 'true';
+  if ('requiere_libreta' in r) r.requiere_libreta = r.requiere_libreta === true || r.requiere_libreta === 'true';
   return r;
 }
 
@@ -61,6 +69,10 @@ export function _toCamel(obj) {
     estado_pago: 'estadoPago', servicio_origen: 'servicioOrigen',
     servicio_destino: 'servicioDestino', obra_social: 'obraSocial',
     fecha_inicio: 'fechaInicio', ultimo_contacto: 'ultimoContacto',
+    candidato_id: 'candidatoId', psico_id: 'psicoId',
+    libreta_sanitaria: 'libretaSanitaria', requiere_antecedentes: 'requiereAntecedentes',
+    requiere_libreta: 'requiereLibreta', fecha_aprobacion: 'fechaAprobacion',
+    motivo_rechazo: 'motivoRechazo', fecha_rechazo: 'fechaRechazo',
     id_local: 'id_local', created_at: 'created_at', updated_at: 'updated_at',
   };
   const r = {};
