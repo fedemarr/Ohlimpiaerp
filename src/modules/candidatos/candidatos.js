@@ -288,14 +288,31 @@ export function guardarCandidato() {
     delete modal.dataset.editId;
     toast('✓ Candidato actualizado');
   } else {
+    const fechaDisplay = fecha ? new Date(fecha).toLocaleDateString('es-AR') : '';
     const nuevo = {
       id: Date.now(), nombre, dni, cuit, fecnac, estadoCivil, tel, email,
       calle, piso, zona, localidad, medio, rrhh, obs,
       estado: estado || 'Sin citar',
-      asistio: '—', fecha: '', hora: '',
+      asistio: '—', fecha: fechaDisplay, hora: hora || '',
     };
     DB.candidatos.push(nuevo);
     supaSync('candidatos', nuevo);
+
+    // Crear turno si tiene fecha y hora
+    if (fecha && hora) {
+      const turno = {
+        id: Date.now() + 1,
+        candidatoId: nuevo.id,
+        nombre: nombre,
+        fecha: fecha,
+        hora: hora,
+        estado: 'Confirmado',
+        responsable: rrhh || '',
+      };
+      if (!DB.turnos) DB.turnos = [];
+      DB.turnos.push(turno);
+      supaSync('turnos', turno);
+    }
     toast('✓ Candidato guardado');
   }
   cerrarModal('modal-candidato');
@@ -366,6 +383,21 @@ export function guardarCita() {
   c.hora = hora;
   c.estado = 'Citado';
   supaSync('candidatos', c);
+
+  // Crear turno en el calendario
+  const turno = {
+    id: Date.now(),
+    candidatoId: c.id,
+    nombre: c.nombre,
+    fecha: fecha,
+    hora: hora,
+    estado: 'Confirmado',
+    responsable: c.rrhh || '',
+  };
+  if (!DB.turnos) DB.turnos = [];
+  DB.turnos.push(turno);
+  supaSync('turnos', turno);
+
   cerrarModal('modal-citar-cand');
   renderCandidatos();
   toast('📅 Cita registrada para ' + c.nombre);

@@ -43,7 +43,7 @@ export function _toSnake(obj) {
     libretaSanitaria: 'libreta_sanitaria', requiereAntecedentes: 'requiere_antecedentes',
     requiereLibreta: 'requiere_libreta', fechaAprobacion: 'fecha_aprobacion',
     motivoRechazo: 'motivo_rechazo', fechaRechazo: 'fecha_rechazo',
-    estadoCivil: 'estado_civil',
+    obsEntrevista: 'obs_entrevista', estadoCivil: 'estado_civil',
   };
   const r = {};
   for (const [k, v] of Object.entries(obj)) {
@@ -75,6 +75,7 @@ export function _toCamel(obj) {
     libreta_sanitaria: 'libretaSanitaria', requiere_antecedentes: 'requiereAntecedentes',
     requiere_libreta: 'requiereLibreta', fecha_aprobacion: 'fechaAprobacion',
     motivo_rechazo: 'motivoRechazo', fecha_rechazo: 'fechaRechazo',
+    obs_entrevista: 'obsEntrevista',
     id_local: 'id_local', created_at: 'created_at', updated_at: 'updated_at',
   };
   const r = {};

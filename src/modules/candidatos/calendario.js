@@ -92,6 +92,15 @@ export function renderCalendario() {
   const hoy = new Date(); hoy.setHours(0, 0, 0, 0);
   const diasNombres = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
   const allTurnos = getTurnos();
+  const dur = configAgente.duracion;
+
+  // Calcula en qué franja cae una hora arbitraria
+  function horaAFranja(h) {
+    var p = h.split(':').map(Number);
+    var m = p[0] * 60 + (p[1] || 0);
+    var f = Math.floor(m / dur) * dur;
+    return String(Math.floor(f / 60)).padStart(2, '0') + ':' + String(f % 60).padStart(2, '0');
+  }
 
   // Header
   let html = '<div class="cal-header" style="grid-template-columns:60px repeat(7,1fr);">'
@@ -115,7 +124,7 @@ export function renderCalendario() {
       const esHoy = d.getTime() === hoy.getTime();
       const fechaStr = d.toISOString().split('T')[0];
       const turnos = allTurnos.filter(function (t) {
-        return t.fecha === fechaStr && t.hora === hora && t.estado !== 'Cancelado';
+        return t.fecha === fechaStr && horaAFranja(t.hora) === hora && t.estado !== 'Cancelado';
       });
       const lleno = turnos.length >= configAgente.maxPorTurno;
 
