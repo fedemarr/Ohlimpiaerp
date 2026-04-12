@@ -218,11 +218,28 @@ export function abrirModalAlta(psicoIdx, altaId) {
     $('alta-idx').value = psicoIdx >= 0 ? psicoIdx : '';
     if (altaId) $('modal-alta-nuevo').dataset.altaId = altaId;
     $('alta-nombre-display').textContent = src.nombre;
-    const nomEl = $('alt-nombre'); if (nomEl) nomEl.value = src.nombre || '';
-    const dniEl = $('alt-dni'); if (dniEl) dniEl.value = src.dni || '';
-    const telEl = $('alt-tel'); if (telEl) telEl.value = src.tel || '';
-    if (src.zona) {
-      const zEl = $('alt-zona'); if (zEl) { zEl.value = src.zona; onChangeZonaAlta(); }
+
+    // Rastrear candidato original para recuperar datos extra
+    const cand = src.candidatoId
+      ? (DB.candidatos || []).find(c => c.id == src.candidatoId)
+      : null;
+
+    // Tab 0 — Identificación
+    const set = (id, v) => { const el = $(id); if (el && v) el.value = v; };
+    set('alt-nombre', src.nombre);
+    set('alt-dni', src.dni);
+    set('alt-tel', src.tel || (cand && cand.tel));
+
+    // Tab 1 — Domicilio (zona y localidad del candidato)
+    const zona = src.zona || (cand && cand.zona) || '';
+    if (zona) {
+      const zEl = $('alt-zona');
+      if (zEl) { zEl.value = zona; onChangeZonaAlta(); }
+      const localidad = cand && cand.localidad;
+      if (localidad && localidad !== 'CABA') {
+        const lEl = $('alt-localidad');
+        if (lEl) lEl.value = localidad;
+      }
     }
   } else {
     $('alta-idx').value = '';
@@ -275,14 +292,39 @@ export function toggleReingresante() {
 // ========== CONFIRMAR ALTA ==========
 
 export function confirmarAlta() {
-  // Validar campos obligatorios
-  if (!validarCampos([
-    { id: 'alt-nombre', label: 'Nombre' },
-    { id: 'alt-dni', label: 'DNI' },
-    { id: 'alt-cuit', label: 'CUIT' },
-    { id: 'alt-tel', label: 'Teléfono' },
-    { id: 'alt-fec-ingreso', label: 'Fecha de ingreso' },
-  ], toast)) { tabAlta(0); return; }
+  // Campos obligatorios por tab
+  const tabs = [
+    { tab: 0, campos: [
+      { id: 'alt-nombre', label: 'Nombre' },
+      { id: 'alt-dni', label: 'DNI' },
+      { id: 'alt-cuit', label: 'CUIT' },
+      { id: 'alt-tel', label: 'Teléfono' },
+      { id: 'alt-fec-ingreso', label: 'Fecha de ingreso' },
+    ]},
+    { tab: 1, campos: [
+      { id: 'alt-direccion', label: 'Dirección' },
+      { id: 'alt-zona', label: 'Provincia' },
+    ]},
+    { tab: 2, campos: [
+      { id: 'alt-funcion', label: 'Función' },
+      { id: 'alt-categoria', label: 'Categoría' },
+    ]},
+    { tab: 3, campos: [
+      { id: 'alt-ambo', label: 'Talle de ambo' },
+      { id: 'alt-calzado', label: 'Talle de calzado' },
+    ]},
+    { tab: 4, campos: [
+      { id: 'alt-integracion', label: 'Integración inicial' },
+    ]},
+    { tab: 5, campos: [
+      { id: 'alt-seguro', label: 'Seguro de vida' },
+    ]},
+  ];
+  for (const t of tabs) {
+    tabAlta(t.tab);
+    if (!validarCampos(t.campos, toast)) return;
+  }
+  tabAlta(0);
 
   const nombre = toTitleCase($('alt-nombre').value);
   const dni = cleanText($('alt-dni').value);

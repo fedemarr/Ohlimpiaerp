@@ -33,13 +33,36 @@ export function tabCandidatos(tab) {
 
 // ========== RENDER ==========
 
+function bindTbodyEvents(tbody) {
+  if (!tbody) return;
+  tbody.onclick = function (e) {
+    const btn = e.target.closest('button[data-action]');
+    if (!btn) return;
+    e.stopPropagation();
+    const id = btn.dataset.id;
+    const action = btn.dataset.action;
+    if (action === 'citar') abrirCitarPorId(id);
+    else if (action === 'resultado') abrirResultadoPorId(id);
+    else if (action === 'aprobar') aprobarCandidatoPorId(id);
+    else if (action === 'rechazar') rechazarCandidatoPorId(id);
+    else if (action === 'psico') pasarAPsicoPorId(id);
+    else if (action === 'editar') editarCandidatoPorId(id);
+  };
+  tbody.onchange = function (e) {
+    const sel = e.target.closest('select[data-action="asistencia"]');
+    if (!sel) return;
+    e.stopPropagation();
+    registrarAsistencia(sel.dataset.id, sel.value);
+  };
+}
+
 export function renderCandidatos(lista) {
   const todos = DB.candidatos || [];
 
   // Modo legacy: recibe lista filtrada directamente
   if (lista) {
     const tbody = $('tbody-candidatos');
-    if (tbody) tbody.innerHTML = lista.map(c => renderFilaCand(c, todos.indexOf(c))).join('');
+    if (tbody) { tbody.innerHTML = lista.map(c => renderFilaCand(c)).join(''); bindTbodyEvents(tbody); }
     return;
   }
 
@@ -79,25 +102,27 @@ export function renderCandidatos(lista) {
     tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;padding:30px;color:#94a3b8;">Sin candidatos</td></tr>';
     return;
   }
-  tbody.innerHTML = lista2.map(c => renderFilaCand(c, todos.indexOf(c))).join('');
+  tbody.innerHTML = lista2.map(c => renderFilaCand(c)).join('');
+  bindTbodyEvents(tbody);
 }
 
-function renderFilaCand(c, realIdx) {
+function renderFilaCand(c) {
   const ec = { 'Sin citar': '#64748b', 'Citado': '#2563eb', 'Entrevistado': '#d97706', 'Aprobado': '#16a34a', 'Rechazado': '#dc2626', 'Psicotécnico': '#7c3aed' }[c.estado] || '#64748b';
   const cid = c.id;
   let btns = '';
 
   if (_candTab === 'activos') {
+    const btnStyle = 'font-size:11px;padding:3px 8px;border:none;border-radius:4px;cursor:pointer;margin-right:2px;';
     if (c.estado === 'Sin citar')
-      btns = '<button onclick="abrirCitarPorId(' + cid + ')" style="font-size:11px;padding:3px 8px;background:#2563eb;color:white;border:none;border-radius:4px;cursor:pointer;margin-right:2px;">📅 Citar</button>';
+      btns += '<button data-action="citar" data-id="' + cid + '" style="' + btnStyle + 'background:#2563eb;color:white;">📅 Citar</button>';
     else if (c.estado === 'Citado')
-      btns = '<button onclick="abrirResultadoPorId(' + cid + ')" style="font-size:11px;padding:3px 8px;background:#d97706;color:white;border:none;border-radius:4px;cursor:pointer;margin-right:2px;">📋 Resultado</button>';
-    else if (c.estado === 'Entrevistado')
-      btns = '<button onclick="aprobarCandidatoPorId(' + cid + ')" style="font-size:11px;padding:3px 8px;background:#16a34a;color:white;border:none;border-radius:4px;cursor:pointer;margin-right:2px;">✅ Aprobar</button>'
-           + '<button onclick="rechazarCandidatoPorId(' + cid + ')" style="font-size:11px;padding:3px 8px;background:#dc2626;color:white;border:none;border-radius:4px;cursor:pointer;margin-right:2px;">❌ Rechazar</button>';
-    else if (c.estado === 'Aprobado')
-      btns = '<button onclick="pasarAPsicoPorId(' + cid + ')" style="font-size:11px;padding:3px 8px;background:#7c3aed;color:white;border:none;border-radius:4px;cursor:pointer;margin-right:2px;">🧠 Psico</button>';
-    btns += '<button onclick="editarCandidatoPorId(' + cid + ')" style="font-size:11px;padding:3px 8px;background:#e2e8f0;color:#374151;border:none;border-radius:4px;cursor:pointer;">✏️</button>';
+      btns += '<button data-action="resultado" data-id="' + cid + '" style="' + btnStyle + 'background:#d97706;color:white;">📋 Resultado</button>';
+    else if (c.estado === 'Entrevistado') {
+      btns += '<button data-action="aprobar" data-id="' + cid + '" style="' + btnStyle + 'background:#16a34a;color:white;">✅ Aprobar</button>';
+      btns += '<button data-action="rechazar" data-id="' + cid + '" style="' + btnStyle + 'background:#dc2626;color:white;">❌ Rechazar</button>';
+    } else if (c.estado === 'Aprobado')
+      btns += '<button data-action="psico" data-id="' + cid + '" style="' + btnStyle + 'background:#7c3aed;color:white;">🧠 Psico</button>';
+    btns += '<button data-action="editar" data-id="' + cid + '" style="' + btnStyle + 'background:#e2e8f0;color:#374151;">✏️</button>';
   }
 
   return '<tr style="border-bottom:1px solid #e2e8f0;">'
@@ -109,7 +134,7 @@ function renderFilaCand(c, realIdx) {
     + '<td style="padding:8px;text-align:center;font-size:12px;">' + (c.fecha ? '<strong>' + c.fecha + '</strong>' : '<span style="color:#cbd5e1;">—</span>') + '</td>'
     + '<td style="padding:8px;text-align:center;font-size:12px;">' + (c.hora || '—') + '</td>'
     + '<td style="padding:6px;text-align:center;">' + (c.estado === 'Citado'
-      ? '<select onchange="registrarAsistencia(' + cid + ',this.value)" style="font-size:12px;padding:3px 6px;border:1px solid #cbd5e1;border-radius:6px;cursor:pointer;">'
+      ? '<select data-action="asistencia" data-id="' + cid + '" style="font-size:12px;padding:3px 6px;border:1px solid #cbd5e1;border-radius:6px;cursor:pointer;">'
         + '<option value="-"' + (c.asistio === '-' || !c.asistio ? ' selected' : '') + '>— Sin registrar</option>'
         + '<option value="Sí"' + (c.asistio === 'Sí' ? ' selected' : '') + '>✅ Sí asistió</option>'
         + '<option value="No"' + (c.asistio === 'No' ? ' selected' : '') + '>❌ No asistió</option>'
@@ -232,18 +257,19 @@ export function guardarCandidato() {
   }
 
   const modal = $('modal-candidato');
-  const editIdx = modal && modal.dataset && modal.dataset.editIdx;
+  const editId = modal && modal.dataset && modal.dataset.editId;
 
-  if (editIdx !== undefined && editIdx !== '') {
-    const i = parseInt(editIdx);
-    Object.assign(DB.candidatos[i], {
+  if (editId) {
+    const c = getCandById(editId);
+    if (!c) { toast('⚠️ Candidato no encontrado'); return; }
+    Object.assign(c, {
       nombre, dni, tel, zona, localidad, medio, rrhh, obs,
-      estado: estado || DB.candidatos[i].estado,
-      fecha: fecha ? new Date(fecha).toLocaleDateString('es-AR') : DB.candidatos[i].fecha,
-      hora: hora || DB.candidatos[i].hora,
+      estado: estado || c.estado,
+      fecha: fecha ? new Date(fecha).toLocaleDateString('es-AR') : c.fecha,
+      hora: hora || c.hora,
     });
-    supaSync('candidatos', DB.candidatos[i]);
-    delete modal.dataset.editIdx;
+    supaSync('candidatos', c);
+    delete modal.dataset.editId;
     toast('✓ Candidato actualizado');
   } else {
     const nuevo = {
@@ -259,9 +285,9 @@ export function guardarCandidato() {
   renderCandidatos();
 }
 
-function editarCandidato(i) {
-  const c = DB.candidatos[i]; if (!c) return;
-  const set = (id, v) => { const el = $(id); if (el) el.value = v || ''; };
+function editarCandidato(id) {
+  const c = getCandById(id); if (!c) return;
+  const set = (elId, v) => { const el = $(elId); if (el) el.value = v || ''; };
   set('c-nombre', c.nombre);
   set('c-dni', c.dni);
   set('c-tel', c.tel);
@@ -269,6 +295,7 @@ function editarCandidato(i) {
   set('c-obs', c.obs);
   set('c-medio', c.medio);
   set('c-estado-i', c.estado);
+  onChangeEstadoCand();
   if (c.fecha && c.fecha.includes('/')) {
     const parts = c.fecha.split('/');
     if (parts.length === 3) set('c-fecha', parts[2] + '-' + parts[1] + '-' + parts[0]);
@@ -283,21 +310,20 @@ function editarCandidato(i) {
   const tit = $('modal-cand-titulo');
   if (tit) tit.textContent = 'Editar candidato — ' + c.nombre;
   const modal = $('modal-candidato');
-  if (modal) modal.dataset.editIdx = i;
+  if (modal) modal.dataset.editId = c.id;
   abrirModal('modal-candidato');
 }
 
 export function editarCandidatoPorId(id) {
-  const i = getIdxById(id); if (i < 0) return;
-  editarCandidato(i);
+  editarCandidato(id);
 }
 
 // ========== CITAS ==========
 
 export function abrirCitarPorId(id) {
-  const i = getIdxById(id); if (i < 0) { toast('⚠️ Candidato no encontrado'); return; }
-  const c = DB.candidatos[i];
-  $('citar-idx').value = i;
+  const c = getCandById(id);
+  if (!c) { toast('⚠️ Candidato no encontrado'); return; }
+  $('citar-idx').value = id;
   $('citar-nombre').textContent = c.nombre;
   $('citar-fecha').value = '';
   $('citar-hora').value = '';
@@ -306,26 +332,27 @@ export function abrirCitarPorId(id) {
 }
 
 export function guardarCita() {
-  const i = parseInt($('citar-idx').value);
+  const c = getCandById($('citar-idx').value);
+  if (!c) { toast('⚠️ Candidato no encontrado'); return; }
   const fecha = $('citar-fecha').value;
   const hora = $('citar-hora').value;
   if (!fecha) { toast('⚠️ Ingresá la fecha'); return; }
   if (!hora) { toast('⚠️ Ingresá la hora'); return; }
-  DB.candidatos[i].fecha = new Date(fecha).toLocaleDateString('es-AR');
-  DB.candidatos[i].hora = hora;
-  DB.candidatos[i].estado = 'Citado';
-  supaSync('candidatos', DB.candidatos[i]);
+  c.fecha = new Date(fecha).toLocaleDateString('es-AR');
+  c.hora = hora;
+  c.estado = 'Citado';
+  supaSync('candidatos', c);
   cerrarModal('modal-citar-cand');
   renderCandidatos();
-  toast('📅 Cita registrada para ' + DB.candidatos[i].nombre);
+  toast('📅 Cita registrada para ' + c.nombre);
 }
 
 // ========== RESULTADO ENTREVISTA ==========
 
 export function abrirResultadoPorId(id) {
-  const i = getIdxById(id); if (i < 0) { toast('⚠️ Candidato no encontrado'); return; }
-  const c = DB.candidatos[i];
-  $('resultado-idx').value = i;
+  const c = getCandById(id);
+  if (!c) { toast('⚠️ Candidato no encontrado'); return; }
+  $('resultado-idx').value = id;
   $('resultado-nombre').textContent = c.nombre + ' — Cita: ' + (c.fecha || '—') + ' ' + (c.hora || '');
   document.querySelectorAll('input[name="asistio-radio"]').forEach(r => { r.checked = false; });
   $('resultado-entrevista-row').style.display = 'none';
@@ -340,28 +367,28 @@ export function abrirResultadoPorId(id) {
 }
 
 export function guardarResultadoEntrevista() {
-  const i = parseInt($('resultado-idx').value);
-  if (isNaN(i) || !DB.candidatos[i]) { toast('⚠️ Error: candidato no encontrado'); return; }
+  const c = getCandById($('resultado-idx').value);
+  if (!c) { toast('⚠️ Error: candidato no encontrado'); return; }
   const asistio = document.querySelector('input[name="asistio-radio"]:checked');
   if (!asistio) { toast('⚠️ Indicá si asistió o no'); return; }
-  DB.candidatos[i].asistio = asistio.value;
+  c.asistio = asistio.value;
   if (asistio.value === 'Sí') {
     const res = $('resultado-valor').value;
     if (!res) { toast('⚠️ Seleccioná el resultado de la entrevista'); return; }
     if (res === 'Rechazado') {
-      DB.candidatos[i].estado = 'Rechazado';
-      DB.candidatos[i].motivoRechazo = cleanText($('resultado-obs').value);
+      c.estado = 'Rechazado';
+      c.motivoRechazo = cleanText($('resultado-obs').value);
     } else {
-      DB.candidatos[i].estado = 'Entrevistado';
-      DB.candidatos[i].obsEntrevista = cleanText($('resultado-obs').value);
+      c.estado = 'Entrevistado';
+      c.obsEntrevista = cleanText($('resultado-obs').value);
     }
   } else {
-    DB.candidatos[i].estado = 'Sin citar';
-    DB.candidatos[i].fecha = '';
-    DB.candidatos[i].hora = '';
+    c.estado = 'Sin citar';
+    c.fecha = '';
+    c.hora = '';
     toast('ℹ️ No asistió — vuelve a Sin citar');
   }
-  supaSync('candidatos', DB.candidatos[i]);
+  supaSync('candidatos', c);
   cerrarModal('modal-resultado-cand');
   renderCandidatos();
   toast('✓ Resultado registrado');
@@ -370,27 +397,26 @@ export function guardarResultadoEntrevista() {
 // ========== ACCIONES DE ESTADO ==========
 
 export function aprobarCandidatoPorId(id) {
-  const i = getIdxById(id); if (i < 0) return;
-  DB.candidatos[i].estado = 'Aprobado';
-  supaSync('candidatos', DB.candidatos[i]);
+  const c = getCandById(id); if (!c) return;
+  c.estado = 'Aprobado';
+  supaSync('candidatos', c);
   renderCandidatos();
-  toast('✅ ' + DB.candidatos[i].nombre + ' aprobado');
+  toast('✅ ' + c.nombre + ' aprobado');
 }
 
 export function rechazarCandidatoPorId(id) {
   const motivo = prompt('Motivo del rechazo:'); if (motivo === null) return;
   if (!motivo.trim()) { toast('⚠️ Ingresá el motivo'); return; }
-  const i = getIdxById(id); if (i < 0) return;
-  DB.candidatos[i].estado = 'Rechazado';
-  DB.candidatos[i].motivoRechazo = motivo.trim();
-  supaSync('candidatos', DB.candidatos[i]);
+  const c = getCandById(id); if (!c) return;
+  c.estado = 'Rechazado';
+  c.motivoRechazo = motivo.trim();
+  supaSync('candidatos', c);
   renderCandidatos();
   toast('❌ Candidato rechazado');
 }
 
 export function pasarAPsicoPorId(id) {
-  const i = getIdxById(id); if (i < 0) return;
-  const c = DB.candidatos[i];
+  const c = getCandById(id); if (!c) return;
   if ((DB.psicos || []).find(p => p.candidatoId === c.id)) { toast('⚠️ Ya está en Psicotécnico'); return; }
   const p = {
     id: Date.now(), candidatoId: c.id, nombre: c.nombre, dni: c.dni, zona: c.zona, tel: c.tel, rrhh: c.rrhh,
@@ -400,24 +426,24 @@ export function pasarAPsicoPorId(id) {
   };
   if (!DB.psicos) DB.psicos = [];
   DB.psicos.push(p);
-  DB.candidatos[i].estado = 'Psicotécnico';
-  supaSync('candidatos', DB.candidatos[i]);
+  c.estado = 'Psicotécnico';
+  supaSync('candidatos', c);
   supaSync('psicos', p);
   renderCandidatos();
   toast('🧠 ' + c.nombre + ' enviado a Psicotécnico');
 }
 
 export function registrarAsistencia(id, valor) {
-  const i = getIdxById(id); if (i < 0) return;
-  DB.candidatos[i].asistio = valor;
+  const c = getCandById(id); if (!c) return;
+  c.asistio = valor;
   if (valor === 'Sí') {
-    DB.candidatos[i].estado = 'Entrevistado';
+    c.estado = 'Entrevistado';
   } else if (valor === 'No') {
-    DB.candidatos[i].estado = 'Sin citar';
-    DB.candidatos[i].fecha = '';
-    DB.candidatos[i].hora = '';
+    c.estado = 'Sin citar';
+    c.fecha = '';
+    c.hora = '';
   }
-  supaSync('candidatos', DB.candidatos[i]);
+  supaSync('candidatos', c);
   renderCandidatos();
   if (valor === 'Sí') toast('✅ Asistió — ahora podés Aprobar o Rechazar');
   else if (valor === 'No') toast('❌ No asistió — vuelve a Sin citar');

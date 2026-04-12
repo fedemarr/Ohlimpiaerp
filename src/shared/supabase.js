@@ -82,6 +82,9 @@ export function _toCamel(obj) {
     const camelKey = m[k] || k;
     r[camelKey] = (v && typeof v === 'object' && !Array.isArray(v)) ? _toCamel(v) : v;
   }
+  // Restaurar id desde id_local para que los objetos cargados de Supabase
+  // tengan la misma propiedad que los creados localmente con Date.now()
+  if (r.id_local && !r.id) r.id = r.id_local;
   return r;
 }
 

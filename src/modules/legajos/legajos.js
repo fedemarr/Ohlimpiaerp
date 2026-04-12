@@ -136,10 +136,7 @@ export function verLegajo(nro) {
     </div></div>
     <div id="leg-tab-2" class="tab-content">
       ${reasDelAsoc.length === 0 ? `
-        <div class="empty-state"><div class="icon">🔄</div><p>Sin reasignaciones registradas</p></div>
-        <div style="text-align:center;margin-top:10px;">
-          <button class="btn btn-primary btn-sm" onclick="cerrarModal('modal-legajo');abrirModalReasDesde(${l.nro})">+ Registrar reasignación</button>
-        </div>` : `
+        <div class="empty-state"><div class="icon">🔄</div><p>Sin movimientos registrados</p></div>` : `
         <div style="display:flex;flex-direction:column;gap:10px;">
           ${reasDelAsoc.map(r => `
             <div style="background:var(--fondo);border:1px solid var(--borde);border-radius:var(--radio);padding:12px 14px;">
@@ -159,7 +156,6 @@ export function verLegajo(nro) {
                 </div>
               </div>
             </div>`).join('')}
-          <button class="btn btn-primary btn-sm" style="align-self:flex-start;" onclick="cerrarModal('modal-legajo');abrirModalReasDesde(${l.nro})">+ Nueva reasignación</button>
         </div>`}
     </div>
     <div id="leg-tab-3" class="tab-content"><div class="timeline">
