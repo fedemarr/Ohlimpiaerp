@@ -175,6 +175,9 @@ Ordenados por sección del menú:
 ### Portal Asociado
 - **Mis adelantos** — vista del asociado para solicitar y ver estado de adelantos/préstamos
 
+### Reportes
+- **Reportes y sugerencias** — buzón de sugerencias/reportes de asociados, accesible a todos los perfiles. Persiste en tabla `sugerencias` de Supabase (módulo vive en `legacy.js`).
+
 ## Decisiones de diseño importantes
 
 ### Estado global mutable (DB)
@@ -232,6 +235,9 @@ Mapa de claves JS → tablas (definido en `supabase.js`):
 |---------------------|----------------------|
 | legajos             | legajos              |
 | candidatos          | candidatos           |
+| psicos              | psicos               |
+| catAltPendientes    | cat_alt_pendientes   |
+| turnos              | turnos               |
 | clientes            | clientes             |
 | sanciones           | sanciones            |
 | casosLegales        | casos_legales        |
@@ -244,6 +250,7 @@ Mapa de claves JS → tablas (definido en `supabase.js`):
 | monotributos        | monotributos         |
 | paritarias          | paritarias           |
 | retenes             | retenes              |
+| sugerencias         | sugerencias          |
 
 ## Cómo migrar un módulo
 
@@ -265,7 +272,6 @@ Mapa de claves JS → tablas (definido en `supabase.js`):
 - **Filtros rotos al navegar:** Los filtros de columna se perdían al cambiar de pantalla. Se resolvió llamando `poblarFiltrosColumnas()` tanto en auth callbacks como en nav callbacks.
 
 ### Conocidos / pendientes
-- **Calendario de entrevistas usa datos mock:** Los turnos en `calendario.js` están hardcodeados, no se persisten en Supabase.
 - **`prompt()` para inputs:** `rechazarCandidatoPorId()`, `rechazarPsico()` y `agendarTurno()` usan `prompt()` del navegador en vez de modales propios.
 - **Estilos inline excesivos:** Los renders generan HTML con estilos inline que dificultan el mantenimiento y la consistencia visual.
 - **Contraseñas en texto plano:** `DB.usuarios` tiene passwords en plain text. La autenticación es local contra ese array, no usa Supabase Auth.
