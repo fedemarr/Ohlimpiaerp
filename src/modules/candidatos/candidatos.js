@@ -394,7 +394,7 @@ export function abrirCitarPorId(id) {
   const c = getCandById(id);
   if (!c) { toast('⚠️ Candidato no encontrado'); return; }
   $('citar-idx').value = id;
-  $('citar-nombre').textContent = c.nombre;
+  $('citar-nombre').textContent = (c.apellido ? c.apellido + ', ' : '') + c.nombre;
   $('citar-fecha').value = '';
   $('citar-hora').value = '';
   $('citar-fecha').min = hoyStr();
@@ -408,8 +408,8 @@ export function guardarCita() {
   const hora = $('citar-hora').value;
   if (!fecha) { toast('⚠️ Ingresá la fecha'); return; }
   if (!hora) { toast('⚠️ Ingresá la hora'); return; }
-  c.fecha = new Date(fecha).toLocaleDateString('es-AR');
-  c.hora = hora;
+  c.fechaCita = fecha;
+  c.horaCita = hora;
   c.estado = 'Citado';
   supaSync('candidatos', c);
 
@@ -417,11 +417,11 @@ export function guardarCita() {
   const turno = {
     id: Date.now(),
     candidatoId: c.id,
-    nombre: c.nombre,
+    nombre: (c.apellido ? c.apellido + ' ' : '') + c.nombre,
     fecha: fecha,
     hora: hora,
     estado: 'Confirmado',
-    responsable: c.rrhh || '',
+    responsable: (DB.personalRrhh || []).find(p => p.id === c.rrhhId)?.nombre || '',
   };
   if (!DB.turnos) DB.turnos = [];
   DB.turnos.push(turno);
@@ -429,7 +429,7 @@ export function guardarCita() {
 
   cerrarModal('modal-citar-cand');
   renderCandidatos();
-  toast('📅 Cita registrada para ' + c.nombre);
+  toast('📅 Cita registrada para ' + ((c.apellido ? c.apellido + ', ' : '') + c.nombre));
 }
 
 // ========== RESULTADO ENTREVISTA ==========
