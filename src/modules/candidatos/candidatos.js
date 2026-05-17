@@ -208,14 +208,24 @@ export function onChangeEstadoCand() {
 
 // ========== CRUD ==========
 
+function poblarSelectRRHHCandidato() {
+  const sel = $('c-rrhh');
+  if (!sel) return;
+  const lista = (DB.personalRrhh || []).filter(p => !p.anulado);
+  const opts = ['<option value="">Seleccionar...</option>']
+    .concat(lista.map(p => `<option value="${p.id}">${(p.apellido ? p.apellido + ', ' : '') + p.nombre}</option>`));
+  sel.innerHTML = opts.join('');
+}
+
 export function abrirNuevoCandidato() {
-  ['c-nombre', 'c-dni', 'c-cuit', 'c-fecnac', 'c-tel', 'c-email', 'c-calle', 'c-piso',
-   'c-obs', 'c-rrhh', 'c-fecha', 'c-hora'].forEach(id => {
+  ['c-apellido', 'c-nombre', 'c-dni', 'c-cuit', 'c-fecnac', 'c-tel', 'c-email', 'c-calle', 'c-piso',
+   'c-obs', 'c-nombre-referido', 'c-fecha', 'c-hora'].forEach(id => {
     const el = $(id); if (el) el.value = '';
   });
-  ['c-zona', 'c-medio', 'c-estado-civil', 'c-genero', 'c-estado-i'].forEach(id => {
+  ['c-zona', 'c-medio', 'c-estado-civil', 'c-genero', 'c-estado-i', 'c-rrhh'].forEach(id => {
     const el = $(id); if (el) el.selectedIndex = 0;
   });
+  poblarSelectRRHHCandidato();
   onChangeZonaCand();
   const tit = $('modal-cand-titulo'); if (tit) tit.textContent = 'Nuevo candidato';
   const modal = $('modal-candidato'); if (modal) delete modal.dataset.editId;
@@ -322,6 +332,7 @@ export function guardarCandidato() {
 
 function editarCandidato(id) {
   const c = getCandById(id); if (!c) return;
+  poblarSelectRRHHCandidato();
   const set = (elId, v) => { const el = $(elId); if (el) el.value = v != null ? v : ''; };
   set('c-apellido', c.apellido);
   set('c-nombre', c.nombre);

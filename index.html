@@ -3745,8 +3745,9 @@
     <div class="modal-header"><h3 id="modal-cand-titulo">Nuevo candidato</h3><button class="btn-close" onclick="cerrarModal('modal-candidato')">×</button></div>
     <div class="modal-body">
       <div class="form-grid gap-12">
-        <div class="form-grid form-grid-2">
-          <div class="form-group"><label>Apellido y nombre *</label><input type="text" id="c-nombre"></div>
+        <div class="form-grid form-grid-3">
+          <div class="form-group"><label>Apellido *</label><input type="text" id="c-apellido"></div>
+          <div class="form-group"><label>Nombre *</label><input type="text" id="c-nombre"></div>
           <div class="form-group"><label>DNI *</label><input type="text" id="c-dni"></div>
         </div>
         <div class="form-grid form-grid-3">
@@ -3757,10 +3758,13 @@
             <option value="">—</option><option>Soltero/a</option><option>Casado/a</option><option>Divorciado/a</option><option>Viudo/a</option><option>Conviviente</option>
           </select></div>
         </div>
-        <div class="form-grid form-grid-3">
+        <div class="form-grid form-grid-2">
           <div class="form-group"><label>Teléfono *</label><input type="text" id="c-tel"></div>
           <div class="form-group"><label>Email</label><input type="email" id="c-email"></div>
+        </div>
+        <div class="form-grid form-grid-2">
           <div class="form-group"><label>Medio de contacto</label><select id="c-medio"></select></div>
+          <div class="form-group"><label>Nombre del referido</label><input type="text" id="c-nombre-referido"></div>
         </div>
         <div class="form-grid form-grid-3">
           <div class="form-group"><label>Calle y número *</label><input type="text" id="c-calle"></div>
@@ -3772,20 +3776,22 @@
             <option value="Buenos Aires">Provincia de Buenos Aires</option>
           </select></div>
         </div>
-        <div class="form-grid form-grid-3">
+        <div class="form-grid form-grid-2">
           <div class="form-group"><label>Localidad</label>
           <select id="c-localidad" style="width:100%;padding:8px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;">
             <option value="">Seleccionar zona primero</option>
           </select></div>
           <div class="form-group"><label>Estado</label><select id="c-estado-i" onchange="onChangeEstadoCand()"><option>Sin citar</option><option>Citado</option></select></div>
-          <div class="form-group"><label>Género</label><select id="c-genero"><option>Femenino</option><option>Masculino</option><option>Otro</option></select></div>
+        </div>
+        <div class="form-grid form-grid-2">
+          <div class="form-group"><label>Género</label><select id="c-genero"><option value="">—</option><option>Femenino</option><option>Masculino</option><option>Otro</option></select></div>
+          <div class="form-group"><label>Selectora *</label><select id="c-rrhh"></select></div>
         </div>
         <div id="cita-campos-row" style="display:none;flex-direction:column;gap:8px;background:#f0f9ff;border:1px solid #bae6fd;border-radius:8px;padding:12px;margin-bottom:8px;">
           <div style="font-size:12px;color:#0369a1;font-weight:600;margin-bottom:4px;">📅 Datos de la cita</div>
-          <div class="form-grid form-grid-3">
+          <div class="form-grid form-grid-2">
             <div class="form-group"><label>Fecha de cita *</label><input type="date" id="c-fecha" onfocus="this.min=hoyStr()"></div>
             <div class="form-group"><label>Hora *</label><input type="time" id="c-hora"></div>
-            <div class="form-group"><label>Contactado por</label><select id="c-rrhh"></select></div>
           </div>
         </div>
         <div class="form-group"><label>Observaciones</label><textarea id="c-obs"></textarea></div>
