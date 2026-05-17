@@ -438,14 +438,14 @@ export function abrirResultadoPorId(id) {
   const c = getCandById(id);
   if (!c) { toast('⚠️ Candidato no encontrado'); return; }
   $('resultado-idx').value = id;
-  $('resultado-nombre').textContent = c.nombre + ' — Cita: ' + (c.fecha || '—') + ' ' + (c.hora || '');
+  $('resultado-nombre').textContent = ((c.apellido ? c.apellido + ', ' : '') + c.nombre) + ' — Cita: ' + (formatearFechaISO(c.fechaCita) || '—') + ' ' + (c.horaCita || '');
   document.querySelectorAll('input[name="asistio-radio"]').forEach(r => { r.checked = false; });
   $('resultado-entrevista-row').style.display = 'none';
   $('resultado-valor').value = '';
   $('resultado-obs').value = '';
   document.querySelectorAll('input[name="asistio-radio"]').forEach(r => {
     r.onchange = function () {
-      $('resultado-entrevista-row').style.display = this.value === 'Sí' ? 'block' : 'none';
+      $('resultado-entrevista-row').style.display = this.value === 'si' ? 'block' : 'none';
     };
   });
   abrirModal('modal-resultado-cand');
@@ -457,7 +457,7 @@ export function guardarResultadoEntrevista() {
   const asistio = document.querySelector('input[name="asistio-radio"]:checked');
   if (!asistio) { toast('⚠️ Indicá si asistió o no'); return; }
   c.asistio = asistio.value;
-  if (asistio.value === 'Sí') {
+  if (c.asistio === 'si') {
     const res = $('resultado-valor').value;
     if (!res) { toast('⚠️ Seleccioná el resultado de la entrevista'); return; }
     if (res === 'Rechazado') {
@@ -469,8 +469,8 @@ export function guardarResultadoEntrevista() {
     }
   } else {
     c.estado = 'Sin citar';
-    c.fecha = '';
-    c.hora = '';
+    c.fechaCita = null;
+    c.horaCita = null;
     toast('ℹ️ No asistió — vuelve a Sin citar');
   }
   supaSync('candidatos', c);
