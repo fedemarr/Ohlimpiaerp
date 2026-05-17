@@ -520,16 +520,16 @@ export function pasarAPsicoPorId(id) {
 
 export function registrarAsistencia(id, valor) {
   const c = getCandById(id); if (!c) return;
-  c.asistio = valor;
-  if (valor === 'Sí') {
+  c.asistio = (valor === 'si' || valor === 'no') ? valor : null;
+  if (valor === 'si') {
     c.estado = 'Entrevistado';
-  } else if (valor === 'No') {
+  } else if (valor === 'no') {
     c.estado = 'Sin citar';
-    c.fecha = '';
-    c.hora = '';
+    c.fechaCita = null;
+    c.horaCita = null;
   }
   supaSync('candidatos', c);
   renderCandidatos();
-  if (valor === 'Sí') toast('✅ Asistió — ahora podés Aprobar o Rechazar');
-  else if (valor === 'No') toast('❌ No asistió — vuelve a Sin citar');
+  if (valor === 'si') toast('✅ Asistió — ahora podés Aprobar o Rechazar');
+  else if (valor === 'no') toast('❌ No asistió — vuelve a Sin citar');
 }
