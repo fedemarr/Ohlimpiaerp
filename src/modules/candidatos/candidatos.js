@@ -504,14 +504,14 @@ export function pasarAPsicoPorId(id) {
   const c = getCandById(id); if (!c) return;
   if ((DB.psicos || []).find(p => p.candidatoId === c.id)) { toast('⚠️ Ya está en Psicotécnico'); return; }
   const p = {
-    id: Date.now(), candidatoId: c.id, nombre: c.nombre, dni: c.dni, zona: c.zona, tel: c.tel, rrhh: c.rrhh,
+    id: Date.now(), candidatoId: c.id, nombre: (c.apellido ? c.apellido + ' ' : '') + c.nombre, dni: c.dni, zona: c.zona, tel: c.tel, rrhh: (DB.personalRrhh || []).find(p => p.id === c.rrhhId)?.nombre || '',
     psicotecnico: 'Pendiente', prelaboral: 'Pendiente', antecedentes: 'No requerido', libretaSanitaria: 'No requerido',
     requiereAntecedentes: false, requiereLibreta: false, estado: 'En proceso',
     fecha: new Date().toLocaleDateString('es-AR'), obs: '',
   };
   if (!DB.psicos) DB.psicos = [];
   DB.psicos.push(p);
-  c.estado = 'Psicotécnico';
+  c.estado = 'Psicotecnico';
   supaSync('candidatos', c);
   supaSync('psicos', p);
   renderCandidatos();
