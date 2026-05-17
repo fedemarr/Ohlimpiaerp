@@ -182,21 +182,10 @@ export function filtrarCandidatos() {
 }
 
 export function poblarFiltrosColumnasCandidatos() {
-  const fillCol = (id, items) => {
-    const el = $(id);
-    if (!el) return;
-    const ph = el.options[0]?.outerHTML || '<option value=""></option>';
-    el.innerHTML = ph + [...new Set(items)].filter(Boolean).map(i => `<option>${i}</option>`).join('');
-  };
-  const nicksRRHH = [
-    ...DB.usuarios.filter(u => ['RRHH', 'Administrador total'].includes(u.perfil)).map(u => u.nickname || u.nombre.split(' ')[0]),
-    ...DB.rrhh.filter(n => !DB.usuarios.find(u => (u.nickname || u.nombre.split(' ')[0]) === n)),
-    'Agente IA Ohlimpia',
-  ];
-  fillCol('cf-cand-zona', DB.zonas);
-  fillCol('cf-cand-estado', DB.candidatos.map(c => c.estado));
-  fillCol('cf-cand-medio', DB.medios);
-  fillCol('cf-cand-rrhh', nicksRRHH);
+  const el = $('cand-filtro-zona');
+  if (!el) return;
+  const ph = el.options[0]?.outerHTML || '<option value="">Todas las zonas</option>';
+  el.innerHTML = ph + [...new Set(DB.zonas)].filter(Boolean).map(z => `<option>${z}</option>`).join('');
 }
 
 // ========== ZONA / ESTADO ==========
