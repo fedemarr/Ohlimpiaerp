@@ -648,6 +648,126 @@ c-nombre-referido, c-genero, y convertir c-rrhh de input a select.
 
 ---
 
-**Fin del traspaso.**
+**Fin del traspaso técnico.**
 
-Si algo de este documento no se entiende o queda ambiguo, prefiera detenerse y preguntar en la próxima conversación antes de avanzar con código. La política A.2 manda: *toda decisión debe ser entendible antes de ejecutarse*.
+---
+
+# 9. Mensaje para el próximo Claude web (escrito por Claude web, no por Claude Code)
+
+Esta sección la agrega Claude web al cierre de la sesión. El documento técnico de arriba lo escribió Claude Code, que tiene visibilidad completa del código pero no de la dinámica conversacional. Esta sección complementa eso: explica **cómo se trabaja con Lautaro**, no solo qué se hizo.
+
+Si sos un Claude web (o cualquier asistente) que está retomando este proyecto, leé esto antes de empezar a planificar.
+
+## 9.1. Lo más importante en una frase
+
+**Lautaro no es programador.** Tiene experiencia de Clipper de los 90, lo cual le da lógica de negocio y entendimiento de bases de datos a nivel conceptual, pero no escribe código moderno. Eso significa que vos sos los ojos técnicos del proyecto, pero las decisiones de negocio son de él. Nunca asumas que entiende jerga técnica sin explicación.
+
+## 9.2. La dinámica de trabajo de tres puntas
+
+El proyecto funciona con un equipo de tres:
+
+- **Lautaro:** decide, ejecuta acciones físicas (clics, pegar mensajes, sacar capturas), prueba el sistema en su navegador.
+- **Claude web (vos, si sos un Claude web):** piensa, planifica, revisa diffs, redacta los mensajes precisos que se le pasan a Claude Code. Es el "ingeniero senior" del equipo.
+- **Claude Code (terminal en la compu de Lautaro):** modifica archivos, ejecuta comandos de Git, consulta el código.
+
+**Vos (Claude web) nunca tocás archivos directamente.** Tu trabajo es pensar bien y redactar mensajes claros para que Lautaro se los pase a Claude Code.
+
+**Flujo de cada cambio:**
+
+1. Claude web propone el cambio con diagnóstico previo.
+2. Lautaro decide si avanza o pide modificaciones.
+3. Claude web redacta el mensaje exacto para Claude Code.
+4. Lautaro lo pega en Claude Code.
+5. Claude Code responde con un plan o un diff.
+6. Lautaro copia la respuesta y la pega en Claude web.
+7. Claude web revisa antes de aprobar.
+8. Solo entonces Claude Code ejecuta y commitea.
+
+**Regla de oro:** una cosa a la vez. Nunca se le manda un segundo mensaje a Claude Code sin pasar por Claude web.
+
+## 9.3. Cómo Lautaro toma decisiones
+
+**Las decisiones de negocio las toma él, siempre.** Ejemplos: qué campos necesita una tabla, qué validar, qué módulo atacar primero, si un cambio amerita rehacer o modificar.
+
+**Las decisiones puramente técnicas las puede delegar en vos.** Ejemplos: qué patrón de código usar, en qué orden aplicar cambios sin riesgo, qué helper crear. Cuando lo delegue ("decidí vos"), igualmente explicá el razonamiento abierto para que él pueda objetar si no le cierra. No decidas en silencio.
+
+**Cuando responda "no preference" o "decidí vos" muchas veces seguidas**, probablemente está cansado o abrumado. Es señal de hacer una pausa, no de seguir.
+
+## 9.4. Patrón de comunicación que funciona
+
+**Lo que funciona:**
+
+- Explicar cada cosa con peras y manzanas. Después de cada término técnico, una traducción en castellano.
+- Usar tablas y listas cuando hay comparaciones (no párrafos largos).
+- Antes de cada cambio importante, presentar dos o tres opciones con consecuencias y dejarlo elegir.
+- Marcar explícitamente cuando un cambio es destructivo (borra datos, modifica tablas) y obligar a hacer backup antes.
+- Pedir capturas de pantalla para verificar visualmente cada paso. No avanzar a ciegas.
+- Cerrar cada cambio con su commit, con mensaje claro en español. Política A.3 estricta.
+
+**Lo que NO funciona:**
+
+- Inventar detalles que no se verificaron. Si no estás seguro, decilo.
+- Avanzar varios pasos sin verificación intermedia.
+- Usar jerga sin explicarla (`useState`, `async/await`, etc.).
+- Decir "ya está hecho" sin captura de confirmación.
+- Plantear decisiones técnicas como obvias cuando para él no lo son.
+
+## 9.5. Las políticas son sagradas
+
+El archivo `POLITICAS_PROYECTO.md` no es decoración. Lautaro las dictó él mismo, las firmó, y son las reglas del proyecto. Las más importantes:
+
+- **A.2:** toda decisión debe ser entendible antes de ejecutarse.
+- **A.3:** commit por cada cambio lógico, en español, mensajes claros.
+- **A.4:** diagnóstico antes de cada cambio (estado actual, qué cambiar, cómo, cómo probar, cómo revertir).
+- **A.5:** persistencia en Supabase; cada cambio de tabla = un script SQL nuevo, no se modifica uno viejo.
+- **A.6:** valores económicos con vigencia temporal (cuando lleguen al proyecto).
+- **A.7:** ningún registro se borra físicamente; soft delete + auditoría siempre.
+- **A.11:** preferencia por rehacer cuando hay deuda técnica heredada; presentar siempre el cuadro "modificar vs rehacer" antes de tocar un módulo.
+
+Si te encontrás violando una política, parate y avisá. No avances "porque es más simple".
+
+## 9.6. El contexto histórico que importa
+
+El proyecto arrastra deuda técnica de su origen. Está documentada en el Anexo Histórico de `POLITICAS_PROYECTO.md`. Resumen: el sistema empezó como una conversación con Claude sin contexto, creció a 35.000 líneas en HTML único sin base de datos real, se migró a un entorno profesional con Claude Code, y se está modularizando de a poco.
+
+Eso significa que vas a encontrar:
+
+- Código en `legacy.js` (~13.400 líneas) que aún espera ser migrado.
+- Módulos migrados con calidad variable (Candidatos, Psicotécnico, Altas, Legajos).
+- Decisiones del pasado que pueden estar mal y conviene revisar antes de construir encima.
+
+La política A.11 está pensada para esto: ante un módulo con deuda heredada, **proponer rehacer como opción primaria**, no modificar.
+
+## 9.7. Sobre Gabriela y los usuarios reales
+
+Gabriela Lucero es la Responsable de RRHH de Ohlimpia, usuaria principal del módulo Candidatos. Le pasó al menos un bug confirmado (el del campo `asistio`). Cuando Lautaro mencione feedback de Gabriela, **tomalo como prioritario** — son requerimientos validados por uso real, no especulaciones.
+
+El equipo de RRHH son 5 personas: Gabriela Lucero, Matilde Noceti, Jimena Martinez, Martina Ramirez, Naara Rodriguez. Están cargadas como filas iniciales en `personal_rrhh`.
+
+**El sistema todavía no está en producción.** Los datos que había en `candidatos` antes del refactor eran de prueba. Cuando llegue el momento de tener datos reales, las políticas A.5 y A.7 cambian de "buena práctica" a "obligatorio" (no más DROP TABLE, solo ALTER TABLE; backup obligatorio antes de cada cambio).
+
+## 9.8. Lo que sí o sí tenés que hacer en la primera respuesta de la próxima sesión
+
+1. Confirmar que leíste `POLITICAS_PROYECTO.md` y este documento de traspaso.
+2. Preguntar cómo está Lautaro (estuvo una sesión muy larga la última vez).
+3. Confirmar si retomamos por donde dejamos (Fase 2: transiciones de estado) o si hay un cambio de prioridad.
+4. **No arrancar a tirar código.** Primero diagnosticar el estado real del proyecto (puede haber pasado tiempo y haber cambios en GitHub que no sabés).
+
+## 9.9. Lo que hay que evitar a toda costa
+
+- Modificar archivos sin haberlo conversado con Lautaro. No tenés mandato.
+- Asumir que algo funciona porque "tendría que funcionar". Pedir verificación visual.
+- Inventarte el estado del proyecto. Si dudás, pedí captura o pedí que Claude Code corra `git status` / `git log`.
+- Hacer commits gigantes con muchos cambios mezclados. La política A.3 manda commits chicos.
+- Olvidarte de los backups antes de cambios destructivos.
+- Saltearte el diagnóstico previo. La política A.4 es no negociable.
+
+## 9.10. Un mensaje final
+
+Lautaro está construyendo un sistema de gestión cooperativa para 500 personas, sin ser programador, con asistencia de IA. Ese es un proyecto ambicioso pero alcanzable, **si trabajamos con disciplina**. Tu rol es ayudarlo a mantener esa disciplina, especialmente cuando él esté cansado o tentado a saltar pasos. No por terquedad, sino porque sabe que cada paso saltado se paga después.
+
+Sé claro, sé honesto, no infles tus respuestas, y cuando él tome una decisión que no compartas, marcá tu disenso pero respetá su autoridad. Es su proyecto, su empresa, su responsabilidad.
+
+Buena suerte.
+
+— Claude web, al cierre de la sesión del 2026-05-17.
