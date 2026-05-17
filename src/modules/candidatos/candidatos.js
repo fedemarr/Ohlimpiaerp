@@ -9,6 +9,17 @@ let _candTab = 'activos';
 
 // ========== HELPERS ==========
 
+const ESTADO_DISPLAY = {
+  'Psicotecnico': 'Psicotécnico',
+};
+
+function formatearFechaISO(iso) {
+  if (!iso) return '';
+  const parts = iso.split('-');
+  if (parts.length !== 3) return iso;
+  return parts[2] + '/' + parts[1] + '/' + parts[0];
+}
+
 export function getCandById(id) {
   return (DB.candidatos || []).find(c => c.id == id);
 }
@@ -70,12 +81,15 @@ export function renderCandidatos(lista) {
   const fZona = (($('cand-filtro-zona') || {}).value || '');
   const fEstado = (($('cand-filtro-estado') || {}).value || '');
 
-  const estadosHist = ['Rechazado', 'Psicotécnico'];
+  const estadosHist = ['Rechazado', 'Psicotecnico'];
   const activos = todos.filter(c => !estadosHist.includes(c.estado));
   const hist = todos.filter(c => estadosHist.includes(c.estado));
   let lista2 = _candTab === 'historico' ? hist : activos;
 
-  if (buscar) lista2 = lista2.filter(c => (c.nombre || '').toLowerCase().includes(buscar) || (c.dni || '').includes(buscar));
+  if (buscar) lista2 = lista2.filter(c => {
+    const nombreCompleto = ((c.apellido || '') + ' ' + (c.nombre || '')).toLowerCase();
+    return nombreCompleto.includes(buscar) || (c.dni || '').includes(buscar);
+  });
   if (fZona) lista2 = lista2.filter(c => c.zona === fZona);
   if (fEstado) lista2 = lista2.filter(c => c.estado === fEstado);
 
@@ -107,8 +121,11 @@ export function renderCandidatos(lista) {
 }
 
 function renderFilaCand(c) {
-  const ec = { 'Sin citar': '#64748b', 'Citado': '#2563eb', 'Entrevistado': '#d97706', 'Aprobado': '#16a34a', 'Rechazado': '#dc2626', 'Psicotécnico': '#7c3aed' }[c.estado] || '#64748b';
+  const ec = { 'Sin citar': '#64748b', 'Citado': '#2563eb', 'Entrevistado': '#d97706', 'Aprobado': '#16a34a', 'Rechazado': '#dc2626', 'Psicotecnico': '#7c3aed' }[c.estado] || '#64748b';
   const cid = c.id;
+  const nombreCompleto = (c.apellido || '') + (c.apellido && c.nombre ? ', ' : '') + (c.nombre || '');
+  const fechaDisplay = formatearFechaISO(c.fechaCita);
+  const estadoDisplay = ESTADO_DISPLAY[c.estado] || c.estado;
   let btns = '';
 
   if (_candTab === 'activos') {
@@ -126,21 +143,21 @@ function renderFilaCand(c) {
   }
 
   return '<tr style="border-bottom:1px solid #e2e8f0;">'
-    + '<td style="padding:8px 12px;font-size:13px;"><strong>' + c.nombre + '</strong></td>'
+    + '<td style="padding:8px 12px;font-size:13px;"><strong>' + nombreCompleto + '</strong></td>'
     + '<td style="padding:8px;font-size:12px;color:#64748b;">' + (c.dni || '—') + '</td>'
     + '<td style="padding:8px;font-size:12px;">' + (c.tel || '—') + '</td>'
     + '<td style="padding:8px;font-size:12px;">' + (c.zona || '—') + '</td>'
     + '<td style="padding:8px;font-size:12px;">' + (c.medio || '—') + '</td>'
-    + '<td style="padding:8px;text-align:center;font-size:12px;">' + (c.fecha ? '<strong>' + c.fecha + '</strong>' : '<span style="color:#cbd5e1;">—</span>') + '</td>'
-    + '<td style="padding:8px;text-align:center;font-size:12px;">' + (c.hora || '—') + '</td>'
+    + '<td style="padding:8px;text-align:center;font-size:12px;">' + (fechaDisplay ? '<strong>' + fechaDisplay + '</strong>' : '<span style="color:#cbd5e1;">—</span>') + '</td>'
+    + '<td style="padding:8px;text-align:center;font-size:12px;">' + (c.horaCita || '—') + '</td>'
     + '<td style="padding:6px;text-align:center;">' + (c.estado === 'Citado'
       ? '<select data-action="asistencia" data-id="' + cid + '" style="font-size:12px;padding:3px 6px;border:1px solid #cbd5e1;border-radius:6px;cursor:pointer;">'
-        + '<option value="-"' + (c.asistio === '-' || !c.asistio ? ' selected' : '') + '>— Sin registrar</option>'
-        + '<option value="Sí"' + (c.asistio === 'Sí' ? ' selected' : '') + '>✅ Sí asistió</option>'
-        + '<option value="No"' + (c.asistio === 'No' ? ' selected' : '') + '>❌ No asistió</option>'
+        + '<option value=""' + (!c.asistio ? ' selected' : '') + '>— Sin registrar</option>'
+        + '<option value="si"' + (c.asistio === 'si' ? ' selected' : '') + '>✅ Sí asistió</option>'
+        + '<option value="no"' + (c.asistio === 'no' ? ' selected' : '') + '>❌ No asistió</option>'
         + '</select>'
-      : (c.asistio === 'Sí' ? '✅' : c.asistio === 'No' ? '❌' : '—')) + '</td>'
-    + '<td style="padding:8px;text-align:center;"><span style="font-size:11px;font-weight:600;color:' + ec + '">' + c.estado + '</span></td>'
+      : (c.asistio === 'si' ? '✅' : c.asistio === 'no' ? '❌' : '—')) + '</td>'
+    + '<td style="padding:8px;text-align:center;"><span style="font-size:11px;font-weight:600;color:' + ec + '">' + estadoDisplay + '</span></td>'
     + '<td style="padding:8px;font-size:12px;color:#dc2626;">' + (c.motivoRechazo || '—') + '</td>'
     + '<td style="padding:8px;text-align:center;">' + btns + '</td>'
     + '</tr>';
