@@ -77,7 +77,11 @@ export function renderCandidatos(lista) {
     return;
   }
 
-  const buscar = (($('cand-buscar') || {}).value || '').toLowerCase();
+  const buscar = (
+    (($('cand-buscar') || {}).value)
+    || (($('buscador-global') || {}).value)
+    || ''
+  ).toLowerCase();
   const fZona = (($('cand-filtro-zona') || {}).value || '');
   const fEstado = (($('cand-filtro-estado') || {}).value || '');
 
@@ -166,19 +170,7 @@ function renderFilaCand(c) {
 // ========== FILTROS ==========
 
 export function filtrarCandidatos() {
-  const b = [
-    ($('cand-buscar') || { value: '' }).value,
-    ($('buscador-global') || { value: '' }).value,
-  ].find(v => v) || '';
-  const busq = b.toLowerCase();
-  const zona = ($('cand-filtro-zona') || { value: '' }).value;
-  const estado = ($('cand-filtro-estado') || { value: '' }).value;
-
-  renderCandidatos(DB.candidatos.filter(c =>
-    (!busq || (c.apellido || '').toLowerCase().includes(busq) || c.nombre.toLowerCase().includes(busq) || (c.dni || '').includes(busq)) &&
-    (!zona || c.zona === zona) &&
-    (!estado || c.estado === estado)
-  ));
+  renderCandidatos();
 }
 
 export function poblarFiltrosColumnasCandidatos() {
