@@ -26,6 +26,7 @@ export const _SM = {
   paritarias: 'paritarias',
   retenes: 'retenes',
   sugerencias: 'sugerencias',
+  personalRrhh: 'personal_rrhh',
 };
 
 // camelCase → snake_case para guardar en Supabase
@@ -44,14 +45,16 @@ export function _toSnake(obj) {
     libretaSanitaria: 'libreta_sanitaria', requiereAntecedentes: 'requiere_antecedentes',
     requiereLibreta: 'requiere_libreta', fechaAprobacion: 'fecha_aprobacion',
     motivoRechazo: 'motivo_rechazo', fechaRechazo: 'fecha_rechazo',
-    obsEntrevista: 'obs_entrevista', estadoCivil: 'estado_civil',
+    obsEntrevista: 'obs_entrevista',
+    fecNac: 'fec_nac', fechaCita: 'fecha_cita', horaCita: 'hora_cita',
+    nombreReferido: 'nombre_referido', rrhhId: 'rrhh_id',
+    anuladoPor: 'anulado_por', anuladoFecha: 'anulado_fecha', creadoPor: 'creado_por',
   };
   const r = {};
   for (const [k, v] of Object.entries(obj)) {
     r[m[k] || k] = (v && typeof v === 'object' && !Array.isArray(v)) ? _toSnake(v) : v;
   }
   // Sanitizar campos con tipos conflictivos
-  if ('asistio' in r) r.asistio = (r.asistio === true || r.asistio === 'Sí') ? true : false;
   if ('homologada' in r) r.homologada = r.homologada === true || r.homologada === 'true';
   if ('jubilado' in r) r.jubilado = r.jubilado === true || r.jubilado === 'true';
   if ('activo' in r) r.activo = r.activo === true || r.activo === 'true';
@@ -77,6 +80,9 @@ export function _toCamel(obj) {
     requiere_libreta: 'requiereLibreta', fecha_aprobacion: 'fechaAprobacion',
     motivo_rechazo: 'motivoRechazo', fecha_rechazo: 'fechaRechazo',
     obs_entrevista: 'obsEntrevista',
+    fec_nac: 'fecNac', fecha_cita: 'fechaCita', hora_cita: 'horaCita',
+    nombre_referido: 'nombreReferido', rrhh_id: 'rrhhId',
+    anulado_por: 'anuladoPor', anulado_fecha: 'anuladoFecha', creado_por: 'creadoPor',
     id_local: 'id_local', created_at: 'created_at', updated_at: 'updated_at',
   };
   const r = {};
