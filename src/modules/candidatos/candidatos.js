@@ -167,27 +167,17 @@ function renderFilaCand(c) {
 
 export function filtrarCandidatos() {
   const b = [
-    ($('buscar-cand') || { value: '' }).value,
+    ($('cand-buscar') || { value: '' }).value,
     ($('buscador-global') || { value: '' }).value,
   ].find(v => v) || '';
   const busq = b.toLowerCase();
-  const zona = ($('cf-cand-zona') || { value: '' }).value;
-  const estado = ($('cf-cand-estado') || { value: '' }).value;
-  const medio = ($('cf-cand-medio') || { value: '' }).value;
-  const rrhh = ($('cf-cand-rrhh') || { value: '' }).value;
-  const asistio = ($('cf-cand-asistio') || { value: '' }).value;
-  const tel = ($('cf-cand-tel') || { value: '' }).value.toLowerCase();
-  const fecha = ($('cf-cand-fecha') || { value: '' }).value.toLowerCase();
+  const zona = ($('cand-filtro-zona') || { value: '' }).value;
+  const estado = ($('cand-filtro-estado') || { value: '' }).value;
 
   renderCandidatos(DB.candidatos.filter(c =>
-    (!busq || c.nombre.toLowerCase().includes(busq) || c.dni.includes(busq)) &&
+    (!busq || (c.apellido || '').toLowerCase().includes(busq) || c.nombre.toLowerCase().includes(busq) || (c.dni || '').includes(busq)) &&
     (!zona || c.zona === zona) &&
-    (!estado || c.estado === estado) &&
-    (!medio || c.medio === medio) &&
-    (!rrhh || c.rrhh === rrhh) &&
-    (!asistio || c.asistio === asistio) &&
-    (!tel || (c.tel || '').includes(tel)) &&
-    (!fecha || (c.fecha || '').includes(fecha))
+    (!estado || c.estado === estado)
   ));
 }
 
