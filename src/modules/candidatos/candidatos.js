@@ -1,4 +1,4 @@
-import { DB, LOCALIDADES_BA } from '@shared/state.js';
+import { DB, LOCALIDADES_BA, currentUser } from '@shared/state.js';
 import { $, toTitleCase, cleanText, validarCampos, hoyStr, badge } from '@shared/helpers.js';
 import { toast, abrirModal, cerrarModal } from '@shared/ui.js';
 import { supaSync } from '@shared/supabase.js';
@@ -254,6 +254,7 @@ export function abrirNuevoCandidato() {
 
 export function guardarCandidato() {
   if (!validarCampos([
+    { id: 'c-apellido', label: 'Apellido' },
     { id: 'c-nombre', label: 'Nombre' },
     { id: 'c-dni', label: 'DNI' },
     { id: 'c-tel', label: 'Teléfono' },
@@ -261,11 +262,13 @@ export function guardarCandidato() {
     { id: 'c-zona', label: 'Provincia' },
   ], toast)) return;
 
+  const apellido = toTitleCase(($('c-apellido') || {}).value || '');
   const nombre = toTitleCase($('c-nombre').value);
   const dni = cleanText($('c-dni').value);
   const cuit = cleanText(($('c-cuit') || {}).value || '');
-  const fecnac = ($('c-fecnac') || {}).value || '';
+  const fecNac = ($('c-fecnac') || {}).value || null;
   const estadoCivil = ($('c-estado-civil') || {}).value || '';
+  const genero = ($('c-genero') || {}).value || null;
   const tel = cleanText($('c-tel').value);
   const email = cleanText(($('c-email') || {}).value || '');
   const calle = cleanText(($('c-calle') || {}).value || '');
@@ -274,18 +277,21 @@ export function guardarCandidato() {
   const locEl = $('c-localidad');
   const localidad = zona === 'CABA' ? 'CABA' : (locEl ? cleanText(locEl.value) : '');
   const medio = cleanText(($('c-medio') || {}).value || '');
-  const rrhh = cleanText(($('c-rrhh') || {}).value || '');
+  const nombreReferido = cleanText(($('c-nombre-referido') || {}).value || '');
+  const rrhhIdRaw = ($('c-rrhh') || {}).value || '';
+  const rrhhIdNum = parseInt(rrhhIdRaw, 10);
+  const rrhhId = Number.isNaN(rrhhIdNum) ? null : rrhhIdNum;
   const obs = cleanText(($('c-obs') || {}).value || '');
   const estado = cleanText(($('c-estado-i') || {}).value || '');
-  const fecha = cleanText(($('c-fecha') || {}).value || '');
-  const hora = cleanText(($('c-hora') || {}).value || '');
+  const fechaCita = ($('c-fecha') || {}).value || null;
+  const horaCita = ($('c-hora') || {}).value || null;
 
   if (estado === 'Citado') {
-    if (!fecha) { toast('⚠️ Ingresá la fecha de la cita'); $('c-fecha').focus(); return; }
+    if (!fechaCita) { toast('⚠️ Ingresá la fecha de la cita'); $('c-fecha').focus(); return; }
     const hoy = new Date(); hoy.setHours(0, 0, 0, 0);
-    if (new Date(fecha) < hoy) { toast('⚠️ La fecha de la cita no puede ser anterior a hoy'); $('c-fecha').focus(); return; }
-    if (!hora) { toast('⚠️ Ingresá la hora de la cita'); $('c-hora').focus(); return; }
-    if (!rrhh) { toast('⚠️ Ingresá quién citó al candidato'); $('c-rrhh').focus(); return; }
+    if (new Date(fechaCita) < hoy) { toast('⚠️ La fecha de la cita no puede ser anterior a hoy'); $('c-fecha').focus(); return; }
+    if (!horaCita) { toast('⚠️ Ingresá la hora de la cita'); $('c-hora').focus(); return; }
+    if (!rrhhId) { toast('⚠️ Seleccioná quién citó al candidato'); $('c-rrhh').focus(); return; }
   }
 
   const modal = $('modal-candidato');
@@ -295,36 +301,43 @@ export function guardarCandidato() {
     const c = getCandById(editId);
     if (!c) { toast('⚠️ Candidato no encontrado'); return; }
     Object.assign(c, {
-      nombre, dni, cuit, fecnac, estadoCivil, tel, email, calle, piso,
-      zona, localidad, medio, rrhh, obs,
+      apellido, nombre, dni, cuit, fecNac, estadoCivil, genero,
+      tel, email, calle, piso, zona, localidad,
+      medio, nombreReferido, rrhhId, obs,
       estado: estado || c.estado,
-      fecha: fecha ? new Date(fecha).toLocaleDateString('es-AR') : c.fecha,
-      hora: hora || c.hora,
+      fechaCita: fechaCita || c.fechaCita || null,
+      horaCita: horaCita || c.horaCita || null,
     });
     supaSync('candidatos', c);
     delete modal.dataset.editId;
     toast('✓ Candidato actualizado');
   } else {
-    const fechaDisplay = fecha ? new Date(fecha).toLocaleDateString('es-AR') : '';
+    const creadoPor = currentUser ? (currentUser.nickname || currentUser.nombre) : null;
     const nuevo = {
-      id: Date.now(), nombre, dni, cuit, fecnac, estadoCivil, tel, email,
-      calle, piso, zona, localidad, medio, rrhh, obs,
+      id: Date.now(),
+      apellido, nombre, dni, cuit, fecNac, estadoCivil, genero,
+      tel, email, calle, piso, zona, localidad,
+      medio, nombreReferido, rrhhId, obs,
       estado: estado || 'Sin citar',
-      asistio: '—', fecha: fechaDisplay, hora: hora || '',
+      asistio: null,
+      fechaCita: fechaCita || null,
+      horaCita: horaCita || null,
+      creadoPor,
     };
     DB.candidatos.push(nuevo);
     supaSync('candidatos', nuevo);
 
     // Crear turno si tiene fecha y hora
-    if (fecha && hora) {
+    if (fechaCita && horaCita) {
+      const responsable = (DB.personalRrhh || []).find(p => p.id === rrhhId);
       const turno = {
         id: Date.now() + 1,
         candidatoId: nuevo.id,
-        nombre: nombre,
-        fecha: fecha,
-        hora: hora,
+        nombre: apellido + ' ' + nombre,
+        fecha: fechaCita,
+        hora: horaCita,
         estado: 'Confirmado',
-        responsable: rrhh || '',
+        responsable: responsable ? responsable.nombre : '',
       };
       if (!DB.turnos) DB.turnos = [];
       DB.turnos.push(turno);
@@ -338,35 +351,34 @@ export function guardarCandidato() {
 
 function editarCandidato(id) {
   const c = getCandById(id); if (!c) return;
-  const set = (elId, v) => { const el = $(elId); if (el) el.value = v || ''; };
+  const set = (elId, v) => { const el = $(elId); if (el) el.value = v != null ? v : ''; };
+  set('c-apellido', c.apellido);
   set('c-nombre', c.nombre);
   set('c-dni', c.dni);
   set('c-cuit', c.cuit);
-  set('c-fecnac', c.fecnac);
+  set('c-fecnac', c.fecNac);
   set('c-tel', c.tel);
   set('c-email', c.email);
   set('c-calle', c.calle);
   set('c-piso', c.piso);
-  set('c-rrhh', c.rrhh);
+  set('c-rrhh', c.rrhhId != null ? String(c.rrhhId) : '');
   set('c-obs', c.obs);
   set('c-medio', c.medio);
+  set('c-nombre-referido', c.nombreReferido);
   const ecEl = $('c-estado-civil');
   if (ecEl) ecEl.value = c.estadoCivil || '';
+  const genEl = $('c-genero');
+  if (genEl) genEl.value = c.genero || '';
   set('c-estado-i', c.estado);
   onChangeEstadoCand();
-  if (c.fecha && c.fecha.includes('/')) {
-    const parts = c.fecha.split('/');
-    if (parts.length === 3) set('c-fecha', parts[2] + '-' + parts[1] + '-' + parts[0]);
-  } else {
-    set('c-fecha', c.fecha);
-  }
-  set('c-hora', c.hora);
+  set('c-fecha', c.fechaCita);
+  set('c-hora', c.horaCita);
   const zEl = $('c-zona');
   if (zEl) { zEl.value = c.zona || ''; onChangeZonaCand(); }
   const lEl = $('c-localidad');
   if (lEl && c.localidad) lEl.value = c.localidad;
   const tit = $('modal-cand-titulo');
-  if (tit) tit.textContent = 'Editar candidato — ' + c.nombre;
+  if (tit) tit.textContent = 'Editar candidato — ' + (c.apellido || '') + (c.apellido && c.nombre ? ', ' : '') + (c.nombre || '');
   const modal = $('modal-candidato');
   if (modal) modal.dataset.editId = c.id;
   abrirModal('modal-candidato');
