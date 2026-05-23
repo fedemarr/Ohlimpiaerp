@@ -331,6 +331,7 @@ function renderConfiguracion(){
   renderConfigAprobadoresReas();
   renderConfigLista('movimientos','lista-movimientos');
   renderConfigVentas();
+  if (window.renderPersonalRrhh) window.renderPersonalRrhh();
   cfgTab('personal', document.querySelector('#screen-configuracion .tab-btn'));
 }
 

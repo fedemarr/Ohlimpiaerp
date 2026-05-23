@@ -467,6 +467,7 @@
   <div style="display:flex;gap:0;border-bottom:1px solid var(--borde);margin-bottom:20px;background:white;border-radius:var(--radio-lg) var(--radio-lg) 0 0;overflow:hidden;box-shadow:var(--sombra);">
     <button class="tab-btn active" onclick="cfgTab('personal',this)" style="padding:12px 18px;">🏷️ Medios de contacto</button>
     <button class="tab-btn" onclick="cfgTab('usuarios-cfg',this)" style="padding:12px 18px;">🔐 Accesos y perfiles</button>
+    <button class="tab-btn" onclick="cfgTab('personal-rrhh',this)" style="padding:12px 18px;">👥 Personal RRHH</button>
     <button class="tab-btn" onclick="cfgTab('geografia',this)" style="padding:12px 18px;">📍 Geografía</button>
     <button class="tab-btn" onclick="cfgTab('puestos',this)" style="padding:12px 18px;">📊 Puestos</button>
     <button class="tab-btn" onclick="cfgTab('reas-cfg',this)" style="padding:12px 18px;">🔄 Reasignaciones</button>
@@ -622,6 +623,35 @@
           <span style="display:flex;align-items:center;gap:5px;"><span class="pm-cell lectura" style="width:22px;height:22px;font-size:12px;">👁</span> Solo lectura</span>
           <span style="display:flex;align-items:center;gap:5px;"><span class="pm-cell sin-acceso" style="width:22px;height:22px;font-size:12px;">—</span> Sin acceso</span>
           <span style="color:var(--texto-muy-suave);">Hacé click en cualquier celda para cambiar el nivel de acceso.</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TAB: PERSONAL RRHH -->
+  <div id="cfg-tab-personal-rrhh" class="tab-content">
+    <div class="card">
+      <div class="card-header">
+        <div>
+          <h3>👥 Personal RRHH (Selectoras)</h3>
+          <div style="font-size:12px;color:var(--texto-suave);margin-top:2px;">
+            Equipo de RRHH que contacta y selecciona candidatos. Estas personas aparecen en el campo "Selectora" del módulo Candidatos.
+          </div>
+        </div>
+        <button class="btn btn-primary btn-sm" onclick="abrirNuevoPersonalRrhh()">+ Nueva persona</button>
+      </div>
+      <div class="card-body" style="padding:0;">
+        <div style="overflow-x:auto;">
+          <table style="border-collapse:collapse;font-size:13px;width:100%;">
+            <thead>
+              <tr>
+                <th style="text-align:left;padding:10px 12px;border-bottom:1px solid var(--borde);">Apellido, Nombre</th>
+                <th style="text-align:left;padding:10px 12px;border-bottom:1px solid var(--borde);">Puesto</th>
+                <th style="text-align:left;padding:10px 12px;border-bottom:1px solid var(--borde);">Acciones</th>
+              </tr>
+            </thead>
+            <tbody id="tbody-personal-rrhh"></tbody>
+          </table>
         </div>
       </div>
     </div>

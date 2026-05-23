@@ -16,6 +16,7 @@ import { candidatosScreenConfig, filtrarCandidatos, poblarFiltrosColumnasCandida
 import { psicoScreenConfig, filtrarPsico, poblarFiltrosColumnasPsico, renderPsico } from './modules/psicotecnico/index.js';
 import { altasScreenConfig, filtrarAltas, poblarFiltrosColumnasAltas, renderAltas, poblarSelectsAltas } from './modules/altas/index.js';
 import { legajosScreenConfig, filtrarLegajos, renderLegajos } from './modules/legajos/index.js';
+import './modules/personal_rrhh/index.js';
 
 // ========== BIND SHARED A WINDOW (PRIMERO) ==========
 // Estas funciones las llama el HTML con onclick — deben estar en window
