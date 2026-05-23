@@ -1,5 +1,7 @@
-export { renderPersonalRrhh } from './personal_rrhh.js';
+export { renderPersonalRrhh, abrirNuevoPersonalRrhh, guardarPersonalRrhh } from './personal_rrhh.js';
 
-import { renderPersonalRrhh } from './personal_rrhh.js';
+import { renderPersonalRrhh, abrirNuevoPersonalRrhh, guardarPersonalRrhh } from './personal_rrhh.js';
 
 window.renderPersonalRrhh = renderPersonalRrhh;
+window.abrirNuevoPersonalRrhh = abrirNuevoPersonalRrhh;
+window.guardarPersonalRrhh = guardarPersonalRrhh;
