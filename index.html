@@ -638,7 +638,13 @@
             Equipo de RRHH que contacta y selecciona candidatos. Estas personas aparecen en el campo "Selectora" del módulo Candidatos.
           </div>
         </div>
+        <div style="display:flex;align-items:center;gap:14px;">
+        <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;">
+          <input type="checkbox" id="pr-ver-anuladas" onchange="renderPersonalRrhh()">
+          Ver anuladas
+        </label>
         <button class="btn btn-primary btn-sm" onclick="abrirNuevoPersonalRrhh()">+ Nueva persona</button>
+      </div>
       </div>
       <div class="card-body" style="padding:0;">
         <div style="overflow-x:auto;">

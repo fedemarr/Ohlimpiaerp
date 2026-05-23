@@ -12,25 +12,34 @@ function getPersonaById(id) {
 export function renderPersonalRrhh() {
   const tbody = $('tbody-personal-rrhh');
   if (!tbody) return;
-  const lista = (DB.personalRrhh || []).filter(p => !p.anulado);
+  const verAnuladas = !!($('pr-ver-anuladas') && $('pr-ver-anuladas').checked);
+  const lista = (DB.personalRrhh || []).filter(p => verAnuladas ? p.anulado : !p.anulado);
   if (lista.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="3" style="text-align:center;padding:20px;color:#94a3b8;">Sin personal de RRHH cargado</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="3" style="text-align:center;padding:20px;color:#94a3b8;">' +
+      (verAnuladas ? 'No hay personas anuladas' : 'Sin personal de RRHH activo') + '</td></tr>';
     return;
   }
   tbody.innerHTML = lista.map(p => {
     const nombreCompleto = (p.apellido ? p.apellido + ', ' : '') + (p.nombre || '');
-    return `<tr>
-      <td style="padding:10px 12px;">${nombreCompleto}</td>
+    const filaStyle = p.anulado ? 'background:#fafafa;color:#94a3b8;' : '';
+    const accion = p.anulado
+      ? `<button data-action="reactivar" data-id="${p.id}" style="background:#dcfce7;color:#15803d;padding:4px 8px;border:none;border-radius:4px;cursor:pointer;" title="Reactivar">♻️</button>`
+      : `<button data-action="editar" data-id="${p.id}" style="background:#e2e8f0;color:#374151;padding:4px 8px;border:none;border-radius:4px;cursor:pointer;margin-right:4px;" title="Editar">✏️</button>` +
+        `<button data-action="anular" data-id="${p.id}" style="background:#fee2e2;color:#b91c1c;padding:4px 8px;border:none;border-radius:4px;cursor:pointer;" title="Anular">🗑️</button>`;
+    return `<tr style="${filaStyle}">
+      <td style="padding:10px 12px;">${nombreCompleto}${p.anulado ? ' <span style="font-size:11px;color:#dc2626;">(anulada)</span>' : ''}</td>
       <td style="padding:10px 12px;">${p.puesto || '—'}</td>
-      <td style="padding:10px 12px;">
-        <button data-action="editar" data-id="${p.id}" style="background:#e2e8f0;color:#374151;padding:4px 8px;border:none;border-radius:4px;cursor:pointer;">✏️</button>
-      </td>
+      <td style="padding:10px 12px;">${accion}</td>
     </tr>`;
   }).join('');
   tbody.onclick = function (e) {
     const btn = e.target.closest('button[data-action]');
     if (!btn) return;
-    if (btn.dataset.action === 'editar') editarPersonalRrhh(btn.dataset.id);
+    const action = btn.dataset.action;
+    const id = btn.dataset.id;
+    if (action === 'editar') editarPersonalRrhh(id);
+    else if (action === 'anular') anularPersonalRrhh(id);
+    else if (action === 'reactivar') reactivarPersonalRrhh(id);
   };
 }
 
@@ -53,6 +62,7 @@ export function abrirNuevoPersonalRrhh() {
 export function editarPersonalRrhh(id) {
   const p = getPersonaById(id);
   if (!p) { toast('⚠️ Persona no encontrada'); return; }
+  if (p.anulado) { toast('⚠️ Reactivá la persona antes de editarla'); return; }
   $('pr-apellido').value = p.apellido || '';
   $('pr-nombre').value   = p.nombre || '';
   $('pr-puesto').value   = p.puesto || '';
@@ -92,4 +102,25 @@ export function guardarPersonalRrhh() {
   }
   cerrarModal('modal-personal-rrhh');
   renderPersonalRrhh();
+}
+
+// Marca una persona como anulada (soft delete, política A.7)
+export function anularPersonalRrhh(id) {
+  const p = getPersonaById(id);
+  if (!p) { toast('⚠️ Persona no encontrada'); return; }
+  if (!confirm('¿Anular a ' + p.apellido + ', ' + p.nombre + '? Podrás reactivarla después desde "Ver anuladas".')) return;
+  p.anulado = true;
+  supaSync('personalRrhh', p);
+  renderPersonalRrhh();
+  toast('✓ ' + p.apellido + ', ' + p.nombre + ' anulada');
+}
+
+// Reactiva una persona anulada
+export function reactivarPersonalRrhh(id) {
+  const p = getPersonaById(id);
+  if (!p) { toast('⚠️ Persona no encontrada'); return; }
+  p.anulado = false;
+  supaSync('personalRrhh', p);
+  renderPersonalRrhh();
+  toast('✓ ' + p.apellido + ', ' + p.nombre + ' reactivada');
 }
