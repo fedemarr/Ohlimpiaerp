@@ -2,7 +2,7 @@
 // Este archivo se irá vaciando a medida que se migren módulos.
 // No agregar código nuevo acá.
 
-import { DB, PERFILES, MENU, BADGE_MAP, AREAS, LOCALIDADES_BA, currentUser } from '@shared/state.js';
+import { DB, PERFILES, MENU, BADGE_MAP, AREAS, LOCALIDADES_BA, currentUser, MODULOS_SISTEMA } from '@shared/state.js';
 import { $, initials, avatarEl, badge, formatPeriodo, hoyStr, esFeriado, esFinde, getDiasDelMes, calcularDiasEntre, toTitleCase, cleanText, applyTitleCase, validarCampos, fillSelect, fillDL } from '@shared/helpers.js';
 import { toast, abrirModal, cerrarModal, activarOrdenamiento } from '@shared/ui.js';
 import { supaSync, supaDel, supaInit } from '@shared/supabase.js';

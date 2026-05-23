@@ -136,6 +136,29 @@ export const MENU = [
   ]},
 ];
 
+// ========== MÓDULOS DEL SISTEMA — TABLA MATRICIAL DE PERMISOS ==========
+// Lista de módulos sobre los que la tabla de "Accesos y perfiles"
+// asigna permisos (0=sin acceso, 1=lectura, 2=modificar). Es un subset
+// histórico de módulos clave, no todos los del MENU.
+export const MODULOS_SISTEMA = [
+  { key: 'candidatos',     label: 'Candidatos',    icon: '👥' },
+  { key: 'pedidos',        label: 'Pedidos',       icon: '📋' },
+  { key: 'psicotecnico',   label: 'Psicotécnico',  icon: '🧠' },
+  { key: 'altas',          label: 'Altas',         icon: '✅' },
+  { key: 'legajos',        label: 'Legajos',       icon: '📁' },
+  { key: 'reasignaciones', label: 'Reasignac.',    icon: '🔄' },
+  { key: 'legal',          label: 'Legal',         icon: '⚖️' },
+  { key: 'enfermos',       label: 'Enfermos',      icon: '🏥' },
+  { key: 'capacitaciones', label: 'Capacit.',      icon: '🎓' },
+  { key: 'vacaciones',     label: 'Vacaciones',    icon: '🏖️' },
+  { key: 'competencia',    label: 'Competencia',   icon: '🏆' },
+  { key: 'configuracion',  label: 'Config.',       icon: '⚙️' },
+  { key: 'smvm',           label: 'SMVM',          icon: '💵' },
+  { key: 'liquidacion',    label: 'Liquidación',   icon: '📊' },
+  { key: 'liq_admin',      label: 'Liq. Admin',    icon: '🏢' },
+  { key: 'liquidaciones',  label: 'Liquidaciones', icon: '💰' },
+];
+
 // ========== BADGE MAP ==========
 
 export const BADGE_MAP = {
