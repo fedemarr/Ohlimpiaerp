@@ -222,7 +222,7 @@ export function abrirNuevoCandidato() {
    'c-obs', 'c-nombre-referido', 'c-fecha', 'c-hora'].forEach(id => {
     const el = $(id); if (el) el.value = '';
   });
-  ['c-zona', 'c-medio', 'c-estado-civil', 'c-genero', 'c-estado-i', 'c-rrhh'].forEach(id => {
+  ['c-zona', 'c-medio', 'c-estado-civil', 'c-genero', 'c-nacionalidad', 'c-estado-i', 'c-rrhh'].forEach(id => {
     const el = $(id); if (el) el.selectedIndex = 0;
   });
   poblarSelectRRHHCandidato();
@@ -250,6 +250,7 @@ export function guardarCandidato() {
   const fecNac = ($('c-fecnac') || {}).value || null;
   const estadoCivil = ($('c-estado-civil') || {}).value || '';
   const genero = ($('c-genero') || {}).value || null;
+  const nacionalidad = ($('c-nacionalidad') || {}).value || null;
   const tel = cleanText($('c-tel').value);
   const email = cleanText(($('c-email') || {}).value || '');
   const calle = cleanText(($('c-calle') || {}).value || '');
@@ -282,7 +283,7 @@ export function guardarCandidato() {
     const c = getCandById(editId);
     if (!c) { toast('⚠️ Candidato no encontrado'); return; }
     Object.assign(c, {
-      apellido, nombre, dni, cuit, fecNac, estadoCivil, genero,
+      apellido, nombre, dni, cuit, fecNac, estadoCivil, genero, nacionalidad,
       tel, email, calle, piso, zona, localidad,
       medio, nombreReferido, rrhhId, obs,
       estado: estado || c.estado,
@@ -296,7 +297,7 @@ export function guardarCandidato() {
     const creadoPor = currentUser ? (currentUser.nickname || currentUser.nombre) : null;
     const nuevo = {
       id: Date.now(),
-      apellido, nombre, dni, cuit, fecNac, estadoCivil, genero,
+      apellido, nombre, dni, cuit, fecNac, estadoCivil, genero, nacionalidad,
       tel, email, calle, piso, zona, localidad,
       medio, nombreReferido, rrhhId, obs,
       estado: estado || 'Sin citar',
@@ -351,6 +352,8 @@ function editarCandidato(id) {
   if (ecEl) ecEl.value = c.estadoCivil || '';
   const genEl = $('c-genero');
   if (genEl) genEl.value = c.genero || '';
+  const nacEl = $('c-nacionalidad');
+  if (nacEl) nacEl.value = c.nacionalidad || '';
   set('c-estado-i', c.estado);
   onChangeEstadoCand();
   set('c-fecha', c.fechaCita);
