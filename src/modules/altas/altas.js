@@ -136,8 +136,9 @@ function crearHTMLModalAlta() {
             '<div class="form-group"><label>DNI *</label><input type="text" id="alt-dni"></div>',
             '<div class="form-group"><label>CUIT *</label><input type="text" id="alt-cuit" placeholder="XX-XXXXXXXX-X"></div>',
             '<div class="form-group"><label>Fecha de nacimiento</label><input type="date" id="alt-fecnac"></div>',
-            '<div class="form-group"><label>Nacionalidad</label><input type="text" id="alt-nac" value="Argentina"></div>',
+            '<div class="form-group"><label>Nacionalidad</label><select id="alt-nac" style="width:100%;padding:8px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;"><option>Argentina</option><option>Boliviana</option><option>Paraguaya</option><option>Peruana</option><option>Uruguaya</option><option>Chilena</option><option>Brasileña</option><option>Venezolana</option><option>Otra</option></select></div>',
             '<div class="form-group"><label>Estado civil</label><select id="alt-estado-civil" style="width:100%;padding:8px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;"><option>Soltero/a</option><option>Casado/a</option><option>Divorciado/a</option><option>Viudo/a</option><option>Conviviente</option></select></div>',
+            '<div class="form-group"><label>Género</label><select id="alt-genero" style="width:100%;padding:8px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;"><option value="">—</option><option>Femenino</option><option>Masculino</option><option>Otro</option></select></div>',
             '<div class="form-group"><label>Teléfono *</label><input type="text" id="alt-tel"></div>',
             '<div class="form-group"><label>Email</label><input type="email" id="alt-mail"></div>',
             '<div class="form-group"><label>Fecha de ingreso *</label><input type="date" id="alt-fec-ingreso"></div>',
@@ -212,7 +213,7 @@ export function abrirModalAlta(psicoIdx, altaId) {
   const src = altaReg || p;
 
   // Limpiar todos los campos
-  ['alt-nombre', 'alt-dni', 'alt-cuit', 'alt-fecnac', 'alt-nac', 'alt-tel', 'alt-mail',
+  ['alt-nombre', 'alt-dni', 'alt-cuit', 'alt-fecnac', 'alt-tel', 'alt-mail',
    'alt-fec-ingreso', 'alt-fec-egreso', 'alt-direccion', 'alt-banco', 'alt-cbu',
    'alt-calzado', 'alt-integracion', 'alt-art', 'alt-obra-social', 'alt-supervisor'].forEach(id => {
     const el = $(id); if (el) el.value = '';
@@ -223,7 +224,7 @@ export function abrirModalAlta(psicoIdx, altaId) {
   const egresoRow = $('alt-fec-egreso-row'); if (egresoRow) egresoRow.style.display = 'none';
 
   // Resetear selects
-  ['alt-estado-civil', 'alt-zona', 'alt-localidad', 'alt-funcion', 'alt-categoria',
+  ['alt-estado-civil', 'alt-genero', 'alt-nac', 'alt-zona', 'alt-localidad', 'alt-funcion', 'alt-categoria',
    'alt-servicio', 'alt-ambo', 'alt-forma-pago', 'alt-seguro'].forEach(id => {
     const el = $(id); if (el) el.selectedIndex = 0;
   });
@@ -257,6 +258,11 @@ export function abrirModalAlta(psicoIdx, altaId) {
     // Direccion: combinar calle + piso del candidato
     const dirCand = cand ? (cand.calle || '') + (cand.piso ? ' ' + cand.piso : '') : '';
     set('alt-direccion', dirCand.trim());
+    // Género y nacionalidad: selects, se precargan desde el candidato
+    const genAltEl = $('alt-genero');
+    if (genAltEl && cand && cand.genero) genAltEl.value = cand.genero;
+    const nacAltEl = $('alt-nac');
+    if (nacAltEl && cand && cand.nacionalidad) nacAltEl.value = cand.nacionalidad;
 
     // Tab 1 — Domicilio (zona y localidad del candidato)
     const zona = src.zona || (cand && cand.zona) || '';
@@ -361,6 +367,7 @@ export function confirmarAlta() {
   const mail = cleanText(($('alt-mail') || {}).value || '');
   const estadoCivil = ($('alt-estado-civil') || {}).value || '';
   const nac = cleanText(($('alt-nac') || {}).value || 'Argentina');
+  const genero = ($('alt-genero') || {}).value || '';
   const fechaIngreso = $('alt-fec-ingreso').value;
   const zona = ($('alt-zona') || {}).value || '';
   const localidad = zona === 'CABA' ? 'CABA' : (($('alt-localidad') || {}).value || '');
@@ -409,6 +416,7 @@ export function confirmarAlta() {
     cuit,
     estadoCivil,
     nac,
+    genero,
     banco,
     calzado,
     ambo,
