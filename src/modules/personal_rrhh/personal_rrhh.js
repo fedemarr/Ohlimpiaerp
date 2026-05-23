@@ -4,6 +4,11 @@ import { toast, abrirModal, cerrarModal } from '@shared/ui.js';
 import { supaSync } from '@shared/supabase.js';
 
 // Llena la tabla de personal RRHH con las personas no anuladas
+// Busca una persona por id (== para tolerar string del dataset vs number)
+function getPersonaById(id) {
+  return (DB.personalRrhh || []).find(p => p.id == id);
+}
+
 export function renderPersonalRrhh() {
   const tbody = $('tbody-personal-rrhh');
   if (!tbody) return;
@@ -17,9 +22,16 @@ export function renderPersonalRrhh() {
     return `<tr>
       <td style="padding:10px 12px;">${nombreCompleto}</td>
       <td style="padding:10px 12px;">${p.puesto || '—'}</td>
-      <td style="padding:10px 12px;">—</td>
+      <td style="padding:10px 12px;">
+        <button data-action="editar" data-id="${p.id}" style="background:#e2e8f0;color:#374151;padding:4px 8px;border:none;border-radius:4px;cursor:pointer;">✏️</button>
+      </td>
     </tr>`;
   }).join('');
+  tbody.onclick = function (e) {
+    const btn = e.target.closest('button[data-action]');
+    if (!btn) return;
+    if (btn.dataset.action === 'editar') editarPersonalRrhh(btn.dataset.id);
+  };
 }
 
 // Abre el modal de alta con los campos vacíos
@@ -28,6 +40,28 @@ export function abrirNuevoPersonalRrhh() {
     const el = $(id);
     if (el) el.value = '';
   });
+  const tit = $('modal-personal-rrhh-titulo');
+  if (tit) tit.textContent = 'Nueva persona — Personal RRHH';
+  const btn = $('modal-personal-rrhh-btn');
+  if (btn) btn.textContent = 'Crear persona';
+  const modal = $('modal-personal-rrhh');
+  if (modal) delete modal.dataset.editId;
+  abrirModal('modal-personal-rrhh');
+}
+
+// Abre el modal precargado para editar una persona existente
+export function editarPersonalRrhh(id) {
+  const p = getPersonaById(id);
+  if (!p) { toast('⚠️ Persona no encontrada'); return; }
+  $('pr-apellido').value = p.apellido || '';
+  $('pr-nombre').value   = p.nombre || '';
+  $('pr-puesto').value   = p.puesto || '';
+  const tit = $('modal-personal-rrhh-titulo');
+  if (tit) tit.textContent = 'Editar persona — ' + p.apellido + ', ' + p.nombre;
+  const btn = $('modal-personal-rrhh-btn');
+  if (btn) btn.textContent = 'Guardar cambios';
+  const modal = $('modal-personal-rrhh');
+  if (modal) modal.dataset.editId = p.id;
   abrirModal('modal-personal-rrhh');
 }
 
@@ -40,11 +74,22 @@ export function guardarPersonalRrhh() {
     toast('⚠️ Completá apellido y nombre');
     return;
   }
-  const persona = { id: Date.now(), apellido, nombre, puesto, activa: true, anulado: false };
-  if (!DB.personalRrhh) DB.personalRrhh = [];
-  DB.personalRrhh.push(persona);
+  const modal = $('modal-personal-rrhh');
+  const editId = modal && modal.dataset && modal.dataset.editId;
+  if (editId) {
+    const p = getPersonaById(editId);
+    if (!p) { toast('⚠️ Persona no encontrada'); return; }
+    Object.assign(p, { apellido, nombre, puesto });
+    supaSync('personalRrhh', p);
+    delete modal.dataset.editId;
+    toast('✓ ' + apellido + ', ' + nombre + ' actualizada');
+  } else {
+    const persona = { id: Date.now(), apellido, nombre, puesto, activa: true, anulado: false };
+    if (!DB.personalRrhh) DB.personalRrhh = [];
+    DB.personalRrhh.push(persona);
+    supaSync('personalRrhh', persona);
+    toast('✓ ' + apellido + ', ' + nombre + ' agregada');
+  }
   cerrarModal('modal-personal-rrhh');
   renderPersonalRrhh();
-  supaSync('personalRrhh', persona);
-  toast('✓ ' + apellido + ', ' + nombre + ' agregada');
 }

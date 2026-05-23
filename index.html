@@ -4252,7 +4252,7 @@
 <div class="modal-overlay" id="modal-personal-rrhh">
   <div class="modal" style="max-width:520px;">
     <div class="modal-header">
-      <h3>Nueva persona — Personal RRHH</h3>
+      <h3 id="modal-personal-rrhh-titulo">Nueva persona — Personal RRHH</h3>
       <button class="btn-close" onclick="cerrarModal('modal-personal-rrhh')">×</button>
     </div>
     <div class="modal-body">
@@ -4269,7 +4269,7 @@
     </div>
     <div class="modal-footer">
       <button class="btn btn-secondary" onclick="cerrarModal('modal-personal-rrhh')">Cancelar</button>
-      <button class="btn btn-primary" onclick="guardarPersonalRrhh()">Crear persona</button>
+      <button class="btn btn-primary" id="modal-personal-rrhh-btn" onclick="guardarPersonalRrhh()">Crear persona</button>
     </div>
   </div>
 </div>
