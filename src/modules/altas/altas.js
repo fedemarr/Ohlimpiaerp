@@ -245,8 +245,18 @@ export function abrirModalAlta(psicoIdx, altaId) {
     // Tab 0 — Identificación
     const set = (id, v) => { const el = $(id); if (el && v) el.value = v; };
     set('alt-nombre', src.nombre);
-    set('alt-dni', src.dni);
-    set('alt-tel', src.tel || (cand && cand.tel));
+    // DNI y tel: el candidato actual tiene prioridad sobre la snapshot (evita datos viejos)
+    set('alt-dni', (cand && cand.dni) || src.dni);
+    set('alt-tel', (cand && cand.tel) || src.tel);
+    // CUIT, fecha nac, email, estado civil: solo existen en el candidato original
+    set('alt-cuit', cand && cand.cuit);
+    set('alt-fecnac', cand && cand.fecNac);
+    set('alt-mail', cand && cand.email);
+    const ecEl = $('alt-estado-civil');
+    if (ecEl && cand && cand.estadoCivil) ecEl.value = cand.estadoCivil;
+    // Direccion: combinar calle + piso del candidato
+    const dirCand = cand ? (cand.calle || '') + (cand.piso ? ' ' + cand.piso : '') : '';
+    set('alt-direccion', dirCand.trim());
 
     // Tab 1 — Domicilio (zona y localidad del candidato)
     const zona = src.zona || (cand && cand.zona) || '';
@@ -362,6 +372,15 @@ export function confirmarAlta() {
   const calzado = parseInt(($('alt-calzado') || {}).value) || 0;
   const ambo = ($('alt-ambo') || {}).value || '';
   const seguro = ($('alt-seguro') || {}).value || 'Pendiente';
+  // Campos agregados (v005): leer del modal para persistir en el legajo
+  const direccion = cleanText(($('alt-direccion') || {}).value || '');
+  const fecNac = ($('alt-fecnac') || {}).value || '';
+  const cbu = cleanText(($('alt-cbu') || {}).value || '');
+  const art = cleanText(($('alt-art') || {}).value || '');
+  const obraSocial = cleanText(($('alt-obra-social') || {}).value || '');
+  const formaPago = ($('alt-forma-pago') || {}).value || '';
+  const integracion = parseInt(($('alt-integracion') || {}).value) || 0;
+  const categoria = ($('alt-categoria') || {}).value || '';
 
   // Generar número de socio (max + 1)
   const maxNro = (DB.legajos || []).reduce((m, l) => Math.max(m, l.nro || 0), 0);
@@ -397,6 +416,15 @@ export function confirmarAlta() {
     fechaIngresoPrueba: fechaIngreso,
     adjuntosLegal: [],
     adjuntosMedico: [],
+    direccion,
+    fecNac,
+    zona,
+    cbu,
+    art,
+    obraSocial,
+    formaPago,
+    integracion,
+    categoria,
   };
 
   DB.legajos.push(legajo);
