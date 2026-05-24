@@ -12,6 +12,7 @@ export const _SM = {
   candidatos: 'candidatos',
   psicos: 'psicos',
   preocupacionales: 'preocupacionales',
+  documentacionIngreso: 'documentacion_ingreso',
   catAltPendientes: 'cat_alt_pendientes',
   turnos: 'turnos',
   clientes: 'clientes',
@@ -43,6 +44,17 @@ export function _toSnake(obj) {
     servicioDestino: 'servicio_destino', obraSocial: 'obra_social', formaPago: 'forma_pago',
     fechaInicio: 'fecha_inicio', ultimoContacto: 'ultimo_contacto',
     candidatoId: 'candidato_id', psicoId: 'psico_id', fechaTurno: 'fecha_turno',
+    preocupId: 'preocup_id',
+    antecResultado: 'antec_resultado',
+    antecFecha: 'antec_fecha',
+    antecVencimiento: 'antec_vencimiento',
+    antecExcepcion: 'antec_excepcion',
+    antecMotivoExcepcion: 'antec_motivo_excepcion',
+    libretaAplica: 'libreta_aplica',
+    libretaZona: 'libreta_zona',
+    libretaVencimiento: 'libreta_vencimiento',
+    cursoTiene: 'curso_tiene',
+    cursoVencimiento: 'curso_vencimiento',
     libretaSanitaria: 'libreta_sanitaria', requiereAntecedentes: 'requiere_antecedentes',
     requiereLibreta: 'requiere_libreta', fechaAprobacion: 'fecha_aprobacion',
     motivoRechazo: 'motivo_rechazo', fechaRechazo: 'fecha_rechazo',
@@ -61,6 +73,9 @@ export function _toSnake(obj) {
   if ('activo' in r) r.activo = r.activo === true || r.activo === 'true';
   if ('requiere_antecedentes' in r) r.requiere_antecedentes = r.requiere_antecedentes === true || r.requiere_antecedentes === 'true';
   if ('requiere_libreta' in r) r.requiere_libreta = r.requiere_libreta === true || r.requiere_libreta === 'true';
+  if ('antec_excepcion' in r) r.antec_excepcion = r.antec_excepcion === true || r.antec_excepcion === 'true';
+  if ('libreta_aplica' in r) r.libreta_aplica = r.libreta_aplica === true || r.libreta_aplica === 'true';
+  if ('curso_tiene' in r) r.curso_tiene = r.curso_tiene === true || r.curso_tiene === 'true';
   return r;
 }
 
@@ -77,6 +92,17 @@ export function _toCamel(obj) {
     servicio_destino: 'servicioDestino', obra_social: 'obraSocial', forma_pago: 'formaPago',
     fecha_inicio: 'fechaInicio', ultimo_contacto: 'ultimoContacto',
     candidato_id: 'candidatoId', psico_id: 'psicoId', fecha_turno: 'fechaTurno',
+    preocup_id: 'preocupId',
+    antec_resultado: 'antecResultado',
+    antec_fecha: 'antecFecha',
+    antec_vencimiento: 'antecVencimiento',
+    antec_excepcion: 'antecExcepcion',
+    antec_motivo_excepcion: 'antecMotivoExcepcion',
+    libreta_aplica: 'libretaAplica',
+    libreta_zona: 'libretaZona',
+    libreta_vencimiento: 'libretaVencimiento',
+    curso_tiene: 'cursoTiene',
+    curso_vencimiento: 'cursoVencimiento',
     libreta_sanitaria: 'libretaSanitaria', requiere_antecedentes: 'requiereAntecedentes',
     requiere_libreta: 'requiereLibreta', fecha_aprobacion: 'fechaAprobacion',
     motivo_rechazo: 'motivoRechazo', fecha_rechazo: 'fechaRechazo',

@@ -33,6 +33,7 @@ export const DB = {
     { id: 3, nombre: 'Jara Fabricio', dni: '52113159', zona: 'CABA', rrhh: 'Naara', resultado: 'Apto', preocup: 'Realizado', estado: 'Ingreso', fecha: '05/10/2025', obs: '' },
   ],
   preocupacionales: [],
+  documentacionIngreso: [],
   legajos: [
     { nro: 2, nombre: 'Peretti Juan Carlos', dni: '6263572', funcion: 'Coordinador de área', servicio: 'ADMINISTRATIVO', supervisor: 'ADMINISTRATIVO', ingreso: '01/02/2011', estado: 'Activo', estadoLegal: '', estadoMedico: '', fechaBaja: '', fechaReincorp: '', seguro: 'Completo', localidad: 'Belgrano', tel: '1131543167', mail: 'juanperetti_46@hotmail.com', cuit: '20062635720', estadoCivil: 'Casado', nac: 'Argentina', banco: 'Banco Nación', calzado: 43, ambo: 'XL', periodoPrueba: 6, fechaIngresoPrueba: '2011-02-01', adjuntosLegal: [], adjuntosMedico: [] },
     { nro: 32, nombre: 'Tolaba Maximiliano Ezequiel', dni: '32343528', funcion: 'Referente', servicio: 'MIGUELETES.2423', supervisor: 'Alvaro Uballes', ingreso: '15/03/2018', estado: 'Activo', estadoLegal: '', estadoMedico: '', fechaBaja: '', fechaReincorp: '', seguro: 'Completo', localidad: 'Lomas de Zamora', tel: '', mail: '', cuit: '20323435287', estadoCivil: 'Soltero', nac: 'Argentina', banco: '', calzado: 41, ambo: 'M', periodoPrueba: 6, fechaIngresoPrueba: '2018-03-15', adjuntosLegal: [], adjuntosMedico: [] },
