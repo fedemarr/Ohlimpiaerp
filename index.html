@@ -322,6 +322,17 @@
 
 </div>
 <div class="screen" id="screen-preocupacional">
+  <div style="margin:0 20px 0;">
+    <div style="display:flex;gap:0;border-bottom:2px solid #e2e8f0;">
+      <button onclick="tabPreocup('activos')" id="tab-preocup-activos" style="padding:10px 20px;border:none;background:#1e3a8a;color:white;font-size:13px;font-weight:600;cursor:pointer;border-radius:8px 8px 0 0;">🏥 En proceso</button>
+      <button onclick="tabPreocup('historico')" id="tab-preocup-historico" style="padding:10px 20px;border:none;background:#f1f5f9;color:#64748b;font-size:13px;font-weight:600;cursor:pointer;border-radius:8px 8px 0 0;">📁 Histórico</button>
+    </div>
+  </div>
+  <div class="stats-grid">
+    <div class="stat-card azul"><div class="stat-label">En proceso</div><div class="stat-valor" id="st-pr-proceso">0</div></div>
+    <div class="stat-card verde"><div class="stat-label">Aprobados</div><div class="stat-valor" id="st-pr-aprobados">0</div></div>
+    <div class="stat-card rojo"><div class="stat-label">Rechazados</div><div class="stat-valor" id="st-pr-rechazados">0</div></div>
+  </div>
   <div style="margin:0 20px;overflow-x:auto;">
     <table style="width:100%;border-collapse:collapse;font-size:13px;">
       <thead>

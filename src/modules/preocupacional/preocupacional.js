@@ -3,13 +3,37 @@ import { $ } from '@shared/helpers.js';
 import { toast, cerrarModal } from '@shared/ui.js';
 import { supaSync } from '@shared/supabase.js';
 
-// Render del listado de pre-ocupacionales (esqueleto: tabla simple)
+let _preocupTab = 'activos';
+
+// Cambiar de pestaña (En proceso / Histórico)
+export function tabPreocup(tab) {
+  _preocupTab = tab;
+  const btnA = $('tab-preocup-activos');
+  const btnH = $('tab-preocup-historico');
+  if (btnA) { btnA.style.background = tab === 'activos' ? '#1e3a8a' : '#f1f5f9'; btnA.style.color = tab === 'activos' ? 'white' : '#64748b'; }
+  if (btnH) { btnH.style.background = tab === 'historico' ? '#1e3a8a' : '#f1f5f9'; btnH.style.color = tab === 'historico' ? 'white' : '#64748b'; }
+  renderPreocup();
+}
+
+// Render del listado de pre-ocupacionales (pestañas activos/histórico + indicadores)
 export function renderPreocup() {
   const tbody = $('tbody-preocup');
   if (!tbody) return;
-  const lista = (DB.preocupacionales || []).filter(p => !p.anulado && p.estado === 'En proceso');
+  const todos = (DB.preocupacionales || []).filter(p => !p.anulado);
+  const activos = todos.filter(p => p.estado === 'En proceso');
+  const historico = todos.filter(p => p.estado !== 'En proceso');
+
+  // Indicadores
+  const ss = (id, v) => { const e = $(id); if (e) e.textContent = v; };
+  ss('st-pr-proceso', activos.length);
+  ss('st-pr-aprobados', todos.filter(p => p.estado === 'Aprobado').length);
+  ss('st-pr-rechazados', todos.filter(p => p.estado === 'Rechazado').length);
+
+  const lista = _preocupTab === 'historico' ? historico : activos;
   if (lista.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:24px;color:#94a3b8;">Sin registros en pre-ocupacional todavía.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:24px;color:#94a3b8;">'
+      + (_preocupTab === 'historico' ? 'Sin registros en histórico' : 'Sin candidatos en proceso')
+      + '</td></tr>';
     return;
   }
   tbody.innerHTML = lista.map(p =>
@@ -21,7 +45,10 @@ export function renderPreocup() {
     + '<td>' + (p.prestador || '—') + '</td>'
     + '<td>' + (p.resultado || 'Pendiente') + '</td>'
     + '<td>' + (p.estado || 'En proceso') + '</td>'
-    + '<td><button onclick="abrirGestionPreocup(' + p.id + ')" style="font-size:11px;padding:3px 10px;background:#0891b2;color:white;border:none;border-radius:4px;cursor:pointer;">⚙️ Gestionar</button></td>'
+    + '<td>' + (p.estado === 'En proceso'
+        ? '<button onclick="abrirGestionPreocup(' + p.id + ')" style="font-size:11px;padding:3px 10px;background:#0891b2;color:white;border:none;border-radius:4px;cursor:pointer;">⚙️ Gestionar</button>'
+        : '<span style="font-size:11px;color:#94a3b8;">Cerrado</span>')
+    + '</td>'
     + '</tr>'
   ).join('');
 }
