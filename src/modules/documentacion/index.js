@@ -1,8 +1,22 @@
 // Módulo Documentación de ingreso — Entry point
 
-export { renderDocum } from './documentacion.js';
+export {
+  renderDocum,
+  abrirGestionDocum,
+  guardarDocum,
+  recalcularVencAntec,
+  toggleSeccionLibreta,
+  toggleSeccionCurso,
+} from './documentacion.js';
 
-import { renderDocum } from './documentacion.js';
+import {
+  renderDocum,
+  abrirGestionDocum,
+  guardarDocum,
+  recalcularVencAntec,
+  toggleSeccionLibreta,
+  toggleSeccionCurso,
+} from './documentacion.js';
 
 export const documScreenConfig = {
   documentacion: {
@@ -14,3 +28,8 @@ export const documScreenConfig = {
 };
 
 window.renderDocum = renderDocum;
+window.abrirGestionDocum = abrirGestionDocum;
+window.guardarDocum = guardarDocum;
+window.recalcularVencAntec = recalcularVencAntec;
+window.toggleSeccionLibreta = toggleSeccionLibreta;
+window.toggleSeccionCurso = toggleSeccionCurso;
