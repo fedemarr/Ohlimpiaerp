@@ -2,6 +2,7 @@
 
 export {
   renderDocum,
+  tabDocum,
   abrirGestionDocum,
   guardarDocum,
   recalcularVencAntec,
@@ -15,6 +16,7 @@ export {
 
 import {
   renderDocum,
+  tabDocum,
   abrirGestionDocum,
   guardarDocum,
   recalcularVencAntec,
@@ -31,11 +33,12 @@ export const documScreenConfig = {
     title: 'Documentación de ingreso',
     btn: null,
     fn: null,
-    render: () => renderDocum(),
+    render: () => tabDocum('activos'),
   },
 };
 
 window.renderDocum = renderDocum;
+window.tabDocum = tabDocum;
 window.abrirGestionDocum = abrirGestionDocum;
 window.guardarDocum = guardarDocum;
 window.recalcularVencAntec = recalcularVencAntec;

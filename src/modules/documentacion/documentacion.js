@@ -3,13 +3,37 @@ import { $ } from '@shared/helpers.js';
 import { toast, cerrarModal } from '@shared/ui.js';
 import { supaSync } from '@shared/supabase.js';
 
-// Render del listado de documentación de ingreso (esqueleto)
+let _documTab = 'activos';
+
+// Cambiar de pestaña (En proceso / Histórico)
+export function tabDocum(tab) {
+  _documTab = tab;
+  const btnA = $('tab-docum-activos');
+  const btnH = $('tab-docum-historico');
+  if (btnA) { btnA.style.background = tab === 'activos' ? '#1e3a8a' : '#f1f5f9'; btnA.style.color = tab === 'activos' ? 'white' : '#64748b'; }
+  if (btnH) { btnH.style.background = tab === 'historico' ? '#1e3a8a' : '#f1f5f9'; btnH.style.color = tab === 'historico' ? 'white' : '#64748b'; }
+  renderDocum();
+}
+
+// Render del listado de documentación (pestañas activos/histórico + indicadores)
 export function renderDocum() {
   const tbody = $('tbody-docum');
   if (!tbody) return;
-  const lista = (DB.documentacionIngreso || []).filter(d => !d.anulado && d.estado === 'En proceso');
+  const todos = (DB.documentacionIngreso || []).filter(d => !d.anulado);
+  const activos = todos.filter(d => d.estado === 'En proceso');
+  const historico = todos.filter(d => d.estado !== 'En proceso');
+
+  // Indicadores
+  const ss = (id, v) => { const e = $(id); if (e) e.textContent = v; };
+  ss('st-dc-proceso', activos.length);
+  ss('st-dc-aprobados', todos.filter(d => d.estado === 'Aprobado').length);
+  ss('st-dc-rechazados', todos.filter(d => d.estado === 'Rechazado').length);
+
+  const lista = _documTab === 'historico' ? historico : activos;
   if (lista.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:24px;color:#94a3b8;">Sin registros en documentación de ingreso todavía.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:24px;color:#94a3b8;">'
+      + (_documTab === 'historico' ? 'Sin registros en histórico' : 'Sin candidatos en proceso')
+      + '</td></tr>';
     return;
   }
   tbody.innerHTML = lista.map(d =>
@@ -21,7 +45,10 @@ export function renderDocum() {
     + '<td>' + (d.libretaAplica ? '✓' : '—') + '</td>'
     + '<td>' + (d.cursoTiene ? '✓' : '—') + '</td>'
     + '<td>' + (d.estado || 'En proceso') + '</td>'
-    + '<td><button onclick="abrirGestionDocum(' + d.id + ')" style="font-size:11px;padding:3px 10px;background:#7c3aed;color:white;border:none;border-radius:4px;cursor:pointer;">⚙️ Gestionar</button></td>'
+    + '<td>' + (d.estado === 'En proceso'
+        ? '<button onclick="abrirGestionDocum(' + d.id + ')" style="font-size:11px;padding:3px 10px;background:#7c3aed;color:white;border:none;border-radius:4px;cursor:pointer;">⚙️ Gestionar</button>'
+        : '<span style="font-size:11px;color:#94a3b8;">Cerrado</span>')
+    + '</td>'
     + '</tr>'
   ).join('');
 }
