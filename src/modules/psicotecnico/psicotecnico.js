@@ -36,9 +36,8 @@ function icon(val, requerida) {
 
 export function renderPsico(lista) {
   const todos = DB.psicos || [];
-  const estadosHistorico = ['Aprobado', 'Rechazado'];
-  const activos = todos.filter(p => !estadosHistorico.includes(p.estado));
-  const historico = todos.filter(p => estadosHistorico.includes(p.estado));
+  const activos = todos.filter(p => p.estado === 'En proceso');
+  const historico = todos.filter(p => p.estado !== 'En proceso');
 
   // Si recibe lista filtrada, usarla; si no, usar tab activo
   const listaFinal = lista || (_psicoTab === 'historico' ? historico : activos);
