@@ -52,7 +52,7 @@ export function renderPsico(lista) {
   if (!tbody) return;
 
   if (!listaFinal.length) {
-    tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;padding:30px;color:#94a3b8;">'
+    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:30px;color:#94a3b8;">'
       + (_psicoTab === 'historico' ? 'Sin registros en histórico' : 'Sin candidatos en proceso')
       + '</td></tr>';
     return;
@@ -66,9 +66,6 @@ export function renderPsico(lista) {
       + '<td style="padding:8px;font-size:12px;color:#64748b;">' + (p.dni || '—') + '</td>'
       + '<td style="padding:8px;font-size:12px;">' + (p.zona || '—') + '</td>'
       + '<td style="padding:8px;text-align:center;">' + icon(p.psicotecnico, true) + '</td>'
-      + '<td style="padding:8px;text-align:center;">' + icon(p.prelaboral, true) + '</td>'
-      + '<td style="padding:8px;text-align:center;">' + icon(p.antecedentes, p.requiereAntecedentes) + '</td>'
-      + '<td style="padding:8px;text-align:center;">' + icon(p.libretaSanitaria, p.requiereLibreta) + '</td>'
       + '<td style="padding:8px;text-align:center;font-size:11px;font-weight:600;color:' + ec + '">' + p.estado + '</td>'
       + '<td style="padding:8px;text-align:center;">'
         + (p.estado === 'En proceso'
@@ -161,18 +158,6 @@ export function abrirGestionPsico(i) {
   $('psico-gest-idx').value = i;
   $('psico-gest-nombre').textContent = p.nombre;
   $('pg-psicotecnico').value = p.psicotecnico || 'Pendiente';
-  $('pg-prelaboral').value = p.prelaboral || 'Pendiente';
-
-  const reqAnt = p.requiereAntecedentes || false;
-  const reqLib = p.requiereLibreta || false;
-  $('pg-req-antecedentes').checked = reqAnt;
-  $('pg-antecedentes').value = p.antecedentes || 'Pendiente';
-  $('pg-antecedentes').disabled = !reqAnt;
-  $('pg-antecedentes').style.opacity = reqAnt ? '1' : '0.5';
-  $('pg-req-libreta').checked = reqLib;
-  $('pg-libreta').value = p.libretaSanitaria || 'Pendiente';
-  $('pg-libreta').disabled = !reqLib;
-  $('pg-libreta').style.opacity = reqLib ? '1' : '0.5';
   $('pg-obs').value = p.obs || '';
   const moEl = $('pg-motivo-noapto');
   if (moEl) moEl.value = p.motivoRechazo || '';
@@ -191,33 +176,15 @@ function crearHTMLModalPsico() {
       '</div>',
       '<div class="modal-body">',
         '<input type="hidden" id="psico-gest-idx">',
-        '<h4 style="font-size:13px;color:#374151;margin-bottom:12px;border-bottom:1px solid #e2e8f0;padding-bottom:6px;">Etapas obligatorias</h4>',
         '<div class="form-grid form-grid-2">',
           '<div class="form-group"><label>🧠 Psicotécnico *</label>',
             '<select id="pg-psicotecnico" onchange="actualizarBotonesAprobacion()" style="width:100%;padding:8px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;">',
               '<option>Pendiente</option><option>Apto</option><option>Apto+</option><option>Apto-</option><option>Apto condicional</option><option>No Apto</option>',
             '</select></div>',
-          '<div class="form-group"><label>🏥 Prelaboral médico *</label>',
-            '<select id="pg-prelaboral" onchange="actualizarBotonesAprobacion()" style="width:100%;padding:8px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;">',
-              '<option>Pendiente</option><option>Aprobado</option><option>Rechazado</option>',
-            '</select></div>',
         '</div>',
         '<div id="pg-motivo-noapto-row" class="form-group" style="display:none;margin-top:8px;background:#fef2f2;border:1px solid #fca5a5;border-radius:8px;padding:10px;">',
           '<label style="color:#991b1b;font-weight:600;">⚠️ Motivo / observaciones del No Apto *</label>',
           '<textarea id="pg-motivo-noapto" rows="2" style="width:100%;padding:8px;border:1px solid #fca5a5;border-radius:6px;font-size:13px;resize:vertical;margin-top:4px;" placeholder="Detallá el motivo (obligatorio para No Apto)"></textarea>',
-        '</div>',
-        '<h4 style="font-size:13px;color:#374151;margin:16px 0 12px;border-bottom:1px solid #e2e8f0;padding-bottom:6px;">Etapas opcionales</h4>',
-        '<div class="form-grid form-grid-2">',
-          '<div class="form-group">',
-            '<label><input type="checkbox" id="pg-req-antecedentes" onchange="toggleEtapaOpcional(\'antecedentes\')"> 📋 Libre de antecedentes</label>',
-            '<select id="pg-antecedentes" disabled onchange="actualizarBotonesAprobacion()" style="width:100%;padding:8px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;opacity:0.5;margin-top:6px;">',
-              '<option>Pendiente</option><option>Aprobado</option><option>Rechazado</option>',
-            '</select></div>',
-          '<div class="form-group">',
-            '<label><input type="checkbox" id="pg-req-libreta" onchange="toggleEtapaOpcional(\'libreta\')"> 📗 Libreta sanitaria</label>',
-            '<select id="pg-libreta" disabled onchange="actualizarBotonesAprobacion()" style="width:100%;padding:8px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;opacity:0.5;margin-top:6px;">',
-              '<option>Pendiente</option><option>Aprobado</option><option>Rechazado</option>',
-            '</select></div>',
         '</div>',
         '<div class="form-group" style="margin-top:12px;"><label>Observaciones</label>',
           '<textarea id="pg-obs" rows="2" style="width:100%;padding:8px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;resize:vertical;"></textarea></div>',
@@ -227,44 +194,23 @@ function crearHTMLModalPsico() {
         '<button class="btn btn-secondary" onclick="cerrarModal(\'modal-psico-gestion\')">Cerrar panel</button>',
         '<div style="display:flex;gap:8px;flex-wrap:wrap;">',
         '<button class="btn btn-primary" onclick="guardarEtapasPsico()">💾 Guardar etapas</button>',
-        '<button id="btn-aprobar-psico" class="btn" style="background:#16a34a;color:white;display:none;" onclick="aprobarPsico()">✅ Aprobar → Alta</button>',
+        '<button id="btn-aprobar-psico" class="btn" style="background:#16a34a;color:white;display:none;" onclick="aprobarPsico()">✅ Aprobar → Pre-ocupacional</button>',
         '<button class="btn" style="background:#dc2626;color:white;" onclick="rechazarPsico()">❌ Rechazar</button>',
       '</div>',
     '</div>',
   ].join('');
 }
 
-// ========== ETAPAS OPCIONALES ==========
-
-export function toggleEtapaOpcional(etapa) {
-  const chk = $('pg-req-' + etapa);
-  const sel = $('pg-' + (etapa === 'antecedentes' ? 'antecedentes' : 'libreta'));
-  if (sel) {
-    sel.disabled = !chk.checked;
-    sel.style.opacity = chk.checked ? '1' : '0.5';
-    if (!chk.checked) sel.value = 'Pendiente';
-  }
-  actualizarBotonesAprobacion();
-}
-
 export function actualizarBotonesAprobacion() {
   const psico = $('pg-psicotecnico').value;
-  const pre = $('pg-prelaboral').value;
-  const reqAnt = $('pg-req-antecedentes').checked;
-  const ant = $('pg-antecedentes').value;
-  const reqLib = $('pg-req-libreta').checked;
-  const lib = $('pg-libreta').value;
 
   // El psicotécnico avanza si es Apto, Apto+ o Apto- (condicional queda en revision)
   const psicoApto = ['Apto', 'Apto+', 'Apto-'].includes(psico);
   const psicoNoApto = psico === 'No Apto';
   const motivoRow = $('pg-motivo-noapto-row');
   if (motivoRow) motivoRow.style.display = psicoNoApto ? 'block' : 'none';
-  const todoOk = psicoApto && pre === 'Aprobado'
-    && (!reqAnt || ant === 'Aprobado')
-    && (!reqLib || lib === 'Aprobado');
-  const hayRech = psicoNoApto || pre === 'Rechazado'
-    || (reqAnt && ant === 'Rechazado') || (reqLib && lib === 'Rechazado');
+  const todoOk = psicoApto;
+  const hayRech = psicoNoApto;
 
   const btnApr = $('btn-aprobar-psico');
   const aviso = $('pg-aviso');
@@ -273,11 +219,11 @@ export function actualizarBotonesAprobacion() {
     if (todoOk) {
       aviso.style.display = 'block'; aviso.style.background = '#f0fdf4';
       aviso.style.border = '1px solid #86efac'; aviso.style.color = '#166534';
-      aviso.textContent = '✅ Todas las etapas aprobadas — podés enviar a Alta';
+      aviso.textContent = '✅ Psicotécnico apto — podés enviar a Pre-ocupacional';
     } else if (hayRech) {
       aviso.style.display = 'block'; aviso.style.background = '#fef2f2';
       aviso.style.border = '1px solid #fca5a5'; aviso.style.color = '#991b1b';
-      aviso.textContent = '❌ Hay etapas rechazadas — solo podés rechazar';
+      aviso.textContent = '❌ Psicotécnico No Apto — solo podés rechazar';
     } else {
       aviso.style.display = 'none';
     }
@@ -301,11 +247,6 @@ export function guardarEtapasPsico() {
     p.motivoRechazo = motivo.trim();
   }
   p.psicotecnico = psicoVal;
-  p.prelaboral = $('pg-prelaboral').value;
-  p.requiereAntecedentes = $('pg-req-antecedentes').checked;
-  p.antecedentes = p.requiereAntecedentes ? $('pg-antecedentes').value : 'No requerido';
-  p.requiereLibreta = $('pg-req-libreta').checked;
-  p.libretaSanitaria = p.requiereLibreta ? $('pg-libreta').value : 'No requerido';
   p.obs = $('pg-obs').value;
   supaSync('psicos', p);
   actualizarBotonesAprobacion();
