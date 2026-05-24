@@ -133,7 +133,7 @@ export function guardarPreocup() {
   toast('💾 Pre-ocupacional guardado');
 }
 
-// Aprobar: el pre-ocupacional avanza al Alta (APTO / APTO B / APTO C)
+// Aprobar: el pre-ocupacional avanza a Documentación de ingreso (APTO / APTO B / APTO C)
 export function aprobarPreocup() {
   const id = parseInt($('preocup-gest-id').value);
   const p = getPreocupById(id);
@@ -146,19 +146,18 @@ export function aprobarPreocup() {
   p.estado = 'Aprobado';
   p.fechaAprobacion = new Date().toLocaleDateString('es-AR');
   supaSync('preocupacionales', p);
-  // Crear el registro en el Alta (mismo molde que aprobarPsico)
-  const alta = {
+  // Crear el registro en Documentación de ingreso (el candidato pasa a documentación, no directo al Alta)
+  const docum = {
     id: Date.now(), psicoId: p.psicoId, candidatoId: p.candidatoId,
     nombre: p.nombre, dni: p.dni, zona: p.zona, tel: p.tel, rrhh: p.rrhh || '',
-    estado: 'Pendiente de alta', fecha: new Date().toLocaleDateString('es-AR'),
-    identificacion: {}, domicilio: {}, operativo: {}, uniforme: {}, capital: {}, seguros: {},
+    antecResultado: 'Pendiente', estado: 'En proceso',
   };
-  if (!DB.catAltPendientes) DB.catAltPendientes = [];
-  DB.catAltPendientes.push(alta);
-  supaSync('catAltPendientes', alta);
+  if (!DB.documentacionIngreso) DB.documentacionIngreso = [];
+  DB.documentacionIngreso.push(docum);
+  supaSync('documentacionIngreso', docum);
   cerrarModal('modal-preocup-gestion');
   renderPreocup();
-  toast('✅ ' + p.nombre + ' aprobado — enviado a Alta de asociados');
+  toast('✅ ' + p.nombre + ' aprobado — enviado a Documentación de ingreso');
 }
 
 // Baja: NO APTO da de baja al candidato (molde de rechazarPsico)
