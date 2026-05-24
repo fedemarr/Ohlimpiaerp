@@ -15,6 +15,7 @@ import { SCREEN_CONFIG, registerScreens, currentScreen, navTo, topAction, constr
 import { candidatosScreenConfig, filtrarCandidatos, poblarFiltrosColumnasCandidatos, renderCandidatos } from './modules/candidatos/index.js';
 import { psicoScreenConfig, filtrarPsico, poblarFiltrosColumnasPsico, renderPsico } from './modules/psicotecnico/index.js';
 import { preocupScreenConfig } from './modules/preocupacional/index.js';
+import { documScreenConfig } from './modules/documentacion/index.js';
 import { altasScreenConfig, filtrarAltas, poblarFiltrosColumnasAltas, renderAltas, poblarSelectsAltas } from './modules/altas/index.js';
 import { legajosScreenConfig, filtrarLegajos, renderLegajos } from './modules/legajos/index.js';
 import './modules/personal_rrhh/index.js';
@@ -41,6 +42,7 @@ window.$ = $;
 registerScreens(candidatosScreenConfig);
 registerScreens(psicoScreenConfig);
 registerScreens(preocupScreenConfig);
+registerScreens(documScreenConfig);
 registerScreens(altasScreenConfig);
 registerScreens(legajosScreenConfig);
 
