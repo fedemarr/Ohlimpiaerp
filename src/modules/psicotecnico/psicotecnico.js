@@ -323,19 +323,18 @@ export function aprobarPsico() {
   p.estado = 'Aprobado';
   p.fechaAprobacion = new Date().toLocaleDateString('es-AR');
   supaSync('psicos', p);
-  // Crear registro en Alta
-  const alta = {
+  // Crear registro en Pre-ocupacional (el candidato pasa al examen médico, no directo al Alta)
+  const preocup = {
     id: Date.now(), psicoId: p.id, candidatoId: p.candidatoId,
     nombre: p.nombre, dni: p.dni, zona: p.zona, tel: p.tel, rrhh: p.rrhh || '',
-    estado: 'Pendiente de alta', fecha: new Date().toLocaleDateString('es-AR'),
-    identificacion: {}, domicilio: {}, operativo: {}, uniforme: {}, capital: {}, seguros: {},
+    resultado: 'Pendiente', estado: 'En proceso',
   };
-  if (!DB.catAltPendientes) DB.catAltPendientes = [];
-  DB.catAltPendientes.push(alta);
-  supaSync('catAltPendientes', alta);
+  if (!DB.preocupacionales) DB.preocupacionales = [];
+  DB.preocupacionales.push(preocup);
+  supaSync('preocupacionales', preocup);
   cerrarModal('modal-psico-gestion');
   renderPsico();
-  toast('✅ ' + p.nombre + ' aprobado — enviado a Alta de asociados');
+  toast('✅ ' + p.nombre + ' aprobado — enviado a Pre-ocupacional');
 }
 
 // ========== RECHAZAR ==========
