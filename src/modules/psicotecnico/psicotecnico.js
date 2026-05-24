@@ -22,6 +22,13 @@ export function tabPsico(tab) {
 
 function icon(val, requerida) {
   if (!requerida) return '<span style="color:#cbd5e1;font-size:12px;">—</span>';
+  // Resultados del psicotécnico (5 niveles)
+  if (val === 'Apto+')            return '<span style="color:#15803d;font-size:16px;" title="Apto+">⭐</span>';
+  if (val === 'Apto')             return '<span style="color:#16a34a;font-size:16px;" title="Apto">✅</span>';
+  if (val === 'Apto-')            return '<span style="color:#ca8a04;font-size:16px;" title="Apto-">✔️</span>';
+  if (val === 'Apto condicional') return '<span style="color:#d97706;font-size:16px;" title="Apto condicional (en revisión)">⚠️</span>';
+  if (val === 'No Apto')          return '<span style="color:#dc2626;font-size:16px;" title="No Apto">❌</span>';
+  // Resultados de las otras etapas (prelaboral, antecedentes, libreta)
   if (val === 'Aprobado') return '<span style="color:#16a34a;font-size:16px;">✅</span>';
   if (val === 'Rechazado') return '<span style="color:#dc2626;font-size:16px;">❌</span>';
   return '<span style="color:#d97706;font-size:16px;">⏳</span>';
@@ -168,6 +175,8 @@ export function abrirGestionPsico(i) {
   $('pg-libreta').disabled = !reqLib;
   $('pg-libreta').style.opacity = reqLib ? '1' : '0.5';
   $('pg-obs').value = p.obs || '';
+  const moEl = $('pg-motivo-noapto');
+  if (moEl) moEl.value = p.motivoRechazo || '';
   $('pg-aviso').style.display = 'none';
 
   actualizarBotonesAprobacion();
@@ -187,12 +196,16 @@ function crearHTMLModalPsico() {
         '<div class="form-grid form-grid-2">',
           '<div class="form-group"><label>🧠 Psicotécnico *</label>',
             '<select id="pg-psicotecnico" onchange="actualizarBotonesAprobacion()" style="width:100%;padding:8px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;">',
-              '<option>Pendiente</option><option>Aprobado</option><option>Rechazado</option>',
+              '<option>Pendiente</option><option>Apto</option><option>Apto+</option><option>Apto-</option><option>Apto condicional</option><option>No Apto</option>',
             '</select></div>',
           '<div class="form-group"><label>🏥 Prelaboral médico *</label>',
             '<select id="pg-prelaboral" onchange="actualizarBotonesAprobacion()" style="width:100%;padding:8px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;">',
               '<option>Pendiente</option><option>Aprobado</option><option>Rechazado</option>',
             '</select></div>',
+        '</div>',
+        '<div id="pg-motivo-noapto-row" class="form-group" style="display:none;margin-top:8px;background:#fef2f2;border:1px solid #fca5a5;border-radius:8px;padding:10px;">',
+          '<label style="color:#991b1b;font-weight:600;">⚠️ Motivo / observaciones del No Apto *</label>',
+          '<textarea id="pg-motivo-noapto" rows="2" style="width:100%;padding:8px;border:1px solid #fca5a5;border-radius:6px;font-size:13px;resize:vertical;margin-top:4px;" placeholder="Detallá el motivo (obligatorio para No Apto)"></textarea>',
         '</div>',
         '<h4 style="font-size:13px;color:#374151;margin:16px 0 12px;border-bottom:1px solid #e2e8f0;padding-bottom:6px;">Etapas opcionales</h4>',
         '<div class="form-grid form-grid-2">',
@@ -243,10 +256,15 @@ export function actualizarBotonesAprobacion() {
   const reqLib = $('pg-req-libreta').checked;
   const lib = $('pg-libreta').value;
 
-  const todoOk = psico === 'Aprobado' && pre === 'Aprobado'
+  // El psicotécnico avanza si es Apto, Apto+ o Apto- (condicional queda en revision)
+  const psicoApto = ['Apto', 'Apto+', 'Apto-'].includes(psico);
+  const psicoNoApto = psico === 'No Apto';
+  const motivoRow = $('pg-motivo-noapto-row');
+  if (motivoRow) motivoRow.style.display = psicoNoApto ? 'block' : 'none';
+  const todoOk = psicoApto && pre === 'Aprobado'
     && (!reqAnt || ant === 'Aprobado')
     && (!reqLib || lib === 'Aprobado');
-  const hayRech = psico === 'Rechazado' || pre === 'Rechazado'
+  const hayRech = psicoNoApto || pre === 'Rechazado'
     || (reqAnt && ant === 'Rechazado') || (reqLib && lib === 'Rechazado');
 
   const btnApr = $('btn-aprobar-psico');
@@ -272,7 +290,18 @@ export function actualizarBotonesAprobacion() {
 export function guardarEtapasPsico() {
   const i = parseInt($('psico-gest-idx').value);
   const p = DB.psicos[i]; if (!p) return;
-  p.psicotecnico = $('pg-psicotecnico').value;
+  const psicoVal = $('pg-psicotecnico').value;
+  // Motivo obligatorio si el psicotécnico es No Apto
+  if (psicoVal === 'No Apto') {
+    const motivo = ($('pg-motivo-noapto') || {}).value || '';
+    if (!motivo.trim()) {
+      toast('⚠️ El motivo es obligatorio cuando el psicotécnico es No Apto');
+      const mo = $('pg-motivo-noapto'); if (mo) mo.focus();
+      return;
+    }
+    p.motivoRechazo = motivo.trim();
+  }
+  p.psicotecnico = psicoVal;
   p.prelaboral = $('pg-prelaboral').value;
   p.requiereAntecedentes = $('pg-req-antecedentes').checked;
   p.antecedentes = p.requiereAntecedentes ? $('pg-antecedentes').value : 'No requerido';
