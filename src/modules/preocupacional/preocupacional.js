@@ -7,7 +7,7 @@ import { supaSync } from '@shared/supabase.js';
 export function renderPreocup() {
   const tbody = $('tbody-preocup');
   if (!tbody) return;
-  const lista = (DB.preocupacionales || []).filter(p => !p.anulado);
+  const lista = (DB.preocupacionales || []).filter(p => !p.anulado && p.estado === 'En proceso');
   if (lista.length === 0) {
     tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:24px;color:#94a3b8;">Sin registros en pre-ocupacional todavía.</td></tr>';
     return;
@@ -55,9 +55,13 @@ function crearHTMLModalPreocup() {
         '<div class="form-group" style="margin-top:8px;"><label>Observaciones</label>',
           '<textarea id="pr-obs" rows="2" style="width:100%;padding:8px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;resize:vertical;"></textarea></div>',
       '</div>',
-      '<div class="modal-footer" style="display:flex;justify-content:space-between;">',
+      '<div class="modal-footer" style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px;">',
         '<button class="btn btn-secondary" onclick="cerrarModal(\'modal-preocup-gestion\')">Cerrar</button>',
-        '<button class="btn btn-primary" onclick="guardarPreocup()">💾 Guardar</button>',
+        '<div style="display:flex;gap:8px;flex-wrap:wrap;">',
+          '<button class="btn btn-primary" onclick="guardarPreocup()">💾 Guardar</button>',
+          '<button id="btn-aprobar-preocup" class="btn" style="background:#16a34a;color:white;display:none;" onclick="aprobarPreocup()">✅ Aprobar → Alta</button>',
+          '<button id="btn-baja-preocup" class="btn" style="background:#dc2626;color:white;display:none;" onclick="bajaPreocup()">⛔ Dar de baja</button>',
+        '</div>',
       '</div>',
     '</div>',
   ].join('');
@@ -69,8 +73,14 @@ const getPreocupById = (id) => (DB.preocupacionales || []).find(p => Number(p.id
 // Mostrar/ocultar el textarea de motivo según el resultado
 export function actualizarMotivoPreocup() {
   const res = ($('pr-resultado') || {}).value || '';
+  const avanza = ['APTO', 'APTO B', 'APTO C'].includes(res);
+  const baja = res === 'NO APTO';
   const row = $('pr-motivo-row');
-  if (row) row.style.display = (res === 'NO APTO') ? 'block' : 'none';
+  if (row) row.style.display = baja ? 'block' : 'none';
+  const btnAp = $('btn-aprobar-preocup');
+  if (btnAp) btnAp.style.display = avanza ? 'inline-flex' : 'none';
+  const btnBaja = $('btn-baja-preocup');
+  if (btnBaja) btnBaja.style.display = baja ? 'inline-flex' : 'none';
 }
 
 // Abrir el modal de gestión, precargando el registro por id
@@ -121,4 +131,62 @@ export function guardarPreocup() {
   cerrarModal('modal-preocup-gestion');
   renderPreocup();
   toast('💾 Pre-ocupacional guardado');
+}
+
+// Aprobar: el pre-ocupacional avanza al Alta (APTO / APTO B / APTO C)
+export function aprobarPreocup() {
+  const id = parseInt($('preocup-gest-id').value);
+  const p = getPreocupById(id);
+  if (!p) return;
+  // Setear los campos inline (sin cerrar el modal, a diferencia de guardarPreocup)
+  p.prestador = ($('pr-prestador') || {}).value || '';
+  p.fechaTurno = ($('pr-fecha-turno') || {}).value || '';
+  p.resultado = ($('pr-resultado') || {}).value || 'Pendiente';
+  p.obs = ($('pr-obs') || {}).value || '';
+  p.estado = 'Aprobado';
+  p.fechaAprobacion = new Date().toLocaleDateString('es-AR');
+  supaSync('preocupacionales', p);
+  // Crear el registro en el Alta (mismo molde que aprobarPsico)
+  const alta = {
+    id: Date.now(), psicoId: p.psicoId, candidatoId: p.candidatoId,
+    nombre: p.nombre, dni: p.dni, zona: p.zona, tel: p.tel, rrhh: p.rrhh || '',
+    estado: 'Pendiente de alta', fecha: new Date().toLocaleDateString('es-AR'),
+    identificacion: {}, domicilio: {}, operativo: {}, uniforme: {}, capital: {}, seguros: {},
+  };
+  if (!DB.catAltPendientes) DB.catAltPendientes = [];
+  DB.catAltPendientes.push(alta);
+  supaSync('catAltPendientes', alta);
+  cerrarModal('modal-preocup-gestion');
+  renderPreocup();
+  toast('✅ ' + p.nombre + ' aprobado — enviado a Alta de asociados');
+}
+
+// Baja: NO APTO da de baja al candidato (molde de rechazarPsico)
+export function bajaPreocup() {
+  const id = parseInt($('preocup-gest-id').value);
+  const p = getPreocupById(id);
+  if (!p) return;
+  const motivo = ($('pr-motivo') || {}).value || '';
+  if (!motivo.trim()) {
+    toast('⚠️ El motivo es obligatorio para dar de baja');
+    const mo = $('pr-motivo'); if (mo) mo.focus();
+    return;
+  }
+  p.prestador = ($('pr-prestador') || {}).value || '';
+  p.fechaTurno = ($('pr-fecha-turno') || {}).value || '';
+  p.resultado = 'NO APTO';
+  p.motivo = motivo.trim();
+  p.estado = 'Rechazado';
+  p.fechaRechazo = new Date().toLocaleDateString('es-AR');
+  supaSync('preocupacionales', p);
+  // Dar de baja al candidato (molde de rechazarPsico)
+  const cand = (DB.candidatos || []).find(c => c.id === p.candidatoId);
+  if (cand) {
+    cand.estado = 'Rechazado';
+    cand.motivoRechazo = 'Rechazado en Pre-ocupacional: ' + motivo.trim();
+    supaSync('candidatos', cand);
+  }
+  cerrarModal('modal-preocup-gestion');
+  renderPreocup();
+  toast('⛔ ' + p.nombre + ' dado de baja');
 }
