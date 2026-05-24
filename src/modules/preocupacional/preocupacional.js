@@ -21,7 +21,7 @@ export function renderPreocup() {
     + '<td>' + (p.prestador || '—') + '</td>'
     + '<td>' + (p.resultado || 'Pendiente') + '</td>'
     + '<td>' + (p.estado || 'En proceso') + '</td>'
-    + '<td><button onclick="abrirGestionPreocup(\'' + p.id_local + '\')" style="font-size:11px;padding:3px 10px;background:#0891b2;color:white;border:none;border-radius:4px;cursor:pointer;">⚙️ Gestionar</button></td>'
+    + '<td><button onclick="abrirGestionPreocup(' + p.id + ')" style="font-size:11px;padding:3px 10px;background:#0891b2;color:white;border:none;border-radius:4px;cursor:pointer;">⚙️ Gestionar</button></td>'
     + '</tr>'
   ).join('');
 }
@@ -64,7 +64,7 @@ function crearHTMLModalPreocup() {
 }
 
 // Buscar un pre-ocupacional por id (no por índice — práctica correcta)
-const getPreocupById = (idLocal) => (DB.preocupacionales || []).find(p => String(p.id_local) === String(idLocal));
+const getPreocupById = (id) => (DB.preocupacionales || []).find(p => Number(p.id) === Number(id));
 
 // Mostrar/ocultar el textarea de motivo según el resultado
 export function actualizarMotivoPreocup() {
@@ -85,7 +85,7 @@ export function abrirGestionPreocup(id) {
     m.innerHTML = crearHTMLModalPreocup();
     document.body.appendChild(m);
   }
-  $('preocup-gest-id').value = p.id_local;
+  $('preocup-gest-id').value = p.id;
   $('preocup-gest-nombre').textContent = p.nombre || '';
   $('pr-prestador').value = p.prestador || '';
   $('pr-fecha-turno').value = p.fechaTurno || '';
@@ -99,8 +99,8 @@ export function abrirGestionPreocup(id) {
 
 // Guardar el pre-ocupacional (lee campos, valida, persiste por id)
 export function guardarPreocup() {
-  const idLocal = $('preocup-gest-id').value;
-  const p = getPreocupById(idLocal);
+  const id = parseInt($('preocup-gest-id').value);
+  const p = getPreocupById(id);
   if (!p) return;
   const resultado = ($('pr-resultado') || {}).value || 'Pendiente';
   // Motivo obligatorio si el resultado es NO APTO
