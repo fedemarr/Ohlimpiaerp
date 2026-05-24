@@ -1,8 +1,8 @@
 // Módulo Pre-ocupacional — Entry point
 
-export { renderPreocup } from './preocupacional.js';
+export { renderPreocup, abrirGestionPreocup, actualizarMotivoPreocup, guardarPreocup } from './preocupacional.js';
 
-import { renderPreocup } from './preocupacional.js';
+import { renderPreocup, abrirGestionPreocup, actualizarMotivoPreocup, guardarPreocup } from './preocupacional.js';
 
 export const preocupScreenConfig = {
   preocupacional: {
@@ -14,3 +14,6 @@ export const preocupScreenConfig = {
 };
 
 window.renderPreocup = renderPreocup;
+window.abrirGestionPreocup = abrirGestionPreocup;
+window.actualizarMotivoPreocup = actualizarMotivoPreocup;
+window.guardarPreocup = guardarPreocup;
