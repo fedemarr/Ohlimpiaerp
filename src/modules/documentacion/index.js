@@ -7,6 +7,10 @@ export {
   recalcularVencAntec,
   toggleSeccionLibreta,
   toggleSeccionCurso,
+  actualizarBotonesDocum,
+  aprobarDocum,
+  excepcionDocum,
+  bajaDocum,
 } from './documentacion.js';
 
 import {
@@ -16,6 +20,10 @@ import {
   recalcularVencAntec,
   toggleSeccionLibreta,
   toggleSeccionCurso,
+  actualizarBotonesDocum,
+  aprobarDocum,
+  excepcionDocum,
+  bajaDocum,
 } from './documentacion.js';
 
 export const documScreenConfig = {
@@ -33,3 +41,7 @@ window.guardarDocum = guardarDocum;
 window.recalcularVencAntec = recalcularVencAntec;
 window.toggleSeccionLibreta = toggleSeccionLibreta;
 window.toggleSeccionCurso = toggleSeccionCurso;
+window.actualizarBotonesDocum = actualizarBotonesDocum;
+window.aprobarDocum = aprobarDocum;
+window.excepcionDocum = excepcionDocum;
+window.bajaDocum = bajaDocum;

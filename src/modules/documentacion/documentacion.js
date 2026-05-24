@@ -39,9 +39,13 @@ function crearHTMLModalDocum() {
         // ── Sección Antecedentes (obligatorio) ──
         '<h4 style="margin:0 0 8px;color:#1e3a8a;border-bottom:2px solid #e2e8f0;padding-bottom:4px;">📋 Antecedentes penales (obligatorio)</h4>',
         '<div class="form-group"><label>Resultado *</label>',
-          '<select id="dc-antec-resultado" style="width:100%;padding:8px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;">',
+          '<select id="dc-antec-resultado" onchange="actualizarBotonesDocum()" style="width:100%;padding:8px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;">',
             '<option>Pendiente</option><option>Sin antecedentes</option><option>Con antecedentes</option>',
           '</select></div>',
+        '<div id="dc-antec-excepcion-row" class="form-group" style="display:none;margin-top:8px;background:#fff7ed;border:1px solid #fdba74;border-radius:8px;padding:10px;">',
+          '<label style="color:#9a3412;font-weight:600;">🔓 Motivo de la excepción (si se habilita pese a tener antecedentes)</label>',
+          '<textarea id="dc-antec-motivo-excepcion" rows="2" style="width:100%;padding:8px;border:1px solid #fdba74;border-radius:6px;font-size:13px;resize:vertical;margin-top:4px;" placeholder="Por qué se habilita el ingreso pese a los antecedentes"></textarea>',
+        '</div>',
         '<div class="form-grid form-grid-2">',
           '<div class="form-group"><label>Fecha del certificado</label>',
             '<input type="date" id="dc-antec-fecha" onchange="recalcularVencAntec()" style="width:100%;padding:8px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;"></div>',
@@ -72,9 +76,14 @@ function crearHTMLModalDocum() {
         '<div class="form-group" style="margin-top:16px;"><label>Observaciones</label>',
           '<textarea id="dc-obs" rows="2" style="width:100%;padding:8px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;resize:vertical;"></textarea></div>',
       '</div>',
-      '<div class="modal-footer" style="display:flex;justify-content:space-between;">',
+      '<div class="modal-footer" style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px;">',
         '<button class="btn btn-secondary" onclick="cerrarModal(\'modal-docum-gestion\')">Cerrar</button>',
-        '<button class="btn btn-primary" onclick="guardarDocum()">💾 Guardar</button>',
+        '<div style="display:flex;gap:8px;flex-wrap:wrap;">',
+          '<button class="btn btn-primary" onclick="guardarDocum()">💾 Guardar</button>',
+          '<button id="btn-aprobar-docum" class="btn" style="background:#16a34a;color:white;display:none;" onclick="aprobarDocum()">✅ Aprobar → Alta</button>',
+          '<button id="btn-excepcion-docum" class="btn" style="background:#ea580c;color:white;display:none;" onclick="excepcionDocum()">🔓 Habilitar excepción</button>',
+          '<button id="btn-baja-docum" class="btn" style="background:#dc2626;color:white;display:none;" onclick="bajaDocum()">⛔ Dar de baja</button>',
+        '</div>',
       '</div>',
     '</div>',
   ].join('');
@@ -137,6 +146,7 @@ export function abrirGestionDocum(id) {
   $('dc-obs').value = d.obs || '';
   toggleSeccionLibreta();
   toggleSeccionCurso();
+  actualizarBotonesDocum();
   $('modal-docum-gestion').classList.add('open');
 }
 
@@ -162,4 +172,96 @@ export function guardarDocum() {
   cerrarModal('modal-docum-gestion');
   renderDocum();
   toast('💾 Documentación guardada');
+}
+
+// Mostrar/ocultar botones y motivo de excepción según el resultado de antecedentes
+export function actualizarBotonesDocum() {
+  const res = ($('dc-antec-resultado') || {}).value || '';
+  const sinAntec = res === 'Sin antecedentes';
+  const conAntec = res === 'Con antecedentes';
+  const btnAp = $('btn-aprobar-docum');
+  if (btnAp) btnAp.style.display = sinAntec ? 'inline-flex' : 'none';
+  const btnExc = $('btn-excepcion-docum');
+  if (btnExc) btnExc.style.display = conAntec ? 'inline-flex' : 'none';
+  const btnBaja = $('btn-baja-docum');
+  if (btnBaja) btnBaja.style.display = conAntec ? 'inline-flex' : 'none';
+  const excRow = $('dc-antec-excepcion-row');
+  if (excRow) excRow.style.display = conAntec ? 'block' : 'none';
+}
+
+// Construir el registro de Alta a partir de un registro de documentación (helper interno)
+function _crearAltaDesdeDocum(d) {
+  const alta = {
+    id: Date.now(), psicoId: d.psicoId, candidatoId: d.candidatoId,
+    nombre: d.nombre, dni: d.dni, zona: d.zona, tel: d.tel, rrhh: d.rrhh || '',
+    estado: 'Pendiente de alta', fecha: new Date().toLocaleDateString('es-AR'),
+    identificacion: {}, domicilio: {}, operativo: {}, uniforme: {}, capital: {}, seguros: {},
+  };
+  if (!DB.catAltPendientes) DB.catAltPendientes = [];
+  DB.catAltPendientes.push(alta);
+  supaSync('catAltPendientes', alta);
+}
+
+// Aprobar: Sin antecedentes → avanza al Alta
+export function aprobarDocum() {
+  const id = parseInt($('docum-gest-id').value);
+  const d = getDocumById(id);
+  if (!d) return;
+  d.antecResultado = 'Sin antecedentes';
+  d.antecFecha = ($('dc-antec-fecha') || {}).value || '';
+  d.antecVencimiento = ($('dc-antec-vencimiento') || {}).value || '';
+  d.estado = 'Aprobado';
+  d.fechaAprobacion = new Date().toLocaleDateString('es-AR');
+  supaSync('documentacionIngreso', d);
+  _crearAltaDesdeDocum(d);
+  cerrarModal('modal-docum-gestion');
+  renderDocum();
+  toast('✅ ' + d.nombre + ' aprobado — enviado a Alta de asociados');
+}
+
+// Habilitar excepción: Con antecedentes pero pasa igual (queda registrado)
+export function excepcionDocum() {
+  const id = parseInt($('docum-gest-id').value);
+  const d = getDocumById(id);
+  if (!d) return;
+  const motivo = ($('dc-antec-motivo-excepcion') || {}).value || '';
+  if (!motivo.trim()) {
+    toast('⚠️ El motivo de la excepción es obligatorio');
+    const mo = $('dc-antec-motivo-excepcion'); if (mo) mo.focus();
+    return;
+  }
+  d.antecResultado = 'Con antecedentes';
+  d.antecExcepcion = true;
+  d.antecMotivoExcepcion = motivo.trim();
+  d.antecFecha = ($('dc-antec-fecha') || {}).value || '';
+  d.antecVencimiento = ($('dc-antec-vencimiento') || {}).value || '';
+  d.estado = 'Aprobado';
+  d.fechaAprobacion = new Date().toLocaleDateString('es-AR');
+  supaSync('documentacionIngreso', d);
+  _crearAltaDesdeDocum(d);
+  cerrarModal('modal-docum-gestion');
+  renderDocum();
+  toast('🔓 ' + d.nombre + ' habilitado por excepción — enviado a Alta');
+}
+
+// Dar de baja: Con antecedentes → candidato Rechazado
+export function bajaDocum() {
+  const id = parseInt($('docum-gest-id').value);
+  const d = getDocumById(id);
+  if (!d) return;
+  d.antecResultado = 'Con antecedentes';
+  d.antecExcepcion = false;
+  d.estado = 'Rechazado';
+  d.motivo = 'Rechazado por antecedentes penales';
+  d.fechaRechazo = new Date().toLocaleDateString('es-AR');
+  supaSync('documentacionIngreso', d);
+  const cand = (DB.candidatos || []).find(c => c.id === d.candidatoId);
+  if (cand) {
+    cand.estado = 'Rechazado';
+    cand.motivoRechazo = 'Rechazado por antecedentes penales';
+    supaSync('candidatos', cand);
+  }
+  cerrarModal('modal-docum-gestion');
+  renderDocum();
+  toast('⛔ ' + d.nombre + ' dado de baja por antecedentes');
 }
