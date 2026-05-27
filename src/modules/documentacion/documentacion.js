@@ -227,15 +227,15 @@ export function guardarDocum() {
   if (!d) return;
   // Antecedentes
   d.antecResultado = ($('dc-antec-resultado') || {}).value || 'Pendiente';
-  d.antecFecha = ($('dc-antec-fecha') || {}).value || '';
-  d.antecVencimiento = ($('dc-antec-vencimiento') || {}).value || '';
+  d.antecFecha = ($('dc-antec-fecha') || {}).value || null;
+  d.antecVencimiento = ($('dc-antec-vencimiento') || {}).value || null;
   // Libreta (solo si aplica; si no, se limpian)
   d.libretaAplica = ($('dc-libreta-aplica') || {}).checked || false;
   d.libretaZona = d.libretaAplica ? (($('dc-libreta-zona') || {}).value || '') : '';
-  d.libretaVencimiento = d.libretaAplica ? (($('dc-libreta-vencimiento') || {}).value || '') : '';
+  d.libretaVencimiento = d.libretaAplica ? (($('dc-libreta-vencimiento') || {}).value || null) : null;
   // Curso (solo si tiene; si no, se limpia)
   d.cursoTiene = ($('dc-curso-tiene') || {}).checked || false;
-  d.cursoVencimiento = d.cursoTiene ? (($('dc-curso-vencimiento') || {}).value || '') : '';
+  d.cursoVencimiento = d.cursoTiene ? (($('dc-curso-vencimiento') || {}).value || null) : null;
   // Observaciones
   d.obs = ($('dc-obs') || {}).value || '';
   supaSync('documentacionIngreso', d);
@@ -278,8 +278,8 @@ export function aprobarDocum() {
   const d = getDocumById(id);
   if (!d) return;
   d.antecResultado = 'Sin antecedentes';
-  d.antecFecha = ($('dc-antec-fecha') || {}).value || '';
-  d.antecVencimiento = ($('dc-antec-vencimiento') || {}).value || '';
+  d.antecFecha = ($('dc-antec-fecha') || {}).value || null;
+  d.antecVencimiento = ($('dc-antec-vencimiento') || {}).value || null;
   d.estado = 'Aprobado';
   d.fechaAprobacion = new Date().toLocaleDateString('es-AR');
   supaSync('documentacionIngreso', d);
@@ -303,8 +303,8 @@ export function excepcionDocum() {
   d.antecResultado = 'Con antecedentes';
   d.antecExcepcion = true;
   d.antecMotivoExcepcion = motivo.trim();
-  d.antecFecha = ($('dc-antec-fecha') || {}).value || '';
-  d.antecVencimiento = ($('dc-antec-vencimiento') || {}).value || '';
+  d.antecFecha = ($('dc-antec-fecha') || {}).value || null;
+  d.antecVencimiento = ($('dc-antec-vencimiento') || {}).value || null;
   d.estado = 'Aprobado';
   d.fechaAprobacion = new Date().toLocaleDateString('es-AR');
   supaSync('documentacionIngreso', d);
