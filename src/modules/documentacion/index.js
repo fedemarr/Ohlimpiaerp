@@ -12,6 +12,7 @@ export {
   aprobarDocum,
   excepcionDocum,
   bajaDocum,
+  revertirDocum,
 } from './documentacion.js';
 
 import {
@@ -26,6 +27,7 @@ import {
   aprobarDocum,
   excepcionDocum,
   bajaDocum,
+  revertirDocum,
 } from './documentacion.js';
 
 export const documScreenConfig = {
@@ -48,3 +50,4 @@ window.actualizarBotonesDocum = actualizarBotonesDocum;
 window.aprobarDocum = aprobarDocum;
 window.excepcionDocum = excepcionDocum;
 window.bajaDocum = bajaDocum;
+window.revertirDocum = revertirDocum;

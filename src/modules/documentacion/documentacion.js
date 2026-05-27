@@ -54,7 +54,14 @@ export function renderDocum() {
     + '<td>' + (d.estado || 'En proceso') + '</td>'
     + '<td>' + (d.estado === 'En proceso'
         ? '<button onclick="abrirGestionDocum(' + d.id + ')" style="font-size:11px;padding:3px 10px;background:#7c3aed;color:white;border:none;border-radius:4px;cursor:pointer;">⚙️ Gestionar</button>'
-        : '<span style="font-size:11px;color:#94a3b8;">Cerrado</span>')
+        : (() => {
+            const tieneAlta = (DB.catAltPendientes || []).some(a =>
+              a.candidatoId === d.candidatoId && a.estado === 'Alta completada'
+            );
+            return tieneAlta
+              ? '<span style="font-size:11px;color:#94a3b8;">Cerrado</span>'
+              : '<button onclick="revertirDocum(' + d.id + ')" style="font-size:11px;padding:3px 10px;background:#f59e0b;color:white;border:none;border-radius:4px;cursor:pointer;">↩️ Revertir</button>';
+          })())
     + '</td>'
     + '</tr>'
   ).join('');
@@ -334,4 +341,60 @@ export function bajaDocum() {
   cerrarModal('modal-docum-gestion');
   renderDocum();
   toast('⛔ ' + d.nombre + ' dado de baja por antecedentes');
+}
+
+// Revertir un registro Aprobado/Rechazado: vuelve a "En proceso".
+// Bloquea si el alta ya fue completada (hay legajo).
+// Si había alta 'Pendiente de alta', la anula en cascada.
+// Si era rechazo, restaura el candidato a 'Psicotecnico'.
+export function revertirDocum(id) {
+  const d = getDocumById(id);
+  if (!d) return;
+
+  // 1. Verificar si ya hay legajo (alta completada)
+  const altaCompletada = (DB.catAltPendientes || []).find(a =>
+    a.candidatoId === d.candidatoId && a.estado === 'Alta completada'
+  );
+  if (altaCompletada) {
+    toast('⛔ No se puede revertir: ' + d.nombre + ' ya fue dado de alta como asociado.', 5000);
+    return;
+  }
+
+  // 2. Confirmación obligatoria, texto según aprobación o rechazo
+  const eraRechazo = d.estado === 'Rechazado';
+  const msg = eraRechazo
+    ? '¿Querés revertir el rechazo de ' + d.nombre + '?\n\nVa a volver a "En proceso" y el candidato dejará de estar marcado como "Rechazado".'
+    : '¿Querés revertir la aprobación de ' + d.nombre + '?\n\nVa a volver a "En proceso". Si ya había un alta pendiente, se anulará.';
+  if (!confirm(msg)) return;
+
+  // 3. Anular alta 'Pendiente de alta' si existe (soft delete)
+  const altaPend = (DB.catAltPendientes || []).find(a =>
+    a.candidatoId === d.candidatoId && a.estado === 'Pendiente de alta'
+  );
+  if (altaPend) {
+    altaPend.estado = 'Anulada';
+    supaSync('catAltPendientes', altaPend);
+  }
+
+  // 4. Restaurar candidato si era rechazo
+  if (eraRechazo) {
+    const cand = (DB.candidatos || []).find(c => c.id === d.candidatoId);
+    if (cand) {
+      cand.estado = 'Psicotecnico';
+      cand.motivoRechazo = '';
+      supaSync('candidatos', cand);
+    }
+  }
+
+  // 5. Limpiar campos de resolución y volver a "En proceso"
+  d.estado = 'En proceso';
+  d.fechaAprobacion = null;
+  d.fechaRechazo = null;
+  d.antecExcepcion = false;
+  d.antecMotivoExcepcion = '';
+  d.motivo = '';
+  supaSync('documentacionIngreso', d);
+
+  toast('↩️ ' + d.nombre + ' volvió a "En proceso".');
+  renderDocum();
 }
