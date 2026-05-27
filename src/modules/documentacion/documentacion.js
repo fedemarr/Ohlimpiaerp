@@ -41,7 +41,14 @@ export function renderDocum() {
     + '<td>' + (d.nombre || '') + '</td>'
     + '<td>' + (d.dni || '') + '</td>'
     + '<td>' + (d.zona || '') + '</td>'
-    + '<td>' + (d.antecResultado || 'Pendiente') + '</td>'
+    + '<td>' + (d.antecResultado || 'Pendiente')
+      + (() => {
+          const est = calcularEstadoVencimiento(d.antecVencimiento);
+          return est
+            ? '<br><span style="display:inline-block;margin-top:3px;padding:2px 6px;border-radius:4px;font-size:10px;font-weight:600;background:' + est.bg + ';color:' + est.color + ';">' + est.texto + '</span>'
+            : '';
+        })()
+      + '</td>'
     + '<td>' + (d.libretaAplica ? '✓' : '—') + '</td>'
     + '<td>' + (d.cursoTiene ? '✓' : '—') + '</td>'
     + '<td>' + (d.estado || 'En proceso') + '</td>'
@@ -77,7 +84,9 @@ function crearHTMLModalDocum() {
           '<div class="form-group"><label>Fecha del certificado</label>',
             '<input type="date" id="dc-antec-fecha" onchange="recalcularVencAntec()" style="width:100%;padding:8px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;"></div>',
           '<div class="form-group"><label>Vence (auto, +6 meses)</label>',
-            '<input type="date" id="dc-antec-vencimiento" readonly style="width:100%;padding:8px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px;background:#f8fafc;"></div>',
+            '<input type="date" id="dc-antec-vencimiento" readonly style="width:100%;padding:8px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px;background:#f8fafc;">',
+            '<span id="dc-antec-vencimiento-badge" style="display:none;margin-top:4px;padding:3px 8px;border-radius:4px;font-size:11px;font-weight:600;"></span>',
+          '</div>',
         '</div>',
         // ── Sección Libreta sanitaria (condicional) ──
         '<h4 style="margin:16px 0 8px;color:#1e3a8a;border-bottom:2px solid #e2e8f0;padding-bottom:4px;">📗 Libreta sanitaria</h4>',
@@ -119,6 +128,38 @@ function crearHTMLModalDocum() {
 // Buscar un registro de documentación por id (nunca id_local — lección del proyecto)
 const getDocumById = (id) => (DB.documentacionIngreso || []).find(d => Number(d.id) === Number(id));
 
+// Calcular estado visual del vencimiento de antecedentes (verde/amarillo/rojo)
+// Devuelve null si no hay fecha; si no, { color, bg, texto } para pintar un badge.
+function calcularEstadoVencimiento(fechaVencYMD) {
+  if (!fechaVencYMD) return null;
+  const venc = new Date(fechaVencYMD + 'T00:00:00');
+  if (isNaN(venc.getTime())) return null;
+  const hoy = new Date();
+  hoy.setHours(0, 0, 0, 0);
+  const diff = Math.round((venc - hoy) / (1000 * 60 * 60 * 24));
+  if (diff < 0) {
+    return { color: '#991b1b', bg: '#fef2f2', texto: '🔴 VENCIDO hace ' + Math.abs(diff) + ' días' };
+  }
+  if (diff <= 30) {
+    return { color: '#9a3412', bg: '#fff7ed', texto: '🟡 Vence en ' + diff + ' día' + (diff === 1 ? '' : 's') };
+  }
+  const meses = Math.floor(diff / 30);
+  return { color: '#166534', bg: '#f0fdf4', texto: '🟢 Vence en ' + meses + ' mes' + (meses === 1 ? '' : 'es') };
+}
+
+// Pintar el badge de vencimiento en el modal (usa el span dc-antec-vencimiento-badge)
+function pintarBadgeVencModal() {
+  const span = $('dc-antec-vencimiento-badge');
+  if (!span) return;
+  const vencEl = $('dc-antec-vencimiento');
+  const est = calcularEstadoVencimiento(vencEl ? vencEl.value : '');
+  if (!est) { span.style.display = 'none'; span.textContent = ''; return; }
+  span.style.display = 'inline-block';
+  span.style.background = est.bg;
+  span.style.color = est.color;
+  span.textContent = est.texto;
+}
+
 // Calcular el vencimiento de antecedentes: fecha del certificado + 6 meses
 export function recalcularVencAntec() {
   const fechaEl = $('dc-antec-fecha');
@@ -133,6 +174,7 @@ export function recalcularVencAntec() {
   const mm = String(d.getMonth() + 1).padStart(2, '0');
   const dd = String(d.getDate()).padStart(2, '0');
   vencEl.value = yyyy + '-' + mm + '-' + dd;
+  pintarBadgeVencModal();
 }
 
 // Mostrar/ocultar los campos de Libreta según el checkbox
@@ -174,6 +216,7 @@ export function abrirGestionDocum(id) {
   toggleSeccionLibreta();
   toggleSeccionCurso();
   actualizarBotonesDocum();
+  pintarBadgeVencModal();
   $('modal-docum-gestion').classList.add('open');
 }
 
