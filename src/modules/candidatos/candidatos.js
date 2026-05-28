@@ -279,6 +279,22 @@ export function guardarCandidato() {
   const modal = $('modal-candidato');
   const editId = modal && modal.dataset && modal.dataset.editId;
 
+  // Validación de formato DNI (6-8 dígitos solo números)
+  if (!/^\d{6,8}$/.test(dni)) {
+    toast('⚠️ El DNI debe tener entre 6 y 8 dígitos numéricos');
+    $('c-dni').focus();
+    return;
+  }
+  // Validación de unicidad de DNI (excluye al candidato en edición)
+  const dniDuplicado = (DB.candidatos || []).some(c =>
+    c.dni === dni && String(c.id) !== String(editId || '')
+  );
+  if (dniDuplicado) {
+    toast('⚠️ Ya existe un candidato con ese DNI');
+    $('c-dni').focus();
+    return;
+  }
+
   if (editId) {
     const c = getCandById(editId);
     if (!c) { toast('⚠️ Candidato no encontrado'); return; }
