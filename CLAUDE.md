@@ -270,10 +270,13 @@ Mapa de claves JS → tablas (definido en `supabase.js`):
 - **Dependencias circulares:** `auth.js` necesitaba `nav.js` y viceversa. Se resolvió con el patrón de callbacks (`registerAuthCallbacks`, `registerNavCallbacks`).
 - **Legacy bloqueante:** Un error en `legacy.js` impedía el login. Se resolvió cargándolo como import dinámico con try/catch.
 - **Filtros rotos al navegar:** Los filtros de columna se perdían al cambiar de pantalla. Se resolvió llamando `poblarFiltrosColumnas()` tanto en auth callbacks como en nav callbacks.
+- **Conciliación entre etapas por `candidatoId` truncado:** El `id_local = .slice(-9)` truncaba a 9 dígitos mientras `candidatoId` se preservaba con 13, generando mismatch tras reload. Rompía `Revertir`/`Rechazar` y la detección de etapa siguiente en psico/preocup/docum. Resuelto migrando todas las comparaciones cruzadas a DNI con salvaguarda (`p.dni && x.dni === p.dni`).
+- **Leading-zero en `onclick` y `getXById`:** IDs que empezaban en `0` se parseaban como octal cuando iban sin comillas en el HTML inline. Resuelto envolviendo el id en comillas (`onclick="fn(\'' + id + '\')"`) y blindando `getXById` con `String(p.id) === String(id)`.
+- **Acceso por índice de array en Gestionar (psicotécnico):** `abrirGestionPsico` usaba el índice de `DB.psicos` (frágil ante reorder/splice/delete) y lo guardaba en un hidden que leían guardar/aprobar/rechazar. Resuelto migrando a id con `getPsicoById` (`String === String`) y onclick con comillas. El módulo quedó consistente con preocup/docum (cero accesos por índice).
 
 ### Conocidos / pendientes
 - **`prompt()` para inputs:** `rechazarCandidatoPorId()`, `rechazarPsico()` y `agendarTurno()` usan `prompt()` del navegador en vez de modales propios.
 - **Estilos inline excesivos:** Los renders generan HTML con estilos inline que dificultan el mantenimiento y la consistencia visual.
 - **Contraseñas en texto plano:** `DB.usuarios` tiene passwords en plain text. La autenticación es local contra ese array, no usa Supabase Auth.
-- **Sin validación de unicidad de DNI:** Se puede crear candidatos/legajos con DNI duplicado.
+- **Sin validación de unicidad de DNI en legajos:** Se puede crear legajos con DNI duplicado (en candidatos ya se valida formato 6-8 dígitos + unicidad al crear/editar).
 - **Campos `identificacion`, `domicilio`, etc. en `catAltPendientes`:** Se guardan como `{}` vacío (jsonb). El modal de alta no los llena — los datos van directo al legajo.
