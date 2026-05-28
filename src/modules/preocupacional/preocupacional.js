@@ -46,7 +46,7 @@ export function renderPreocup() {
     + '<td>' + (p.resultado || 'Pendiente') + '</td>'
     + '<td>' + (p.estado || 'En proceso') + '</td>'
     + '<td>' + (p.estado === 'En proceso'
-        ? '<button onclick="abrirGestionPreocup(' + p.id + ')" style="font-size:11px;padding:3px 10px;background:#0891b2;color:white;border:none;border-radius:4px;cursor:pointer;">⚙️ Gestionar</button>'
+        ? '<button onclick="abrirGestionPreocup(\'' + p.id + '\')" style="font-size:11px;padding:3px 10px;background:#0891b2;color:white;border:none;border-radius:4px;cursor:pointer;">⚙️ Gestionar</button>'
         : (() => {
             const tieneDocVivo = (DB.documentacionIngreso || []).some(d =>
               p.dni && d.dni === p.dni &&
@@ -104,7 +104,7 @@ function crearHTMLModalPreocup() {
 }
 
 // Buscar un pre-ocupacional por id (no por índice — práctica correcta)
-const getPreocupById = (id) => (DB.preocupacionales || []).find(p => Number(p.id) === Number(id));
+const getPreocupById = (id) => (DB.preocupacionales || []).find(p => String(p.id) === String(id));
 
 // Mostrar/ocultar el textarea de motivo según el resultado
 export function actualizarMotivoPreocup() {

@@ -53,7 +53,7 @@ export function renderDocum() {
     + '<td>' + (d.cursoTiene ? '✓' : '—') + '</td>'
     + '<td>' + (d.estado || 'En proceso') + '</td>'
     + '<td>' + (d.estado === 'En proceso'
-        ? '<button onclick="abrirGestionDocum(' + d.id + ')" style="font-size:11px;padding:3px 10px;background:#7c3aed;color:white;border:none;border-radius:4px;cursor:pointer;">⚙️ Gestionar</button>'
+        ? '<button onclick="abrirGestionDocum(\'' + d.id + '\')" style="font-size:11px;padding:3px 10px;background:#7c3aed;color:white;border:none;border-radius:4px;cursor:pointer;">⚙️ Gestionar</button>'
         : (() => {
             const tieneAlta = (DB.catAltPendientes || []).some(a =>
               d.dni && a.dni === d.dni && a.estado === 'Alta completada'
