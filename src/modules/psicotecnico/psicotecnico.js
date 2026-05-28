@@ -7,6 +7,11 @@ import { supaSync } from '@shared/supabase.js';
 
 let _psicoTab = 'activos';
 
+// ========== HELPERS ==========
+
+// Buscar un psicotécnico por id (no por índice — práctica correcta, consistente con preocup/docum)
+const getPsicoById = (id) => (DB.psicos || []).find(p => String(p.id) === String(id));
+
 // ========== TABS ==========
 
 export function tabPsico(tab) {
@@ -59,7 +64,6 @@ export function renderPsico(lista) {
   }
 
   tbody.innerHTML = listaFinal.map(p => {
-    const i = todos.indexOf(p);
     const ec = p.estado === 'Aprobado' ? '#16a34a' : p.estado === 'Rechazado' ? '#dc2626' : '#d97706';
     return '<tr style="border-bottom:1px solid #e2e8f0;">'
       + '<td style="padding:8px 12px;font-size:13px;"><strong>' + p.nombre + '</strong></td>'
@@ -69,7 +73,7 @@ export function renderPsico(lista) {
       + '<td style="padding:8px;text-align:center;font-size:11px;font-weight:600;color:' + ec + '">' + p.estado + '</td>'
       + '<td style="padding:8px;text-align:center;">'
         + (p.estado === 'En proceso'
-          ? '<button onclick="abrirGestionPsico(' + i + ')" style="font-size:11px;padding:3px 10px;background:#7c3aed;color:white;border:none;border-radius:4px;cursor:pointer;">⚙️ Gestionar</button>'
+          ? '<button onclick="abrirGestionPsico(\'' + p.id + '\')" style="font-size:11px;padding:3px 10px;background:#7c3aed;color:white;border:none;border-radius:4px;cursor:pointer;">⚙️ Gestionar</button>'
           : (() => {
               const preocupVivo = (DB.preocupacionales || []).some(x =>
                 p.dni && x.dni === p.dni &&
@@ -155,8 +159,8 @@ export function guardarPsico() {
 
 // ========== GESTION DE ETAPAS ==========
 
-export function abrirGestionPsico(i) {
-  const p = DB.psicos[i]; if (!p) return;
+export function abrirGestionPsico(id) {
+  const p = getPsicoById(id); if (!p) return;
 
   // Crear modal dinámicamente si no existe
   if (!$('psico-gest-idx')) {
@@ -167,7 +171,7 @@ export function abrirGestionPsico(i) {
     document.body.appendChild(m);
   }
 
-  $('psico-gest-idx').value = i;
+  $('psico-gest-idx').value = p.id;
   $('psico-gest-nombre').textContent = p.nombre;
   $('pg-psicotecnico').value = p.psicotecnico || 'Pendiente';
   $('pg-obs').value = p.obs || '';
@@ -245,8 +249,8 @@ export function actualizarBotonesAprobacion() {
 // ========== GUARDAR ETAPAS ==========
 
 export function guardarEtapasPsico() {
-  const i = parseInt($('psico-gest-idx').value);
-  const p = DB.psicos[i]; if (!p) return;
+  const id = $('psico-gest-idx').value;
+  const p = getPsicoById(id); if (!p) return;
   const psicoVal = $('pg-psicotecnico').value;
   // Motivo obligatorio si el psicotécnico es No Apto
   if (psicoVal === 'No Apto') {
@@ -269,8 +273,8 @@ export function guardarEtapasPsico() {
 // ========== APROBAR ==========
 
 export function aprobarPsico() {
-  const i = parseInt($('psico-gest-idx').value);
-  const p = DB.psicos[i]; if (!p) return;
+  const id = $('psico-gest-idx').value;
+  const p = getPsicoById(id); if (!p) return;
   guardarEtapasPsico();
   p.estado = 'Aprobado';
   p.fechaAprobacion = new Date().toLocaleDateString('es-AR');
@@ -292,8 +296,8 @@ export function aprobarPsico() {
 // ========== RECHAZAR ==========
 
 export function rechazarPsico() {
-  const i = parseInt($('psico-gest-idx').value);
-  const p = DB.psicos[i]; if (!p) return;
+  const id = $('psico-gest-idx').value;
+  const p = getPsicoById(id); if (!p) return;
   const motivo = prompt('Motivo del rechazo (obligatorio):');
   if (motivo === null) return;
   if (!motivo.trim()) { toast('⚠️ Ingresá el motivo'); return; }
