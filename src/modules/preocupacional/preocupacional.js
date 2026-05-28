@@ -55,7 +55,7 @@ export function renderPreocup() {
             );
             return tieneDocVivo
               ? '<span style="font-size:11px;color:#94a3b8;">Cerrado</span>'
-              : '<button onclick="revertirPreocup(' + p.id + ')" style="font-size:11px;padding:3px 10px;background:#f59e0b;color:white;border:none;border-radius:4px;cursor:pointer;">↩️ Revertir</button>';
+              : '<button onclick="revertirPreocup(\'' + p.id + '\')" style="font-size:11px;padding:3px 10px;background:#f59e0b;color:white;border:none;border-radius:4px;cursor:pointer;">↩️ Revertir</button>';
           })())
     + '</td>'
     + '</tr>'
@@ -230,7 +230,7 @@ export function bajaPreocup() {
 // Bloquea si ya existe documentación viva (En proceso o Aprobado).
 // Si era rechazo, restaura el candidato a 'Psicotecnico'.
 export function revertirPreocup(id) {
-  const p = (DB.preocupacionales || []).find(x => Number(x.id) === Number(id));
+  const p = (DB.preocupacionales || []).find(x => String(x.id) === String(id));
   if (!p) return;
 
   // 1. Verificar si existe documentación viva

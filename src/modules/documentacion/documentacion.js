@@ -60,7 +60,7 @@ export function renderDocum() {
             );
             return tieneAlta
               ? '<span style="font-size:11px;color:#94a3b8;">Cerrado</span>'
-              : '<button onclick="revertirDocum(' + d.id + ')" style="font-size:11px;padding:3px 10px;background:#f59e0b;color:white;border:none;border-radius:4px;cursor:pointer;">↩️ Revertir</button>';
+              : '<button onclick="revertirDocum(\'' + d.id + '\')" style="font-size:11px;padding:3px 10px;background:#f59e0b;color:white;border:none;border-radius:4px;cursor:pointer;">↩️ Revertir</button>';
           })())
     + '</td>'
     + '</tr>'
@@ -133,7 +133,7 @@ function crearHTMLModalDocum() {
 }
 
 // Buscar un registro de documentación por id (nunca id_local — lección del proyecto)
-const getDocumById = (id) => (DB.documentacionIngreso || []).find(d => Number(d.id) === Number(id));
+const getDocumById = (id) => (DB.documentacionIngreso || []).find(d => String(d.id) === String(id));
 
 // Calcular estado visual del vencimiento de antecedentes (verde/amarillo/rojo)
 // Devuelve null si no hay fecha; si no, { color, bg, texto } para pintar un badge.
