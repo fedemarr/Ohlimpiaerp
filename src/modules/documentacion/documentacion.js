@@ -56,7 +56,7 @@ export function renderDocum() {
         ? '<button onclick="abrirGestionDocum(' + d.id + ')" style="font-size:11px;padding:3px 10px;background:#7c3aed;color:white;border:none;border-radius:4px;cursor:pointer;">⚙️ Gestionar</button>'
         : (() => {
             const tieneAlta = (DB.catAltPendientes || []).some(a =>
-              a.candidatoId === d.candidatoId && a.estado === 'Alta completada'
+              d.dni && a.dni === d.dni && a.estado === 'Alta completada'
             );
             return tieneAlta
               ? '<span style="font-size:11px;color:#94a3b8;">Cerrado</span>'
@@ -332,7 +332,7 @@ export function bajaDocum() {
   d.motivo = 'Rechazado por antecedentes penales';
   d.fechaRechazo = new Date().toLocaleDateString('es-AR');
   supaSync('documentacionIngreso', d);
-  const cand = (DB.candidatos || []).find(c => c.id === d.candidatoId);
+  const cand = (DB.candidatos || []).find(c => d.dni && c.dni === d.dni);
   if (cand) {
     cand.estado = 'Rechazado';
     cand.motivoRechazo = 'Rechazado por antecedentes penales';
@@ -353,7 +353,7 @@ export function revertirDocum(id) {
 
   // 1. Verificar si ya hay legajo (alta completada)
   const altaCompletada = (DB.catAltPendientes || []).find(a =>
-    a.candidatoId === d.candidatoId && a.estado === 'Alta completada'
+    d.dni && a.dni === d.dni && a.estado === 'Alta completada'
   );
   if (altaCompletada) {
     toast('⛔ No se puede revertir: ' + d.nombre + ' ya fue dado de alta como asociado.', 5000);
@@ -369,7 +369,7 @@ export function revertirDocum(id) {
 
   // 3. Anular alta 'Pendiente de alta' si existe (soft delete)
   const altaPend = (DB.catAltPendientes || []).find(a =>
-    a.candidatoId === d.candidatoId && a.estado === 'Pendiente de alta'
+    d.dni && a.dni === d.dni && a.estado === 'Pendiente de alta'
   );
   if (altaPend) {
     altaPend.estado = 'Anulada';
@@ -378,7 +378,7 @@ export function revertirDocum(id) {
 
   // 4. Restaurar candidato si era rechazo
   if (eraRechazo) {
-    const cand = (DB.candidatos || []).find(c => c.id === d.candidatoId);
+    const cand = (DB.candidatos || []).find(c => d.dni && c.dni === d.dni);
     if (cand) {
       cand.estado = 'Psicotecnico';
       cand.motivoRechazo = '';

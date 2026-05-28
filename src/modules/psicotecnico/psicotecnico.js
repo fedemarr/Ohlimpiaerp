@@ -303,7 +303,7 @@ export function rechazarPsico() {
   p.fechaRechazo = new Date().toLocaleDateString('es-AR');
   supaSync('psicos', p);
   // Actualizar candidato original
-  const cand = (DB.candidatos || []).find(c => c.id === p.candidatoId);
+  const cand = (DB.candidatos || []).find(c => p.dni && c.dni === p.dni);
   if (cand) {
     cand.estado = 'Rechazado';
     cand.motivoRechazo = 'Rechazado en Psicotécnico: ' + motivo.trim();
@@ -342,7 +342,7 @@ export function revertirPsico(id) {
 
   // 3. Restaurar candidato si era rechazo
   if (eraRechazo) {
-    const cand = (DB.candidatos || []).find(c => c.id === p.candidatoId);
+    const cand = (DB.candidatos || []).find(c => p.dni && c.dni === p.dni);
     if (cand) {
       cand.estado = 'Psicotecnico';
       cand.motivoRechazo = '';

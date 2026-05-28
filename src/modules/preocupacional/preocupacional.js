@@ -49,7 +49,7 @@ export function renderPreocup() {
         ? '<button onclick="abrirGestionPreocup(' + p.id + ')" style="font-size:11px;padding:3px 10px;background:#0891b2;color:white;border:none;border-radius:4px;cursor:pointer;">⚙️ Gestionar</button>'
         : (() => {
             const tieneDocVivo = (DB.documentacionIngreso || []).some(d =>
-              d.candidatoId === p.candidatoId &&
+              p.dni && d.dni === p.dni &&
               (d.estado === 'En proceso' || d.estado === 'Aprobado') &&
               !d.anulado
             );
@@ -215,7 +215,7 @@ export function bajaPreocup() {
   p.fechaRechazo = new Date().toLocaleDateString('es-AR');
   supaSync('preocupacionales', p);
   // Dar de baja al candidato (molde de rechazarPsico)
-  const cand = (DB.candidatos || []).find(c => c.id === p.candidatoId);
+  const cand = (DB.candidatos || []).find(c => p.dni && c.dni === p.dni);
   if (cand) {
     cand.estado = 'Rechazado';
     cand.motivoRechazo = 'Rechazado en Pre-ocupacional: ' + motivo.trim();
@@ -235,7 +235,7 @@ export function revertirPreocup(id) {
 
   // 1. Verificar si existe documentación viva
   const docVivo = (DB.documentacionIngreso || []).find(d =>
-    d.candidatoId === p.candidatoId &&
+    p.dni && d.dni === p.dni &&
     (d.estado === 'En proceso' || d.estado === 'Aprobado') &&
     !d.anulado
   );
@@ -253,7 +253,7 @@ export function revertirPreocup(id) {
 
   // 3. Restaurar candidato si era rechazo
   if (eraRechazo) {
-    const cand = (DB.candidatos || []).find(c => c.id === p.candidatoId);
+    const cand = (DB.candidatos || []).find(c => p.dni && c.dni === p.dni);
     if (cand) {
       cand.estado = 'Psicotecnico';
       cand.motivoRechazo = '';
