@@ -47,7 +47,16 @@ export function renderPreocup() {
     + '<td>' + (p.estado || 'En proceso') + '</td>'
     + '<td>' + (p.estado === 'En proceso'
         ? '<button onclick="abrirGestionPreocup(' + p.id + ')" style="font-size:11px;padding:3px 10px;background:#0891b2;color:white;border:none;border-radius:4px;cursor:pointer;">⚙️ Gestionar</button>'
-        : '<span style="font-size:11px;color:#94a3b8;">Cerrado</span>')
+        : (() => {
+            const tieneDocVivo = (DB.documentacionIngreso || []).some(d =>
+              d.candidatoId === p.candidatoId &&
+              (d.estado === 'En proceso' || d.estado === 'Aprobado') &&
+              !d.anulado
+            );
+            return tieneDocVivo
+              ? '<span style="font-size:11px;color:#94a3b8;">Cerrado</span>'
+              : '<button onclick="revertirPreocup(' + p.id + ')" style="font-size:11px;padding:3px 10px;background:#f59e0b;color:white;border:none;border-radius:4px;cursor:pointer;">↩️ Revertir</button>';
+          })())
     + '</td>'
     + '</tr>'
   ).join('');
@@ -151,7 +160,7 @@ export function guardarPreocup() {
     p.motivo = motivo.trim();
   }
   p.prestador = ($('pr-prestador') || {}).value || '';
-  p.fechaTurno = ($('pr-fecha-turno') || {}).value || '';
+  p.fechaTurno = ($('pr-fecha-turno') || {}).value || null;
   p.resultado = resultado;
   p.obs = ($('pr-obs') || {}).value || '';
   supaSync('preocupacionales', p);
@@ -167,7 +176,7 @@ export function aprobarPreocup() {
   if (!p) return;
   // Setear los campos inline (sin cerrar el modal, a diferencia de guardarPreocup)
   p.prestador = ($('pr-prestador') || {}).value || '';
-  p.fechaTurno = ($('pr-fecha-turno') || {}).value || '';
+  p.fechaTurno = ($('pr-fecha-turno') || {}).value || null;
   p.resultado = ($('pr-resultado') || {}).value || 'Pendiente';
   p.obs = ($('pr-obs') || {}).value || '';
   p.estado = 'Aprobado';
@@ -199,7 +208,7 @@ export function bajaPreocup() {
     return;
   }
   p.prestador = ($('pr-prestador') || {}).value || '';
-  p.fechaTurno = ($('pr-fecha-turno') || {}).value || '';
+  p.fechaTurno = ($('pr-fecha-turno') || {}).value || null;
   p.resultado = 'NO APTO';
   p.motivo = motivo.trim();
   p.estado = 'Rechazado';
@@ -215,4 +224,51 @@ export function bajaPreocup() {
   cerrarModal('modal-preocup-gestion');
   renderPreocup();
   toast('⛔ ' + p.nombre + ' dado de baja');
+}
+
+// Revertir un registro Aprobado/Rechazado: vuelve a "En proceso".
+// Bloquea si ya existe documentación viva (En proceso o Aprobado).
+// Si era rechazo, restaura el candidato a 'Psicotecnico'.
+export function revertirPreocup(id) {
+  const p = (DB.preocupacionales || []).find(x => Number(x.id) === Number(id));
+  if (!p) return;
+
+  // 1. Verificar si existe documentación viva
+  const docVivo = (DB.documentacionIngreso || []).find(d =>
+    d.candidatoId === p.candidatoId &&
+    (d.estado === 'En proceso' || d.estado === 'Aprobado') &&
+    !d.anulado
+  );
+  if (docVivo) {
+    toast('⛔ No se puede revertir: ' + p.nombre + ' ya avanzó a Documentación de ingreso. Revertí primero allá.', 5000);
+    return;
+  }
+
+  // 2. Confirmación obligatoria
+  const eraRechazo = p.estado === 'Rechazado';
+  const msg = eraRechazo
+    ? '¿Querés revertir el rechazo de ' + p.nombre + '?\n\nVa a volver a "En proceso" y el candidato dejará de estar marcado como "Rechazado".'
+    : '¿Querés revertir la aprobación de ' + p.nombre + '?\n\nVa a volver a "En proceso".';
+  if (!confirm(msg)) return;
+
+  // 3. Restaurar candidato si era rechazo
+  if (eraRechazo) {
+    const cand = (DB.candidatos || []).find(c => c.id === p.candidatoId);
+    if (cand) {
+      cand.estado = 'Psicotecnico';
+      cand.motivoRechazo = '';
+      supaSync('candidatos', cand);
+    }
+  }
+
+  // 4. Limpiar campos de resolución y volver a "En proceso"
+  p.estado = 'En proceso';
+  p.fechaAprobacion = null;
+  p.fechaRechazo = null;
+  p.resultado = 'Pendiente';
+  p.motivo = '';
+  supaSync('preocupacionales', p);
+
+  toast('↩️ ' + p.nombre + ' volvió a "En proceso".');
+  renderPreocup();
 }
