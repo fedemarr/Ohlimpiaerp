@@ -321,7 +321,7 @@ export function rechazarPsico() {
 // Revertir un registro Aprobado/Rechazado: vuelve a "En proceso".
 // Bloquea si ya existe un pre-ocupacional vivo (En proceso o Aprobado).
 // Si era rechazo, restaura el candidato a 'Psicotecnico'.
-// Identifica por id (no por índice, a diferencia de abrirGestionPsico).
+// Identifica por id (no por índice).
 export function revertirPsico(id) {
   const p = (DB.psicos || []).find(x => String(x.id) === String(id));
   if (!p) return;
