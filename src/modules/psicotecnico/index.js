@@ -4,7 +4,7 @@ export {
   renderPsico, tabPsico, filtrarPsico, poblarFiltrosColumnasPsico,
   guardarPsico,
   abrirGestionPsico, actualizarBotonesAprobacion,
-  guardarEtapasPsico, aprobarPsico, rechazarPsico,
+  guardarEtapasPsico, aprobarPsico, rechazarPsico, revertirPsico,
 } from './psicotecnico.js';
 
 // ========== SCREEN CONFIG ==========
@@ -25,7 +25,7 @@ export const psicoScreenConfig = {
 import {
   filtrarPsico, guardarPsico,
   abrirGestionPsico, actualizarBotonesAprobacion,
-  guardarEtapasPsico, aprobarPsico, rechazarPsico,
+  guardarEtapasPsico, aprobarPsico, rechazarPsico, revertirPsico,
 } from './psicotecnico.js';
 
 window.tabPsico = tabPsico;
@@ -36,3 +36,4 @@ window.actualizarBotonesAprobacion = actualizarBotonesAprobacion;
 window.guardarEtapasPsico = guardarEtapasPsico;
 window.aprobarPsico = aprobarPsico;
 window.rechazarPsico = rechazarPsico;
+window.revertirPsico = revertirPsico;

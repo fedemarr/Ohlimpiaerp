@@ -70,7 +70,19 @@ export function renderPsico(lista) {
       + '<td style="padding:8px;text-align:center;">'
         + (p.estado === 'En proceso'
           ? '<button onclick="abrirGestionPsico(' + i + ')" style="font-size:11px;padding:3px 10px;background:#7c3aed;color:white;border:none;border-radius:4px;cursor:pointer;">⚙️ Gestionar</button>'
-          : '<span style="font-size:11px;color:#94a3b8;font-style:italic;">' + (p.motivoRechazo ? 'Motivo: ' + p.motivoRechazo : 'Cerrado') + '</span>')
+          : (() => {
+              const preocupVivo = (DB.preocupacionales || []).some(x =>
+                p.dni && x.dni === p.dni &&
+                (x.estado === 'En proceso' || x.estado === 'Aprobado') &&
+                !x.anulado
+              );
+              const motivoHtml = p.motivoRechazo
+                ? '<div style="font-size:10px;color:#94a3b8;margin-bottom:3px;">Motivo: ' + p.motivoRechazo + '</div>'
+                : '';
+              return preocupVivo
+                ? '<span style="font-size:11px;color:#94a3b8;font-style:italic;">' + (p.motivoRechazo ? 'Motivo: ' + p.motivoRechazo : 'Cerrado') + '</span>'
+                : motivoHtml + '<button onclick="revertirPsico(\'' + p.id + '\')" style="font-size:11px;padding:3px 10px;background:#f59e0b;color:white;border:none;border-radius:4px;cursor:pointer;">↩️ Revertir</button>';
+            })())
       + '</td>'
       + '</tr>';
   }).join('');
@@ -300,4 +312,51 @@ export function rechazarPsico() {
   cerrarModal('modal-psico-gestion');
   renderPsico();
   toast('❌ ' + p.nombre + ' rechazado');
+}
+
+// Revertir un registro Aprobado/Rechazado: vuelve a "En proceso".
+// Bloquea si ya existe un pre-ocupacional vivo (En proceso o Aprobado).
+// Si era rechazo, restaura el candidato a 'Psicotecnico'.
+// Identifica por id (no por índice, a diferencia de abrirGestionPsico).
+export function revertirPsico(id) {
+  const p = (DB.psicos || []).find(x => String(x.id) === String(id));
+  if (!p) return;
+
+  // 1. Verificar si existe pre-ocupacional vivo
+  const preocupVivo = (DB.preocupacionales || []).find(x =>
+    p.dni && x.dni === p.dni &&
+    (x.estado === 'En proceso' || x.estado === 'Aprobado') &&
+    !x.anulado
+  );
+  if (preocupVivo) {
+    toast('⛔ No se puede revertir: ' + p.nombre + ' ya avanzó a Pre-ocupacional. Revertí primero allá.', 5000);
+    return;
+  }
+
+  // 2. Confirmación obligatoria
+  const eraRechazo = p.estado === 'Rechazado';
+  const msg = eraRechazo
+    ? '¿Querés revertir el rechazo de ' + p.nombre + '?\n\nVa a volver a "En proceso" y el candidato dejará de estar marcado como "Rechazado".'
+    : '¿Querés revertir la aprobación de ' + p.nombre + '?\n\nVa a volver a "En proceso".';
+  if (!confirm(msg)) return;
+
+  // 3. Restaurar candidato si era rechazo
+  if (eraRechazo) {
+    const cand = (DB.candidatos || []).find(c => c.id === p.candidatoId);
+    if (cand) {
+      cand.estado = 'Psicotecnico';
+      cand.motivoRechazo = '';
+      supaSync('candidatos', cand);
+    }
+  }
+
+  // 4. Limpiar campos de resolución y volver a "En proceso"
+  p.estado = 'En proceso';
+  p.fechaAprobacion = null;
+  p.fechaRechazo = null;
+  p.motivoRechazo = '';
+  supaSync('psicos', p);
+
+  toast('↩️ ' + p.nombre + ' volvió a "En proceso".');
+  renderPsico();
 }
