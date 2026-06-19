@@ -29,6 +29,7 @@ export const _SM = {
   retenes: 'retenes',
   sugerencias: 'sugerencias',
   personalRrhh: 'personal_rrhh',
+  adjuntos: 'adjuntos',
 };
 
 // camelCase → snake_case para guardar en Supabase
@@ -62,6 +63,15 @@ export function _toSnake(obj) {
     fecNac: 'fec_nac', fechaCita: 'fecha_cita', horaCita: 'hora_cita',
     nombreReferido: 'nombre_referido', rrhhId: 'rrhh_id',
     anuladoPor: 'anulado_por', anuladoFecha: 'anulado_fecha', creadoPor: 'creado_por',
+    // Tabla adjuntos
+    nombreArchivo: 'nombre_archivo',
+    fechaVencimiento: 'fecha_vencimiento',
+    subidoPorId: 'subido_por_id',
+    subidoPorNombre: 'subido_por_nombre',
+    subidoEn: 'subido_en',
+    borradoPorId: 'borrado_por_id',
+    borradoPorNombre: 'borrado_por_nombre',
+    borradoEn: 'borrado_en',
   };
   const r = {};
   for (const [k, v] of Object.entries(obj)) {
@@ -111,6 +121,15 @@ export function _toCamel(obj) {
     nombre_referido: 'nombreReferido', rrhh_id: 'rrhhId',
     anulado_por: 'anuladoPor', anulado_fecha: 'anuladoFecha', creado_por: 'creadoPor',
     id_local: 'id_local', created_at: 'created_at', updated_at: 'updated_at',
+    // Tabla adjuntos
+    nombre_archivo: 'nombreArchivo',
+    fecha_vencimiento: 'fechaVencimiento',
+    subido_por_id: 'subidoPorId',
+    subido_por_nombre: 'subidoPorNombre',
+    subido_en: 'subidoEn',
+    borrado_por_id: 'borradoPorId',
+    borrado_por_nombre: 'borradoPorNombre',
+    borrado_en: 'borradoEn',
   };
   const r = {};
   for (const [k, v] of Object.entries(obj)) {
