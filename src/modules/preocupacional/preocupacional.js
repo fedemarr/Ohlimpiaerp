@@ -2,6 +2,7 @@ import { DB } from '@shared/state.js';
 import { $ } from '@shared/helpers.js';
 import { toast, cerrarModal } from '@shared/ui.js';
 import { supaSync } from '@shared/supabase.js';
+import { subirAdjunto, listarAdjuntos, obtenerUrlFirmada, borrarAdjunto } from '@shared/adjuntos.js';
 
 let _preocupTab = 'activos';
 
@@ -90,6 +91,13 @@ function crearHTMLModalPreocup() {
         '</div>',
         '<div class="form-group" style="margin-top:8px;"><label>Observaciones</label>',
           '<textarea id="pr-obs" rows="2" style="width:100%;padding:8px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;resize:vertical;"></textarea></div>',
+        '<div id="pr-adjunto-box" style="margin-top:12px;border:1px dashed #67e8f9;border-radius:8px;padding:12px;background:#ecfeff;">',
+          '<label id="pr-adjunto-label" style="font-weight:600;color:#0e7490;">🏥 Apto médico</label>',
+          '<div id="pr-adjunto-aviso" style="display:none;margin-top:8px;padding:8px 10px;border-radius:6px;font-size:12px;background:#fffbeb;border:1px solid #fcd34d;color:#92400e;"></div>',
+          '<div id="pr-adjunto-lista" style="margin-top:8px;font-size:13px;color:#64748b;">Cargando…</div>',
+          '<input type="file" id="pr-adjunto-file" accept="application/pdf,image/jpeg,image/png" style="display:none;" onchange="seleccionarArchivoPreocup()">',
+          '<button type="button" class="btn btn-secondary" style="margin-top:8px;" onclick="document.getElementById(\'pr-adjunto-file\').click()">⬆️ Subir archivo</button>',
+        '</div>',
       '</div>',
       '<div class="modal-footer" style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px;">',
         '<button class="btn btn-secondary" onclick="cerrarModal(\'modal-preocup-gestion\')">Cerrar</button>',
@@ -117,6 +125,7 @@ export function actualizarMotivoPreocup() {
   if (btnAp) btnAp.style.display = avanza ? 'inline-flex' : 'none';
   const btnBaja = $('btn-baja-preocup');
   if (btnBaja) btnBaja.style.display = baja ? 'inline-flex' : 'none';
+  actualizarLabelYAvisoPreocup();
 }
 
 // Abrir el modal de gestión, precargando el registro por id
@@ -141,6 +150,7 @@ export function abrirGestionPreocup(id) {
   if (moEl) moEl.value = p.motivo || '';
   actualizarMotivoPreocup();
   $('modal-preocup-gestion').classList.add('open');
+  cargarAdjuntoPreocup(p.dni);
 }
 
 // Guardar el pre-ocupacional (lee campos, valida, persiste por id)
@@ -170,10 +180,16 @@ export function guardarPreocup() {
 }
 
 // Aprobar: el pre-ocupacional avanza a Documentación de ingreso (APTO / APTO B / APTO C)
-export function aprobarPreocup() {
+export async function aprobarPreocup() {
   const id = parseInt($('preocup-gest-id').value);
   const p = getPreocupById(id);
   if (!p) return;
+  // El apto médico es obligatorio para aprobar (APTO / APTO B / APTO C).
+  const aptos = await listarAdjuntos({ dni: p.dni, etapa: 'preocupacional', tipo: 'apto-medico' });
+  if (!aptos.length) {
+    toast('⚠️ Adjuntá el apto médico antes de aprobar');
+    return;
+  }
   // Setear los campos inline (sin cerrar el modal, a diferencia de guardarPreocup)
   p.prestador = ($('pr-prestador') || {}).value || '';
   p.fechaTurno = ($('pr-fecha-turno') || {}).value || null;
@@ -224,6 +240,97 @@ export function bajaPreocup() {
   cerrarModal('modal-preocup-gestion');
   renderPreocup();
   toast('⛔ ' + p.nombre + ' dado de baja');
+}
+
+// ========== ADJUNTOS (apto médico / constancia no apto) ==========
+
+// Cache de los adjuntos del registro abierto, para recalcular el aviso
+// visual cuando cambia el resultado sin volver a consultar la DB.
+let _preocupAdjuntos = [];
+
+// Tipo de adjunto según el resultado al momento de subir:
+// NO APTO → constancia 'no-apto'; cualquier otro → 'apto-medico' (default permisivo).
+function tipoEsperadoPreocup(res) {
+  return res === 'NO APTO' ? 'no-apto' : 'apto-medico';
+}
+
+// Texto del label dinámico de la caja de adjuntos.
+function labelTextPreocup(res) {
+  if (['APTO', 'APTO B', 'APTO C'].includes(res)) return '🏥 Apto médico (obligatorio para aprobar)';
+  if (res === 'NO APTO') return '📄 Constancia NO APTO (opcional)';
+  return '🏥 Apto médico (opcional)';
+}
+
+// Actualiza el label dinámico y muestra el aviso visual si el archivo
+// vigente no coincide con el resultado seleccionado (solo informativo).
+function actualizarLabelYAvisoPreocup() {
+  const res = ($('pr-resultado') || {}).value || '';
+  const lab = $('pr-adjunto-label');
+  if (lab) lab.textContent = labelTextPreocup(res);
+  const aviso = $('pr-adjunto-aviso');
+  if (!aviso) return;
+  const esperado = tipoEsperadoPreocup(res);
+  const hayMismatch = _preocupAdjuntos.some(a => a.tipo !== esperado);
+  if (hayMismatch && res && res !== 'Pendiente') {
+    aviso.style.display = 'block';
+    aviso.textContent = '⚠️ El archivo cargado no coincide con el resultado actual. Revisá el adjunto.';
+  } else {
+    aviso.style.display = 'none';
+  }
+}
+
+export async function cargarAdjuntoPreocup(dni) {
+  const cont = $('pr-adjunto-lista');
+  if (!cont) return;
+  cont.innerHTML = 'Cargando…';
+  _preocupAdjuntos = await listarAdjuntos({ dni, etapa: 'preocupacional' });
+  if (!_preocupAdjuntos.length) {
+    cont.innerHTML = '<span style="color:#94a3b8;">Sin archivo cargado</span>';
+  } else {
+    cont.innerHTML = _preocupAdjuntos.map(a =>
+      '<div style="display:flex;align-items:center;gap:8px;background:white;border:1px solid #e2e8f0;border-radius:6px;padding:6px 10px;margin-top:4px;">'
+      + '<span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">📄 ' + (a.nombreArchivo || 'Archivo') + '</span>'
+      + '<button type="button" class="btn btn-secondary" style="padding:4px 8px;font-size:12px;" onclick="verAdjuntoPreocup(\'' + a.url + '\')">👁️ Ver</button>'
+      + '<button type="button" class="btn" style="background:#dc2626;color:white;padding:4px 8px;font-size:12px;" onclick="eliminarAdjuntoPreocup(\'' + a.id + '\',\'' + dni + '\')">🗑️</button>'
+      + '</div>'
+    ).join('');
+  }
+  actualizarLabelYAvisoPreocup();
+}
+
+export async function seleccionarArchivoPreocup() {
+  const input = $('pr-adjunto-file');
+  const file = input && input.files && input.files[0];
+  if (!file) return;
+  const id = $('preocup-gest-id').value;
+  const p = getPreocupById(id);
+  if (!p) { toast('⚠️ No se encontró el registro'); return; }
+  const res = ($('pr-resultado') || {}).value || '';
+  const tipo = tipoEsperadoPreocup(res);
+  const cont = $('pr-adjunto-lista');
+  if (cont) cont.innerHTML = 'Subiendo…';
+  try {
+    await subirAdjunto({ dni: p.dni, etapa: 'preocupacional', tipo, file });
+    toast('📎 Archivo subido');
+  } catch (e) {
+    toast('⚠️ ' + (e.message || 'Error al subir el archivo'));
+  } finally {
+    if (input) input.value = '';
+  }
+  cargarAdjuntoPreocup(p.dni);
+}
+
+export async function verAdjuntoPreocup(path) {
+  const url = await obtenerUrlFirmada(path);
+  if (!url) { toast('⚠️ No se pudo abrir el archivo'); return; }
+  window.open(url, '_blank');
+}
+
+export async function eliminarAdjuntoPreocup(id, dni) {
+  if (!confirm('¿Eliminar este archivo?')) return;
+  const ok = await borrarAdjunto(id);
+  toast(ok ? '🗑️ Archivo eliminado' : '⚠️ No se pudo eliminar');
+  cargarAdjuntoPreocup(dni);
 }
 
 // Revertir un registro Aprobado/Rechazado: vuelve a "En proceso".
