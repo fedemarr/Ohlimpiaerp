@@ -13,6 +13,10 @@ export {
   excepcionDocum,
   bajaDocum,
   revertirDocum,
+  cargarAdjuntoDocum,
+  seleccionarArchivoDocum,
+  verAdjuntoDocum,
+  eliminarAdjuntoDocum,
 } from './documentacion.js';
 
 import {
@@ -28,6 +32,10 @@ import {
   excepcionDocum,
   bajaDocum,
   revertirDocum,
+  cargarAdjuntoDocum,
+  seleccionarArchivoDocum,
+  verAdjuntoDocum,
+  eliminarAdjuntoDocum,
 } from './documentacion.js';
 
 export const documScreenConfig = {
@@ -51,3 +59,7 @@ window.aprobarDocum = aprobarDocum;
 window.excepcionDocum = excepcionDocum;
 window.bajaDocum = bajaDocum;
 window.revertirDocum = revertirDocum;
+window.cargarAdjuntoDocum = cargarAdjuntoDocum;
+window.seleccionarArchivoDocum = seleccionarArchivoDocum;
+window.verAdjuntoDocum = verAdjuntoDocum;
+window.eliminarAdjuntoDocum = eliminarAdjuntoDocum;

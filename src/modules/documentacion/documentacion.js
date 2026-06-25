@@ -2,6 +2,7 @@ import { DB } from '@shared/state.js';
 import { $ } from '@shared/helpers.js';
 import { toast, cerrarModal } from '@shared/ui.js';
 import { supaSync } from '@shared/supabase.js';
+import { subirAdjunto, listarAdjuntos, obtenerUrlFirmada, borrarAdjunto } from '@shared/adjuntos.js';
 
 let _documTab = 'activos';
 
@@ -94,6 +95,12 @@ function crearHTMLModalDocum() {
             '<input type="date" id="dc-antec-vencimiento" readonly style="width:100%;padding:8px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px;background:#f8fafc;">',
             '<span id="dc-antec-vencimiento-badge" style="display:none;margin-top:4px;padding:3px 8px;border-radius:4px;font-size:11px;font-weight:600;"></span>',
           '</div>',
+        '</div>',
+        '<div id="dc-antec-adjunto-box" style="margin-top:10px;border:1px dashed #93c5fd;border-radius:8px;padding:12px;background:#eff6ff;">',
+          '<label style="font-weight:600;color:#1e3a8a;">📎 Certificados de antecedentes (se conserva historial)</label>',
+          '<div id="dc-antec-adjunto-lista" style="margin-top:8px;font-size:13px;color:#64748b;">Cargando…</div>',
+          '<input type="file" id="dc-antec-adjunto-file" accept="application/pdf,image/jpeg,image/png" style="display:none;" onchange="seleccionarArchivoDocum()">',
+          '<button type="button" class="btn btn-secondary" style="margin-top:8px;" onclick="document.getElementById(\'dc-antec-adjunto-file\').click()">⬆️ Subir certificado</button>',
         '</div>',
         // ── Sección Libreta sanitaria (condicional) ──
         '<h4 style="margin:16px 0 8px;color:#1e3a8a;border-bottom:2px solid #e2e8f0;padding-bottom:4px;">📗 Libreta sanitaria</h4>',
@@ -225,6 +232,7 @@ export function abrirGestionDocum(id) {
   actualizarBotonesDocum();
   pintarBadgeVencModal();
   $('modal-docum-gestion').classList.add('open');
+  cargarAdjuntoDocum(d.dni);
 }
 
 // Guardar la documentación (lee los 3 requisitos, persiste por id)
@@ -280,10 +288,16 @@ function _crearAltaDesdeDocum(d) {
 }
 
 // Aprobar: Sin antecedentes → avanza al Alta
-export function aprobarDocum() {
+export async function aprobarDocum() {
   const id = parseInt($('docum-gest-id').value);
   const d = getDocumById(id);
   if (!d) return;
+  // Obligatorio: al menos un certificado de antecedentes vigente antes de aprobar.
+  const antec = await listarAdjuntos({ dni: d.dni, etapa: 'documentacion', tipo: 'antecedente' });
+  if (!antec.length) {
+    toast('⚠️ Adjuntá al menos un certificado de antecedentes antes de aprobar');
+    return;
+  }
   d.antecResultado = 'Sin antecedentes';
   d.antecFecha = ($('dc-antec-fecha') || {}).value || null;
   d.antecVencimiento = ($('dc-antec-vencimiento') || {}).value || null;
@@ -341,6 +355,68 @@ export function bajaDocum() {
   cerrarModal('modal-docum-gestion');
   renderDocum();
   toast('⛔ ' + d.nombre + ' dado de baja por antecedentes');
+}
+
+// ========== ADJUNTOS (certificados de antecedentes — historial) ==========
+
+export async function cargarAdjuntoDocum(dni) {
+  const cont = $('dc-antec-adjunto-lista');
+  if (!cont) return;
+  cont.innerHTML = 'Cargando…';
+  const lista = await listarAdjuntos({ dni, etapa: 'documentacion', tipo: 'antecedente' });
+  if (!lista.length) {
+    cont.innerHTML = '<span style="color:#94a3b8;">Sin certificados cargados</span>';
+    return;
+  }
+  cont.innerHTML = lista.map(a =>
+    '<div style="display:flex;align-items:center;gap:8px;background:white;border:1px solid #e2e8f0;border-radius:6px;padding:6px 10px;margin-top:4px;">'
+    + '<span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">📄 ' + (a.nombreArchivo || 'Archivo') + '</span>'
+    + '<button type="button" class="btn btn-secondary" style="padding:4px 8px;font-size:12px;" onclick="verAdjuntoDocum(\'' + a.url + '\')">👁️ Ver</button>'
+    + '<button type="button" class="btn" style="background:#dc2626;color:white;padding:4px 8px;font-size:12px;" onclick="eliminarAdjuntoDocum(\'' + a.id + '\',\'' + dni + '\')">🗑️</button>'
+    + '</div>'
+  ).join('');
+}
+
+export async function seleccionarArchivoDocum() {
+  const input = $('dc-antec-adjunto-file');
+  const file = input && input.files && input.files[0];
+  if (!file) return;
+  const id = $('docum-gest-id').value;
+  const d = getDocumById(id);
+  if (!d) { toast('⚠️ No se encontró el registro'); return; }
+  // Vencimiento del adjunto = fecha del certificado + 6 meses (misma lógica del badge).
+  // Si no hay fecha de certificado cargada, queda null (no obligamos a cargarla antes).
+  const fechaCert = ($('dc-antec-fecha') || {}).value || '';
+  let fechaVencimiento = null;
+  if (fechaCert) {
+    const fv = new Date(fechaCert + 'T00:00');
+    fv.setMonth(fv.getMonth() + 6);
+    fechaVencimiento = fv.toISOString().slice(0, 10);
+  }
+  const cont = $('dc-antec-adjunto-lista');
+  if (cont) cont.innerHTML = 'Subiendo…';
+  try {
+    await subirAdjunto({ dni: d.dni, etapa: 'documentacion', tipo: 'antecedente', file, fechaVencimiento });
+    toast('📎 Certificado subido');
+  } catch (e) {
+    toast('⚠️ ' + (e.message || 'Error al subir el archivo'));
+  } finally {
+    if (input) input.value = '';
+  }
+  cargarAdjuntoDocum(d.dni);
+}
+
+export async function verAdjuntoDocum(path) {
+  const url = await obtenerUrlFirmada(path);
+  if (!url) { toast('⚠️ No se pudo abrir el archivo'); return; }
+  window.open(url, '_blank');
+}
+
+export async function eliminarAdjuntoDocum(id, dni) {
+  if (!confirm('¿Eliminar este certificado?')) return;
+  const ok = await borrarAdjunto(id);
+  toast(ok ? '🗑️ Certificado eliminado' : '⚠️ No se pudo eliminar');
+  cargarAdjuntoDocum(dni);
 }
 
 // Revertir un registro Aprobado/Rechazado: vuelve a "En proceso".
