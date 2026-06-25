@@ -2,6 +2,7 @@ import { DB } from '@shared/state.js';
 import { $ } from '@shared/helpers.js';
 import { toast, cerrarModal } from '@shared/ui.js';
 import { supaSync } from '@shared/supabase.js';
+import { subirAdjunto, listarAdjuntos, obtenerUrlFirmada, borrarAdjunto } from '@shared/adjuntos.js';
 
 // ========== ESTADO INTERNO ==========
 
@@ -181,6 +182,7 @@ export function abrirGestionPsico(id) {
 
   actualizarBotonesAprobacion();
   $('modal-psico-gestion').classList.add('open');
+  cargarAdjuntoPsico(p.dni);
 }
 
 function crearHTMLModalPsico() {
@@ -205,6 +207,12 @@ function crearHTMLModalPsico() {
         '<div class="form-group" style="margin-top:12px;"><label>Observaciones</label>',
           '<textarea id="pg-obs" rows="2" style="width:100%;padding:8px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;resize:vertical;"></textarea></div>',
         '<div id="pg-aviso" style="display:none;padding:10px 14px;border-radius:8px;font-size:13px;margin-top:8px;"></div>',
+        '<div id="pg-adjunto-box" style="margin-top:12px;border:1px dashed #c4b5fd;border-radius:8px;padding:12px;background:#faf5ff;">',
+          '<label style="font-weight:600;color:#6d28d9;">📎 Informe psicotécnico (opcional)</label>',
+          '<div id="pg-adjunto-lista" style="margin-top:8px;font-size:13px;color:#64748b;">Cargando…</div>',
+          '<input type="file" id="pg-adjunto-file" accept="application/pdf,image/jpeg,image/png" style="display:none;" onchange="seleccionarArchivoPsico()">',
+          '<button type="button" class="btn btn-secondary" style="margin-top:8px;" onclick="document.getElementById(\'pg-adjunto-file\').click()">⬆️ Subir archivo</button>',
+        '</div>',
       '</div>',
       '<div class="modal-footer" style="flex-wrap:wrap;gap:8px;justify-content:space-between;">',
         '<button class="btn btn-secondary" onclick="cerrarModal(\'modal-psico-gestion\')">Cerrar panel</button>',
@@ -215,6 +223,59 @@ function crearHTMLModalPsico() {
       '</div>',
     '</div>',
   ].join('');
+}
+
+// ========== ADJUNTOS (informe psicotécnico — opcional) ==========
+
+export async function cargarAdjuntoPsico(dni) {
+  const cont = $('pg-adjunto-lista');
+  if (!cont) return;
+  cont.innerHTML = 'Cargando…';
+  const lista = await listarAdjuntos({ dni, etapa: 'psicotecnico', tipo: 'informe-psico' });
+  if (!lista.length) {
+    cont.innerHTML = '<span style="color:#94a3b8;">Sin archivo cargado</span>';
+    return;
+  }
+  cont.innerHTML = lista.map(a =>
+    '<div style="display:flex;align-items:center;gap:8px;background:white;border:1px solid #e2e8f0;border-radius:6px;padding:6px 10px;">'
+    + '<span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">📄 ' + (a.nombreArchivo || 'Archivo') + '</span>'
+    + '<button type="button" class="btn btn-secondary" style="padding:4px 8px;font-size:12px;" onclick="verAdjuntoPsico(\'' + a.url + '\')">👁️ Ver</button>'
+    + '<button type="button" class="btn" style="background:#dc2626;color:white;padding:4px 8px;font-size:12px;" onclick="eliminarAdjuntoPsico(\'' + a.id + '\',\'' + dni + '\')">🗑️</button>'
+    + '</div>'
+  ).join('');
+}
+
+export async function seleccionarArchivoPsico() {
+  const input = $('pg-adjunto-file');
+  const file = input && input.files && input.files[0];
+  if (!file) return;
+  const id = $('psico-gest-idx').value;
+  const p = getPsicoById(id);
+  if (!p) { toast('⚠️ No se encontró el registro'); return; }
+  const cont = $('pg-adjunto-lista');
+  if (cont) cont.innerHTML = 'Subiendo…';
+  try {
+    await subirAdjunto({ dni: p.dni, etapa: 'psicotecnico', tipo: 'informe-psico', file });
+    toast('📎 Archivo subido');
+  } catch (e) {
+    toast('⚠️ ' + (e.message || 'Error al subir el archivo'));
+  } finally {
+    if (input) input.value = '';
+  }
+  cargarAdjuntoPsico(p.dni);
+}
+
+export async function verAdjuntoPsico(path) {
+  const url = await obtenerUrlFirmada(path);
+  if (!url) { toast('⚠️ No se pudo abrir el archivo'); return; }
+  window.open(url, '_blank');
+}
+
+export async function eliminarAdjuntoPsico(id, dni) {
+  if (!confirm('¿Eliminar este archivo?')) return;
+  const ok = await borrarAdjunto(id);
+  toast(ok ? '🗑️ Archivo eliminado' : '⚠️ No se pudo eliminar');
+  cargarAdjuntoPsico(dni);
 }
 
 export function actualizarBotonesAprobacion() {
