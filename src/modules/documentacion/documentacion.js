@@ -276,6 +276,16 @@ export function actualizarBotonesDocum() {
 
 // Construir el registro de Alta a partir de un registro de documentación (helper interno)
 function _crearAltaDesdeDocum(d) {
+  // Guard de idempotencia: no crear un 2º registro de alta si ya hay uno para este DNI.
+  // cat_alt_pendientes NO tiene columna 'anulado'; estados: 'Pendiente de alta' / 'Alta completada'.
+  const altaExistente = (DB.catAltPendientes || []).some(x =>
+    d.dni && x.dni === d.dni &&
+    (x.estado === 'Pendiente de alta' || x.estado === 'Alta completada')
+  );
+  if (altaExistente) {
+    toast('ℹ️ Ya existe un alta para este candidato. No se creó una nueva.');
+    return false;
+  }
   const alta = {
     id: Date.now(), psicoId: d.psicoId, candidatoId: d.candidatoId,
     nombre: d.nombre, dni: d.dni, zona: d.zona, tel: d.tel, rrhh: d.rrhh || '',
@@ -285,6 +295,7 @@ function _crearAltaDesdeDocum(d) {
   if (!DB.catAltPendientes) DB.catAltPendientes = [];
   DB.catAltPendientes.push(alta);
   supaSync('catAltPendientes', alta);
+  return true;
 }
 
 // Aprobar: Sin antecedentes → avanza al Alta
@@ -304,10 +315,10 @@ export async function aprobarDocum() {
   d.estado = 'Aprobado';
   d.fechaAprobacion = new Date().toLocaleDateString('es-AR');
   supaSync('documentacionIngreso', d);
-  _crearAltaDesdeDocum(d);
+  const creada = _crearAltaDesdeDocum(d);
   cerrarModal('modal-docum-gestion');
   renderDocum();
-  toast('✅ ' + d.nombre + ' aprobado — enviado a Alta de asociados');
+  if (creada) toast('✅ ' + d.nombre + ' aprobado — enviado a Alta de asociados');
 }
 
 // Habilitar excepción: Con antecedentes pero pasa igual (queda registrado)
@@ -329,10 +340,10 @@ export function excepcionDocum() {
   d.estado = 'Aprobado';
   d.fechaAprobacion = new Date().toLocaleDateString('es-AR');
   supaSync('documentacionIngreso', d);
-  _crearAltaDesdeDocum(d);
+  const creada = _crearAltaDesdeDocum(d);
   cerrarModal('modal-docum-gestion');
   renderDocum();
-  toast('🔓 ' + d.nombre + ' habilitado por excepción — enviado a Alta');
+  if (creada) toast('🔓 ' + d.nombre + ' habilitado por excepción — enviado a Alta');
 }
 
 // Dar de baja: Con antecedentes → candidato Rechazado

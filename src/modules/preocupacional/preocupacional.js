@@ -198,18 +198,28 @@ export async function aprobarPreocup() {
   p.estado = 'Aprobado';
   p.fechaAprobacion = new Date().toLocaleDateString('es-AR');
   supaSync('preocupacionales', p);
-  // Crear el registro en Documentación de ingreso (el candidato pasa a documentación, no directo al Alta)
-  const docum = {
-    id: Date.now(), psicoId: p.psicoId, candidatoId: p.candidatoId,
-    nombre: p.nombre, dni: p.dni, zona: p.zona, tel: p.tel, rrhh: p.rrhh || '',
-    antecResultado: 'Pendiente', estado: 'En proceso',
-  };
-  if (!DB.documentacionIngreso) DB.documentacionIngreso = [];
-  DB.documentacionIngreso.push(docum);
-  supaSync('documentacionIngreso', docum);
+  // Crear el registro en Documentación de ingreso (el candidato pasa a documentación, no directo al Alta).
+  // Guard de idempotencia: no crear una 2ª documentación si ya hay una viva para este DNI.
+  const documVivoExistente = (DB.documentacionIngreso || []).some(d =>
+    p.dni && d.dni === p.dni &&
+    (d.estado === 'En proceso' || d.estado === 'Aprobado') &&
+    !d.anulado
+  );
+  if (documVivoExistente) {
+    toast('ℹ️ Ya existe una documentación de ingreso vigente para este candidato. No se creó una nueva.');
+  } else {
+    const docum = {
+      id: Date.now(), psicoId: p.psicoId, candidatoId: p.candidatoId,
+      nombre: p.nombre, dni: p.dni, zona: p.zona, tel: p.tel, rrhh: p.rrhh || '',
+      antecResultado: 'Pendiente', estado: 'En proceso',
+    };
+    if (!DB.documentacionIngreso) DB.documentacionIngreso = [];
+    DB.documentacionIngreso.push(docum);
+    supaSync('documentacionIngreso', docum);
+    toast('✅ ' + p.nombre + ' aprobado — enviado a Documentación de ingreso');
+  }
   cerrarModal('modal-preocup-gestion');
   renderPreocup();
-  toast('✅ ' + p.nombre + ' aprobado — enviado a Documentación de ingreso');
 }
 
 // Baja: NO APTO da de baja al candidato (molde de rechazarPsico)

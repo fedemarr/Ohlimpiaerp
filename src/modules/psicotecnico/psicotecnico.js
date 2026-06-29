@@ -340,18 +340,28 @@ export function aprobarPsico() {
   p.estado = 'Aprobado';
   p.fechaAprobacion = new Date().toLocaleDateString('es-AR');
   supaSync('psicos', p);
-  // Crear registro en Pre-ocupacional (el candidato pasa al examen médico, no directo al Alta)
-  const preocup = {
-    id: Date.now(), psicoId: p.id, candidatoId: p.candidatoId,
-    nombre: p.nombre, dni: p.dni, zona: p.zona, tel: p.tel, rrhh: p.rrhh || '',
-    resultado: 'Pendiente', estado: 'En proceso',
-  };
-  if (!DB.preocupacionales) DB.preocupacionales = [];
-  DB.preocupacionales.push(preocup);
-  supaSync('preocupacionales', preocup);
+  // Crear registro en Pre-ocupacional (el candidato pasa al examen médico, no directo al Alta).
+  // Guard de idempotencia: no crear un 2º preocup si ya hay uno vivo para este DNI.
+  const preocupVivoExistente = (DB.preocupacionales || []).some(x =>
+    p.dni && x.dni === p.dni &&
+    (x.estado === 'En proceso' || x.estado === 'Aprobado') &&
+    !x.anulado
+  );
+  if (preocupVivoExistente) {
+    toast('ℹ️ Ya existe un pre-ocupacional vigente para este candidato. No se creó uno nuevo.');
+  } else {
+    const preocup = {
+      id: Date.now(), psicoId: p.id, candidatoId: p.candidatoId,
+      nombre: p.nombre, dni: p.dni, zona: p.zona, tel: p.tel, rrhh: p.rrhh || '',
+      resultado: 'Pendiente', estado: 'En proceso',
+    };
+    if (!DB.preocupacionales) DB.preocupacionales = [];
+    DB.preocupacionales.push(preocup);
+    supaSync('preocupacionales', preocup);
+    toast('✅ ' + p.nombre + ' aprobado — enviado a Pre-ocupacional');
+  }
   cerrarModal('modal-psico-gestion');
   renderPsico();
-  toast('✅ ' + p.nombre + ' aprobado — enviado a Pre-ocupacional');
 }
 
 // ========== RECHAZAR ==========
