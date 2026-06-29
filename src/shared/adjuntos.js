@@ -184,3 +184,26 @@ export async function borrarAdjunto(adjuntoId) {
   if (error) { console.warn('Error al borrar adjunto:', error.message); return false; }
   return true;
 }
+
+// ========== RENOMBRAR AL DAR DE ALTA ==========
+
+/**
+ * Renombra los adjuntos vigentes de un DNI al confirmar el alta.
+ * Actualiza nombre_archivo a "Soc {nroSoc} - {TipoLegible}.{ext}".
+ * Decisión C1: NO toca Storage ni el campo url (path interno UUID).
+ * Una vez que es socio, el N° de socio es el identificador (sin DNI en el nombre).
+ * Lanza Error si alguna UPDATE falla (para que confirmarAlta avise con toast diferenciado).
+ */
+export async function renombrarAdjuntosPorAlta(dni, nroSoc) {
+  if (!dni || !nroSoc) return;
+  const adj = await listarAdjuntos({ dni, etapa: 'alta' });
+  for (const a of adj) {
+    const ext = (a.nombreArchivo || '').split('.').pop() || 'bin';
+    const tipoLeg = TIPO_LEGIBLE[a.tipo] || a.tipo;
+    const nombreNuevo = `Soc ${nroSoc} - ${tipoLeg}.${ext}`;
+    const { error } = await SUPA.from('adjuntos')
+      .update({ nombre_archivo: nombreNuevo })
+      .eq('id', a.id);
+    if (error) throw new Error(`No se pudo renombrar "${tipoLeg}": ${error.message}`);
+  }
+}
