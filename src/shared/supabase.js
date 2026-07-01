@@ -9,6 +9,7 @@ export const SUPA = createClient(
 // Mapa de claves JS → nombres de tabla en Supabase
 export const _SM = {
   legajos: 'legajos',
+  pedidos: 'pedidos',
   candidatos: 'candidatos',
   psicos: 'psicos',
   preocupacionales: 'preocupacionales',

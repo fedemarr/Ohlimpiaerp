@@ -15,6 +15,12 @@ export const DB = {
   tiposMedicos: ['Enfermedad inculpable', 'Accidente laboral', 'Accidente in itinere', 'Enfermedad profesional', 'Cirugía programada', 'Otro'],
   estadosMedicos: ['Activo — sin trabajar', 'En tratamiento', 'Reposo domiciliario', 'Internado', 'Alta médica'],
   medicosCfg: ['Dr. López — Hospital Italiano', 'Dra. Pérez — Centro Médico Norte'],
+  // Funciones de usuarios del sistema — preparametrizables desde Configuración
+  funcionesUsuario: ['Auxiliar', 'Subcoordinador/a', 'Coordinador/a', 'Gerente', 'Gerente General', 'Tesorero/a', 'Secretario/a', 'Presidente', 'Supervisor/a'],
+  // Aprobadores autorizados de reasignaciones — configurables
+  aprobadoresReas: ['Gerente de Operaciones', 'Gerente de RRHH'],
+  // Motivos de reasignación — configurables desde Configuración → Reasignaciones
+  motivosReasignacion: ['Baja del servicio (cliente)', 'Conflicto con cliente', 'Conflicto con compañeros', 'Pedido del supervisor', 'Pedido del asociado', 'Reducción de personal en servicio', 'Cobertura de otro servicio', 'Sanción disciplinaria', 'Mejora de condiciones', 'Cambio de categoría/función', 'Reingreso', 'Otro'],
   smvm: [
     { periodo: '2024-01', valor: 156000, resolucion: 'Res. 1/2024', vigente: false },
     { periodo: '2024-07', valor: 234315, resolucion: 'Res. 7/2024', vigente: false },
@@ -22,6 +28,7 @@ export const DB = {
   ],
   candidatos: [],
   turnos: [],
+  reasignaciones: [],
   pedidos: [
     { id: 1, fecha: '09/10/2023', supervisor: 'Claudia Cazenave', servicio: 'HOSPITAL.CAMPANA', zona: 'Buenos Aires', puesto: 'Operario', horario: '22hs a 06hs nocturno 6×1', urgencia: 'Alto', estado: 'Cubierto', candidato: 'Lima Romina', obs: '' },
     { id: 2, fecha: '27/11/2023', supervisor: 'Alvaro Uballes', servicio: 'HIT.LIBERTADOR.CEL', zona: 'CABA', puesto: 'Retén', horario: 'Rotativos full time 6×1', urgencia: 'Medio', estado: 'Pendiente', candidato: '', obs: '' },
@@ -53,13 +60,10 @@ export const DB = {
     { id: 3, asociado: 'Torres Ana Beatriz', nroSocio: 98, tipo: 'Accidente in itinere', fechaHecho: '10/01/2026', dias: 82, ultimoContacto: '02/04/2026', certif: 'Presentado', estado: 'En tratamiento', habilitado: 'No — en reposo médico', adjuntos: ['certif_medico.pdf', 'estudio_rx.pdf', 'kine_informe.pdf'] },
   ],
   sugerencias: [],
-  usuarios: [
-    { id: 1, nombre: 'Juan Peretti', email: 'admin@ohlimpia.coop', pass: 'admin123', perfil: 'Administrador total', funcion: 'Presidente', activo: true, nickname: 'Admin' },
-    { id: 2, nombre: 'Jimena Rrhh', email: 'rrhh@ohlimpia.coop', pass: 'rrhh2024', perfil: 'RRHH', funcion: 'Coordinador/a', activo: true, nickname: 'Jimena' },
-    { id: 3, nombre: 'Operaciones User', email: 'operaciones@ohlimpia.coop', pass: 'ops2024', perfil: 'Operaciones', funcion: 'Coordinador/a', activo: true, nickname: 'Operaciones' },
-    { id: 4, nombre: 'Finanzas User', email: 'finanzas@ohlimpia.coop', pass: 'fin2024', perfil: 'Finanzas', funcion: 'Tesorero/a', activo: true, nickname: 'Finanzas' },
-    { id: 5, nombre: 'Supervisor Demo', email: 'supervisor@ohlimpia.coop', pass: 'sup2024', perfil: 'Supervisor', funcion: 'Supervisor/a', activo: true, nickname: 'Supervisor' },
-  ],
+  // Se puebla desde Supabase Auth (tabla public.usuarios) al loguear —
+  // ver cargarListaUsuarios() en src/shared/auth.js. Ya no vive hardcodeado
+  // acá para no mandar contraseñas en texto plano al bundle del cliente.
+  usuarios: [],
 };
 
 // ========== PERFILES Y ACCESOS ==========

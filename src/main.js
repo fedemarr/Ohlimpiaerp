@@ -5,10 +5,10 @@ import './styles/main.css';
 
 // ── Shared ──
 import { SUPA, supaInit, supaSync, supaDel } from '@shared/supabase.js';
-import { DB, PERFILES, MENU, BADGE_MAP, AREAS, LOCALIDADES_BA, currentUser } from '@shared/state.js';
+import { DB, PERFILES, MENU, BADGE_MAP, AREAS, LOCALIDADES_BA } from '@shared/state.js';
 import { $, initials, avatarEl, badge, formatPeriodo, hoyStr, esFeriado, esFinde, getDiasDelMes, calcularDiasEntre, toTitleCase, cleanText, applyTitleCase, validarCampos, fillSelect, fillDL } from '@shared/helpers.js';
 import { toast, abrirModal, cerrarModal, initModalClickOutside, makeTableSortable, activarOrdenamiento, activarOrdenamientoTabla, handleBuscadorKeydown } from '@shared/ui.js';
-import { doLogin, loginDemo, iniciarSesion, doLogout, loginAsociado, initLoginKeydown, registerAuthCallbacks } from '@shared/auth.js';
+import { doLogin, loginDemo, iniciarSesion, doLogout, loginAsociado, initLoginKeydown, registerAuthCallbacks, restaurarSesion } from '@shared/auth.js';
 import { SCREEN_CONFIG, registerScreens, currentScreen, navTo, topAction, construirMenu, busquedaGlobal, registerNavCallbacks, registerSearchFilters } from '@shared/nav.js';
 
 // ── Módulos migrados ──
@@ -18,6 +18,8 @@ import { preocupScreenConfig } from './modules/preocupacional/index.js';
 import { documScreenConfig } from './modules/documentacion/index.js';
 import { altasScreenConfig, filtrarAltas, poblarFiltrosColumnasAltas, renderAltas, poblarSelectsAltas } from './modules/altas/index.js';
 import { legajosScreenConfig, filtrarLegajos, renderLegajos } from './modules/legajos/index.js';
+import { pedidosScreenConfig, filtrarPedidos } from './modules/pedidos/index.js';
+import { reasignacionesScreenConfig } from './modules/reasignaciones/index.js';
 import './modules/personal_rrhh/index.js';
 
 // ========== BIND SHARED A WINDOW (PRIMERO) ==========
@@ -45,6 +47,8 @@ registerScreens(preocupScreenConfig);
 registerScreens(documScreenConfig);
 registerScreens(altasScreenConfig);
 registerScreens(legajosScreenConfig);
+registerScreens(pedidosScreenConfig);
+registerScreens(reasignacionesScreenConfig);
 
 // ========== REGISTRAR FILTROS DE BÚSQUEDA GLOBAL ==========
 
@@ -53,6 +57,7 @@ registerSearchFilters({
   psicotecnico: filtrarPsico,
   altas: filtrarAltas,
   legajos: filtrarLegajos,
+  pedidos: filtrarPedidos,
 });
 
 // ========== LEGACY (import dinámico) ==========
@@ -75,10 +80,8 @@ async function loadLegacy() {
     // Registrar pantallas legacy que necesitan btn en topbar
     registerScreens({
       capacitaciones: { title: 'Capacitaciones', btn: '+ Registrar capacitación', fn: () => abrirModal('modal-capacitacion'), render: () => { if (window.renderCapacitaciones) window.renderCapacitaciones(); } },
-      pedidos: { title: 'Pedidos de personal', btn: '+ Nuevo pedido', fn: () => abrirModal('modal-pedido'), render: () => { if (window.renderPedidos) window.renderPedidos(); } },
       legal: { title: 'Situaciones legales', btn: '+ Nuevo caso', fn: () => abrirModal('modal-legal'), render: () => { if (window.renderLegal) window.renderLegal(); } },
       enfermos: { title: 'Enfermos y accidentes', btn: '+ Nuevo caso', fn: () => abrirModal('modal-enfermo'), render: () => { if (window.renderEnfermos) window.renderEnfermos(); } },
-      reasignaciones: { title: 'Reasignaciones', btn: '+ Nueva reasignación', fn: () => abrirModal('modal-reasignacion'), render: () => { if (window.renderReasignaciones) window.renderReasignaciones(); } },
       clientes: { title: 'Clientes', btn: '+ Nuevo cliente', fn: () => abrirModal('modal-cliente'), render: () => { if (window.renderClientes) window.renderClientes(); } },
       objetivos: { title: 'Objetivos / Servicios', btn: '+ Nuevo objetivo', fn: () => abrirModal('modal-objetivo'), render: () => { if (window.renderObjetivos) window.renderObjetivos(); } },
       vacaciones: { title: 'Vacaciones y descanso', btn: '', fn: null, render: () => { if (window.renderVacaciones) window.renderVacaciones(); } },
@@ -126,6 +129,7 @@ registerAuthCallbacks({
     poblarFiltrosColumnasAltas();
   },
   verificarAccionesVencidas() {},
+  cargarDatos: () => supaInit(DB, toast),
 });
 
 // ========== CALLBACKS DE NAV ==========
@@ -149,12 +153,9 @@ registerScreens({
 initLoginKeydown();
 initModalClickOutside();
 
-loadLegacy().then(() => {
-  supaInit(DB, toast).then(() => {
-    if (currentUser) renderInicio();
-  }).catch(() => {}).finally(() => {
-    if (!currentUser) $('login-screen').style.display = 'flex';
-  });
+loadLegacy().then(async () => {
+  const sesionRestaurada = await restaurarSesion().catch(() => false);
+  if (!sesionRestaurada) $('login-screen').style.display = 'flex';
 });
 
 console.log('Ohlimpia v2 — Vite cargado correctamente');

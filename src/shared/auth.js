@@ -1,6 +1,7 @@
 import { DB, setCurrentUser } from '@shared/state.js';
 import { $, initials } from '@shared/helpers.js';
 import { activarOrdenamiento } from '@shared/ui.js';
+import { SUPA } from '@shared/supabase.js';
 
 // Callbacks que se configuran desde fuera para evitar dependencias circulares.
 // Se registran una vez con registerAuthCallbacks() al inicializar la app.
@@ -10,6 +11,7 @@ let _callbacks = {
   navTo: () => {},
   poblarFiltrosColumnas: () => {},
   verificarAccionesVencidas: () => {},
+  cargarDatos: async () => {},
 };
 
 export function registerAuthCallbacks(cbs) {
@@ -18,28 +20,79 @@ export function registerAuthCallbacks(cbs) {
 
 // ========== LOGIN ==========
 
+// TEMPORAL — solo para la etapa de demo interna mientras se termina de armar
+// el sistema. Los 5 usuarios demo (admin/rrhh/operaciones/finanzas/supervisor
+// @ohlimpia.coop) deben crearse en Supabase Auth con ESTA MISMA password.
+// Antes de un lanzamiento real (sobre todo el acceso de Administrador) hay
+// que sacar este acceso de un click y loguear con password propia siempre.
+const DEMO_PASSWORD = 'Ohlimpia-Demo-2026!';
+
+async function perfilDesdeSesion(authUser) {
+  const { data, error } = await SUPA.from('usuarios').select('*').eq('id', authUser.id).maybeSingle();
+  if (error || !data) return null;
+  return {
+    id: authUser.id,
+    nombre: data.nombre || authUser.email,
+    email: authUser.email,
+    perfil: data.perfil,
+    funcion: data.funcion,
+    nickname: data.nickname || (data.nombre || authUser.email).split(' ')[0],
+    activo: data.activo,
+  };
+}
+
+async function cargarListaUsuarios() {
+  const { data, error } = await SUPA.from('usuarios').select('*');
+  if (!error && data) DB.usuarios = data;
+}
+
+async function loginConCredenciales(email, password) {
+  const { data, error } = await SUPA.auth.signInWithPassword({ email, password });
+  if (error || !data?.user) { $('login-error').style.display = 'block'; return; }
+  const usr = await perfilDesdeSesion(data.user);
+  if (!usr || !usr.perfil || !usr.activo) {
+    await SUPA.auth.signOut();
+    $('login-error').style.display = 'block';
+    return;
+  }
+  $('login-error').style.display = 'none';
+  await iniciarSesion(usr);
+}
+
 export function doLogin() {
-  const u = $('login-user').value.trim();
-  const p = $('login-pass').value;
-  const usr = DB.usuarios.find(x => x.email === u && x.pass === p && x.activo);
-  if (!usr) { $('login-error').style.display = 'block'; return; }
-  iniciarSesion(usr);
+  const email = $('login-user').value.trim();
+  const pass = $('login-pass').value;
+  loginConCredenciales(email, pass);
 }
 
 export function loginDemo(perfil) {
   const mapDemo = {
-    admin: 'Administrador total',
-    rrhh: 'RRHH',
-    operaciones: 'Operaciones',
-    finanzas: 'Finanzas',
-    supervisor: 'Supervisor',
+    admin: 'admin@ohlimpia.coop',
+    rrhh: 'rrhh@ohlimpia.coop',
+    operaciones: 'operaciones@ohlimpia.coop',
+    finanzas: 'finanzas@ohlimpia.coop',
+    supervisor: 'supervisor@ohlimpia.coop',
   };
-  const usr = DB.usuarios.find(x => x.perfil === mapDemo[perfil]);
-  if (usr) iniciarSesion(usr);
+  const email = mapDemo[perfil];
+  if (email) loginConCredenciales(email, DEMO_PASSWORD);
 }
 
-export function iniciarSesion(usr) {
+// Restaura la sesión si Supabase ya tiene una activa (persistida en
+// localStorage) — evita pedir login de nuevo en cada reload.
+export async function restaurarSesion() {
+  const { data } = await SUPA.auth.getSession();
+  const authUser = data?.session?.user;
+  if (!authUser) return false;
+  const usr = await perfilDesdeSesion(authUser);
+  if (!usr || !usr.perfil || !usr.activo) { await SUPA.auth.signOut(); return false; }
+  await iniciarSesion(usr);
+  return true;
+}
+
+export async function iniciarSesion(usr) {
   setCurrentUser(usr);
+  await _callbacks.cargarDatos();
+  await cargarListaUsuarios();
   $('login-screen').style.display = 'none';
   $('app').classList.remove('hidden');
   $('sidebar-avatar').textContent = initials(usr.nombre);
@@ -55,7 +108,8 @@ export function iniciarSesion(usr) {
   }, 300);
 }
 
-export function doLogout() {
+export async function doLogout() {
+  await SUPA.auth.signOut();
   setCurrentUser(null);
   $('app').classList.add('hidden');
   $('login-screen').style.display = 'flex';
@@ -66,10 +120,21 @@ export function doLogout() {
 
 // ========== PORTAL ASOCIADO ==========
 
-export function loginAsociado() {
+export async function loginAsociado() {
   const nro = parseInt($('asoc-nro-socio')?.value) || 0;
   const apellido = ($('asoc-apellido')?.value || '').trim().toLowerCase();
   if (!nro || !apellido) { $('asoc-login-error').style.display = 'block'; return; }
+
+  // El portal asociado no tiene password propia — para poder leer legajos
+  // bajo el RLS "solo autenticados" se abre una sesión anónima de Supabase
+  // (requiere tener "Allow anonymous sign-ins" habilitado en el proyecto).
+  const { data: sesion } = await SUPA.auth.getSession();
+  if (!sesion?.session) {
+    const { error } = await SUPA.auth.signInAnonymously();
+    if (error) { $('asoc-login-error').style.display = 'block'; return; }
+  }
+  await _callbacks.cargarDatos();
+
   const legajo = (DB.legajos || []).find(l =>
     l.nro === nro && l.nombre.toLowerCase().includes(apellido) && l.estado === 'Activo'
   );
@@ -87,7 +152,7 @@ export function loginAsociado() {
     activo: true,
     nickname: legajo.nombre.split(' ')[0],
   };
-  iniciarSesion(usrAsoc);
+  await iniciarSesion(usrAsoc);
 }
 
 // ========== LISTENER ENTER EN LOGIN ==========
