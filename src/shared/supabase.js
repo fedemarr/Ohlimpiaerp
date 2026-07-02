@@ -1,9 +1,11 @@
 import { createClient } from '@supabase/supabase-js';
 
-// Cliente Supabase
+// Cliente Supabase — persistSession:false a propósito: no queremos que la
+// sesión sobreviva a un reload/cierre de pestaña, tiene que loguearse siempre.
 export const SUPA = createClient(
   'https://caeqsieiuunqvicfpudu.supabase.co',
-  'sb_publishable__SBdO6cSQXYfgR16FrztwA_Cf9sNosd'
+  'sb_publishable__SBdO6cSQXYfgR16FrztwA_Cf9sNosd',
+  { auth: { persistSession: false } }
 );
 
 // Mapa de claves JS → nombres de tabla en Supabase
