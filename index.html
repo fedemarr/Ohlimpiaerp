@@ -83,7 +83,36 @@
     </div>
 
     <!-- Tarjetas de acceso rápido -->
-    <div id="grilla-acceso-rapido" style="display:grid;grid-template-columns:repeat(4,1fr);gap:14px;max-width:1000px;width:100%;margin-bottom:32px;"></div>
+    <div id="grilla-acceso-rapido" style="display:grid;grid-template-columns:repeat(4,1fr);gap:14px;max-width:1000px;width:100%;margin-bottom:20px;"></div>
+
+    <!-- Resumen Selección + Ingreso -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;max-width:1000px;width:100%;margin-bottom:16px;">
+
+      <!-- Candidatos por estado -->
+      <div class="card">
+        <div class="card-header"><h3>👥 Candidatos por estado</h3></div>
+        <div class="card-body" id="panel-candidatos-inicio"></div>
+      </div>
+
+      <!-- Pedidos por estado -->
+      <div class="card">
+        <div class="card-header"><h3>📋 Pedidos de personal</h3></div>
+        <div class="card-body" id="panel-pedidos-inicio"></div>
+      </div>
+
+      <!-- Legajos activos/bajas -->
+      <div class="card">
+        <div class="card-header"><h3>📁 Legajos</h3></div>
+        <div class="card-body" style="display:flex;align-items:center;gap:16px;" id="panel-legajos-inicio"></div>
+      </div>
+
+      <!-- Ingreso: monotributos / uniformes / retenciones / reasignaciones -->
+      <div class="card">
+        <div class="card-header"><h3>🔄 Ingreso — otros indicadores</h3></div>
+        <div class="card-body" style="display:grid;grid-template-columns:1fr 1fr;gap:12px;" id="panel-ingreso-inicio"></div>
+      </div>
+
+    </div>
 
     <!-- Panel inferior: alertas + cumpleaños -->
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;max-width:1000px;width:100%;">

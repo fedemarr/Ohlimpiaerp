@@ -75,6 +75,20 @@ body{font-family:'DM Sans',sans-serif;background:var(--fondo);color:var(--texto)
 .card-body{padding:20px;}
 .mb-20{margin-bottom:20px;}
 
+/* MINI-GRÁFICOS (dashboard de Inicio) — CSS puro, sin librería */
+.donut{width:96px;height:96px;border-radius:50%;position:relative;flex-shrink:0;}
+.donut-hole{position:absolute;inset:12px;background:white;border-radius:50%;display:flex;flex-direction:column;align-items:center;justify-content:center;}
+.donut-hole .n{font-size:18px;font-weight:800;color:var(--azul-oscuro);line-height:1;}
+.donut-hole .l{font-size:9px;color:var(--texto-muy-suave);margin-top:2px;}
+.donut-leyenda{display:flex;flex-direction:column;gap:6px;font-size:12px;}
+.donut-leyenda .item{display:flex;align-items:center;gap:6px;}
+.donut-leyenda .dot{width:9px;height:9px;border-radius:50%;flex-shrink:0;}
+.bar-row{display:flex;align-items:center;gap:10px;margin-bottom:8px;}
+.bar-row .label{font-size:12px;color:var(--texto-suave);width:110px;flex-shrink:0;text-align:right;}
+.bar-row .track{flex:1;background:var(--fondo);border-radius:20px;height:16px;overflow:hidden;}
+.bar-row .fill{height:100%;border-radius:20px;transition:width .3s;}
+.bar-row .n{font-size:12px;font-weight:700;width:24px;text-align:left;color:var(--texto-suave);}
+
 /* TABLA */
 .tabla-wrap{overflow-x:auto;}
 /* Tabla compacta de liquidación */

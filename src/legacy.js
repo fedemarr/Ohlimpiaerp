@@ -11190,6 +11190,83 @@ function guardarArt42(){
   DB.art42.push({id:Date.now(),asociado:asoc.split('(')[0].trim(),nroSocio:leg?.nro||'—',servicio:leg?.servicio||'—',supervisor:leg?.supervisor||'—',periodo:$('a42-periodo')?.value||'',fechaInicio:$('a42-inicio')?.value?new Date($('a42-inicio').value).toLocaleDateString('es-AR'):'',dias,horasPorDia:8,categoria:$('a42-categoria')?.value||'Operario/a limpieza',obs:$('a42-obs')?.value||'',estado:'Abierto'});
   cerrarModal('modal-art42');renderArt42();toast(`✓ Caso Art. 42: ${asoc} — ${dias} días`);
 }
+// Tarjetas de resumen Selección + Ingreso del dashboard de Inicio.
+// Gráficos hechos con CSS puro (conic-gradient para donuts, divs para
+// barras) — sin sumar ninguna librería nueva al proyecto.
+function renderResumenSeleccionIngreso(){
+  // Candidatos por estado
+  const candEstados = ['Sin citar','Citado','Entrevistado','Aprobado','Psicotecnico','Rechazado'];
+  const candColores = {'Sin citar':'#94a3b8','Citado':'#f0c857','Entrevistado':'#7dd4a0','Aprobado':'#5da8f0','Psicotecnico':'#c084f5','Rechazado':'#f87070'};
+  const candCounts = candEstados.map(e => ({ e, n: (DB.candidatos||[]).filter(c=>c.estado===e).length }));
+  const candMax = Math.max(1, ...candCounts.map(c=>c.n));
+  const panelCand = $('panel-candidatos-inicio');
+  if(panelCand){
+    const hayDatos = candCounts.some(c=>c.n>0);
+    panelCand.innerHTML = hayDatos ? candCounts.map(c=>`
+      <div class="bar-row">
+        <div class="label">${c.e}</div>
+        <div class="track"><div class="fill" style="width:${c.n/candMax*100}%;background:${candColores[c.e]};"></div></div>
+        <div class="n">${c.n}</div>
+      </div>`).join('') : `<div style="text-align:center;padding:16px;color:var(--texto-muy-suave);font-size:13px;">Sin candidatos cargados</div>`;
+  }
+
+  // Pedidos de personal por estado
+  const pedEstados = ['Pendiente','En búsqueda','Cubierto','Cancelado','Pausado'];
+  const pedColores = {'Pendiente':'#f0c857','En búsqueda':'#5da8f0','Cubierto':'#7dd4a0','Cancelado':'#f87070','Pausado':'#94a3b8'};
+  const pedCounts = pedEstados.map(e => ({ e, n: (DB.pedidos||[]).filter(p=>p.estado===e).length }));
+  const pedMax = Math.max(1, ...pedCounts.map(c=>c.n));
+  const panelPed = $('panel-pedidos-inicio');
+  if(panelPed){
+    const hayDatos = pedCounts.some(c=>c.n>0);
+    panelPed.innerHTML = hayDatos ? pedCounts.map(c=>`
+      <div class="bar-row">
+        <div class="label">${c.e}</div>
+        <div class="track"><div class="fill" style="width:${c.n/pedMax*100}%;background:${pedColores[c.e]};"></div></div>
+        <div class="n">${c.n}</div>
+      </div>`).join('') : `<div style="text-align:center;padding:16px;color:var(--texto-muy-suave);font-size:13px;">Sin pedidos cargados</div>`;
+  }
+
+  // Legajos — donut activos/bajas
+  const panelLeg = $('panel-legajos-inicio');
+  if(panelLeg){
+    const legajos = DB.legajos||[];
+    const activos = legajos.filter(l=>l.estado==='Activo').length;
+    const bajas = legajos.filter(l=>l.estado==='Baja').length;
+    const total = legajos.length || 1;
+    const pctActivos = Math.round(activos/total*100);
+    panelLeg.innerHTML = `
+      <div class="donut" style="background:conic-gradient(var(--verde) 0% ${pctActivos}%, var(--rojo) ${pctActivos}% 100%);">
+        <div class="donut-hole"><div class="n">${legajos.length}</div><div class="l">total</div></div>
+      </div>
+      <div class="donut-leyenda">
+        <div class="item"><span class="dot" style="background:var(--verde);"></span>Activos: <strong>${activos}</strong></div>
+        <div class="item"><span class="dot" style="background:var(--rojo);"></span>Bajas: <strong>${bajas}</strong></div>
+      </div>`;
+  }
+
+  // Otros indicadores de Ingreso
+  const panelIng = $('panel-ingreso-inicio');
+  if(panelIng){
+    const reasPend = (DB.reasignaciones||[]).filter(r=>r.estado==='Pendiente').length;
+    const monoFuera = (DB.monotributos||[]).filter(m=>m.estado==='Fuera de categoría').length;
+    const mesActual = new Date().toISOString().slice(0,7);
+    const uniMes = (DB.uniformes||[]).filter(u=>(u.fecha||'').slice(0,7)===mesActual).length;
+    const retActivas = (DB.retenciones||[]).filter(r=>r.estado==='Activa').length;
+    const items = [
+      {icon:'🔄', label:'Reasignaciones pendientes', n:reasPend, color:'var(--naranja)'},
+      {icon:'💸', label:'Monotributos fuera de cat.', n:monoFuera, color:'var(--rojo)'},
+      {icon:'👕', label:'Uniformes entregados (mes)', n:uniMes, color:'var(--azul)'},
+      {icon:'🔒', label:'Retenciones activas', n:retActivas, color:'var(--acento)'},
+    ];
+    panelIng.innerHTML = items.map(i=>`
+      <div style="background:var(--fondo);border-radius:var(--radio);padding:12px;text-align:center;">
+        <div style="font-size:22px;">${i.icon}</div>
+        <div style="font-size:20px;font-weight:800;color:${i.color};margin:4px 0;">${i.n}</div>
+        <div style="font-size:10px;color:var(--texto-suave);">${i.label}</div>
+      </div>`).join('');
+  }
+}
+
 export function renderInicio(){
   // Saludo dinámico
   const hora = new Date().getHours();
@@ -11251,6 +11328,8 @@ export function renderInicio(){
       </div>`;
     }).join('');
   }
+
+  renderResumenSeleccionIngreso();
 
   // Panel de alertas
   const panelAlertas = $('panel-alertas-inicio');
