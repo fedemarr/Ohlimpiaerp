@@ -5641,21 +5641,10 @@ if(DB.retenes.length===0){
 }
 
 // Monotributos — categorías actuales
+// Nota: se sacó la semilla de datos de prueba (shape viejo, incompatible con
+// el shape real que usa guardarMonotributo/renderMonotributos) ahora que la
+// tabla persiste de verdad en Supabase (v017).
 if(!DB.monotributos) DB.monotributos = [];
-if(DB.monotributos.length===0){
-  DB.monotributos = [
-    {nroSocio:104,nombre:'Benitez Marcos Ruben',categoria:'F',facturacionAnual:5200000,obraSocial:true,familia:true,jubilado:false,zona:'CABA',ultimaActualizacion:'01/2026'},
-    {nroSocio:105,nombre:'Quiroga Daniela Paz',categoria:'D',facturacionAnual:2800000,obraSocial:true,familia:false,jubilado:false,zona:'CABA',ultimaActualizacion:'01/2026'},
-    {nroSocio:108,nombre:'Fernandez Hugo Oscar',categoria:'E',facturacionAnual:3900000,obraSocial:true,familia:true,jubilado:false,zona:'Buenos Aires',ultimaActualizacion:'01/2026'},
-    {nroSocio:116,nombre:'Soria Jorge Luis',categoria:'F',facturacionAnual:5100000,obraSocial:true,familia:true,jubilado:false,zona:'Buenos Aires',ultimaActualizacion:'01/2026'},
-    {nroSocio:120,nombre:'Gutierrez Ramon Eduardo',categoria:'E',facturacionAnual:4200000,obraSocial:true,familia:false,jubilado:false,zona:'Buenos Aires',ultimaActualizacion:'01/2026'},
-    {nroSocio:121,nombre:'Medina Oscar Reinaldo',categoria:'F',facturacionAnual:5400000,obraSocial:true,familia:true,jubilado:false,zona:'Buenos Aires',ultimaActualizacion:'01/2026'},
-    {nroSocio:123,nombre:'Rios Jorge Alberto',categoria:'E',facturacionAnual:4100000,obraSocial:true,familia:true,jubilado:false,zona:'Buenos Aires',ultimaActualizacion:'01/2026'},
-    {nroSocio:126,nombre:'Romero Gustavo Daniel',categoria:'D',facturacionAnual:3200000,obraSocial:true,familia:false,jubilado:false,zona:'CABA',ultimaActualizacion:'01/2026'},
-    {nroSocio:32,nombre:'Tolaba Maximiliano Ezequiel',categoria:'D',facturacionAnual:2900000,obraSocial:true,familia:false,jubilado:false,zona:'CABA',ultimaActualizacion:'01/2026'},
-    {nroSocio:132,nombre:'Cardozo Miriam Patricia',categoria:'D',facturacionAnual:3000000,obraSocial:true,familia:true,jubilado:false,zona:'CABA',ultimaActualizacion:'01/2026'},
-  ];
-}
 
 // Sanciones
 if(!DB.sanciones) DB.sanciones = [];

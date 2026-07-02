@@ -7,7 +7,7 @@ import './styles/main.css';
 import { SUPA, supaInit, supaSync, supaDel } from '@shared/supabase.js';
 import { DB, PERFILES, MENU, BADGE_MAP, AREAS, LOCALIDADES_BA } from '@shared/state.js';
 import { $, initials, avatarEl, badge, formatPeriodo, hoyStr, esFeriado, esFinde, getDiasDelMes, calcularDiasEntre, toTitleCase, cleanText, applyTitleCase, validarCampos, fillSelect, fillDL } from '@shared/helpers.js';
-import { toast, abrirModal, cerrarModal, initModalClickOutside, makeTableSortable, activarOrdenamiento, activarOrdenamientoTabla, handleBuscadorKeydown } from '@shared/ui.js';
+import { toast, abrirModal, cerrarModal, initModalClickOutside, makeTableSortable, activarOrdenamiento, activarOrdenamientoTabla, handleBuscadorKeydown, confirmarModalInputSimple } from '@shared/ui.js';
 import { doLogin, loginDemo, iniciarSesion, doLogout, loginAsociado, initLoginKeydown, registerAuthCallbacks, restaurarSesion } from '@shared/auth.js';
 import { SCREEN_CONFIG, registerScreens, currentScreen, navTo, topAction, construirMenu, busquedaGlobal, registerNavCallbacks, registerSearchFilters } from '@shared/nav.js';
 
@@ -35,6 +35,7 @@ window.topAction = topAction;
 window.busquedaGlobal = busquedaGlobal;
 window.abrirModal = abrirModal;
 window.cerrarModal = cerrarModal;
+window.confirmarModalInputSimple = confirmarModalInputSimple;
 window.toast = toast;
 window.hoyStr = hoyStr;
 window.$ = $;
@@ -97,9 +98,9 @@ async function loadLegacy() {
       liq_admin: { title: 'Liquidación Administración', btn: '', fn: null, render: () => { if (window.renderLiqAdmin) window.renderLiqAdmin(); } },
       retenes: { title: 'Retenes', btn: '', fn: null, render: () => { if (window.renderRetenes) window.renderRetenes(); } },
       mantenimiento: { title: 'Mantenimiento', btn: '', fn: null, render: () => { if (window.renderMantenimiento) window.renderMantenimiento(); } },
-      monotributos: { title: 'Monotributos', btn: '', fn: null, render: () => { if (window.renderMonotributos) window.renderMonotributos(); } },
-      uniformes: { title: 'Uniformes', btn: '', fn: null, render: () => { if (window.renderUniformes) window.renderUniformes(); } },
-      retenciones: { title: 'Retenciones', btn: '', fn: null, render: () => { if (window.renderRetenciones) window.renderRetenciones(); } },
+      monotributos: { title: 'Monotributos', btn: '+ Nuevo monotributista', fn: () => { if (window.abrirModalNuevoMonotributo) window.abrirModalNuevoMonotributo(); }, render: () => { if (window.renderMonotributos) window.renderMonotributos(); } },
+      uniformes: { title: 'Uniformes', btn: '+ Nueva entrega', fn: () => { if (window.abrirModalNuevoUniforme) window.abrirModalNuevoUniforme(); }, render: () => { if (window.renderUniformes) window.renderUniformes(); } },
+      retenciones: { title: 'Retenciones', btn: '+ Nueva retención', fn: () => { if (window.abrirModalNuevaRetencion) window.abrirModalNuevaRetencion(); }, render: () => { if (window.renderRetenciones) window.renderRetenciones(); } },
       sanciones: { title: 'Sanciones', btn: '+ Nueva sanción', fn: () => abrirModal('modal-sancion'), render: () => { if (window.renderSanciones) window.renderSanciones(); } },
       paritarias: { title: 'Paritarias', btn: '', fn: null, render: () => { if (window.renderParitarias) window.renderParitarias(); } },
       liquidaciones: { title: 'Liquidaciones', btn: '', fn: null, render: () => { if (window.renderLiquidaciones) window.renderLiquidaciones(); } },

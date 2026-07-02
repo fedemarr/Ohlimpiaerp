@@ -21,6 +21,33 @@ export function initModalClickOutside() {
   );
 }
 
+// ========== MODAL GENÉRICO DE INPUT (reemplaza prompt() del navegador) ==========
+
+let _inputSimpleCallback = null;
+let _inputSimpleObligatorio = true;
+
+// callback(valor) se ejecuta solo al confirmar; nunca al cancelar (mismo
+// contrato que prompt(), que devuelve null si el usuario cancela).
+export function abrirModalInput({ titulo = 'Ingresar dato', etiqueta = 'Valor', placeholder = '', obligatorio = true, valorInicial = '' } = {}, callback) {
+  $('input-simple-titulo').textContent = titulo;
+  $('input-simple-etiqueta').textContent = etiqueta;
+  $('input-simple-valor').placeholder = placeholder;
+  $('input-simple-valor').value = valorInicial;
+  _inputSimpleCallback = callback;
+  _inputSimpleObligatorio = obligatorio;
+  abrirModal('modal-input-simple');
+  setTimeout(() => $('input-simple-valor')?.focus(), 50);
+}
+
+export function confirmarModalInputSimple() {
+  const valor = ($('input-simple-valor').value || '').trim();
+  if (_inputSimpleObligatorio && !valor) { toast('⚠️ Completá el campo'); return; }
+  cerrarModal('modal-input-simple');
+  const cb = _inputSimpleCallback;
+  _inputSimpleCallback = null;
+  if (cb) cb(valor);
+}
+
 // ========== ORDENAMIENTO DE TABLAS ==========
 
 const sortState = {};

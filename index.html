@@ -2433,6 +2433,115 @@
   </div>
 </div>
 
+<!-- MODAL MONOTRIBUTO -->
+<div class="modal-overlay" id="modal-monotributo">
+  <div class="modal" style="max-width:520px;">
+    <div class="modal-header"><h3 id="mono-modal-title">Nuevo monotributista</h3><button class="btn-close" onclick="cerrarModal('modal-monotributo')">×</button></div>
+    <div class="modal-body">
+      <input type="hidden" id="mono-idx">
+      <div class="form-grid gap-12">
+        <div class="form-group"><label>Nombre *</label><input type="text" id="mono-nombre" list="dl-mono-nombre" placeholder="Buscar asociado..."><datalist id="dl-mono-nombre"></datalist></div>
+        <div class="form-grid form-grid-2">
+          <div class="form-group"><label>CUIT</label><input type="text" id="mono-cuit" placeholder="20-XXXXXXXX-X"></div>
+          <div class="form-group"><label>Categoría *</label>
+            <select id="mono-categoria">
+              <option value="">Seleccionar...</option>
+              <option>A</option><option>B</option><option>C</option><option>D</option><option>E</option>
+              <option>F</option><option>G</option><option>H</option><option>I</option><option>J</option><option>K</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-grid form-grid-2">
+          <div class="form-group"><label>Fecha de alta</label><input type="date" id="mono-fechaAlta"></div>
+          <div class="form-group"><label>Zona</label>
+            <select id="mono-zona"><option value="provincia">Provincia</option><option value="capital">Capital</option></select>
+          </div>
+        </div>
+        <div class="form-grid form-grid-2">
+          <div class="form-group"><label>Con familia (obra social)</label>
+            <select id="mono-obraSocial"><option value="false">No</option><option value="true">Sí</option></select>
+          </div>
+          <div class="form-group"><label>Jubilado</label>
+            <select id="mono-jubilado"><option value="false">No</option><option value="true">Sí</option></select>
+          </div>
+        </div>
+        <div class="form-grid form-grid-2">
+          <div class="form-group"><label>CUR manual (opcional)</label><input type="number" id="mono-cur" placeholder="0 = calcular por tabla"></div>
+          <div class="form-group"><label>Estado</label>
+            <select id="mono-estado"><option>Al día</option><option>Fuera de categoría</option><option>Baja</option></select>
+          </div>
+        </div>
+        <div class="form-group"><label>Observaciones</label><textarea id="mono-obs" rows="2"></textarea></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="cerrarModal('modal-monotributo')">Cancelar</button>
+      <button class="btn btn-primary" onclick="guardarMonotributo()">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL UNIFORME -->
+<div class="modal-overlay" id="modal-uniforme">
+  <div class="modal" style="max-width:480px;">
+    <div class="modal-header"><h3 id="uni-modal-title">Nueva entrega de uniforme</h3><button class="btn-close" onclick="cerrarModal('modal-uniforme')">×</button></div>
+    <div class="modal-body">
+      <input type="hidden" id="uni-idx">
+      <div class="form-grid gap-12">
+        <div class="form-group"><label>Nombre *</label><input type="text" id="uni-nombre" list="dl-uni-nombre" placeholder="Buscar asociado..."><datalist id="dl-uni-nombre"></datalist></div>
+        <div class="form-grid form-grid-2">
+          <div class="form-group"><label>N° de socio</label><input type="text" id="uni-nroSocio"></div>
+          <div class="form-group"><label>Fecha de entrega</label><input type="date" id="uni-fecha"></div>
+        </div>
+        <div class="form-grid form-grid-2">
+          <div class="form-group"><label>Talle</label><input type="text" id="uni-talle" placeholder="Ej: M"></div>
+          <div class="form-group"><label>Descuento</label><input type="number" id="uni-descuento" placeholder="0"></div>
+        </div>
+        <div class="form-group"><label>Prendas entregadas</label><input type="text" id="uni-prendas" placeholder="Ej: 2x Ambo, 1x Calzado"></div>
+        <div class="form-group"><label>Estado</label>
+          <select id="uni-estado"><option>Pendiente</option><option>Descontado</option><option>Cancelado</option></select>
+        </div>
+        <div class="form-group"><label>Observaciones</label><textarea id="uni-obs" rows="2"></textarea></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="cerrarModal('modal-uniforme')">Cancelar</button>
+      <button class="btn btn-primary" onclick="guardarUniforme()">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL RETENCIÓN -->
+<div class="modal-overlay" id="modal-retencion">
+  <div class="modal" style="max-width:480px;">
+    <div class="modal-header"><h3 id="ret2-modal-title">Nueva retención</h3><button class="btn-close" onclick="cerrarModal('modal-retencion')">×</button></div>
+    <div class="modal-body">
+      <input type="hidden" id="ret2-idx">
+      <div class="form-grid gap-12">
+        <div class="form-group"><label>Nombre *</label><input type="text" id="ret2-nombre" list="dl-ret2-nombre" placeholder="Buscar asociado..."><datalist id="dl-ret2-nombre"></datalist></div>
+        <div class="form-grid form-grid-2">
+          <div class="form-group"><label>N° de socio</label><input type="text" id="ret2-nroSocio"></div>
+          <div class="form-group"><label>Tipo</label>
+            <select id="ret2-tipo"><option value="conflicto">Conflicto</option><option value="enfermedad">Enfermedad</option><option value="otra">Otra</option></select>
+          </div>
+        </div>
+        <div class="form-grid form-grid-2">
+          <div class="form-group"><label>Período</label><input type="month" id="ret2-periodo"></div>
+          <div class="form-group"><label>Monto</label><input type="number" id="ret2-monto" placeholder="0"></div>
+        </div>
+        <div class="form-group"><label>Motivo</label><input type="text" id="ret2-motivo"></div>
+        <div class="form-group"><label>Estado</label>
+          <select id="ret2-estado"><option>Activa</option><option>Liberada</option><option>Pendiente</option></select>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="cerrarModal('modal-retencion')">Cancelar</button>
+      <button class="btn btn-primary" onclick="guardarRetencion()">Guardar</button>
+    </div>
+  </div>
+</div>
+
 
 <!-- MODAL AGREGAR ASOCIADO A GRILLA -->
 <div class="modal-overlay" id="modal-agregar-asoc-grilla">
@@ -4830,6 +4939,23 @@
     <div class="modal-header"><h3 id="pedido-title">Detalle</h3><button class="btn-close" onclick="cerrarModal('modal-ver-pedido')">×</button></div>
     <div class="modal-body" id="pedido-body"></div>
     <div class="modal-footer"><button class="btn btn-secondary" onclick="cerrarModal('modal-ver-pedido')">Cerrar</button></div>
+  </div>
+</div>
+
+<!-- MODAL GENÉRICO DE INPUT DE TEXTO (reemplaza prompt() del navegador) -->
+<div class="modal-overlay" id="modal-input-simple">
+  <div class="modal" style="max-width:440px;">
+    <div class="modal-header"><h3 id="input-simple-titulo">Ingresar dato</h3><button class="btn-close" onclick="cerrarModal('modal-input-simple')">×</button></div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label id="input-simple-etiqueta">Valor</label>
+        <textarea id="input-simple-valor" rows="3" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();confirmarModalInputSimple();}"></textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="cerrarModal('modal-input-simple')">Cancelar</button>
+      <button class="btn btn-primary" onclick="confirmarModalInputSimple()">Confirmar</button>
+    </div>
   </div>
 </div>
 

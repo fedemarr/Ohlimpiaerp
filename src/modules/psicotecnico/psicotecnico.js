@@ -1,6 +1,6 @@
 import { DB } from '@shared/state.js';
 import { $ } from '@shared/helpers.js';
-import { toast, cerrarModal } from '@shared/ui.js';
+import { toast, cerrarModal, abrirModalInput } from '@shared/ui.js';
 import { supaSync } from '@shared/supabase.js';
 import { subirAdjunto, listarAdjuntos, obtenerUrlFirmada, borrarAdjunto } from '@shared/adjuntos.js';
 
@@ -369,24 +369,23 @@ export function aprobarPsico() {
 export function rechazarPsico() {
   const id = $('psico-gest-idx').value;
   const p = getPsicoById(id); if (!p) return;
-  const motivo = prompt('Motivo del rechazo (obligatorio):');
-  if (motivo === null) return;
-  if (!motivo.trim()) { toast('⚠️ Ingresá el motivo'); return; }
-  guardarEtapasPsico();
-  p.estado = 'Rechazado';
-  p.motivoRechazo = motivo.trim();
-  p.fechaRechazo = new Date().toLocaleDateString('es-AR');
-  supaSync('psicos', p);
-  // Actualizar candidato original
-  const cand = (DB.candidatos || []).find(c => p.dni && c.dni === p.dni);
-  if (cand) {
-    cand.estado = 'Rechazado';
-    cand.motivoRechazo = 'Rechazado en Psicotécnico: ' + motivo.trim();
-    supaSync('candidatos', cand);
-  }
-  cerrarModal('modal-psico-gestion');
-  renderPsico();
-  toast('❌ ' + p.nombre + ' rechazado');
+  abrirModalInput({ titulo: 'Rechazar psicotécnico', etiqueta: 'Motivo del rechazo (obligatorio)' }, (motivo) => {
+    guardarEtapasPsico();
+    p.estado = 'Rechazado';
+    p.motivoRechazo = motivo;
+    p.fechaRechazo = new Date().toLocaleDateString('es-AR');
+    supaSync('psicos', p);
+    // Actualizar candidato original
+    const cand = (DB.candidatos || []).find(c => p.dni && c.dni === p.dni);
+    if (cand) {
+      cand.estado = 'Rechazado';
+      cand.motivoRechazo = 'Rechazado en Psicotécnico: ' + motivo;
+      supaSync('candidatos', cand);
+    }
+    cerrarModal('modal-psico-gestion');
+    renderPsico();
+    toast('❌ ' + p.nombre + ' rechazado');
+  });
 }
 
 // Revertir un registro Aprobado/Rechazado: vuelve a "En proceso".

@@ -26,6 +26,8 @@ export const _SM = {
   prestamos: 'prestamos',
   grillasLiq: 'grillas_liq',
   monotributos: 'monotributos',
+  uniformes: 'uniformes',
+  retenciones: 'retenciones',
   paritarias: 'paritarias',
   retenes: 'retenes',
   sugerencias: 'sugerencias',
@@ -64,6 +66,8 @@ export function _toSnake(obj) {
     fecNac: 'fec_nac', fechaCita: 'fecha_cita', horaCita: 'hora_cita',
     nombreReferido: 'nombre_referido', rrhhId: 'rrhh_id',
     anuladoPor: 'anulado_por', anuladoFecha: 'anulado_fecha', creadoPor: 'creado_por',
+    // Monotributos / Uniformes / Retenciones
+    nroSocio: 'nro_socio', fechaAlta: 'fecha_alta', historialCategorias: 'historial_categorias',
     // Tabla adjuntos
     nombreArchivo: 'nombre_archivo',
     fechaVencimiento: 'fecha_vencimiento',
@@ -122,6 +126,8 @@ export function _toCamel(obj) {
     nombre_referido: 'nombreReferido', rrhh_id: 'rrhhId',
     anulado_por: 'anuladoPor', anulado_fecha: 'anuladoFecha', creado_por: 'creadoPor',
     id_local: 'id_local', created_at: 'created_at', updated_at: 'updated_at',
+    // Monotributos / Uniformes / Retenciones
+    nro_socio: 'nroSocio', fecha_alta: 'fechaAlta', historial_categorias: 'historialCategorias',
     // Tabla adjuntos
     nombre_archivo: 'nombreArchivo',
     fecha_vencimiento: 'fechaVencimiento',

@@ -1,6 +1,6 @@
 import { DB, LOCALIDADES_BA, currentUser } from '@shared/state.js';
 import { $, toTitleCase, cleanText, validarCampos, hoyStr, badge } from '@shared/helpers.js';
-import { toast, abrirModal, cerrarModal } from '@shared/ui.js';
+import { toast, abrirModal, cerrarModal, abrirModalInput } from '@shared/ui.js';
 import { supaSync } from '@shared/supabase.js';
 
 // ========== ESTADO INTERNO ==========
@@ -491,14 +491,14 @@ export function aprobarCandidatoPorId(id) {
 }
 
 export function rechazarCandidatoPorId(id) {
-  const motivo = prompt('Motivo del rechazo:'); if (motivo === null) return;
-  if (!motivo.trim()) { toast('⚠️ Ingresá el motivo'); return; }
-  const c = getCandById(id); if (!c) return;
-  c.estado = 'Rechazado';
-  c.motivoRechazo = motivo.trim();
-  supaSync('candidatos', c);
-  renderCandidatos();
-  toast('❌ Candidato rechazado');
+  abrirModalInput({ titulo: 'Rechazar candidato', etiqueta: 'Motivo del rechazo' }, (motivo) => {
+    const c = getCandById(id); if (!c) return;
+    c.estado = 'Rechazado';
+    c.motivoRechazo = motivo;
+    supaSync('candidatos', c);
+    renderCandidatos();
+    toast('❌ Candidato rechazado');
+  });
 }
 
 export function pasarAPsicoPorId(id) {

@@ -218,8 +218,20 @@ export function guardarEdicionLegajo() {
   const a = $('edit-apellido').value.trim();
   const n = $('edit-nombre').value.trim();
   if (!a || !n) { toast('Nombre y apellido obligatorios'); return; }
+  const dni = $('edit-dni').value.trim();
+  if (dni && !/^\d{6,8}$/.test(dni)) {
+    toast('⚠️ El DNI debe tener entre 6 y 8 dígitos numéricos');
+    $('edit-dni').focus();
+    return;
+  }
+  const dniDuplicado = dni && DB.legajos.some(x => x.dni === dni && x.nro !== legajoActualNro);
+  if (dniDuplicado) {
+    toast('⚠️ Ya existe un legajo con ese DNI');
+    $('edit-dni').focus();
+    return;
+  }
   l.nombre = `${a} ${n}`;
-  l.dni = $('edit-dni').value;
+  l.dni = dni;
   l.cuit = $('edit-cuit').value;
   l.tel = $('edit-tel').value;
   l.mail = $('edit-mail').value;

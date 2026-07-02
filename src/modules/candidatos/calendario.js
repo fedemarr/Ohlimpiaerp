@@ -1,6 +1,6 @@
 import { DB } from '@shared/state.js';
 import { $ } from '@shared/helpers.js';
-import { toast } from '@shared/ui.js';
+import { toast, abrirModalInput } from '@shared/ui.js';
 import { supaSync, supaDel } from '@shared/supabase.js';
 
 // ========== CONFIGURACION ==========
@@ -192,27 +192,25 @@ export function agendarTurno(fecha, hora) {
     return;
   }
 
-  var nombre = prompt('Agendar turno ' + hora + ' del ' + fecha + '\n\nNombre del candidato:');
-  if (!nombre || !nombre.trim()) return;
-  nombre = nombre.trim();
+  abrirModalInput({ titulo: 'Agendar turno ' + hora + ' del ' + fecha, etiqueta: 'Nombre del candidato' }, function (nombre) {
+    var responsable = ($('cal-responsable') || { value: '' }).value;
 
-  var responsable = ($('cal-responsable') || { value: '' }).value;
+    var turno = {
+      id: Date.now(),
+      candidatoId: '',
+      nombre: nombre,
+      fecha: fecha,
+      hora: hora,
+      estado: 'Pendiente',
+      responsable: responsable,
+    };
 
-  var turno = {
-    id: Date.now(),
-    candidatoId: '',
-    nombre: nombre,
-    fecha: fecha,
-    hora: hora,
-    estado: 'Pendiente',
-    responsable: responsable,
-  };
-
-  if (!DB.turnos) DB.turnos = [];
-  DB.turnos.push(turno);
-  supaSync('turnos', turno);
-  renderCalendario();
-  toast('✓ Turno agendado para ' + nombre + ' el ' + fecha + ' a las ' + hora);
+    if (!DB.turnos) DB.turnos = [];
+    DB.turnos.push(turno);
+    supaSync('turnos', turno);
+    renderCalendario();
+    toast('✓ Turno agendado para ' + nombre + ' el ' + fecha + ' a las ' + hora);
+  });
 }
 
 // ========== VER / GESTIONAR TURNO ==========

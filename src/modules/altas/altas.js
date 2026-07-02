@@ -451,6 +451,14 @@ export function confirmarAlta() {
   if (altaId) {
     const altaReg = (DB.catAltPendientes || []).find(a => a.id === altaId);
     if (altaReg) {
+      // Deja copia histórica de lo que se cargó en cada tab del modal — antes
+      // se descartaba y solo quedaba lo que terminó en el legajo.
+      altaReg.identificacion = { nombre, dni, cuit, tel, mail, estadoCivil, nac, genero, fecNac, fechaIngreso: fIngreso };
+      altaReg.domicilio = { direccion, zona, localidad, banco, cbu };
+      altaReg.operativo = { funcion, servicio, supervisor, periodoPrueba, categoria };
+      altaReg.uniforme = { ambo, calzado };
+      altaReg.capital = { integracion, formaPago };
+      altaReg.seguros = { seguro, art, obraSocial };
       altaReg.estado = 'Alta completada';
       supaSync('catAltPendientes', altaReg);
     }

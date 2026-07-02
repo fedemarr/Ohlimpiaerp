@@ -1,13 +1,13 @@
 import { DB } from '@shared/state.js';
 import { $, avatarEl, badge } from '@shared/helpers.js';
-import { toast, cerrarModal } from '@shared/ui.js';
+import { toast, cerrarModal, abrirModal } from '@shared/ui.js';
 import { supaSync } from '@shared/supabase.js';
 
 // ========== RENDER ==========
 
 export function renderPedidos(lista) {
   const datos = lista || DB.pedidos;
-  $('tbody-pedidos').innerHTML = datos.map(p => `<tr onclick="toast('Pedido #${p.id} — ${p.servicio}')">
+  $('tbody-pedidos').innerHTML = datos.map(p => `<tr onclick="verDetallePedido(${p.id})">
     <td style="font-size:12px;color:var(--texto-suave);">${p.fecha}</td>
     <td style="font-weight:500;">${p.supervisor}</td>
     <td style="font-weight:500;">${p.servicio}</td>
@@ -17,8 +17,31 @@ export function renderPedidos(lista) {
     <td>${badge(p.urgencia)}</td>
     <td>${badge(p.estado)}</td>
     <td>${p.candidato ? `<div style="display:flex;align-items:center;gap:6px;">${avatarEl(p.candidato, 24)}<span style="font-size:12px;">${p.candidato}</span></div>` : '<span class="text-muted">Sin asignar</span>'}</td>
-    <td><button class="btn btn-secondary btn-sm" onclick="event.stopPropagation();toast('Ver pedido #${p.id}')">Ver</button></td>
+    <td><button class="btn btn-secondary btn-sm" onclick="event.stopPropagation();verDetallePedido(${p.id})">Ver</button></td>
   </tr>`).join('');
+}
+
+// ========== DETALLE ==========
+
+export function verDetallePedido(id) {
+  const p = DB.pedidos.find(x => String(x.id) === String(id));
+  if (!p) return;
+  const body = `<div class="info-grid" style="margin-bottom:16px;">
+    <div class="info-item"><div class="key">Servicio / Cliente</div><div class="val">${p.servicio}</div></div>
+    <div class="info-item"><div class="key">Estado</div><div class="val">${badge(p.estado)}</div></div>
+    <div class="info-item"><div class="key">Supervisor</div><div class="val">${p.supervisor}</div></div>
+    <div class="info-item"><div class="key">Zona</div><div class="val">${p.zona}</div></div>
+    <div class="info-item"><div class="key">Puesto</div><div class="val">${p.puesto}</div></div>
+    <div class="info-item"><div class="key">Horario</div><div class="val">${p.horario || '—'}</div></div>
+    <div class="info-item"><div class="key">Urgencia</div><div class="val">${badge(p.urgencia)}</div></div>
+    <div class="info-item"><div class="key">Fecha del pedido</div><div class="val">${p.fecha}</div></div>
+    <div class="info-item"><div class="key">Candidato asignado</div><div class="val">${p.candidato || 'Sin asignar'}</div></div>
+  </div>
+  <div class="form-section" style="margin-bottom:8px;">Observaciones</div>
+  <p style="font-size:13px;color:var(--texto-suave);">${p.obs || 'Sin observaciones'}</p>`;
+  $('pedido-title').textContent = `📋 Pedido de personal — ${p.servicio}`;
+  $('pedido-body').innerHTML = body;
+  abrirModal('modal-ver-pedido');
 }
 
 // ========== FILTROS ==========
