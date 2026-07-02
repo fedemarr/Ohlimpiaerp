@@ -8,7 +8,7 @@ import { SUPA, supaInit, supaSync, supaDel } from '@shared/supabase.js';
 import { DB, PERFILES, MENU, BADGE_MAP, AREAS, LOCALIDADES_BA } from '@shared/state.js';
 import { $, initials, avatarEl, badge, formatPeriodo, hoyStr, esFeriado, esFinde, getDiasDelMes, calcularDiasEntre, toTitleCase, cleanText, applyTitleCase, validarCampos, fillSelect, fillDL } from '@shared/helpers.js';
 import { toast, abrirModal, cerrarModal, initModalClickOutside, makeTableSortable, activarOrdenamiento, activarOrdenamientoTabla, handleBuscadorKeydown, confirmarModalInputSimple } from '@shared/ui.js';
-import { doLogin, loginDemo, iniciarSesion, doLogout, loginAsociado, initLoginKeydown, registerAuthCallbacks, restaurarSesion } from '@shared/auth.js';
+import { doLogin, doLogout, loginAsociado, initLoginKeydown, registerAuthCallbacks, restaurarSesion } from '@shared/auth.js';
 import { SCREEN_CONFIG, registerScreens, currentScreen, navTo, topAction, construirMenu, busquedaGlobal, registerNavCallbacks, registerSearchFilters } from '@shared/nav.js';
 
 // ── Módulos migrados ──
@@ -27,7 +27,6 @@ import './modules/personal_rrhh/index.js';
 // ANTES de que cualquier otra cosa pueda fallar.
 
 window.doLogin = doLogin;
-window.loginDemo = loginDemo;
 window.doLogout = doLogout;
 window.loginAsociado = loginAsociado;
 window.navTo = navTo;

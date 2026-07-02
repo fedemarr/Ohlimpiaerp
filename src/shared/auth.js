@@ -20,13 +20,6 @@ export function registerAuthCallbacks(cbs) {
 
 // ========== LOGIN ==========
 
-// TEMPORAL — solo para la etapa de demo interna mientras se termina de armar
-// el sistema. Los 5 usuarios demo (admin/rrhh/operaciones/finanzas/supervisor
-// @ohlimpia.coop) deben crearse en Supabase Auth con ESTA MISMA password.
-// Antes de un lanzamiento real (sobre todo el acceso de Administrador) hay
-// que sacar este acceso de un click y loguear con password propia siempre.
-const DEMO_PASSWORD = 'Ohlimpia-Demo-2026!';
-
 async function perfilDesdeSesion(authUser) {
   const { data, error } = await SUPA.from('usuarios').select('*').eq('id', authUser.id).maybeSingle();
   if (error || !data) return null;
@@ -63,18 +56,6 @@ export function doLogin() {
   const email = $('login-user').value.trim();
   const pass = $('login-pass').value;
   loginConCredenciales(email, pass);
-}
-
-export function loginDemo(perfil) {
-  const mapDemo = {
-    admin: 'admin@ohlimpia.coop',
-    rrhh: 'rrhh@ohlimpia.coop',
-    operaciones: 'operaciones@ohlimpia.coop',
-    finanzas: 'finanzas@ohlimpia.coop',
-    supervisor: 'supervisor@ohlimpia.coop',
-  };
-  const email = mapDemo[perfil];
-  if (email) loginConCredenciales(email, DEMO_PASSWORD);
 }
 
 // Restaura la sesión si Supabase ya tiene una activa (persistida en
