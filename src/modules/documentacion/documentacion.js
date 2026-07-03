@@ -3,6 +3,7 @@ import { $ } from '@shared/helpers.js';
 import { toast, cerrarModal } from '@shared/ui.js';
 import { supaSync } from '@shared/supabase.js';
 import { subirAdjunto, listarAdjuntos, obtenerUrlFirmada, borrarAdjunto } from '@shared/adjuntos.js';
+import { analizarDocumentoPDF } from '@shared/iaDocumentos.js';
 
 let _documTab = 'activos';
 
@@ -100,7 +101,11 @@ function crearHTMLModalDocum() {
           '<label style="font-weight:600;color:#1e3a8a;">📎 Certificados de antecedentes (se conserva historial)</label>',
           '<div id="dc-antec-adjunto-lista" style="margin-top:8px;font-size:13px;color:#64748b;">Cargando…</div>',
           '<input type="file" id="dc-antec-adjunto-file" accept="application/pdf,image/jpeg,image/png" style="display:none;" onchange="seleccionarArchivoDocum()">',
-          '<button type="button" class="btn btn-secondary" style="margin-top:8px;" onclick="document.getElementById(\'dc-antec-adjunto-file\').click()">⬆️ Subir certificado</button>',
+          '<div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap;">',
+            '<button type="button" class="btn btn-secondary" onclick="document.getElementById(\'dc-antec-adjunto-file\').click()">⬆️ Subir certificado</button>',
+            '<button type="button" id="btn-ia-antec" class="btn" style="background:#7c3aed;color:white;" onclick="analizarAntecedentesIA()">🤖 Analizar con IA</button>',
+          '</div>',
+          '<div id="dc-antec-ia-resultado" style="display:none;margin-top:10px;background:#f5f3ff;border:1px solid #c4b5fd;border-radius:8px;padding:10px;font-size:12px;"></div>',
         '</div>',
         // ── Sección Libreta sanitaria (condicional) ──
         '<h4 style="margin:16px 0 8px;color:#1e3a8a;border-bottom:2px solid #e2e8f0;padding-bottom:4px;">📗 Libreta sanitaria</h4>',
@@ -421,6 +426,61 @@ export async function verAdjuntoDocum(path) {
   const url = await obtenerUrlFirmada(path);
   if (!url) { toast('⚠️ No se pudo abrir el archivo'); return; }
   window.open(url, '_blank');
+}
+
+// ========== ANÁLISIS CON IA (antecedentes) ==========
+// La IA solo sugiere — nunca guarda ni aprueba sola. Alguien de RRHH revisa
+// el panel y decide si aplica los datos con "Usar estos datos".
+
+let _iaAntecResultado = null;
+
+export async function analizarAntecedentesIA() {
+  const id = $('docum-gest-id').value;
+  const d = getDocumById(id);
+  if (!d) return;
+  const adjuntos = await listarAdjuntos({ dni: d.dni, etapa: 'documentacion', tipo: 'antecedente' });
+  if (!adjuntos.length) { toast('⚠️ Subí un certificado antes de analizarlo'); return; }
+  const btn = $('btn-ia-antec');
+  const panel = $('dc-antec-ia-resultado');
+  if (btn) { btn.disabled = true; btn.textContent = '🤖 Analizando…'; }
+  if (panel) { panel.style.display = 'block'; panel.innerHTML = 'Leyendo el documento…'; }
+  try {
+    const r = await analizarDocumentoPDF({ tipo: 'antecedente', path: adjuntos[0].url });
+    _iaAntecResultado = r;
+    if (panel) {
+      panel.innerHTML =
+        '<div style="font-weight:600;color:#5b21b6;margin-bottom:6px;">🤖 La IA encontró:</div>'
+        + '<div><strong>Resultado:</strong> ' + r.resultado + '</div>'
+        + '<div><strong>Fecha del certificado:</strong> ' + (r.fechaEmision || '—') + '</div>'
+        + '<div><strong>Confianza:</strong> ' + r.confianza + '</div>'
+        + (r.detalles ? '<div style="margin-top:4px;color:#5b21b6;">' + r.detalles + '</div>' : '')
+        + '<div style="margin-top:8px;display:flex;gap:8px;">'
+        + '<button type="button" class="btn btn-sm" style="background:#7c3aed;color:white;" onclick="usarDatosIAAntec()">✓ Usar estos datos</button>'
+        + '<button type="button" class="btn btn-secondary btn-sm" onclick="document.getElementById(\'dc-antec-ia-resultado\').style.display=\'none\'">Descartar</button>'
+        + '</div>';
+    }
+  } catch (e) {
+    if (panel) panel.innerHTML = '⚠️ ' + (e.message || 'No se pudo analizar el documento');
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = '🤖 Analizar con IA'; }
+  }
+}
+
+// Aplica lo que encontró la IA a los campos del form — NO guarda solo.
+export function usarDatosIAAntec() {
+  if (!_iaAntecResultado) return;
+  const r = _iaAntecResultado;
+  if (r.resultado === 'Sin antecedentes' || r.resultado === 'Con antecedentes') {
+    $('dc-antec-resultado').value = r.resultado;
+    actualizarBotonesDocum();
+  }
+  if (r.fechaEmision) {
+    $('dc-antec-fecha').value = r.fechaEmision;
+    recalcularVencAntec();
+  }
+  const panel = $('dc-antec-ia-resultado');
+  if (panel) panel.style.display = 'none';
+  toast('✓ Datos de la IA aplicados — revisá y guardá');
 }
 
 export async function eliminarAdjuntoDocum(id, dni) {

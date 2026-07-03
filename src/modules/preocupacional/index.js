@@ -1,8 +1,8 @@
 // Módulo Pre-ocupacional — Entry point
 
-export { renderPreocup, tabPreocup, abrirGestionPreocup, actualizarMotivoPreocup, guardarPreocup, aprobarPreocup, bajaPreocup, revertirPreocup, cargarAdjuntoPreocup, seleccionarArchivoPreocup, verAdjuntoPreocup, eliminarAdjuntoPreocup } from './preocupacional.js';
+export { renderPreocup, tabPreocup, abrirGestionPreocup, actualizarMotivoPreocup, guardarPreocup, aprobarPreocup, bajaPreocup, revertirPreocup, cargarAdjuntoPreocup, seleccionarArchivoPreocup, verAdjuntoPreocup, eliminarAdjuntoPreocup, analizarAptoMedicoIA, usarDatosIAApto } from './preocupacional.js';
 
-import { renderPreocup, tabPreocup, abrirGestionPreocup, actualizarMotivoPreocup, guardarPreocup, aprobarPreocup, bajaPreocup, revertirPreocup, cargarAdjuntoPreocup, seleccionarArchivoPreocup, verAdjuntoPreocup, eliminarAdjuntoPreocup } from './preocupacional.js';
+import { renderPreocup, tabPreocup, abrirGestionPreocup, actualizarMotivoPreocup, guardarPreocup, aprobarPreocup, bajaPreocup, revertirPreocup, cargarAdjuntoPreocup, seleccionarArchivoPreocup, verAdjuntoPreocup, eliminarAdjuntoPreocup, analizarAptoMedicoIA, usarDatosIAApto } from './preocupacional.js';
 
 export const preocupScreenConfig = {
   preocupacional: {
@@ -25,3 +25,5 @@ window.cargarAdjuntoPreocup = cargarAdjuntoPreocup;
 window.seleccionarArchivoPreocup = seleccionarArchivoPreocup;
 window.verAdjuntoPreocup = verAdjuntoPreocup;
 window.eliminarAdjuntoPreocup = eliminarAdjuntoPreocup;
+window.analizarAptoMedicoIA = analizarAptoMedicoIA;
+window.usarDatosIAApto = usarDatosIAApto;

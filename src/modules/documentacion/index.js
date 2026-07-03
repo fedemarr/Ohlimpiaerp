@@ -17,6 +17,8 @@ export {
   seleccionarArchivoDocum,
   verAdjuntoDocum,
   eliminarAdjuntoDocum,
+  analizarAntecedentesIA,
+  usarDatosIAAntec,
 } from './documentacion.js';
 
 import {
@@ -36,6 +38,8 @@ import {
   seleccionarArchivoDocum,
   verAdjuntoDocum,
   eliminarAdjuntoDocum,
+  analizarAntecedentesIA,
+  usarDatosIAAntec,
 } from './documentacion.js';
 
 export const documScreenConfig = {
@@ -63,3 +67,5 @@ window.cargarAdjuntoDocum = cargarAdjuntoDocum;
 window.seleccionarArchivoDocum = seleccionarArchivoDocum;
 window.verAdjuntoDocum = verAdjuntoDocum;
 window.eliminarAdjuntoDocum = eliminarAdjuntoDocum;
+window.analizarAntecedentesIA = analizarAntecedentesIA;
+window.usarDatosIAAntec = usarDatosIAAntec;

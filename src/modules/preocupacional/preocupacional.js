@@ -3,6 +3,7 @@ import { $ } from '@shared/helpers.js';
 import { toast, cerrarModal } from '@shared/ui.js';
 import { supaSync } from '@shared/supabase.js';
 import { subirAdjunto, listarAdjuntos, obtenerUrlFirmada, borrarAdjunto } from '@shared/adjuntos.js';
+import { analizarDocumentoPDF } from '@shared/iaDocumentos.js';
 
 let _preocupTab = 'activos';
 
@@ -96,7 +97,11 @@ function crearHTMLModalPreocup() {
           '<div id="pr-adjunto-aviso" style="display:none;margin-top:8px;padding:8px 10px;border-radius:6px;font-size:12px;background:#fffbeb;border:1px solid #fcd34d;color:#92400e;"></div>',
           '<div id="pr-adjunto-lista" style="margin-top:8px;font-size:13px;color:#64748b;">Cargando…</div>',
           '<input type="file" id="pr-adjunto-file" accept="application/pdf,image/jpeg,image/png" style="display:none;" onchange="seleccionarArchivoPreocup()">',
-          '<button type="button" class="btn btn-secondary" style="margin-top:8px;" onclick="document.getElementById(\'pr-adjunto-file\').click()">⬆️ Subir archivo</button>',
+          '<div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap;">',
+            '<button type="button" class="btn btn-secondary" onclick="document.getElementById(\'pr-adjunto-file\').click()">⬆️ Subir archivo</button>',
+            '<button type="button" id="btn-ia-apto" class="btn" style="background:#7c3aed;color:white;" onclick="analizarAptoMedicoIA()">🤖 Analizar con IA</button>',
+          '</div>',
+          '<div id="pr-ia-resultado" style="display:none;margin-top:10px;background:#f5f3ff;border:1px solid #c4b5fd;border-radius:8px;padding:10px;font-size:12px;"></div>',
         '</div>',
       '</div>',
       '<div class="modal-footer" style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px;">',
@@ -334,6 +339,66 @@ export async function verAdjuntoPreocup(path) {
   const url = await obtenerUrlFirmada(path);
   if (!url) { toast('⚠️ No se pudo abrir el archivo'); return; }
   window.open(url, '_blank');
+}
+
+// ========== ANÁLISIS CON IA (apto médico) ==========
+// La IA solo sugiere — nunca guarda ni aprueba sola. Alguien de RRHH revisa
+// el panel y decide si aplica los datos con "Usar estos datos".
+
+let _iaAptoResultado = null;
+
+export async function analizarAptoMedicoIA() {
+  const id = $('preocup-gest-id').value;
+  const p = getPreocupById(id);
+  if (!p) return;
+  const adjuntos = await listarAdjuntos({ dni: p.dni, etapa: 'preocupacional' });
+  if (!adjuntos.length) { toast('⚠️ Subí el apto médico antes de analizarlo'); return; }
+  const btn = $('btn-ia-apto');
+  const panel = $('pr-ia-resultado');
+  if (btn) { btn.disabled = true; btn.textContent = '🤖 Analizando…'; }
+  if (panel) { panel.style.display = 'block'; panel.innerHTML = 'Leyendo el documento…'; }
+  try {
+    const r = await analizarDocumentoPDF({ tipo: 'apto-medico', path: adjuntos[0].url });
+    _iaAptoResultado = r;
+    if (panel) {
+      panel.innerHTML =
+        '<div style="font-weight:600;color:#5b21b6;margin-bottom:6px;">🤖 La IA encontró:</div>'
+        + '<div><strong>Resultado:</strong> ' + r.resultado + '</div>'
+        + '<div><strong>Fecha:</strong> ' + (r.fecha || '—') + '</div>'
+        + '<div><strong>Confianza:</strong> ' + r.confianza + '</div>'
+        + (r.detalles ? '<div style="margin-top:4px;color:#5b21b6;">' + r.detalles + '</div>' : '')
+        + '<div style="margin-top:8px;display:flex;gap:8px;">'
+        + '<button type="button" class="btn btn-sm" style="background:#7c3aed;color:white;" onclick="usarDatosIAApto()">✓ Usar estos datos</button>'
+        + '<button type="button" class="btn btn-secondary btn-sm" onclick="document.getElementById(\'pr-ia-resultado\').style.display=\'none\'">Descartar</button>'
+        + '</div>';
+    }
+  } catch (e) {
+    if (panel) panel.innerHTML = '⚠️ ' + (e.message || 'No se pudo analizar el documento');
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = '🤖 Analizar con IA'; }
+  }
+}
+
+// Aplica lo que encontró la IA a los campos del form — NO guarda solo.
+// No hay campo propio de "fecha de examen" en el registro, así que la fecha
+// y el detalle quedan como nota en Observaciones en vez de inventar una
+// columna nueva.
+export function usarDatosIAApto() {
+  if (!_iaAptoResultado) return;
+  const r = _iaAptoResultado;
+  const resultadosValidos = ['APTO', 'APTO B', 'APTO C', 'APTO PENDIENTE', 'NO APTO'];
+  if (resultadosValidos.includes(r.resultado)) {
+    $('pr-resultado').value = r.resultado;
+    actualizarMotivoPreocup();
+  }
+  const obsEl = $('pr-obs');
+  if (obsEl && (r.fecha || r.detalles)) {
+    const nota = '🤖 IA — ' + (r.fecha ? 'fecha ' + r.fecha + '. ' : '') + (r.detalles || '');
+    obsEl.value = obsEl.value ? (obsEl.value + '\n' + nota) : nota;
+  }
+  const panel = $('pr-ia-resultado');
+  if (panel) panel.style.display = 'none';
+  toast('✓ Datos de la IA aplicados — revisá y guardá');
 }
 
 export async function eliminarAdjuntoPreocup(id, dni) {
