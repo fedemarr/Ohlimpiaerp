@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Trabajá con nosotros — Ohlimpia</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,300&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+</head>
+<body>
+
+<div class="login-screen">
+  <div class="login-card postularme-card">
+    <div class="login-logo">
+      <div class="marca">Ohlimpia</div>
+      <div class="sub">Sumate a nuestro equipo</div>
+    </div>
+    <h2>Postulate como candidato/a</h2>
+
+    <form id="form-postular" class="form-grid gap-12" autocomplete="off">
+      <!-- Honeypot: campo oculto que un bot puede completar, un humano no lo ve -->
+      <div class="pm-honeypot" aria-hidden="true">
+        <label for="pm-empresa">Empresa</label>
+        <input type="text" id="pm-empresa" name="empresa" tabindex="-1" autocomplete="off">
+      </div>
+
+      <div class="form-grid form-grid-3">
+        <div class="form-group"><label>Apellido *</label><input type="text" id="pm-apellido"></div>
+        <div class="form-group"><label>Nombre *</label><input type="text" id="pm-nombre"></div>
+        <div class="form-group"><label>DNI *</label><input type="text" id="pm-dni" inputmode="numeric"></div>
+      </div>
+
+      <div class="form-grid form-grid-3">
+        <div class="form-group"><label>CUIT</label><input type="text" id="pm-cuit"></div>
+        <div class="form-group"><label>Fecha de nacimiento</label><input type="date" id="pm-fecnac"></div>
+        <div class="form-group"><label>Estado civil</label>
+          <select id="pm-estado-civil">
+            <option value="">—</option><option>Soltero/a</option><option>Casado/a</option><option>Divorciado/a</option><option>Viudo/a</option><option>Conviviente</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="form-grid form-grid-2">
+        <div class="form-group"><label>Teléfono *</label><input type="text" id="pm-tel"></div>
+        <div class="form-group"><label>Email</label><input type="email" id="pm-email"></div>
+      </div>
+
+      <div class="form-grid form-grid-2">
+        <div class="form-group"><label>Calle y número *</label><input type="text" id="pm-calle"></div>
+        <div class="form-group"><label>Piso / Depto</label><input type="text" id="pm-piso"></div>
+      </div>
+
+      <div class="form-grid form-grid-2">
+        <div class="form-group"><label>Provincia *</label>
+          <select id="pm-zona">
+            <option value="">Seleccionar...</option>
+            <option value="CABA">CABA</option>
+            <option value="Buenos Aires">Provincia de Buenos Aires</option>
+          </select>
+        </div>
+        <div class="form-group"><label>Localidad</label>
+          <select id="pm-localidad" disabled>
+            <option value="">Seleccioná la provincia primero</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="form-grid form-grid-2">
+        <div class="form-group"><label>Nacionalidad</label>
+          <select id="pm-nacionalidad">
+            <option>Argentina</option><option>Boliviana</option><option>Paraguaya</option><option>Peruana</option><option>Uruguaya</option><option>Chilena</option><option>Brasileña</option><option>Venezolana</option><option>Otra</option>
+          </select>
+        </div>
+        <div class="form-group"><label>Género</label>
+          <select id="pm-genero"><option value="">—</option><option>Femenino</option><option>Masculino</option><option>Otro</option></select>
+        </div>
+      </div>
+
+      <div class="pm-turnos-section">
+        <label>Elegí un turno para la entrevista (opcional)</label>
+        <div id="pm-turnos-estado" class="pm-turnos-estado">Buscando horarios disponibles...</div>
+        <div id="pm-turnos-grid" class="pm-turnos-grid"></div>
+        <div id="pm-turno-elegido" class="pm-turno-elegido" style="display:none;"></div>
+      </div>
+
+      <button type="submit" class="btn btn-primary" style="width:100%;justify-content:center;padding:12px;margin-top:6px;">Enviar postulación</button>
+    </form>
+  </div>
+</div>
+
+<div id="toast" class="toast"></div>
+
+<script type="module" src="/src/postularme.js"></script>
+</body>
+</html>
