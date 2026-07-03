@@ -12,10 +12,11 @@
   --sombra:0 1px 3px rgba(27,79,168,.07),0 4px 16px rgba(27,79,168,.05);
 }
 *{box-sizing:border-box;margin:0;padding:0;}
-body{font-family:'DM Sans',sans-serif;background:var(--fondo);color:var(--texto);font-size:14px;line-height:1.5;min-height:100vh;}
+body{font-family:'DM Sans',sans-serif;background:var(--azul-oscuro);color:var(--texto);font-size:14px;line-height:1.5;min-height:100vh;}
 
 /* LOGIN */
 .login-screen{min-height:100vh;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,var(--azul-oscuro) 0%,var(--azul) 60%,var(--azul-medio) 100%);}
+.login-screen.hidden{display:none;}
 .login-card{background:white;border-radius:var(--radio-lg);padding:40px 36px;width:100%;max-width:400px;box-shadow:0 24px 64px rgba(0,0,0,.18);}
 .login-logo{text-align:center;margin-bottom:28px;}
 .login-logo .marca{font-size:28px;font-weight:700;color:var(--azul-oscuro);letter-spacing:-.5px;}
