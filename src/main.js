@@ -157,13 +157,17 @@ initModalClickOutside();
 // problema de red/datos, no dejar al usuario trabado en pantalla en blanco.
 let pantallaResuelta = false;
 setTimeout(() => {
-  if (!pantallaResuelta) $('login-screen').style.display = 'flex';
+  if (!pantallaResuelta) {
+    $('login-screen').style.display = 'flex';
+    $('boot-loading').classList.add('hidden');
+  }
 }, 6000);
 
 loadLegacy().then(async () => {
   const sesionRestaurada = await restaurarSesion().catch(() => false);
   pantallaResuelta = true;
   if (!sesionRestaurada) $('login-screen').style.display = 'flex';
+  $('boot-loading').classList.add('hidden');
 });
 
 console.log('Ohlimpia v2 — Vite cargado correctamente');
