@@ -195,8 +195,13 @@ export async function supaDel(dbKey, idLocal) {
 export async function supaInit(DB, toast) {
   try {
     let cargados = 0;
-    for (const [k, t] of Object.entries(_SM)) {
-      const { data, error } = await SUPA.from(t).select('*').order('created_at', { ascending: true });
+    const pedidos = Object.entries(_SM).map(([k, t]) =>
+      SUPA.from(t).select('*').order('created_at', { ascending: true })
+        .then(r => ({ k, t, data: r.data, error: r.error }))
+        .catch(e => ({ k, t, data: null, error: e }))
+    );
+    const resultados = await Promise.all(pedidos);
+    for (const { k, t, data, error } of resultados) {
       if (error) { console.warn('supaInit error tabla:', t, error.message); continue; }
       if (data && data.length > 0) {
         DB[k] = data.map(row => _toCamel(row));

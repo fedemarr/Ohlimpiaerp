@@ -153,8 +153,16 @@ registerScreens({
 initLoginKeydown();
 initModalClickOutside();
 
+// Salvaguarda: si restaurar la sesión (o cargar legacy) se cuelga por algún
+// problema de red/datos, no dejar al usuario trabado en pantalla en blanco.
+let pantallaResuelta = false;
+setTimeout(() => {
+  if (!pantallaResuelta) $('login-screen').style.display = 'flex';
+}, 6000);
+
 loadLegacy().then(async () => {
   const sesionRestaurada = await restaurarSesion().catch(() => false);
+  pantallaResuelta = true;
   if (!sesionRestaurada) $('login-screen').style.display = 'flex';
 });
 
