@@ -130,7 +130,7 @@ async function enviarPostulacion(e) {
     genero: $('pm-genero').value,
     fecha: turnoElegido ? turnoElegido.fecha : null,
     hora: turnoElegido ? turnoElegido.hora : null,
-    empresa: $('pm-empresa').value, // honeypot
+    hp_3x9: $('pm-hp-3x9').value, // honeypot
   };
 
   try {

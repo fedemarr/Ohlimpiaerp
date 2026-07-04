@@ -29,7 +29,10 @@ export default async function handler(req, res) {
 
   // Honeypot: un bot que completa este campo oculto se "acepta" en
   // silencio, sin escribir nada, para no darle pistas de que fue detectado.
-  if (limpiar(body.empresa)) {
+  // El nombre es intencionalmente no descriptivo — un campo llamado
+  // "empresa"/"company" termina autocompletado por el navegador aunque esté
+  // oculto con CSS, lo que tiraba abajo postulaciones reales sin avisar.
+  if (limpiar(body.hp_3x9)) {
     res.status(200).json({ ok: true });
     return;
   }

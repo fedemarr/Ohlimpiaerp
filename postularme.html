@@ -17,10 +17,14 @@
     <h2>Postulate como candidato/a</h2>
 
     <form id="form-postular" class="form-grid gap-12" autocomplete="off">
-      <!-- Honeypot: campo oculto que un bot puede completar, un humano no lo ve -->
+      <!-- Honeypot: campo oculto que un bot puede completar, un humano no lo ve.
+           El nombre/id es a propósito no descriptivo (nada de "empresa",
+           "company", "website", etc.) porque el autocompletado del navegador
+           rellena esos campos igual aunque estén ocultos con CSS, y eso
+           tiraba abajo postulaciones reales sin que nadie se diera cuenta. -->
       <div class="pm-honeypot" aria-hidden="true">
-        <label for="pm-empresa">Empresa</label>
-        <input type="text" id="pm-empresa" name="empresa" tabindex="-1" autocomplete="off">
+        <label for="pm-hp-3x9">No completar</label>
+        <input type="text" id="pm-hp-3x9" name="hp_3x9" tabindex="-1" autocomplete="off">
       </div>
 
       <div class="form-grid form-grid-3">
