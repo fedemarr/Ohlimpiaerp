@@ -7,6 +7,7 @@ import { supaSync } from '@shared/supabase.js';
 
 let _altaTabIdx = 0;
 const ALTA_TABS = 7;
+let _legajoAnteriorEncontrado = null;
 
 // ========== RENDER ==========
 
@@ -144,7 +145,14 @@ function crearHTMLModalAlta() {
             '<div class="form-group"><label>Email</label><input type="email" id="alt-mail"></div>',
             '<div class="form-group"><label>Fecha de ingreso *</label><input type="date" id="alt-fec-ingreso"></div>',
             '<div class="form-group"><label><input type="checkbox" id="alt-reingresante" onchange="toggleReingresante()"> ¿Es reingresante?</label></div>',
-            '<div class="form-group" id="alt-fec-egreso-row" style="display:none;"><label>Fecha egreso anterior</label><input type="date" id="alt-fec-egreso"></div>',
+            '<div class="form-group" id="alt-fec-egreso-row" style="display:none;grid-column:1/-1;background:#f0f9ff;border:1px solid #bae6fd;border-radius:8px;padding:12px;">',
+              '<label style="font-weight:600;color:#0369a1;">🔍 Buscar legajo anterior por DNI</label>',
+              '<div style="display:flex;gap:8px;margin-top:6px;">',
+                '<input type="text" id="alt-reingresante-dni" placeholder="DNI del reingresante" style="flex:1;padding:8px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;">',
+                '<button type="button" class="btn btn-secondary" onclick="buscarLegajoReingresante()">Buscar</button>',
+              '</div>',
+              '<div id="alt-reingresante-resultado" style="margin-top:8px;font-size:13px;"></div>',
+            '</div>',
           '</div>',
         '</div>',
         // Tab 1 — Domicilio
@@ -220,7 +228,7 @@ export function abrirModalAlta(psicoIdx, altaId) {
 
   // Limpiar todos los campos
   ['alt-nombre', 'alt-dni', 'alt-cuit', 'alt-fecnac', 'alt-tel', 'alt-mail',
-   'alt-fec-ingreso', 'alt-fec-egreso', 'alt-direccion', 'alt-banco', 'alt-cbu',
+   'alt-fec-ingreso', 'alt-reingresante-dni', 'alt-direccion', 'alt-banco', 'alt-cbu',
    'alt-calzado', 'alt-integracion', 'alt-art', 'alt-obra-social', 'alt-supervisor'].forEach(id => {
     const el = $(id); if (el) el.value = '';
   });
@@ -228,6 +236,8 @@ export function abrirModalAlta(psicoIdx, altaId) {
   const ppEl = $('alt-periodo-prueba'); if (ppEl) ppEl.value = '6';
   const reingEl = $('alt-reingresante'); if (reingEl) reingEl.checked = false;
   const egresoRow = $('alt-fec-egreso-row'); if (egresoRow) egresoRow.style.display = 'none';
+  const resEl = $('alt-reingresante-resultado'); if (resEl) resEl.innerHTML = '';
+  _legajoAnteriorEncontrado = null;
 
   // Resetear selects
   ['alt-estado-civil', 'alt-genero', 'alt-nac', 'alt-zona', 'alt-localidad', 'alt-funcion', 'alt-categoria',
@@ -327,6 +337,35 @@ export function toggleReingresante() {
   const chk = $('alt-reingresante');
   const row = $('alt-fec-egreso-row');
   if (row) row.style.display = chk && chk.checked ? '' : 'none';
+  if (!chk || !chk.checked) {
+    _legajoAnteriorEncontrado = null;
+    const res = $('alt-reingresante-resultado'); if (res) res.innerHTML = '';
+    const dniEl = $('alt-reingresante-dni'); if (dniEl) dniEl.value = '';
+  }
+}
+
+// Busca por DNI (nunca por nombre — hay muchos nombres parecidos) entre
+// TODOS los legajos históricos, sean actuales o de baja.
+export function buscarLegajoReingresante() {
+  const dni = cleanText(($('alt-reingresante-dni') || {}).value || '');
+  const res = $('alt-reingresante-resultado');
+  if (!res) return;
+  if (!dni) { res.innerHTML = '<span style="color:#dc2626;">Ingresá un DNI para buscar</span>'; return; }
+
+  const encontrados = (DB.legajos || []).filter(l => l.dni === dni);
+  if (!encontrados.length) {
+    _legajoAnteriorEncontrado = null;
+    res.innerHTML = '<span style="color:#9a3412;">⚠️ No se encontró ningún legajo anterior con ese DNI</span>';
+    return;
+  }
+
+  _legajoAnteriorEncontrado = encontrados[encontrados.length - 1];
+  res.innerHTML = encontrados.map(l => `
+    <div style="background:white;border:1px solid #bae6fd;border-radius:6px;padding:8px 10px;margin-top:4px;">
+      <strong>N° ${l.nro}</strong> — ${l.nombre}<br>
+      <span style="color:#64748b;">${l.funcion} · ${l.servicio} · Ingreso: ${l.ingreso}${l.fechaBaja ? ' · Baja: ' + l.fechaBaja : ' · (activo)'}</span>
+    </div>
+  `).join('');
 }
 
 // ========== CONFIRMAR ALTA ==========
@@ -414,7 +453,11 @@ export function confirmarAlta() {
     estadoLegal: '',
     estadoMedico: '',
     fechaBaja: '',
-    fechaReincorp: '',
+    // Si es reingresante y se encontró su legajo anterior por DNI, la fecha
+    // de esta alta ES la reincorporación, y se guarda el N° de legajo previo
+    // para trazabilidad.
+    fechaReincorp: _legajoAnteriorEncontrado ? fIngreso : '',
+    legajoAnteriorNro: _legajoAnteriorEncontrado ? _legajoAnteriorEncontrado.nro : null,
     seguro,
     localidad,
     tel,

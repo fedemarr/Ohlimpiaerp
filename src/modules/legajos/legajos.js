@@ -2,6 +2,7 @@ import { DB } from '@shared/state.js';
 import { $, avatarEl, badge, fillSelect } from '@shared/helpers.js';
 import { toast, abrirModal, cerrarModal } from '@shared/ui.js';
 import { supaSync } from '@shared/supabase.js';
+import { listarAdjuntos, obtenerUrlFirmada, TIPO_LEGIBLE } from '@shared/adjuntos.js';
 
 // ========== ESTADO INTERNO ==========
 
@@ -113,6 +114,7 @@ export function verLegajo(nro) {
       <button class="tab-btn" onclick="tabLeg(1,this)">Operativo</button>
       <button class="tab-btn" onclick="tabLeg(2,this)">Movimientos ${reasDelAsoc.length > 0 ? `<span class="badge badge-azul" style="font-size:10px;margin-left:4px;">${reasDelAsoc.length}</span>` : ''}</button>
       <button class="tab-btn" onclick="tabLeg(3,this)">Historial completo</button>
+      <button class="tab-btn" onclick="tabLeg(4,this)">📎 Adjuntos</button>
     </div>
     <div id="leg-tab-0" class="tab-content active"><div class="info-grid">
       <div class="info-item"><div class="key">DNI</div><div class="val">${l.dni}</div></div>
@@ -163,10 +165,38 @@ export function verLegajo(nro) {
       ${reasDelAsoc.map(r => `<div class="tl-item"><div class="tl-dot" style="background:var(--azul-medio);"></div><div class="tl-content"><h4>Reasignación: ${r.servOrig} → ${r.servDest}</h4><p>${r.fecha} · ${r.motivo}</p></div></div>`).join('')}
       ${l.estadoLegal ? `<div class="tl-item"><div class="tl-dot rojo"></div><div class="tl-content"><h4>Situación legal: ${l.estadoLegal}</h4><p>Registrada en el sistema</p></div></div>` : ''}
       ${l.fechaBaja ? `<div class="tl-item"><div class="tl-dot rojo"></div><div class="tl-content"><h4>Baja registrada</h4><p>${l.fechaBaja}</p></div></div>` : ''}
-      ${l.fechaReincorp ? `<div class="tl-item"><div class="tl-dot" style="background:var(--verde);"></div><div class="tl-content"><h4>Reincorporación</h4><p>${l.fechaReincorp}</p></div></div>` : ''}
+      ${l.fechaReincorp ? `<div class="tl-item"><div class="tl-dot" style="background:var(--verde);"></div><div class="tl-content"><h4>Reincorporación</h4><p>${l.fechaReincorp}${l.legajoAnteriorNro ? ' · Legajo anterior N° ' + l.legajoAnteriorNro : ''}</p></div></div>` : ''}
     </div></div>
+    <div id="leg-tab-4" class="tab-content"><div id="leg-adjuntos-lista" style="color:var(--texto-suave);">Cargando…</div></div>
   `;
   abrirModal('modal-legajo');
+  cargarAdjuntosLegajo(l.dni);
+}
+
+// ========== ADJUNTOS (todo lo cargado durante el proceso de ingreso) ==========
+
+async function cargarAdjuntosLegajo(dni) {
+  const cont = $('leg-adjuntos-lista');
+  if (!cont) return;
+  const adjuntos = await listarAdjuntos({ dni });
+  if (!adjuntos.length) {
+    cont.innerHTML = '<div class="empty-state"><div class="icon">📎</div><p>Sin adjuntos cargados</p></div>';
+    return;
+  }
+  cont.innerHTML = adjuntos.map(a => `
+    <div style="display:flex;align-items:center;gap:10px;background:var(--fondo);border:1px solid var(--borde);border-radius:var(--radio);padding:10px 14px;margin-bottom:8px;">
+      <span class="chip">${TIPO_LEGIBLE[a.tipo] || a.tipo}</span>
+      <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13px;">${a.nombreArchivo || 'Archivo'}</span>
+      <span style="font-size:11px;color:var(--texto-muy-suave);">${a.subidoEn ? new Date(a.subidoEn).toLocaleDateString('es-AR') : ''}</span>
+      <button type="button" class="btn btn-secondary btn-sm" onclick="verAdjuntoLegajo('${a.url}')">👁️ Ver</button>
+    </div>
+  `).join('');
+}
+
+export async function verAdjuntoLegajo(path) {
+  const url = await obtenerUrlFirmada(path);
+  if (!url) { toast('⚠️ No se pudo abrir el archivo'); return; }
+  window.open(url, '_blank');
 }
 
 // ========== TABS DETALLE ==========

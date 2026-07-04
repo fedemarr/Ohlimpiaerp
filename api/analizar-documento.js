@@ -10,6 +10,15 @@ const SUPABASE_ANON_KEY = 'sb_publishable__SBdO6cSQXYfgR16FrztwA_Cf9sNosd';
 const BUCKET = 'ohlimpia-adjuntos';
 const MAX_PDF_BYTES = 10 * 1024 * 1024; // mismo límite que adjuntos.js al subir
 
+// nombreDetectado/dniDetectado: se piden en los 3 esquemas para que el
+// frontend pueda verificar que el documento realmente pertenece a la persona
+// del registro (comparando contra el nombre/DNI ya cargados), en vez de
+// confiar ciegamente en qué adjunto subió cada quien.
+const IDENTIDAD_PROPS = {
+  nombreDetectado: { type: 'string', description: 'Nombre completo de la persona tal como figura en el documento. Cadena vacía si no es legible.' },
+  dniDetectado: { type: 'string', description: 'Número de DNI de la persona tal como figura en el documento, solo dígitos. Cadena vacía si no es legible.' },
+};
+
 const SCHEMAS = {
   antecedente: {
     type: 'object',
@@ -18,8 +27,9 @@ const SCHEMAS = {
       fechaEmision: { type: 'string', description: 'Fecha de emisión del certificado en formato YYYY-MM-DD. Cadena vacía si no figura en el documento.' },
       detalles: { type: 'string', description: 'Resumen breve en español de lo encontrado (organismo emisor, jurisdicción, observaciones relevantes).' },
       confianza: { type: 'string', enum: ['alta', 'media', 'baja'] },
+      ...IDENTIDAD_PROPS,
     },
-    required: ['resultado', 'fechaEmision', 'detalles', 'confianza'],
+    required: ['resultado', 'fechaEmision', 'detalles', 'confianza', 'nombreDetectado', 'dniDetectado'],
     additionalProperties: false,
   },
   'apto-medico': {
@@ -29,15 +39,28 @@ const SCHEMAS = {
       fecha: { type: 'string', description: 'Fecha del examen o certificado en formato YYYY-MM-DD. Cadena vacía si no figura en el documento.' },
       detalles: { type: 'string', description: 'Resumen breve en español de restricciones u observaciones médicas relevantes.' },
       confianza: { type: 'string', enum: ['alta', 'media', 'baja'] },
+      ...IDENTIDAD_PROPS,
     },
-    required: ['resultado', 'fecha', 'detalles', 'confianza'],
+    required: ['resultado', 'fecha', 'detalles', 'confianza', 'nombreDetectado', 'dniDetectado'],
+    additionalProperties: false,
+  },
+  'informe-psico': {
+    type: 'object',
+    properties: {
+      resultado: { type: 'string', enum: ['Apto', 'Apto+', 'Apto-', 'Apto condicional', 'No Apto', 'No se pudo determinar'] },
+      detalles: { type: 'string', description: 'Resumen breve en español de las observaciones relevantes del informe.' },
+      confianza: { type: 'string', enum: ['alta', 'media', 'baja'] },
+      ...IDENTIDAD_PROPS,
+    },
+    required: ['resultado', 'detalles', 'confianza', 'nombreDetectado', 'dniDetectado'],
     additionalProperties: false,
   },
 };
 
 const PROMPTS = {
-  antecedente: 'Este PDF es un certificado de antecedentes penales de Argentina. Leelo y determiná si la persona tiene o no antecedentes registrados, la fecha de emisión del certificado, y cualquier detalle relevante (organismo emisor, jurisdicción). Si el documento no es legible o no es un certificado de antecedentes, usá resultado "No se pudo determinar" y explicá por qué en "detalles".',
-  'apto-medico': 'Este PDF es un certificado de aptitud médica laboral (preocupacional) de Argentina. Leelo y determiná el resultado del examen, la fecha, y cualquier restricción u observación médica relevante. Si el documento no es legible o no es un apto médico, usá resultado "No se pudo determinar" y explicá por qué en "detalles".',
+  antecedente: 'Este PDF es un certificado de antecedentes penales de Argentina. Leelo y determiná si la persona tiene o no antecedentes registrados, la fecha de emisión del certificado, y cualquier detalle relevante (organismo emisor, jurisdicción). También extraé el nombre completo y el DNI de la persona tal como figuran en el documento. Si el documento no es legible o no es un certificado de antecedentes, usá resultado "No se pudo determinar" y explicá por qué en "detalles".',
+  'apto-medico': 'Este PDF es un certificado de aptitud médica laboral (preocupacional) de Argentina. Leelo y determiná el resultado del examen, la fecha, y cualquier restricción u observación médica relevante. También extraé el nombre completo y el DNI de la persona tal como figuran en el documento. Si el documento no es legible o no es un apto médico, usá resultado "No se pudo determinar" y explicá por qué en "detalles".',
+  'informe-psico': 'Este PDF es un informe psicotécnico laboral de Argentina. Leelo y determiná el resultado de la evaluación, cualquier observación relevante, y el nombre completo y DNI de la persona evaluada tal como figuran en el documento. Si el documento no es legible o no es un informe psicotécnico, usá resultado "No se pudo determinar" y explicá por qué en "detalles".',
 };
 
 export default async function handler(req, res) {

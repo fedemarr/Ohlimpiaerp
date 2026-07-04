@@ -6,17 +6,24 @@ export {
   verLegajo, tabLeg,
   editarLegajoActual, guardarEdicionLegajo,
   imprimirLegajo,
+  verAdjuntoLegajo,
 } from './legajos.js';
+
+export {
+  abrirImportadorLegajos, descargarPlantillaLegajos,
+  seleccionarArchivoImportacion, confirmarImportacionLegajos,
+} from './importador.js';
 
 // ========== SCREEN CONFIG ==========
 
 import { renderLegajos } from './legajos.js';
+import { abrirImportadorLegajos } from './importador.js';
 
 export const legajosScreenConfig = {
   legajos: {
     title: 'Legajos de asociados',
-    btn: '',
-    fn: null,
+    btn: '📤 Importar desde CSV',
+    fn: () => abrirImportadorLegajos(),
     render: renderLegajos,
   },
 };
@@ -27,7 +34,13 @@ import {
   filtrarLegajos, verLegajo, tabLeg,
   editarLegajoActual, guardarEdicionLegajo,
   imprimirLegajo,
+  verAdjuntoLegajo,
 } from './legajos.js';
+
+import {
+  descargarPlantillaLegajos,
+  seleccionarArchivoImportacion, confirmarImportacionLegajos,
+} from './importador.js';
 
 window.renderLegajos = renderLegajos;
 window.filtrarLegajos = filtrarLegajos;
@@ -36,3 +49,8 @@ window.tabLeg = tabLeg;
 window.editarLegajoActual = editarLegajoActual;
 window.guardarEdicionLegajo = guardarEdicionLegajo;
 window.imprimirLegajo = imprimirLegajo;
+window.verAdjuntoLegajo = verAdjuntoLegajo;
+window.abrirImportadorLegajos = abrirImportadorLegajos;
+window.descargarPlantillaLegajos = descargarPlantillaLegajos;
+window.seleccionarArchivoImportacion = seleccionarArchivoImportacion;
+window.confirmarImportacionLegajos = confirmarImportacionLegajos;

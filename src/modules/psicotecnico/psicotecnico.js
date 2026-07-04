@@ -3,6 +3,7 @@ import { $ } from '@shared/helpers.js';
 import { toast, cerrarModal, abrirModalInput } from '@shared/ui.js';
 import { supaSync } from '@shared/supabase.js';
 import { subirAdjunto, listarAdjuntos, obtenerUrlFirmada, borrarAdjunto } from '@shared/adjuntos.js';
+import { analizarDocumentoPDF, chequearIdentidadIA } from '@shared/iaDocumentos.js';
 
 // ========== ESTADO INTERNO ==========
 
@@ -190,7 +191,11 @@ function crearHTMLModalPsico() {
           '<label style="font-weight:600;color:#6d28d9;">📎 Informe psicotécnico (opcional)</label>',
           '<div id="pg-adjunto-lista" style="margin-top:8px;font-size:13px;color:#64748b;">Cargando…</div>',
           '<input type="file" id="pg-adjunto-file" accept="application/pdf,image/jpeg,image/png" style="display:none;" onchange="seleccionarArchivoPsico()">',
-          '<button type="button" class="btn btn-secondary" style="margin-top:8px;" onclick="document.getElementById(\'pg-adjunto-file\').click()">⬆️ Subir archivo</button>',
+          '<div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap;">',
+            '<button type="button" class="btn btn-secondary" onclick="document.getElementById(\'pg-adjunto-file\').click()">⬆️ Subir archivo</button>',
+            '<button type="button" id="btn-ia-psico" class="btn" style="background:#7c3aed;color:white;" onclick="analizarInformePsicoIA()">🤖 Analizar con IA</button>',
+          '</div>',
+          '<div id="pg-ia-resultado" style="display:none;margin-top:10px;background:#f5f3ff;border:1px solid #c4b5fd;border-radius:8px;padding:10px;font-size:12px;"></div>',
         '</div>',
       '</div>',
       '<div class="modal-footer" style="flex-wrap:wrap;gap:8px;justify-content:space-between;">',
@@ -255,6 +260,63 @@ export async function eliminarAdjuntoPsico(id, dni) {
   const ok = await borrarAdjunto(id);
   toast(ok ? '🗑️ Archivo eliminado' : '⚠️ No se pudo eliminar');
   cargarAdjuntoPsico(dni);
+}
+
+// ========== ANÁLISIS CON IA (informe psicotécnico) ==========
+// La IA solo sugiere — nunca guarda ni aprueba sola. Alguien de RRHH revisa
+// el panel y decide si aplica los datos con "Usar estos datos".
+
+let _iaPsicoResultado = null;
+
+export async function analizarInformePsicoIA() {
+  const id = $('psico-gest-idx').value;
+  const p = getPsicoById(id);
+  if (!p) return;
+  const adjuntos = await listarAdjuntos({ dni: p.dni, etapa: 'psicotecnico', tipo: 'informe-psico' });
+  if (!adjuntos.length) { toast('⚠️ Subí el informe antes de analizarlo'); return; }
+  const btn = $('btn-ia-psico');
+  const panel = $('pg-ia-resultado');
+  if (btn) { btn.disabled = true; btn.textContent = '🤖 Analizando…'; }
+  if (panel) { panel.style.display = 'block'; panel.innerHTML = 'Leyendo el documento…'; }
+  try {
+    const r = await analizarDocumentoPDF({ tipo: 'informe-psico', path: adjuntos[0].url });
+    _iaPsicoResultado = r;
+    if (panel) {
+      panel.innerHTML =
+        '<div style="font-weight:600;color:#5b21b6;margin-bottom:6px;">🤖 La IA encontró:</div>'
+        + '<div><strong>Resultado:</strong> ' + r.resultado + '</div>'
+        + '<div><strong>Confianza:</strong> ' + r.confianza + '</div>'
+        + (r.detalles ? '<div style="margin-top:4px;color:#5b21b6;">' + r.detalles + '</div>' : '')
+        + chequearIdentidadIA(r, p.dni)
+        + '<div style="margin-top:8px;display:flex;gap:8px;">'
+        + '<button type="button" class="btn btn-sm" style="background:#7c3aed;color:white;" onclick="usarDatosIAInformePsico()">✓ Usar estos datos</button>'
+        + '<button type="button" class="btn btn-secondary btn-sm" onclick="document.getElementById(\'pg-ia-resultado\').style.display=\'none\'">Descartar</button>'
+        + '</div>';
+    }
+  } catch (e) {
+    if (panel) panel.innerHTML = '⚠️ ' + (e.message || 'No se pudo analizar el documento');
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = '🤖 Analizar con IA'; }
+  }
+}
+
+// Aplica lo que encontró la IA al form — NO guarda solo.
+export function usarDatosIAInformePsico() {
+  if (!_iaPsicoResultado) return;
+  const r = _iaPsicoResultado;
+  const resultadosValidos = ['Apto', 'Apto+', 'Apto-', 'Apto condicional', 'No Apto'];
+  if (resultadosValidos.includes(r.resultado)) {
+    $('pg-psicotecnico').value = r.resultado;
+    actualizarBotonesAprobacion();
+  }
+  const obsEl = $('pg-obs');
+  if (obsEl && r.detalles) {
+    const nota = '🤖 IA — ' + r.detalles;
+    obsEl.value = obsEl.value ? (obsEl.value + '\n' + nota) : nota;
+  }
+  const panel = $('pg-ia-resultado');
+  if (panel) panel.style.display = 'none';
+  toast('✓ Datos de la IA aplicados — revisá y guardá');
 }
 
 export function actualizarBotonesAprobacion() {

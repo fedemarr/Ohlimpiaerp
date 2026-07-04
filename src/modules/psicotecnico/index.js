@@ -6,6 +6,7 @@ export {
   abrirGestionPsico, actualizarBotonesAprobacion,
   guardarEtapasPsico, aprobarPsico, rechazarPsico, revertirPsico,
   cargarAdjuntoPsico, seleccionarArchivoPsico, verAdjuntoPsico, eliminarAdjuntoPsico,
+  analizarInformePsicoIA, usarDatosIAInformePsico,
 } from './psicotecnico.js';
 
 // ========== SCREEN CONFIG ==========
@@ -28,6 +29,7 @@ import {
   abrirGestionPsico, actualizarBotonesAprobacion,
   guardarEtapasPsico, aprobarPsico, rechazarPsico, revertirPsico,
   cargarAdjuntoPsico, seleccionarArchivoPsico, verAdjuntoPsico, eliminarAdjuntoPsico,
+  analizarInformePsicoIA, usarDatosIAInformePsico,
 } from './psicotecnico.js';
 
 window.tabPsico = tabPsico;
@@ -43,3 +45,5 @@ window.cargarAdjuntoPsico = cargarAdjuntoPsico;
 window.seleccionarArchivoPsico = seleccionarArchivoPsico;
 window.verAdjuntoPsico = verAdjuntoPsico;
 window.eliminarAdjuntoPsico = eliminarAdjuntoPsico;
+window.analizarInformePsicoIA = analizarInformePsicoIA;
+window.usarDatosIAInformePsico = usarDatosIAInformePsico;

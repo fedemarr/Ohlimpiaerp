@@ -41,6 +41,7 @@ export function _toSnake(obj) {
   const m = {
     nroLegajo: 'nro_legajo', estadoLegal: 'estado_legal', estadoMedico: 'estado_medico',
     fechaBaja: 'fecha_baja', fechaReincorp: 'fecha_reincorp', estadoCivil: 'estado_civil',
+    legajoAnteriorNro: 'legajo_anterior_nro',
     periodoPrueba: 'periodo_prueba', fechaIngresoPrueba: 'fecha_ingreso_prueba',
     adjuntosLegal: 'adjuntos_legal', adjuntosMedico: 'adjuntos_medico',
     pctAumento: 'pct_aumento', fechaHomologacion: 'fecha_homologacion',
@@ -101,6 +102,7 @@ export function _toCamel(obj) {
   const m = {
     nro_legajo: 'nroLegajo', estado_legal: 'estadoLegal', estado_medico: 'estadoMedico',
     fecha_baja: 'fechaBaja', fecha_reincorp: 'fechaReincorp', estado_civil: 'estadoCivil',
+    legajo_anterior_nro: 'legajoAnteriorNro',
     periodo_prueba: 'periodoPrueba', fecha_ingreso_prueba: 'fechaIngresoPrueba',
     adjuntos_legal: 'adjuntosLegal', adjuntos_medico: 'adjuntosMedico',
     pct_aumento: 'pctAumento', fecha_homologacion: 'fechaHomologacion',
