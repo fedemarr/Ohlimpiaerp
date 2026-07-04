@@ -67,6 +67,7 @@ export function _toSnake(obj) {
     fecNac: 'fec_nac', fechaCita: 'fecha_cita', horaCita: 'hora_cita',
     nombreReferido: 'nombre_referido', rrhhId: 'rrhh_id',
     anuladoPor: 'anulado_por', anuladoFecha: 'anulado_fecha', creadoPor: 'creado_por',
+    cuentaBancaria: 'cuenta_bancaria',
     // Monotributos / Uniformes / Retenciones
     nroSocio: 'nro_socio', fechaAlta: 'fecha_alta', historialCategorias: 'historial_categorias',
     // Tabla adjuntos
@@ -126,6 +127,7 @@ export function _toCamel(obj) {
     fec_nac: 'fecNac', fecha_cita: 'fechaCita', hora_cita: 'horaCita',
     nombre_referido: 'nombreReferido', rrhh_id: 'rrhhId',
     anulado_por: 'anuladoPor', anulado_fecha: 'anuladoFecha', creado_por: 'creadoPor',
+    cuenta_bancaria: 'cuentaBancaria',
     id_local: 'id_local', created_at: 'created_at', updated_at: 'updated_at',
     // Monotributos / Uniformes / Retenciones
     nro_socio: 'nroSocio', fecha_alta: 'fechaAlta', historial_categorias: 'historialCategorias',

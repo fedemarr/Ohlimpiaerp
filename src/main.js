@@ -14,8 +14,8 @@ import { SCREEN_CONFIG, registerScreens, currentScreen, navTo, topAction, constr
 // ── Módulos migrados ──
 import { candidatosScreenConfig, filtrarCandidatos, poblarFiltrosColumnasCandidatos, renderCandidatos, renderCalendario } from './modules/candidatos/index.js';
 import { psicoScreenConfig, filtrarPsico, poblarFiltrosColumnasPsico, renderPsico } from './modules/psicotecnico/index.js';
-import { preocupScreenConfig } from './modules/preocupacional/index.js';
-import { documScreenConfig } from './modules/documentacion/index.js';
+import { preocupScreenConfig, filtrarPreocup, poblarFiltrosColumnasPreocup } from './modules/preocupacional/index.js';
+import { documScreenConfig, filtrarDocum, poblarFiltrosColumnasDocum } from './modules/documentacion/index.js';
 import { altasScreenConfig, filtrarAltas, poblarFiltrosColumnasAltas, renderAltas, poblarSelectsAltas } from './modules/altas/index.js';
 import { legajosScreenConfig, filtrarLegajos, renderLegajos } from './modules/legajos/index.js';
 import { pedidosScreenConfig, filtrarPedidos } from './modules/pedidos/index.js';
@@ -55,6 +55,8 @@ registerScreens(reasignacionesScreenConfig);
 registerSearchFilters({
   candidatos: filtrarCandidatos,
   psicotecnico: filtrarPsico,
+  preocupacional: filtrarPreocup,
+  documentacion: filtrarDocum,
   altas: filtrarAltas,
   legajos: filtrarLegajos,
   pedidos: filtrarPedidos,
@@ -159,6 +161,8 @@ registerAuthCallbacks({
   poblarFiltrosColumnas() {
     poblarFiltrosColumnasCandidatos();
     poblarFiltrosColumnasPsico();
+    poblarFiltrosColumnasPreocup();
+    poblarFiltrosColumnasDocum();
     poblarFiltrosColumnasAltas();
   },
   verificarAccionesVencidas() {},
@@ -173,6 +177,8 @@ registerNavCallbacks({
   poblarFiltrosColumnas() {
     poblarFiltrosColumnasCandidatos();
     poblarFiltrosColumnasPsico();
+    poblarFiltrosColumnasPreocup();
+    poblarFiltrosColumnasDocum();
     poblarFiltrosColumnasAltas();
   },
 });

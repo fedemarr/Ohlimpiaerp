@@ -1,4 +1,4 @@
-import { DB, LOCALIDADES_BA, currentUser } from '@shared/state.js';
+import { DB, LOCALIDADES_BA, BARRIOS_CABA, currentUser } from '@shared/state.js';
 import { $, toTitleCase, cleanText, validarCampos, hoyStr, badge } from '@shared/helpers.js';
 import { toast, abrirModal, cerrarModal, abrirModalInput } from '@shared/ui.js';
 import { supaSync } from '@shared/supabase.js';
@@ -187,8 +187,8 @@ export function onChangeZonaCand() {
   const loc = $('c-localidad');
   if (!zona || !loc) return;
   if (zona.value === 'CABA') {
-    loc.innerHTML = '<option value="">— CABA —</option>';
-    loc.disabled = true; loc.style.opacity = '0.6';
+    loc.disabled = false; loc.style.opacity = '1';
+    loc.innerHTML = '<option value="">Seleccionar barrio...</option>' + BARRIOS_CABA.map(b => '<option>' + b + '</option>').join('');
   } else if (zona.value === 'Buenos Aires') {
     loc.disabled = false; loc.style.opacity = '1';
     loc.innerHTML = '<option value="">Seleccionar...</option>' + LOCALIDADES_BA.map(l => '<option>' + l + '</option>').join('');
@@ -257,7 +257,7 @@ export function guardarCandidato() {
   const piso = cleanText(($('c-piso') || {}).value || '');
   const zona = cleanText($('c-zona').value);
   const locEl = $('c-localidad');
-  const localidad = zona === 'CABA' ? 'CABA' : (locEl ? cleanText(locEl.value) : '');
+  const localidad = locEl ? cleanText(locEl.value) : '';
   const medio = cleanText(($('c-medio') || {}).value || '');
   const nombreReferido = cleanText(($('c-nombre-referido') || {}).value || '');
   const rrhhIdRaw = ($('c-rrhh') || {}).value || '';

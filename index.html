@@ -330,6 +330,12 @@
     <div class="stat-card rojo"><div class="stat-label">Rechazados</div><div class="stat-valor" id="st-ps-rechazados">0</div></div>
   </div>
 
+  <div style="margin:12px 20px;display:flex;gap:8px;flex-wrap:wrap;">
+    <input type="text" id="psico-buscar" placeholder="🔍 Buscar nombre o DNI..." oninput="filtrarPsico()" style="padding:7px 12px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;width:220px;">
+    <select id="psico-filtro-zona" onchange="filtrarPsico()" style="padding:7px 10px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;"><option value="">Todas las zonas</option></select>
+    <select id="psico-filtro-estado" onchange="filtrarPsico()" style="padding:7px 10px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;"><option value="">Todos los estados</option><option>En proceso</option><option>Aprobado</option><option>Rechazado</option></select>
+  </div>
+
   <div style="margin:0 20px;overflow-x:auto;">
     <table style="width:100%;border-collapse:collapse;font-size:13px;">
       <thead>
@@ -358,6 +364,11 @@
     <div class="stat-card azul"><div class="stat-label">En proceso</div><div class="stat-valor" id="st-pr-proceso">0</div></div>
     <div class="stat-card verde"><div class="stat-label">Aprobados</div><div class="stat-valor" id="st-pr-aprobados">0</div></div>
     <div class="stat-card rojo"><div class="stat-label">Rechazados</div><div class="stat-valor" id="st-pr-rechazados">0</div></div>
+  </div>
+  <div style="margin:12px 20px;display:flex;gap:8px;flex-wrap:wrap;">
+    <input type="text" id="preocup-buscar" placeholder="🔍 Buscar nombre o DNI..." oninput="filtrarPreocup()" style="padding:7px 12px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;width:220px;">
+    <select id="preocup-filtro-zona" onchange="filtrarPreocup()" style="padding:7px 10px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;"><option value="">Todas las zonas</option></select>
+    <select id="preocup-filtro-estado" onchange="filtrarPreocup()" style="padding:7px 10px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;"><option value="">Todos los estados</option><option>En proceso</option><option>Aprobado</option><option>Rechazado</option></select>
   </div>
   <div style="margin:0 20px;overflow-x:auto;">
     <table style="width:100%;border-collapse:collapse;font-size:13px;">
@@ -388,6 +399,11 @@
     <div class="stat-card azul"><div class="stat-label">En proceso</div><div class="stat-valor" id="st-dc-proceso">0</div></div>
     <div class="stat-card verde"><div class="stat-label">Aprobados</div><div class="stat-valor" id="st-dc-aprobados">0</div></div>
     <div class="stat-card rojo"><div class="stat-label">Rechazados</div><div class="stat-valor" id="st-dc-rechazados">0</div></div>
+  </div>
+  <div style="margin:12px 20px;display:flex;gap:8px;flex-wrap:wrap;">
+    <input type="text" id="docum-buscar" placeholder="🔍 Buscar nombre o DNI..." oninput="filtrarDocum()" style="padding:7px 12px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;width:220px;">
+    <select id="docum-filtro-zona" onchange="filtrarDocum()" style="padding:7px 10px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;"><option value="">Todas las zonas</option></select>
+    <select id="docum-filtro-estado" onchange="filtrarDocum()" style="padding:7px 10px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;"><option value="">Todos los estados</option><option>En proceso</option><option>Aprobado</option><option>Rechazado</option></select>
   </div>
   <div style="margin:0 20px;overflow-x:auto;">
     <table style="width:100%;border-collapse:collapse;font-size:13px;">

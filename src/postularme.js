@@ -6,7 +6,7 @@
 import './styles/main.css';
 import './styles/postularme.css';
 
-import { LOCALIDADES_BA } from '@shared/state.js';
+import { LOCALIDADES_BA, BARRIOS_CABA } from '@shared/state.js';
 import { $, toTitleCase, cleanText, validarCampos } from '@shared/helpers.js';
 import { toast } from '@shared/ui.js';
 
@@ -18,8 +18,8 @@ function onChangeZona() {
   const zona = $('pm-zona');
   const loc = $('pm-localidad');
   if (zona.value === 'CABA') {
-    loc.innerHTML = '<option value="">— CABA —</option>';
-    loc.disabled = true;
+    loc.disabled = false;
+    loc.innerHTML = '<option value="">Seleccionar barrio...</option>' + BARRIOS_CABA.map(b => '<option>' + b + '</option>').join('');
   } else if (zona.value === 'Buenos Aires') {
     loc.disabled = false;
     loc.innerHTML = '<option value="">Seleccionar...</option>' + LOCALIDADES_BA.map(l => '<option>' + l + '</option>').join('');
@@ -125,7 +125,7 @@ async function enviarPostulacion(e) {
     calle: cleanText($('pm-calle').value),
     piso: cleanText($('pm-piso').value),
     zona: $('pm-zona').value,
-    localidad: $('pm-zona').value === 'CABA' ? 'CABA' : $('pm-localidad').value,
+    localidad: $('pm-localidad').value,
     nacionalidad: $('pm-nacionalidad').value,
     genero: $('pm-genero').value,
     fecha: turnoElegido ? turnoElegido.fecha : null,

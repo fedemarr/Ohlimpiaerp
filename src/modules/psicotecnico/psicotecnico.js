@@ -96,43 +96,22 @@ export function renderPsico(lista) {
 // ========== FILTROS ==========
 
 export function filtrarPsico() {
-  const nombre = ($('cf-ps-nombre') || { value: '' }).value.toLowerCase();
-  const dni = ($('cf-ps-dni') || { value: '' }).value.toLowerCase();
-  const zona = ($('cf-ps-zona') || { value: '' }).value;
-  const rrhh = ($('cf-ps-rrhh') || { value: '' }).value;
-  const resultado = ($('cf-ps-resultado') || { value: '' }).value;
-  const preocup = ($('cf-ps-preocup') || { value: '' }).value;
-  const estado = ($('cf-ps-estado') || { value: '' }).value;
-  const fecha = ($('cf-ps-fecha') || { value: '' }).value.toLowerCase();
-  const bg = ($('buscador-global') || { value: '' }).value.toLowerCase();
+  const buscar = (($('psico-buscar') || { value: '' }).value || (($('buscador-global') || { value: '' }).value)).toLowerCase();
+  const zona = ($('psico-filtro-zona') || { value: '' }).value;
+  const estado = ($('psico-filtro-estado') || { value: '' }).value;
 
   renderPsico(DB.psicos.filter(p =>
-    (!nombre || p.nombre.toLowerCase().includes(nombre)) &&
-    (!dni || p.dni.includes(dni)) &&
+    (!buscar || (p.nombre || '').toLowerCase().includes(buscar) || (p.dni || '').includes(buscar)) &&
     (!zona || p.zona === zona) &&
-    (!rrhh || p.rrhh === rrhh) &&
-    (!resultado || p.resultado === resultado) &&
-    (!preocup || p.preocup === preocup) &&
-    (!estado || p.estado === estado) &&
-    (!fecha || p.fecha.includes(fecha)) &&
-    (!bg || p.nombre.toLowerCase().includes(bg) || p.dni.includes(bg))
+    (!estado || p.estado === estado)
   ));
 }
 
 export function poblarFiltrosColumnasPsico() {
-  const fillCol = (id, items) => {
-    const el = $(id);
-    if (!el) return;
-    const ph = el.options[0]?.outerHTML || '<option value=""></option>';
-    el.innerHTML = ph + [...new Set(items)].filter(Boolean).map(i => `<option>${i}</option>`).join('');
-  };
-  const nicksRRHH = [
-    ...DB.usuarios.filter(u => ['RRHH', 'Administrador total'].includes(u.perfil)).map(u => u.nickname || u.nombre.split(' ')[0]),
-    ...DB.rrhh.filter(n => !DB.usuarios.find(u => (u.nickname || u.nombre.split(' ')[0]) === n)),
-    'Agente IA Ohlimpia',
-  ];
-  fillCol('cf-ps-zona', DB.zonas);
-  fillCol('cf-ps-rrhh', nicksRRHH);
+  const el = $('psico-filtro-zona');
+  if (!el) return;
+  const ph = el.options[0]?.outerHTML || '<option value="">Todas las zonas</option>';
+  el.innerHTML = ph + [...new Set(DB.zonas)].filter(Boolean).map(z => `<option>${z}</option>`).join('');
 }
 
 // ========== CRUD LEGACY ==========

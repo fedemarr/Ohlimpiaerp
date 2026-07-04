@@ -3,6 +3,8 @@
 export {
   renderDocum,
   tabDocum,
+  filtrarDocum,
+  poblarFiltrosColumnasDocum,
   abrirGestionDocum,
   guardarDocum,
   recalcularVencAntec,
@@ -24,6 +26,8 @@ export {
 import {
   renderDocum,
   tabDocum,
+  filtrarDocum,
+  poblarFiltrosColumnasDocum,
   abrirGestionDocum,
   guardarDocum,
   recalcularVencAntec,
@@ -53,6 +57,8 @@ export const documScreenConfig = {
 
 window.renderDocum = renderDocum;
 window.tabDocum = tabDocum;
+window.filtrarDocum = filtrarDocum;
+window.poblarFiltrosColumnasDocum = poblarFiltrosColumnasDocum;
 window.abrirGestionDocum = abrirGestionDocum;
 window.guardarDocum = guardarDocum;
 window.recalcularVencAntec = recalcularVencAntec;

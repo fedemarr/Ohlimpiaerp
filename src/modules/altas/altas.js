@@ -1,4 +1,4 @@
-import { DB, LOCALIDADES_BA } from '@shared/state.js';
+import { DB, LOCALIDADES_BA, BARRIOS_CABA } from '@shared/state.js';
 import { $, avatarEl, badge, cleanText, toTitleCase, validarCampos, fillSelect, applyTitleCase } from '@shared/helpers.js';
 import { toast, abrirModal, cerrarModal } from '@shared/ui.js';
 import { supaSync } from '@shared/supabase.js';
@@ -6,7 +6,7 @@ import { supaSync } from '@shared/supabase.js';
 // ========== ESTADO INTERNO ==========
 
 let _altaTabIdx = 0;
-const ALTA_TABS = 6;
+const ALTA_TABS = 7;
 
 // ========== RENDER ==========
 
@@ -89,8 +89,8 @@ export function onChangeZonaAlta() {
   const loc = $('alt-localidad');
   if (!zona || !loc) return;
   if (zona.value === 'CABA') {
-    loc.innerHTML = '<option value="">— CABA —</option>';
-    loc.disabled = true; loc.style.opacity = '0.6';
+    loc.disabled = false; loc.style.opacity = '1';
+    loc.innerHTML = '<option value="">Seleccionar barrio...</option>' + BARRIOS_CABA.map(b => '<option>' + b + '</option>').join('');
   } else if (zona.value === 'Buenos Aires') {
     loc.disabled = false; loc.style.opacity = '1';
     loc.innerHTML = '<option value="">Seleccionar...</option>' + LOCALIDADES_BA.map(l => '<option>' + l + '</option>').join('');
@@ -128,6 +128,7 @@ function crearHTMLModalAlta() {
           '<button onclick="tabAlta(3)" id="alta-tab-btn-3" style="padding:6px 12px;border:none;background:#e2e8f0;color:#374151;font-size:12px;border-radius:6px;cursor:pointer;">👕 Uniforme</button>',
           '<button onclick="tabAlta(4)" id="alta-tab-btn-4" style="padding:6px 12px;border:none;background:#e2e8f0;color:#374151;font-size:12px;border-radius:6px;cursor:pointer;">💰 Capital</button>',
           '<button onclick="tabAlta(5)" id="alta-tab-btn-5" style="padding:6px 12px;border:none;background:#e2e8f0;color:#374151;font-size:12px;border-radius:6px;cursor:pointer;">🛡️ Seguros</button>',
+          '<button onclick="tabAlta(6)" id="alta-tab-btn-6" style="padding:6px 12px;border:none;background:#e2e8f0;color:#374151;font-size:12px;border-radius:6px;cursor:pointer;">🏦 Cuentas bancarias</button>',
         '</div>',
         // Tab 0 — Identificación
         '<div id="alta-section-0">',
@@ -152,8 +153,6 @@ function crearHTMLModalAlta() {
             '<div class="form-group" style="grid-column:1/-1;"><label>Dirección *</label><input type="text" id="alt-direccion" onblur="applyTitleCase(\'alt-direccion\')"></div>',
             '<div class="form-group"><label>Provincia *</label><select id="alt-zona" onchange="onChangeZonaAlta()" style="width:100%;padding:8px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;"><option value="">Seleccionar...</option><option value="CABA">CABA</option><option value="Buenos Aires">Provincia de Buenos Aires</option></select></div>',
             '<div class="form-group"><label>Localidad</label><select id="alt-localidad" style="width:100%;padding:8px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;"><option value="">Seleccionar zona primero</option></select></div>',
-            '<div class="form-group"><label>Banco</label><input type="text" id="alt-banco"></div>',
-            '<div class="form-group"><label>CBU</label><input type="text" id="alt-cbu"></div>',
           '</div>',
         '</div>',
         // Tab 2 — Operativo
@@ -186,6 +185,13 @@ function crearHTMLModalAlta() {
             '<div class="form-group"><label>Seguro de vida *</label><select id="alt-seguro" style="width:100%;padding:8px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;"><option value="">Seleccionar...</option><option>Completo</option><option>Básico</option><option>Sin seguro</option></select></div>',
             '<div class="form-group"><label>ART</label><input type="text" id="alt-art"></div>',
             '<div class="form-group"><label>Obra social</label><input type="text" id="alt-obra-social"></div>',
+          '</div>',
+        '</div>',
+        // Tab 6 — Cuentas bancarias
+        '<div id="alta-section-6" style="display:none;">',
+          '<div class="form-grid form-grid-2">',
+            '<div class="form-group"><label>Banco</label><input type="text" id="alt-banco"></div>',
+            '<div class="form-group"><label>CBU</label><input type="text" id="alt-cbu"></div>',
           '</div>',
         '</div>',
       '</div>',
@@ -270,7 +276,7 @@ export function abrirModalAlta(psicoIdx, altaId) {
       const zEl = $('alt-zona');
       if (zEl) { zEl.value = zona; onChangeZonaAlta(); }
       const localidad = cand && cand.localidad;
-      if (localidad && localidad !== 'CABA') {
+      if (localidad) {
         const lEl = $('alt-localidad');
         if (lEl) lEl.value = localidad;
       }
@@ -370,7 +376,7 @@ export function confirmarAlta() {
   const genero = ($('alt-genero') || {}).value || '';
   const fechaIngreso = $('alt-fec-ingreso').value;
   const zona = ($('alt-zona') || {}).value || '';
-  const localidad = zona === 'CABA' ? 'CABA' : (($('alt-localidad') || {}).value || '');
+  const localidad = ($('alt-localidad') || {}).value || '';
   const banco = cleanText(($('alt-banco') || {}).value || '');
   const funcion = ($('alt-funcion') || {}).value || '';
   const servicio = ($('alt-servicio') || {}).value || '— Sin asignar';
@@ -454,11 +460,12 @@ export function confirmarAlta() {
       // Deja copia histórica de lo que se cargó en cada tab del modal — antes
       // se descartaba y solo quedaba lo que terminó en el legajo.
       altaReg.identificacion = { nombre, dni, cuit, tel, mail, estadoCivil, nac, genero, fecNac, fechaIngreso: fIngreso };
-      altaReg.domicilio = { direccion, zona, localidad, banco, cbu };
+      altaReg.domicilio = { direccion, zona, localidad };
       altaReg.operativo = { funcion, servicio, supervisor, periodoPrueba, categoria };
       altaReg.uniforme = { ambo, calzado };
       altaReg.capital = { integracion, formaPago };
       altaReg.seguros = { seguro, art, obraSocial };
+      altaReg.cuentaBancaria = { banco, cbu };
       altaReg.estado = 'Alta completada';
       supaSync('catAltPendientes', altaReg);
     }

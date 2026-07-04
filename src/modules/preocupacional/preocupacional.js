@@ -17,8 +17,29 @@ export function tabPreocup(tab) {
   renderPreocup();
 }
 
+// ========== FILTROS ==========
+
+export function filtrarPreocup() {
+  const buscar = (($('preocup-buscar') || { value: '' }).value || (($('buscador-global') || { value: '' }).value)).toLowerCase();
+  const zona = ($('preocup-filtro-zona') || { value: '' }).value;
+  const estado = ($('preocup-filtro-estado') || { value: '' }).value;
+
+  renderPreocup((DB.preocupacionales || []).filter(p => !p.anulado).filter(p =>
+    (!buscar || (p.nombre || '').toLowerCase().includes(buscar) || (p.dni || '').includes(buscar)) &&
+    (!zona || p.zona === zona) &&
+    (!estado || p.estado === estado)
+  ));
+}
+
+export function poblarFiltrosColumnasPreocup() {
+  const el = $('preocup-filtro-zona');
+  if (!el) return;
+  const ph = el.options[0]?.outerHTML || '<option value="">Todas las zonas</option>';
+  el.innerHTML = ph + [...new Set(DB.zonas)].filter(Boolean).map(z => `<option>${z}</option>`).join('');
+}
+
 // Render del listado de pre-ocupacionales (pestañas activos/histórico + indicadores)
-export function renderPreocup() {
+export function renderPreocup(listaFiltrada) {
   const tbody = $('tbody-preocup');
   if (!tbody) return;
   const todos = (DB.preocupacionales || []).filter(p => !p.anulado);
@@ -31,7 +52,8 @@ export function renderPreocup() {
   ss('st-pr-aprobados', todos.filter(p => p.estado === 'Aprobado').length);
   ss('st-pr-rechazados', todos.filter(p => p.estado === 'Rechazado').length);
 
-  const lista = _preocupTab === 'historico' ? historico : activos;
+  // Si recibe lista filtrada, usarla; si no, usar tab activo
+  const lista = listaFiltrada || (_preocupTab === 'historico' ? historico : activos);
   if (lista.length === 0) {
     tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:24px;color:#94a3b8;">'
       + (_preocupTab === 'historico' ? 'Sin registros en histórico' : 'Sin candidatos en proceso')
@@ -159,10 +181,18 @@ export function abrirGestionPreocup(id) {
 }
 
 // Guardar el pre-ocupacional (lee campos, valida, persiste por id)
-export function guardarPreocup() {
+export async function guardarPreocup() {
   const id = parseInt($('preocup-gest-id').value);
   const p = getPreocupById(id);
   if (!p) return;
+  // El apto médico (o la constancia de NO APTO) es obligatorio desde el
+  // comienzo, no solo al aprobar — sin archivo cargado no se puede ni
+  // guardar el registro.
+  const adjuntos = await listarAdjuntos({ dni: p.dni, etapa: 'preocupacional' });
+  if (!adjuntos.length) {
+    toast('⚠️ Adjuntá el apto médico antes de guardar');
+    return;
+  }
   const resultado = ($('pr-resultado') || {}).value || 'Pendiente';
   // Motivo obligatorio si el resultado es NO APTO
   if (resultado === 'NO APTO') {
@@ -272,8 +302,8 @@ function tipoEsperadoPreocup(res) {
 // Texto del label dinámico de la caja de adjuntos.
 function labelTextPreocup(res) {
   if (['APTO', 'APTO B', 'APTO C'].includes(res)) return '🏥 Apto médico (obligatorio para aprobar)';
-  if (res === 'NO APTO') return '📄 Constancia NO APTO (opcional)';
-  return '🏥 Apto médico (opcional)';
+  if (res === 'NO APTO') return '📄 Constancia NO APTO (obligatorio)';
+  return '🏥 Apto médico (obligatorio)';
 }
 
 // Actualiza el label dinámico y muestra el aviso visual si el archivo

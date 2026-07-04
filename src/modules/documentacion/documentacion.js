@@ -17,8 +17,29 @@ export function tabDocum(tab) {
   renderDocum();
 }
 
+// ========== FILTROS ==========
+
+export function filtrarDocum() {
+  const buscar = (($('docum-buscar') || { value: '' }).value || (($('buscador-global') || { value: '' }).value)).toLowerCase();
+  const zona = ($('docum-filtro-zona') || { value: '' }).value;
+  const estado = ($('docum-filtro-estado') || { value: '' }).value;
+
+  renderDocum((DB.documentacionIngreso || []).filter(d => !d.anulado).filter(d =>
+    (!buscar || (d.nombre || '').toLowerCase().includes(buscar) || (d.dni || '').includes(buscar)) &&
+    (!zona || d.zona === zona) &&
+    (!estado || d.estado === estado)
+  ));
+}
+
+export function poblarFiltrosColumnasDocum() {
+  const el = $('docum-filtro-zona');
+  if (!el) return;
+  const ph = el.options[0]?.outerHTML || '<option value="">Todas las zonas</option>';
+  el.innerHTML = ph + [...new Set(DB.zonas)].filter(Boolean).map(z => `<option>${z}</option>`).join('');
+}
+
 // Render del listado de documentación (pestañas activos/histórico + indicadores)
-export function renderDocum() {
+export function renderDocum(listaFiltrada) {
   const tbody = $('tbody-docum');
   if (!tbody) return;
   const todos = (DB.documentacionIngreso || []).filter(d => !d.anulado);
@@ -31,7 +52,8 @@ export function renderDocum() {
   ss('st-dc-aprobados', todos.filter(d => d.estado === 'Aprobado').length);
   ss('st-dc-rechazados', todos.filter(d => d.estado === 'Rechazado').length);
 
-  const lista = _documTab === 'historico' ? historico : activos;
+  // Si recibe lista filtrada, usarla; si no, usar tab activo
+  const lista = listaFiltrada || (_documTab === 'historico' ? historico : activos);
   if (lista.length === 0) {
     tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:24px;color:#94a3b8;">'
       + (_documTab === 'historico' ? 'Sin registros en histórico' : 'Sin candidatos en proceso')
@@ -507,11 +529,12 @@ export function revertirDocum(id) {
     return;
   }
 
-  // 2. Confirmación obligatoria, texto según aprobación o rechazo
+  // 2. Confirmación obligatoria, texto según aprobación o rechazo — aclara
+  //    que revierte las 3 etapas (Psicotécnico, Pre-ocupacional y esta) juntas.
   const eraRechazo = d.estado === 'Rechazado';
   const msg = eraRechazo
-    ? '¿Querés revertir el rechazo de ' + d.nombre + '?\n\nVa a volver a "En proceso" y el candidato dejará de estar marcado como "Rechazado".'
-    : '¿Querés revertir la aprobación de ' + d.nombre + '?\n\nVa a volver a "En proceso". Si ya había un alta pendiente, se anulará.';
+    ? '¿Querés revertir el rechazo de ' + d.nombre + '?\n\nEsto revierte Psicotécnico, Pre-ocupacional y Documentación juntos — las 3 etapas van a volver a "En proceso" y se van a poder modificar de nuevo. El candidato dejará de estar marcado como "Rechazado".'
+    : '¿Querés revertir la aprobación de ' + d.nombre + '?\n\nEsto revierte Psicotécnico, Pre-ocupacional y Documentación juntos — las 3 etapas van a volver a "En proceso" y se van a poder modificar de nuevo. Si ya había un alta pendiente, se anulará.';
   if (!confirm(msg)) return;
 
   // 3. Anular alta 'Pendiente de alta' si existe (soft delete)
@@ -542,6 +565,26 @@ export function revertirDocum(id) {
   d.motivo = '';
   supaSync('documentacionIngreso', d);
 
-  toast('↩️ ' + d.nombre + ' volvió a "En proceso".');
+  // 6. Revertir en cascada Pre-ocupacional y Psicotécnico del mismo
+  //    candidato, para poder modificar cualquiera de las 3 etapas de nuevo
+  //    sin tener que entrar a revertirlas una por una en cada pantalla.
+  const preocup = (DB.preocupacionales || []).find(x => d.dni && x.dni === d.dni && !x.anulado);
+  if (preocup) {
+    preocup.estado = 'En proceso';
+    preocup.fechaAprobacion = null;
+    preocup.fechaRechazo = null;
+    preocup.motivo = '';
+    supaSync('preocupacionales', preocup);
+  }
+  const psico = (DB.psicos || []).find(x => d.dni && x.dni === d.dni);
+  if (psico) {
+    psico.estado = 'En proceso';
+    psico.fechaAprobacion = null;
+    psico.fechaRechazo = null;
+    psico.motivoRechazo = '';
+    supaSync('psicos', psico);
+  }
+
+  toast('↩️ ' + d.nombre + ' volvió a "En proceso" en las 3 etapas (Psicotécnico, Pre-ocupacional y Documentación).');
   renderDocum();
 }
