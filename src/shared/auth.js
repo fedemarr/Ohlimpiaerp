@@ -12,6 +12,8 @@ let _callbacks = {
   poblarFiltrosColumnas: () => {},
   verificarAccionesVencidas: () => {},
   cargarDatos: async () => {},
+  iniciarPolling: () => {},
+  detenerPolling: () => {},
 };
 
 export function registerAuthCallbacks(cbs) {
@@ -87,11 +89,14 @@ export async function iniciarSesion(usr) {
     _callbacks.poblarFiltrosColumnas();
     _callbacks.verificarAccionesVencidas();
   }, 300);
+  // El portal asociado no necesita el chequeo de postulaciones nuevas.
+  if (usr.perfil !== 'Asociado') _callbacks.iniciarPolling();
 }
 
 export async function doLogout() {
   await SUPA.auth.signOut();
   setCurrentUser(null);
+  _callbacks.detenerPolling();
   $('app').classList.add('hidden');
   $('login-screen').style.display = 'flex';
   $('login-error').style.display = 'none';

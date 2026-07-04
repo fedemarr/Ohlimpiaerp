@@ -216,3 +216,17 @@ export async function supaInit(DB, toast) {
     toast('⚠️ Modo offline — usando datos locales');
   }
 }
+
+// Chequeo liviano de solo candidatos + turnos — usado para detectar
+// postulaciones nuevas del formulario público sin recargar toda la app.
+export async function fetchCandidatosYTurnos() {
+  const [rCand, rTurnos] = await Promise.all([
+    SUPA.from('candidatos').select('*').order('created_at', { ascending: true }),
+    SUPA.from('turnos').select('*').order('created_at', { ascending: true }),
+  ]);
+  if (rCand.error || rTurnos.error) return null;
+  return {
+    candidatos: (rCand.data || []).map(row => _toCamel(row)),
+    turnos: (rTurnos.data || []).map(row => _toCamel(row)),
+  };
+}

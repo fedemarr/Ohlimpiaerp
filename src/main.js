@@ -4,7 +4,7 @@
 import './styles/main.css';
 
 // ── Shared ──
-import { SUPA, supaInit, supaSync, supaDel } from '@shared/supabase.js';
+import { SUPA, supaInit, supaSync, supaDel, fetchCandidatosYTurnos } from '@shared/supabase.js';
 import { DB, PERFILES, MENU, BADGE_MAP, AREAS, LOCALIDADES_BA } from '@shared/state.js';
 import { $, initials, avatarEl, badge, formatPeriodo, hoyStr, esFeriado, esFinde, getDiasDelMes, calcularDiasEntre, toTitleCase, cleanText, applyTitleCase, validarCampos, fillSelect, fillDL } from '@shared/helpers.js';
 import { toast, abrirModal, cerrarModal, initModalClickOutside, makeTableSortable, activarOrdenamiento, activarOrdenamientoTabla, handleBuscadorKeydown, confirmarModalInputSimple } from '@shared/ui.js';
@@ -12,7 +12,7 @@ import { doLogin, doLogout, loginAsociado, initLoginKeydown, registerAuthCallbac
 import { SCREEN_CONFIG, registerScreens, currentScreen, navTo, topAction, construirMenu, busquedaGlobal, registerNavCallbacks, registerSearchFilters } from '@shared/nav.js';
 
 // ── Módulos migrados ──
-import { candidatosScreenConfig, filtrarCandidatos, poblarFiltrosColumnasCandidatos, renderCandidatos } from './modules/candidatos/index.js';
+import { candidatosScreenConfig, filtrarCandidatos, poblarFiltrosColumnasCandidatos, renderCandidatos, renderCalendario } from './modules/candidatos/index.js';
 import { psicoScreenConfig, filtrarPsico, poblarFiltrosColumnasPsico, renderPsico } from './modules/psicotecnico/index.js';
 import { preocupScreenConfig } from './modules/preocupacional/index.js';
 import { documScreenConfig } from './modules/documentacion/index.js';
@@ -116,6 +116,39 @@ async function loadLegacy() {
 
 // ========== CALLBACKS DE AUTH ==========
 
+// Chequeo periódico de candidatos/turnos nuevos (postulaciones del
+// formulario público) — así no hace falta refrescar la página a mano.
+const INTERVALO_POLLING_MS = 25000;
+let pollingId = null;
+
+async function chequearPostulacionesNuevas() {
+  const datos = await fetchCandidatosYTurnos();
+  if (!datos) return;
+
+  const idsActuales = new Set((DB.candidatos || []).map(c => String(c.id)));
+  const nuevos = datos.candidatos.filter(c => !idsActuales.has(String(c.id)));
+
+  DB.candidatos = datos.candidatos;
+  DB.turnos = datos.turnos;
+
+  if (nuevos.length) {
+    nuevos.forEach(c => {
+      const nombreCompleto = (c.apellido ? c.apellido + ', ' : '') + (c.nombre || '');
+      toast('🆕 Nueva postulación: ' + nombreCompleto);
+    });
+    if (currentScreen === 'candidatos') { renderCandidatos(); renderCalendario(); }
+  }
+}
+
+function iniciarPolling() {
+  if (pollingId) return;
+  pollingId = setInterval(chequearPostulacionesNuevas, INTERVALO_POLLING_MS);
+}
+
+function detenerPolling() {
+  if (pollingId) { clearInterval(pollingId); pollingId = null; }
+}
+
 registerAuthCallbacks({
   construirMenu,
   poblarSelects() {
@@ -130,6 +163,8 @@ registerAuthCallbacks({
   },
   verificarAccionesVencidas() {},
   cargarDatos: () => supaInit(DB, toast),
+  iniciarPolling,
+  detenerPolling,
 });
 
 // ========== CALLBACKS DE NAV ==========
