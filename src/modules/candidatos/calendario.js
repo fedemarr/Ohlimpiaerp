@@ -133,8 +133,10 @@ export function renderCalendario() {
       } else {
         html += '<div class="cal-cell' + (esHoy ? ' hoy' : '') + '" data-action="agendar" data-fecha="' + fechaStr + '" data-hora="' + hora + '" style="cursor:pointer;">';
         turnos.forEach(function (t) {
-          var cls = t.estado === 'Confirmado' ? 'ocupado' : 'libre';
-          html += '<div class="cal-slot ' + cls + '" title="' + t.nombre + ' — ' + t.estado + '" data-action="ver-turno" data-turno-id="' + t.id + '">' + t.nombre.split(' ')[0] + '</div>';
+          // Confirmado = rojo (ocupado), Pendiente (u otro estado vivo) = azul.
+          // El slot realmente libre (sin turno) usa "libre" (verde), más abajo.
+          var cls = t.estado === 'Confirmado' ? 'completo' : 'ocupado';
+          html += '<div class="cal-slot ' + cls + '" title="' + t.nombre + ' — ' + t.estado + '" data-action="ver-turno" data-turno-id="' + t.id + '">' + (t.nombre || '').split(' ')[0] + '</div>';
         });
         if (!lleno) {
           html += '<div class="cal-slot libre" style="opacity:.5;border:1px dashed var(--verde);">+ Libre</div>';
