@@ -476,7 +476,7 @@ export async function analizarAntecedentesIA() {
         + '<div><strong>Fecha del certificado:</strong> ' + (r.fechaEmision || '—') + '</div>'
         + '<div><strong>Confianza:</strong> ' + r.confianza + '</div>'
         + (r.detalles ? '<div style="margin-top:4px;color:#5b21b6;">' + r.detalles + '</div>' : '')
-        + chequearIdentidadIA(r, d.dni)
+        + chequearIdentidadIA(r, d.dni, d.nombre)
         + '<div style="margin-top:8px;display:flex;gap:8px;">'
         + '<button type="button" class="btn btn-sm" style="background:#7c3aed;color:white;" onclick="usarDatosIAAntec()">✓ Usar estos datos</button>'
         + '<button type="button" class="btn btn-secondary btn-sm" onclick="document.getElementById(\'dc-antec-ia-resultado\').style.display=\'none\'">Descartar</button>'

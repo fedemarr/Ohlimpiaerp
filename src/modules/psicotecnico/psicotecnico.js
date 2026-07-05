@@ -287,7 +287,7 @@ export async function analizarInformePsicoIA() {
         + '<div><strong>Resultado:</strong> ' + r.resultado + '</div>'
         + '<div><strong>Confianza:</strong> ' + r.confianza + '</div>'
         + (r.detalles ? '<div style="margin-top:4px;color:#5b21b6;">' + r.detalles + '</div>' : '')
-        + chequearIdentidadIA(r, p.dni)
+        + chequearIdentidadIA(r, p.dni, p.nombre)
         + '<div style="margin-top:8px;display:flex;gap:8px;">'
         + '<button type="button" class="btn btn-sm" style="background:#7c3aed;color:white;" onclick="usarDatosIAInformePsico()">✓ Usar estos datos</button>'
         + '<button type="button" class="btn btn-secondary btn-sm" onclick="document.getElementById(\'pg-ia-resultado\').style.display=\'none\'">Descartar</button>'
