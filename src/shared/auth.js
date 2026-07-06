@@ -83,7 +83,7 @@ export async function iniciarSesion(usr) {
   $('sidebar-rol').textContent = usr.funcion ? `${usr.funcion} — ${usr.perfil}` : usr.perfil;
   _callbacks.construirMenu();
   _callbacks.poblarSelects();
-  _callbacks.navTo('inicio');
+  _callbacks.navTo(usr.perfil === 'DEVELOPER' ? 'dev_inicio' : 'inicio');
   setTimeout(() => {
     activarOrdenamiento();
     _callbacks.poblarFiltrosColumnas();

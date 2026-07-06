@@ -5,7 +5,7 @@ import './styles/main.css';
 
 // ── Shared ──
 import { SUPA, supaInit, supaSync, supaDel, fetchCandidatosYTurnos } from '@shared/supabase.js';
-import { DB, PERFILES, MENU, BADGE_MAP, AREAS, LOCALIDADES_BA } from '@shared/state.js';
+import { DB, PERFILES, MENU, BADGE_MAP, AREAS, LOCALIDADES_BA, currentUser } from '@shared/state.js';
 import { $, initials, avatarEl, badge, formatPeriodo, hoyStr, esFeriado, esFinde, getDiasDelMes, calcularDiasEntre, toTitleCase, cleanText, applyTitleCase, validarCampos, fillSelect, fillDL } from '@shared/helpers.js';
 import { toast, abrirModal, cerrarModal, initModalClickOutside, makeTableSortable, activarOrdenamiento, activarOrdenamientoTabla, handleBuscadorKeydown, confirmarModalInputSimple } from '@shared/ui.js';
 import { doLogin, doLogout, loginAsociado, initLoginKeydown, registerAuthCallbacks, restaurarSesion } from '@shared/auth.js';
@@ -24,6 +24,7 @@ import { capacitacionesScreenConfig, filtrarCapacitaciones } from './modules/cap
 import { uniformesScreenConfig, filtrarUniformes } from './modules/uniformes/index.js';
 import { retencionesScreenConfig, filtrarRetenciones } from './modules/retenciones/index.js';
 import { competenciaScreenConfig, sincronizarReglasCompetencia } from './modules/competencia/index.js';
+import { developerScreenConfig, sincronizarSugerenciasComoTickets } from './modules/developer/index.js';
 import './modules/personal_rrhh/index.js';
 
 // ========== BIND SHARED A WINDOW (PRIMERO) ==========
@@ -57,6 +58,7 @@ registerScreens(capacitacionesScreenConfig);
 registerScreens(uniformesScreenConfig);
 registerScreens(retencionesScreenConfig);
 registerScreens(competenciaScreenConfig);
+registerScreens(developerScreenConfig);
 
 // ========== REGISTRAR FILTROS DE BÚSQUEDA GLOBAL ==========
 
@@ -184,6 +186,9 @@ registerAuthCallbacks({
     // Reshapea DB.reglasCompetencia del array crudo que cargó supaInit()
     // (vía _SM) al objeto singleton que usa el módulo Competencia Anual.
     sincronizarReglasCompetencia();
+    // Perfil exclusivo del desarrollador: convierte sugerencias nuevas en
+    // tickets (nunca duplica — matchea por sugerenciaId).
+    if (currentUser?.perfil === 'DEVELOPER') await sincronizarSugerenciasComoTickets();
   },
   iniciarPolling,
   detenerPolling,

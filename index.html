@@ -3865,6 +3865,61 @@
 </div>
 
 
+<!-- ========== PERFIL DEVELOPER (exclusivo) ========== -->
+
+<div class="screen" id="screen-dev_inicio">
+  <div class="stats-grid">
+    <div class="stat-card rojo"><div class="stat-label">Abiertos</div><div class="stat-valor" id="dev-st-abiertos">0</div><div class="stat-sub">Tickets sin cerrar</div></div>
+    <div class="stat-card acento"><div class="stat-label">Sin respuesta</div><div class="stat-valor" id="dev-st-sinresp">0</div><div class="stat-sub">Necesitan una primera respuesta</div></div>
+    <div class="stat-card azul"><div class="stat-label">En progreso</div><div class="stat-valor" id="dev-st-progreso">0</div><div class="stat-sub">En desarrollo activo</div></div>
+    <div class="stat-card verde"><div class="stat-label">Resueltos</div><div class="stat-valor" id="dev-st-resueltos">0</div><div class="stat-sub">Cerrados o resueltos</div></div>
+  </div>
+  <div class="card">
+    <div class="card-header"><h4 style="margin:0;">🔥 Pendientes urgentes</h4></div>
+    <div id="dev-inicio-pendientes"></div>
+  </div>
+</div>
+
+<div class="screen" id="screen-dev_tickets">
+  <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px;">
+    <select id="dev-filtro-estado" onchange="filtrarDevTickets()" style="padding:8px;border:1px solid #d1d5db;border-radius:6px;">
+      <option value="">Todos los estados</option>
+      <option value="abierto">Abierto</option><option value="en_progreso">En progreso</option>
+      <option value="resuelto">Resuelto</option><option value="cerrado">Cerrado</option>
+    </select>
+    <select id="dev-filtro-tipo" onchange="filtrarDevTickets()" style="padding:8px;border:1px solid #d1d5db;border-radius:6px;">
+      <option value="">Todos los tipos</option>
+      <option value="bug">🐛 Bug</option><option value="sugerencia">💡 Sugerencia</option>
+      <option value="consulta">❓ Consulta</option><option value="otro">📝 Otro</option>
+    </select>
+    <select id="dev-filtro-prioridad" onchange="filtrarDevTickets()" style="padding:8px;border:1px solid #d1d5db;border-radius:6px;">
+      <option value="">Toda prioridad</option>
+      <option value="alta">🔴 Alta</option><option value="media">🟡 Media</option><option value="baja">🔵 Baja</option>
+    </select>
+  </div>
+  <div class="tabla-container">
+    <table>
+      <thead><tr>
+        <th>#</th><th>Tipo</th><th>Título</th><th>Módulo</th><th>Autor</th><th>Fecha</th><th>Prioridad</th><th>Estado</th>
+      </tr></thead>
+      <tbody id="tbody-dev-tickets"></tbody>
+    </table>
+  </div>
+</div>
+
+<div class="screen" id="screen-dev_proyeccion">
+  <div id="dev-roadmap"></div>
+</div>
+
+<div class="screen" id="screen-dev_seguridad">
+  <div id="dev-seguridad-checklist"></div>
+  <div class="card">
+    <div class="card-header"><h4 style="margin:0;">🕓 Actividad reciente</h4></div>
+    <div id="dev-seguridad-actividad"></div>
+  </div>
+</div>
+
+
 <div class="modal-overlay" id="modal-nuevo-suplemento">
   <div class="modal" style="max-width:480px;">
     <div class="modal-header">

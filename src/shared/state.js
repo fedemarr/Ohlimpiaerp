@@ -94,6 +94,9 @@ export const DB = {
   // ver cargarListaUsuarios() en src/shared/auth.js. Ya no vive hardcodeado
   // acá para no mandar contraseñas en texto plano al bundle del cliente.
   usuarios: [],
+  // Tickets del perfil DEVELOPER — se sincronizan desde `sugerencias` la
+  // primera vez que ese perfil inicia sesión (ver developer.js).
+  tickets: [],
 };
 
 // ========== PERFILES Y ACCESOS ==========
@@ -107,6 +110,7 @@ export const PERFILES = {
   'Ventas': { color: 'badge-naranja', modulos: ['inicio', 'clientes', 'objetivos', 'crm', 'reclamos', 'sugerencias'], desc: 'Clientes, objetivos, CRM y reclamos.' },
   'Logística': { color: 'badge-gris', modulos: ['inicio', 'legajos', 'sugerencias'], desc: 'Consulta de legajos.' },
   'Asociado': { color: 'badge-verde', modulos: ['mis_adelantos'], desc: 'Portal del asociado — pedidos de adelanto y préstamo.' },
+  'DEVELOPER': { color: 'badge-azul', modulos: ['dev_inicio', 'dev_tickets', 'dev_proyeccion', 'dev_seguridad'], desc: 'Panel de desarrollo — tickets, roadmap y seguridad.' },
 };
 
 // ========== MENÚ ==========
@@ -171,6 +175,12 @@ export const MENU = [
   { section: 'Próximamente', items: [
     { key: 'stock', icon: '📦', label: 'Stock', disabled: true, perfiles: [] },
     { key: 'maquinas', icon: '🔧', label: 'Máquinas', disabled: true, perfiles: [] },
+  ]},
+  { section: 'Desarrollador', items: [
+    { key: 'dev_inicio', icon: '🏠', label: 'Inicio Dev', perfiles: ['DEVELOPER'] },
+    { key: 'dev_tickets', icon: '🎫', label: 'Tickets', perfiles: ['DEVELOPER'] },
+    { key: 'dev_proyeccion', icon: '🗺️', label: 'Proyección', perfiles: ['DEVELOPER'] },
+    { key: 'dev_seguridad', icon: '🔐', label: 'Seguridad', perfiles: ['DEVELOPER'] },
   ]},
 ];
 

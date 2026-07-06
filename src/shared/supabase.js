@@ -48,6 +48,7 @@ export const _SM = {
   sugerencias: 'sugerencias',
   personalRrhh: 'personal_rrhh',
   adjuntos: 'adjuntos',
+  tickets: 'tickets',
 };
 
 // camelCase → snake_case para guardar en Supabase
@@ -118,6 +119,8 @@ export function _toSnake(obj) {
     borradoPorId: 'borrado_por_id',
     borradoPorNombre: 'borrado_por_nombre',
     borradoEn: 'borrado_en',
+    // Tickets (v026 — perfil DEVELOPER)
+    sugerenciaId: 'sugerencia_id', respuestaDev: 'respuesta_dev', resueltoAt: 'resuelto_at',
   };
   const r = {};
   for (const [k, v] of Object.entries(obj)) {
@@ -204,6 +207,8 @@ export function _toCamel(obj) {
     borrado_por_id: 'borradoPorId',
     borrado_por_nombre: 'borradoPorNombre',
     borrado_en: 'borradoEn',
+    // Tickets (v026 — perfil DEVELOPER)
+    sugerencia_id: 'sugerenciaId', respuesta_dev: 'respuestaDev', resuelto_at: 'resueltoAt',
   };
   const r = {};
   for (const [k, v] of Object.entries(obj)) {
