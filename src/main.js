@@ -21,6 +21,8 @@ import { legajosScreenConfig, filtrarLegajos, renderLegajos } from './modules/le
 import { pedidosScreenConfig, filtrarPedidos } from './modules/pedidos/index.js';
 import { reasignacionesScreenConfig, sincronizarConfigReasignaciones } from './modules/reasignaciones/index.js';
 import { capacitacionesScreenConfig, filtrarCapacitaciones } from './modules/capacitaciones/index.js';
+import { uniformesScreenConfig, filtrarUniformes } from './modules/uniformes/index.js';
+import { retencionesScreenConfig, filtrarRetenciones } from './modules/retenciones/index.js';
 import './modules/personal_rrhh/index.js';
 
 // ========== BIND SHARED A WINDOW (PRIMERO) ==========
@@ -51,6 +53,8 @@ registerScreens(legajosScreenConfig);
 registerScreens(pedidosScreenConfig);
 registerScreens(reasignacionesScreenConfig);
 registerScreens(capacitacionesScreenConfig);
+registerScreens(uniformesScreenConfig);
+registerScreens(retencionesScreenConfig);
 
 // ========== REGISTRAR FILTROS DE BÚSQUEDA GLOBAL ==========
 
@@ -63,6 +67,8 @@ registerSearchFilters({
   legajos: filtrarLegajos,
   pedidos: filtrarPedidos,
   capacitaciones: filtrarCapacitaciones,
+  uniformes: filtrarUniformes,
+  retenciones: filtrarRetenciones,
 });
 
 // ========== LEGACY (import dinámico) ==========
@@ -83,8 +89,8 @@ async function loadLegacy() {
     });
 
     // Registrar pantallas legacy que necesitan btn en topbar
-    // (capacitaciones se saca de acá — ahora la registra el módulo migrado
-    // src/modules/capacitaciones/index.js, más abajo)
+    // (capacitaciones/uniformes/retenciones se sacan de acá — ahora los
+    // registran los módulos migrados, más abajo)
     registerScreens({
       legal: { title: 'Situaciones legales', btn: '+ Nuevo caso', fn: () => abrirModal('modal-legal'), render: () => { if (window.renderLegal) window.renderLegal(); } },
       enfermos: { title: 'Enfermos y accidentes', btn: '+ Nuevo caso', fn: () => abrirModal('modal-enfermo'), render: () => { if (window.renderEnfermos) window.renderEnfermos(); } },
@@ -104,8 +110,6 @@ async function loadLegacy() {
       retenes: { title: 'Retenes', btn: '', fn: null, render: () => { if (window.renderRetenes) window.renderRetenes(); } },
       mantenimiento: { title: 'Mantenimiento', btn: '', fn: null, render: () => { if (window.renderMantenimiento) window.renderMantenimiento(); } },
       monotributos: { title: 'Monotributos', btn: '+ Nuevo monotributista', fn: () => { if (window.abrirModalNuevoMonotributo) window.abrirModalNuevoMonotributo(); }, render: () => { if (window.renderMonotributos) window.renderMonotributos(); } },
-      uniformes: { title: 'Uniformes', btn: '+ Nueva entrega', fn: () => { if (window.abrirModalNuevoUniforme) window.abrirModalNuevoUniforme(); }, render: () => { if (window.renderUniformes) window.renderUniformes(); } },
-      retenciones: { title: 'Retenciones', btn: '+ Nueva retención', fn: () => { if (window.abrirModalNuevaRetencion) window.abrirModalNuevaRetencion(); }, render: () => { if (window.renderRetenciones) window.renderRetenciones(); } },
       sanciones: { title: 'Sanciones', btn: '+ Nueva sanción', fn: () => abrirModal('modal-sancion'), render: () => { if (window.renderSanciones) window.renderSanciones(); } },
       paritarias: { title: 'Paritarias', btn: '', fn: null, render: () => { if (window.renderParitarias) window.renderParitarias(); } },
       liquidaciones: { title: 'Liquidaciones', btn: '', fn: null, render: () => { if (window.renderLiquidaciones) window.renderLiquidaciones(); } },

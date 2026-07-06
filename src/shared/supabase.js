@@ -105,6 +105,7 @@ export function _toSnake(obj) {
     evaluacionIdLocal: 'evaluacion_id_local', preguntaIdLocal: 'pregunta_id_local',
     // Monotributos / Uniformes / Retenciones
     nroSocio: 'nro_socio', fechaAlta: 'fecha_alta', historialCategorias: 'historial_categorias',
+    fechaLiberacion: 'fecha_liberacion',
     // Tabla adjuntos
     nombreArchivo: 'nombre_archivo',
     fechaVencimiento: 'fecha_vencimiento',
@@ -188,6 +189,7 @@ export function _toCamel(obj) {
     evaluacion_id_local: 'evaluacionIdLocal', pregunta_id_local: 'preguntaIdLocal',
     // Monotributos / Uniformes / Retenciones
     nro_socio: 'nroSocio', fecha_alta: 'fechaAlta', historial_categorias: 'historialCategorias',
+    fecha_liberacion: 'fechaLiberacion',
     // Tabla adjuntos
     nombre_archivo: 'nombreArchivo',
     fecha_vencimiento: 'fechaVencimiento',

@@ -2526,7 +2526,6 @@
   <div class="modal" style="max-width:480px;">
     <div class="modal-header"><h3 id="uni-modal-title">Nueva entrega de uniforme</h3><button class="btn-close" onclick="cerrarModal('modal-uniforme')">×</button></div>
     <div class="modal-body">
-      <input type="hidden" id="uni-idx">
       <div class="form-grid gap-12">
         <div class="form-group"><label>Nombre *</label><input type="text" id="uni-nombre" list="dl-uni-nombre" placeholder="Buscar asociado..."><datalist id="dl-uni-nombre"></datalist></div>
         <div class="form-grid form-grid-2">
@@ -2556,7 +2555,6 @@
   <div class="modal" style="max-width:480px;">
     <div class="modal-header"><h3 id="ret2-modal-title">Nueva retención</h3><button class="btn-close" onclick="cerrarModal('modal-retencion')">×</button></div>
     <div class="modal-body">
-      <input type="hidden" id="ret2-idx">
       <div class="form-grid gap-12">
         <div class="form-group"><label>Nombre *</label><input type="text" id="ret2-nombre" list="dl-ret2-nombre" placeholder="Buscar asociado..."><datalist id="dl-ret2-nombre"></datalist></div>
         <div class="form-grid form-grid-2">
@@ -3396,7 +3394,7 @@
   <div class="card" style="margin-top:0;">
     <div class="card-header"><h3>👕 Uniformes y equipamiento</h3>
       <div style="display:flex;gap:8px;align-items:center;">
-        <input type="text" id="uni-buscar" placeholder="Buscar asociado..." oninput="renderUniformes()"
+        <input type="text" id="uni-buscar" placeholder="Buscar asociado..." oninput="filtrarUniformes()"
           style="padding:6px 10px;border:1px solid var(--borde-fuerte);border-radius:var(--radio);font-size:13px;outline:none;width:200px;">
       </div>
     </div>
@@ -3426,7 +3424,7 @@
   </div>
   <div class="card" style="margin-top:0;">
     <div class="card-header"><h3>🔒 Retenciones</h3>
-      <select id="ret2-filtro" onchange="renderRetenciones()" style="padding:6px 10px;border:1px solid var(--borde-fuerte);border-radius:var(--radio);font-size:13px;outline:none;">
+      <select id="ret2-filtro" onchange="filtrarRetenciones()" style="padding:6px 10px;border:1px solid var(--borde-fuerte);border-radius:var(--radio);font-size:13px;outline:none;">
         <option value="">Todos los tipos</option>
         <option value="conflicto">Por conflicto</option>
         <option value="enfermedad">Por enfermedad</option>
