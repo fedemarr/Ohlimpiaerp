@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Evaluación de capacitación — Ohlimpia</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,300&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+</head>
+<body>
+
+<div class="login-screen">
+  <div class="login-card" style="max-width:560px;">
+    <div class="login-logo">
+      <div class="marca">Ohlimpia</div>
+      <div class="sub">Evaluación de capacitación</div>
+    </div>
+
+    <div id="eval-estado" style="text-align:center;padding:20px 0;">Cargando evaluación...</div>
+
+    <form id="form-evaluacion" style="display:none;" autocomplete="off">
+      <div id="eval-cabecera" style="margin-bottom:16px;"></div>
+      <div id="eval-preguntas"></div>
+      <button type="submit" class="btn btn-primary" style="width:100%;justify-content:center;padding:12px;margin-top:10px;">Enviar respuestas</button>
+    </form>
+
+    <div id="eval-resultado" style="display:none;text-align:center;padding:20px 0;"></div>
+  </div>
+</div>
+
+<div id="toast" class="toast"></div>
+
+<script type="module" src="/src/eval-publica.js"></script>
+</body>
+</html>

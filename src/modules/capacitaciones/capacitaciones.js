@@ -39,6 +39,7 @@ export function tabCap(tab, btn) {
   if (tab === 'estadisticas' && window.renderStatsCapacitaciones) { if (window.poblarFiltrosStats) window.poblarFiltrosStats(); window.renderStatsCapacitaciones(); }
   if (tab === 'calendario') { if (window.poblarSelectMesObjetivo) window.poblarSelectMesObjetivo(); if (window.renderCalendarioCap) window.renderCalendarioCap(); }
   if (tab === 'repositorio' && window.renderMaterialesCap) window.renderMaterialesCap();
+  if (tab === 'evaluaciones' && window.tabEval) window.tabEval('banco', document.querySelector('#cap-tab-evaluaciones .eval-subtab-btn'));
 }
 
 // ========== RENDER REGISTRO ==========
@@ -84,6 +85,7 @@ export function renderCapacitaciones(lista) {
     const esProgramada = c.estado === 'Programada';
     let btns = `<button data-action="editar" data-id="${c.id}" style="${btnStyle}background:#e2e8f0;color:#374151;">✏️</button>`;
     btns += `<button data-action="dictar" data-id="${c.id}" style="${btnStyle}background:#7c3aed;color:white;">🎓 ${esProgramada ? 'Dictar' : 'Cargar resultado'}</button>`;
+    if (c.estado === 'Dictada' && c.resultado === 'Pendiente evaluación') btns += `<button data-action="enviar-eval" data-id="${c.id}" style="${btnStyle}background:#0f766e;color:white;">📧 Enviar evaluación</button>`;
     if (esProgramada) btns += `<button data-action="anular" data-id="${c.id}" style="${btnStyle}background:#dc2626;color:white;">❌</button>`;
     const matCount = (c.materialesIds || []).length;
     return '<tr>'
@@ -113,6 +115,7 @@ function bindTbodyCap(tbody) {
     if (action === 'editar') abrirEditarCapacitacionPorId(id);
     else if (action === 'dictar') abrirDictarCapacitacionPorId(id);
     else if (action === 'anular') anularCapacitacionPorId(id);
+    else if (action === 'enviar-eval' && window.enviarEvaluacionPorId) window.enviarEvaluacionPorId(id);
   };
 }
 

@@ -1131,14 +1131,65 @@
     </div>
   </div>
 
-  <!-- TAB EVALUACIONES — se construye entero en la Etapa 3 (banco de
-       preguntas, plantillas, envío con token, página pública). -->
+  <!-- TAB EVALUACIONES -->
   <div id="cap-tab-evaluaciones" class="tab-content">
-    <div class="card"><div class="card-body" style="text-align:center;padding:48px 20px;color:var(--texto-suave);">
-      <div style="font-size:32px;margin-bottom:10px;">🚧</div>
-      <p><strong>Evaluaciones automáticas se están construyendo.</strong></p>
-      <p style="font-size:13px;">Banco de preguntas, plantillas y envío por link — Etapa 3.</p>
-    </div></div>
+    <div class="tabs" style="background:white;border-radius:var(--radio-lg) var(--radio-lg) 0 0;padding:0 20px;box-shadow:var(--sombra);border-bottom:none;">
+      <button class="tab-btn eval-subtab-btn active" onclick="tabEval('banco',this)">❓ Banco de preguntas</button>
+      <button class="tab-btn eval-subtab-btn" onclick="tabEval('plantillas',this)">📋 Plantillas</button>
+      <button class="tab-btn eval-subtab-btn" onclick="tabEval('enviadas',this)">📧 Enviadas</button>
+      <button class="tab-btn eval-subtab-btn" onclick="tabEval('norespondieron',this)">⚠️ No respondieron</button>
+    </div>
+
+    <!-- SUB-TAB BANCO DE PREGUNTAS -->
+    <div id="eval-sub-banco" class="tab-content eval-subtab-content active">
+      <div class="card" style="border-radius:0 var(--radio-lg) var(--radio-lg) var(--radio-lg);">
+        <div class="card-header">
+          <h3>❓ Banco de preguntas</h3>
+          <div class="filtros-bar">
+            <select id="eval-banco-tipo" onchange="cambiarTipoBanco()"></select>
+            <button class="btn btn-primary btn-sm" onclick="abrirNuevaPregunta()">+ Agregar pregunta</button>
+          </div>
+        </div>
+        <div class="card-body"><div id="lista-banco-preguntas"></div></div>
+      </div>
+    </div>
+
+    <!-- SUB-TAB PLANTILLAS -->
+    <div id="eval-sub-plantillas" class="tab-content eval-subtab-content">
+      <div class="card" style="border-radius:0 var(--radio-lg) var(--radio-lg) var(--radio-lg);">
+        <div class="card-header"><h3>📋 Plantillas de evaluación</h3></div>
+        <div class="card-body"><div id="grilla-plantillas" style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px;"></div></div>
+      </div>
+    </div>
+
+    <!-- SUB-TAB ENVIADAS -->
+    <div id="eval-sub-enviadas" class="tab-content eval-subtab-content">
+      <div class="card" style="border-radius:0 var(--radio-lg) var(--radio-lg) var(--radio-lg);">
+        <div class="card-header">
+          <h3>📧 Evaluaciones enviadas</h3>
+          <div class="filtros-bar">
+            <select id="cf-eval-estado" onchange="filtrarEvaluacionesEnviadas()"><option value="">Todos los estados</option><option>Enviada</option><option>Respondida</option><option>Vencida</option></select>
+            <select id="cf-eval-tipo" onchange="filtrarEvaluacionesEnviadas()"><option value="">Todos los tipos</option></select>
+            <select id="cf-eval-anio" onchange="filtrarEvaluacionesEnviadas()"><option value="">Todos los años</option><option>2026</option><option>2025</option></select>
+          </div>
+        </div>
+        <div class="tabla-wrap"><table>
+          <thead><tr><th>Tipo</th><th>Asociado</th><th>Enviada</th><th>Plazo</th><th>Estado</th><th>Puntaje</th><th>Resultado</th><th></th></tr></thead>
+          <tbody id="tbody-eval-enviadas"></tbody>
+        </table></div>
+      </div>
+    </div>
+
+    <!-- SUB-TAB NO RESPONDIERON -->
+    <div id="eval-sub-norespondieron" class="tab-content eval-subtab-content">
+      <div class="card" style="border-radius:0 var(--radio-lg) var(--radio-lg) var(--radio-lg);">
+        <div class="card-header"><h3>⚠️ Asociados que no responden</h3></div>
+        <div class="tabla-wrap"><table>
+          <thead><tr><th>Asociado</th><th>Servicio</th><th>Supervisor</th><th>Enviadas</th><th>Respondidas</th><th>Tasa</th><th>Riesgo</th></tr></thead>
+          <tbody id="tbody-eval-norespondieron"></tbody>
+        </table></div>
+      </div>
+    </div>
   </div>
 
 </div>

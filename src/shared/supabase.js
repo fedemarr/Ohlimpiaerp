@@ -31,6 +31,10 @@ export const _SM = {
   aprobadoresReasCfg: 'aprobadores_reasignacion',
   capacitaciones: 'capacitaciones',
   materialesCapacitacion: 'materiales_capacitacion',
+  preguntasEvaluacion: 'preguntas_evaluacion',
+  plantillasEvaluacion: 'plantillas_evaluacion',
+  evaluacionesEnviadas: 'evaluaciones_enviadas',
+  respuestasEvaluacion: 'respuestas_evaluacion',
   feriados: 'feriados',
   planillasAdelantos: 'planillas_adelantos',
   prestamos: 'prestamos',
@@ -93,6 +97,12 @@ export function _toSnake(obj) {
     materialesIds: 'materiales_ids', coordinadoAsociado: 'coordinado_asociado',
     coordinadoSupervisor: 'coordinado_supervisor', tipoCapacitacion: 'tipo_capacitacion',
     archivoPath: 'archivo_path', requiereEval: 'requiere_eval',
+    // Evaluaciones (v023)
+    opcionA: 'opcion_a', opcionB: 'opcion_b', opcionC: 'opcion_c', opcionD: 'opcion_d',
+    preguntasIds: 'preguntas_ids', notaMinima: 'nota_minima', plazoHoras: 'plazo_horas',
+    capacitacionIdLocal: 'capacitacion_id_local', plantillaIdLocal: 'plantilla_id_local',
+    fechaEnvio: 'fecha_envio', fechaLimite: 'fecha_limite', fechaRespuesta: 'fecha_respuesta',
+    evaluacionIdLocal: 'evaluacion_id_local', preguntaIdLocal: 'pregunta_id_local',
     // Monotributos / Uniformes / Retenciones
     nroSocio: 'nro_socio', fechaAlta: 'fecha_alta', historialCategorias: 'historial_categorias',
     // Tabla adjuntos
@@ -170,6 +180,12 @@ export function _toCamel(obj) {
     coordinado_supervisor: 'coordinadoSupervisor', tipo_capacitacion: 'tipoCapacitacion',
     archivo_path: 'archivoPath', requiere_eval: 'requiereEval',
     id_local: 'id_local', created_at: 'created_at', updated_at: 'updated_at',
+    // Evaluaciones (v023)
+    opcion_a: 'opcionA', opcion_b: 'opcionB', opcion_c: 'opcionC', opcion_d: 'opcionD',
+    preguntas_ids: 'preguntasIds', nota_minima: 'notaMinima', plazo_horas: 'plazoHoras',
+    capacitacion_id_local: 'capacitacionIdLocal', plantilla_id_local: 'plantillaIdLocal',
+    fecha_envio: 'fechaEnvio', fecha_limite: 'fechaLimite', fecha_respuesta: 'fechaRespuesta',
+    evaluacion_id_local: 'evaluacionIdLocal', pregunta_id_local: 'preguntaIdLocal',
     // Monotributos / Uniformes / Retenciones
     nro_socio: 'nroSocio', fecha_alta: 'fechaAlta', historial_categorias: 'historialCategorias',
     // Tabla adjuntos

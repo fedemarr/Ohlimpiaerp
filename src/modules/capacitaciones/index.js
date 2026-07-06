@@ -26,6 +26,16 @@ export {
   generarPlanMensual, confirmarPlanMensual, coordinarWhatsappCap,
 } from './calendario.js';
 
+export {
+  tabEval,
+  poblarSelectBancoTipo, cambiarTipoBanco, renderBancoPreguntas,
+  abrirNuevaPregunta, abrirEditarPreguntaPorId, guardarPregunta, eliminarPreguntaPorId,
+  renderPlantillas, abrirEditarPlantillaPorId, guardarPlantilla,
+  chequearVencidas, renderEvaluacionesEnviadas, filtrarEvaluacionesEnviadas,
+  verDetalleEvaluacionPorId, reenviarEvaluacionPorId, anularEvaluacionPorId,
+  renderNoRespondieron, enviarEvaluacionPorId, copiarLinkEvaluacion,
+} from './evaluaciones.js';
+
 // ========== SCREEN CONFIG ==========
 
 import { tabCap, poblarSelectsCapacitaciones, abrirNuevaCapacitacion } from './capacitaciones.js';
@@ -65,6 +75,16 @@ import {
   generarPlanMensual, confirmarPlanMensual, coordinarWhatsappCap,
 } from './calendario.js';
 
+import {
+  tabEval,
+  poblarSelectBancoTipo, cambiarTipoBanco, renderBancoPreguntas,
+  abrirNuevaPregunta, abrirEditarPreguntaPorId, guardarPregunta, eliminarPreguntaPorId,
+  renderPlantillas, abrirEditarPlantillaPorId, guardarPlantilla,
+  chequearVencidas, renderEvaluacionesEnviadas, filtrarEvaluacionesEnviadas,
+  verDetalleEvaluacionPorId, reenviarEvaluacionPorId, anularEvaluacionPorId,
+  renderNoRespondieron, enviarEvaluacionPorId, copiarLinkEvaluacion,
+} from './evaluaciones.js';
+
 window.tabCap = tabCap;
 window.renderCapacitaciones = renderCapacitaciones;
 window.filtrarCapacitaciones = filtrarCapacitaciones;
@@ -102,3 +122,24 @@ window.poblarSelectMesObjetivo = poblarSelectMesObjetivo;
 window.generarPlanMensual = generarPlanMensual;
 window.confirmarPlanMensual = confirmarPlanMensual;
 window.coordinarWhatsappCap = coordinarWhatsappCap;
+
+window.tabEval = tabEval;
+window.poblarSelectBancoTipo = poblarSelectBancoTipo;
+window.cambiarTipoBanco = cambiarTipoBanco;
+window.renderBancoPreguntas = renderBancoPreguntas;
+window.abrirNuevaPregunta = abrirNuevaPregunta;
+window.abrirEditarPreguntaPorId = abrirEditarPreguntaPorId;
+window.guardarPregunta = guardarPregunta;
+window.eliminarPreguntaPorId = eliminarPreguntaPorId;
+window.renderPlantillas = renderPlantillas;
+window.abrirEditarPlantillaPorId = abrirEditarPlantillaPorId;
+window.guardarPlantilla = guardarPlantilla;
+window.chequearVencidas = chequearVencidas;
+window.renderEvaluacionesEnviadas = renderEvaluacionesEnviadas;
+window.filtrarEvaluacionesEnviadas = filtrarEvaluacionesEnviadas;
+window.verDetalleEvaluacionPorId = verDetalleEvaluacionPorId;
+window.reenviarEvaluacionPorId = reenviarEvaluacionPorId;
+window.anularEvaluacionPorId = anularEvaluacionPorId;
+window.renderNoRespondieron = renderNoRespondieron;
+window.enviarEvaluacionPorId = enviarEvaluacionPorId;
+window.copiarLinkEvaluacion = copiarLinkEvaluacion;
