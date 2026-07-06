@@ -36,6 +36,8 @@ export function tabCap(tab, btn) {
   if (content) content.classList.add('active');
   if (btn) btn.classList.add('active');
   if (tab === 'registro') renderCapacitaciones();
+  if (tab === 'estadisticas' && window.renderStatsCapacitaciones) { if (window.poblarFiltrosStats) window.poblarFiltrosStats(); window.renderStatsCapacitaciones(); }
+  if (tab === 'calendario') { if (window.poblarSelectMesObjetivo) window.poblarSelectMesObjetivo(); if (window.renderCalendarioCap) window.renderCalendarioCap(); }
   if (tab === 'repositorio' && window.renderMaterialesCap) window.renderMaterialesCap();
 }
 
@@ -58,9 +60,18 @@ export function renderCapacitaciones(lista) {
     activas.filter(c => c.estado === 'Dictada' && c.resultado === 'Aprobado' && c.fecha && c.fecha.startsWith(String(anioActual))).map(c => c.nroSocio)
   );
   ss('st-cap-anio', capacitadosEsteAnio.size);
-  ss('st-cap-pend', rows.length);
+
+  // st-cap-pend / st-cap-sin: se calculan sobre activos, no sobre las
+  // filas del Registro (antes st-cap-pend mostraba rows.length, sin
+  // relación con su label "Pendientes de ingreso" — bug de Etapa 1
+  // corregido en Etapa 2 al construir el tab Estadísticas).
+  const activosLegajos = (DB.legajos || []).filter(l => l.estado === 'Activo');
+  const tiposIngreso = (DB.tiposCapacitacion || []).slice(0, 3);
+  const aprobado = (nroSocio, tipo) => activas.some(c => String(c.nroSocio) === String(nroSocio) && c.tipo === tipo && c.estado === 'Dictada' && c.resultado === 'Aprobado');
+  const sinIngresoCompleto = activosLegajos.filter(l => !tiposIngreso.every(t => aprobado(l.nro, t))).length;
+  ss('st-cap-pend', sinIngresoCompleto);
   const asocConAlguna = new Set(activas.filter(c => c.estado === 'Dictada' && c.resultado === 'Aprobado').map(c => c.nroSocio));
-  const sinNinguna = (DB.legajos || []).filter(l => l.estado === 'Activo' && !asocConAlguna.has(String(l.nro))).length;
+  const sinNinguna = activosLegajos.filter(l => !asocConAlguna.has(String(l.nro))).length;
   ss('st-cap-sin', sinNinguna);
 
   if (!rows.length) {
@@ -167,9 +178,9 @@ export function autocompletarCap() {
 
 // ========== AGENDAR / EDITAR ==========
 
-export function abrirNuevaCapacitacion() {
+export function abrirNuevaCapacitacion(fechaISO) {
   ['cap-asociado', 'cap-nro-socio', 'cap-servicio', 'cap-obs'].forEach(id => { const el = $(id); if (el) el.value = ''; });
-  const fechaEl = $('cap-fecha'); if (fechaEl) { fechaEl.value = ''; fechaEl.min = hoyISO(); }
+  const fechaEl = $('cap-fecha'); if (fechaEl) { fechaEl.value = fechaISO || ''; fechaEl.min = hoyISO(); }
   ['cap-tipo', 'cap-lugar', 'cap-instructor', 'cap-metodo'].forEach(id => { const el = $(id); if (el) el.selectedIndex = 0; });
   const asocEl = $('cap-asociado'); if (asocEl) asocEl.readOnly = false;
   const modal = $('modal-capacitacion'); if (modal) delete modal.dataset.editId;

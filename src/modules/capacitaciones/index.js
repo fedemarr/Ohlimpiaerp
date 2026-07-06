@@ -17,6 +17,15 @@ export {
   guardarMaterial, eliminarMaterialPorId, abrirMaterialPorId,
 } from './materiales.js';
 
+export {
+  poblarFiltrosStats, filtrarStats, renderStatsCapacitaciones, exportarStatsCsv,
+} from './stats.js';
+
+export {
+  cambiarMesCap, renderCalendarioCap, toggleGeneradorPlan, poblarSelectMesObjetivo,
+  generarPlanMensual, confirmarPlanMensual, coordinarWhatsappCap,
+} from './calendario.js';
+
 // ========== SCREEN CONFIG ==========
 
 import { tabCap, poblarSelectsCapacitaciones, abrirNuevaCapacitacion } from './capacitaciones.js';
@@ -47,6 +56,15 @@ import {
   guardarMaterial, eliminarMaterialPorId, abrirMaterialPorId,
 } from './materiales.js';
 
+import {
+  poblarFiltrosStats, filtrarStats, renderStatsCapacitaciones, exportarStatsCsv,
+} from './stats.js';
+
+import {
+  cambiarMesCap, renderCalendarioCap, toggleGeneradorPlan, poblarSelectMesObjetivo,
+  generarPlanMensual, confirmarPlanMensual, coordinarWhatsappCap,
+} from './calendario.js';
+
 window.tabCap = tabCap;
 window.renderCapacitaciones = renderCapacitaciones;
 window.filtrarCapacitaciones = filtrarCapacitaciones;
@@ -71,3 +89,16 @@ window.abrirEditarMaterialPorId = abrirEditarMaterialPorId;
 window.guardarMaterial = guardarMaterial;
 window.eliminarMaterialPorId = eliminarMaterialPorId;
 window.abrirMaterialPorId = abrirMaterialPorId;
+
+window.poblarFiltrosStats = poblarFiltrosStats;
+window.filtrarStats = filtrarStats;
+window.renderStatsCapacitaciones = renderStatsCapacitaciones;
+window.exportarStatsCsv = exportarStatsCsv;
+
+window.cambiarMesCap = cambiarMesCap;
+window.renderCalendarioCap = renderCalendarioCap;
+window.toggleGeneradorPlan = toggleGeneradorPlan;
+window.poblarSelectMesObjetivo = poblarSelectMesObjetivo;
+window.generarPlanMensual = generarPlanMensual;
+window.confirmarPlanMensual = confirmarPlanMensual;
+window.coordinarWhatsappCap = coordinarWhatsappCap;

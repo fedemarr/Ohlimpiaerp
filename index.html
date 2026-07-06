@@ -983,7 +983,7 @@
   <div class="tabs" style="background:white;border-radius:var(--radio-lg) var(--radio-lg) 0 0;padding:0 20px;box-shadow:var(--sombra);border-bottom:none;">
     <button class="tab-btn active" onclick="tabCap('registro',this)">📋 Registro</button>
     <button class="tab-btn" onclick="tabCap('estadisticas',this)">📊 Estadísticas</button>
-    <button class="tab-btn" onclick="tabCap('plan',this)">🗓️ Plan anual</button>
+    <button class="tab-btn" onclick="tabCap('calendario',this)">🗓️ Calendario</button>
     <button class="tab-btn" onclick="tabCap('repositorio',this)">📁 Repositorio</button>
     <button class="tab-btn" onclick="tabCap('evaluaciones',this)">📝 Evaluaciones</button>
   </div>
@@ -1018,24 +1018,99 @@
     </div>
   </div>
 
-  <!-- TAB ESTADÍSTICAS — se rediseña en la Etapa 2, se deja el tab pero sin
-       datos rotos por el cambio de schema (el código viejo de legacy.js
-       queda intacto de referencia, solo no se llama desde acá). -->
+  <!-- TAB ESTADÍSTICAS -->
   <div id="cap-tab-estadisticas" class="tab-content">
-    <div class="card"><div class="card-body" style="text-align:center;padding:48px 20px;color:var(--texto-suave);">
-      <div style="font-size:32px;margin-bottom:10px;">🚧</div>
-      <p><strong>Estadísticas se está rediseñando.</strong></p>
-      <p style="font-size:13px;">Vuelve en una próxima etapa, junto con el calendario y el generador de plan mensual.</p>
-    </div></div>
+    <div class="card" style="border-radius:0 var(--radio-lg) var(--radio-lg) var(--radio-lg);">
+      <div class="card-header">
+        <h3>📊 Estadísticas de capacitación</h3>
+        <div class="filtros-bar">
+          <select id="cf-stats-tipo" onchange="filtrarStats()"><option value="">Todos los tipos</option></select>
+          <select id="cf-stats-serv" onchange="filtrarStats()"><option value="">Todos los servicios</option></select>
+          <select id="cf-stats-sup" onchange="filtrarStats()"><option value="">Todos los supervisores</option></select>
+          <button class="btn btn-secondary btn-sm" onclick="exportarStatsCsv()">📥 Exportar a CSV</button>
+          <button class="btn btn-ghost btn-sm" onclick="analizarCapacitacionesIA()">🤖 Análisis IA</button>
+        </div>
+      </div>
+      <div class="card-body">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-bottom:20px;">
+          <div>
+            <h4 style="font-size:13px;margin-bottom:12px;color:var(--texto-suave);">Cobertura por tipo de capacitación</h4>
+            <div id="stats-cobertura-tipo"></div>
+          </div>
+          <div>
+            <h4 style="font-size:13px;margin-bottom:12px;color:var(--texto-suave);">Cobertura por servicio (top 8)</h4>
+            <div id="stats-cobertura-servicio"></div>
+          </div>
+        </div>
+        <div style="margin-bottom:20px;">
+          <h4 style="font-size:13px;margin-bottom:12px;color:var(--texto-suave);">Cobertura por supervisor</h4>
+          <div id="stats-cobertura-supervisor" style="display:grid;grid-template-columns:1fr 1fr;gap:0 24px;"></div>
+        </div>
+        <h4 style="font-size:13px;margin-bottom:12px;color:var(--texto-suave);">Asociados con capacitaciones pendientes</h4>
+        <div class="tabla-wrap"><table>
+          <thead><tr>
+            <th>Asociado</th><th>N° Socio</th><th>Servicio</th><th>Supervisor</th>
+            <th>Realizadas</th><th>Pendientes</th><th>Antigüedad</th><th>Riesgo</th>
+          </tr></thead>
+          <tbody id="tbody-stats-pendientes"></tbody>
+        </table></div>
+      </div>
+    </div>
   </div>
 
-  <!-- TAB CALENDARIO / PLAN — ídem, Etapa 2 -->
-  <div id="cap-tab-plan" class="tab-content">
-    <div class="card"><div class="card-body" style="text-align:center;padding:48px 20px;color:var(--texto-suave);">
-      <div style="font-size:32px;margin-bottom:10px;">🚧</div>
-      <p><strong>Calendario y plan mensual se están rediseñando.</strong></p>
-      <p style="font-size:13px;">Vuelven en una próxima etapa.</p>
-    </div></div>
+  <!-- TAB CALENDARIO -->
+  <div id="cap-tab-calendario" class="tab-content">
+    <div class="card" style="border-radius:0 var(--radio-lg) var(--radio-lg) var(--radio-lg);">
+      <div class="card-header">
+        <h3>🗓️ Calendario de capacitaciones</h3>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <button class="btn btn-secondary btn-sm" onclick="cambiarMesCap(-1)">← Anterior</button>
+          <span id="mes-cap-label" style="font-size:13px;font-weight:500;min-width:140px;text-align:center;"></span>
+          <button class="btn btn-secondary btn-sm" onclick="cambiarMesCap(1)">Siguiente →</button>
+        </div>
+      </div>
+      <div class="card-body">
+        <div style="margin-bottom:14px;">
+          <button class="btn btn-ghost btn-sm" onclick="toggleGeneradorPlan()">⚙️ Configuración del generador mensual</button>
+          <div id="cap-generador-config" style="display:none;margin-top:10px;padding:14px;background:var(--fondo);border-radius:var(--radio);">
+            <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:12px;">
+              <div>
+                <label style="font-size:11px;color:var(--texto-suave);">Mes objetivo</label>
+                <select id="cap-plan-mes" style="width:100%;"></select>
+              </div>
+              <div>
+                <label style="font-size:11px;color:var(--texto-suave);">Prioridad</label>
+                <select id="cap-plan-prioridad" style="width:100%;">
+                  <option value="igual">Cubrir a todos por igual</option>
+                  <option value="ingresos">Cubrir primero ingresos nuevos</option>
+                  <option value="ninguna">Cubrir primero los que no tienen ninguna</option>
+                </select>
+              </div>
+              <div>
+                <label style="font-size:11px;color:var(--texto-suave);">Máximo por semana</label>
+                <select id="cap-plan-max" style="width:100%;">
+                  <option value="1">1</option><option value="2" selected>2</option><option value="3">3</option><option value="5">5</option>
+                </select>
+              </div>
+              <div>
+                <label style="font-size:11px;color:var(--texto-suave);">Modalidades habilitadas</label>
+                <div style="display:flex;flex-direction:column;gap:2px;font-size:12px;">
+                  <label><input type="checkbox" id="cap-plan-mod-servicio" checked> Servicio</label>
+                  <label><input type="checkbox" id="cap-plan-mod-oficina" checked> Oficina Central</label>
+                  <label><input type="checkbox" id="cap-plan-mod-virtual" checked> Virtual</label>
+                  <label><input type="checkbox" id="cap-plan-mod-externo" checked> Externo</label>
+                </div>
+              </div>
+            </div>
+            <div style="display:flex;gap:8px;">
+              <button class="btn btn-primary btn-sm" onclick="generarPlanMensual()">🤖 Generar plan mensual</button>
+              <button class="btn btn-secondary btn-sm" onclick="coordinarWhatsappCap()">📱 Coordinar por WhatsApp</button>
+            </div>
+          </div>
+        </div>
+        <div id="calendario-cap"></div>
+      </div>
+    </div>
   </div>
 
   <!-- TAB REPOSITORIO -->

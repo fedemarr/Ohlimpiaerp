@@ -12875,7 +12875,6 @@ window.renderSMVM = renderSMVM;
 window.renderSanciones = renderSanciones;
 window.renderSolicitudesPrestamos = renderSolicitudesPrestamos;
 window.renderStatsCRM = renderStatsCRM;
-window.renderStatsCapacitaciones = renderStatsCapacitaciones;
 window.renderStatsReclamos = renderStatsReclamos;
 window.renderTablaEquipos = renderTablaEquipos;
 window.renderTablaIndividual = renderTablaIndividual;
