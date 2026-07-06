@@ -12040,25 +12040,6 @@ function confirmarSolicitudAsociado(){
   renderMisAdelantos();
 }
 
-// Agregar loginDemo para Asociado
-const _loginDemoOriginal = loginDemo;
-loginDemo = function(perfil){
-  if(perfil==='asociado'){
-    // Login con el primer asociado activo como demo
-    const legajo = (DB.legajos||[]).find(l=>l.estado==='Activo'&&l.nro>=100);
-    if(!legajo) return;
-    const usrAsoc = {
-      id:9000+legajo.nro, nombre:legajo.nombre, email:'',
-      perfil:'Asociado', funcion:legajo.funcion,
-      nroSocio:legajo.nro, servicio:legajo.servicio,
-      supervisor:legajo.supervisor, activo:true,
-      nickname:legajo.nombre.split(' ')[0],
-    };
-    iniciarSesion(usrAsoc);
-    return;
-  }
-  _loginDemoOriginal(perfil);
-};
 
 
 
