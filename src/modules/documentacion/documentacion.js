@@ -171,7 +171,8 @@ const getDocumById = (id) => (DB.documentacionIngreso || []).find(d => String(d.
 
 // Calcular estado visual del vencimiento de antecedentes (verde/amarillo/rojo)
 // Devuelve null si no hay fecha; si no, { color, bg, texto } para pintar un badge.
-function calcularEstadoVencimiento(fechaVencYMD) {
+// Se exporta porque Legajos también la usa para mostrar el vencimiento en la fila.
+export function calcularEstadoVencimiento(fechaVencYMD) {
   if (!fechaVencYMD) return null;
   const venc = new Date(fechaVencYMD + 'T00:00:00');
   if (isNaN(venc.getTime())) return null;

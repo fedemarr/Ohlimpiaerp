@@ -58,6 +58,7 @@ function bindTbodyEvents(tbody) {
     else if (action === 'rechazar') rechazarCandidatoPorId(id);
     else if (action === 'psico') pasarAPsicoPorId(id);
     else if (action === 'editar') editarCandidatoPorId(id);
+    else if (action === 'ver-detalle') abrirDetalleCandidatoPorId(id);
   };
   tbody.onchange = function (e) {
     const sel = e.target.closest('select[data-action="asistencia"]');
@@ -130,10 +131,10 @@ function renderFilaCand(c) {
   const nombreCompleto = (c.apellido || '') + (c.apellido && c.nombre ? ', ' : '') + (c.nombre || '');
   const fechaDisplay = formatearFechaISO(c.fechaCita);
   const estadoDisplay = ESTADO_DISPLAY[c.estado] || c.estado;
-  let btns = '';
+  const btnStyle = 'font-size:11px;padding:3px 8px;border:none;border-radius:4px;cursor:pointer;margin-right:2px;';
+  let btns = '<button data-action="ver-detalle" data-id="' + cid + '" style="' + btnStyle + 'background:#e0e7ff;color:#3730a3;">👁️ Ver</button>';
 
   if (_candTab === 'activos') {
-    const btnStyle = 'font-size:11px;padding:3px 8px;border:none;border-radius:4px;cursor:pointer;margin-right:2px;';
     if (c.estado === 'Sin citar')
       btns += '<button data-action="citar" data-id="' + cid + '" style="' + btnStyle + 'background:#2563eb;color:white;">📅 Citar</button>';
     else if (c.estado === 'Citado')
@@ -387,6 +388,54 @@ function editarCandidato(id) {
 
 export function editarCandidatoPorId(id) {
   editarCandidato(id);
+}
+
+// ========== VER DETALLE (solo lectura) ==========
+// Muestra todos los datos cargados (CUIT, fecha nac., género, email,
+// domicilio, etc.) sin tener que abrir "Editar" — esos campos ya se
+// guardan bien (vienen del formulario público o de carga manual), pero
+// antes no se veían en ningún lado de la pantalla de Candidatos.
+
+function crearHTMLModalVerCandidato() {
+  return [
+    '<div class="modal" style="max-width:640px;">',
+      '<div class="modal-header"><h3 id="ver-cand-titulo">Candidato</h3><button class="btn-close" onclick="cerrarModal(\'modal-ver-candidato\')">×</button></div>',
+      '<div class="modal-body"><div id="ver-cand-body" class="info-grid"></div></div>',
+      '<div class="modal-footer"><button class="btn btn-secondary" onclick="cerrarModal(\'modal-ver-candidato\')">Cerrar</button></div>',
+    '</div>',
+  ].join('');
+}
+
+export function abrirDetalleCandidatoPorId(id) {
+  const c = getCandById(id);
+  if (!c) { toast('⚠️ Candidato no encontrado'); return; }
+  if (!$('modal-ver-candidato')) {
+    const m = document.createElement('div');
+    m.className = 'modal-overlay';
+    m.id = 'modal-ver-candidato';
+    m.innerHTML = crearHTMLModalVerCandidato();
+    document.body.appendChild(m);
+  }
+  const nombreCompleto = (c.apellido ? c.apellido + ', ' : '') + (c.nombre || '');
+  $('ver-cand-titulo').textContent = nombreCompleto;
+  const item = (key, val) => '<div class="info-item"><div class="key">' + key + '</div><div class="val">' + (val || '—') + '</div></div>';
+  $('ver-cand-body').innerHTML =
+    item('DNI', c.dni) +
+    item('CUIT', c.cuit) +
+    item('Fecha de nacimiento', formatearFechaISO(c.fecNac)) +
+    item('Estado civil', c.estadoCivil) +
+    item('Género', c.genero) +
+    item('Nacionalidad', c.nacionalidad) +
+    item('Teléfono', c.tel) +
+    item('Email', c.email) +
+    item('Domicilio', ((c.calle || '') + (c.piso ? ' ' + c.piso : '')).trim()) +
+    item('Provincia', c.zona) +
+    item('Localidad', c.localidad) +
+    item('Medio de contacto', c.medio) +
+    item('Referido por', c.nombreReferido) +
+    item('Estado', ESTADO_DISPLAY[c.estado] || c.estado) +
+    item('Observaciones', c.obs);
+  abrirModal('modal-ver-candidato');
 }
 
 // ========== CITAS ==========

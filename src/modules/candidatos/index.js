@@ -9,6 +9,7 @@ export {
   aprobarCandidatoPorId, rechazarCandidatoPorId, pasarAPsicoPorId,
   registrarAsistencia,
   getCandById, getIdxById,
+  abrirDetalleCandidatoPorId,
 } from './candidatos.js';
 
 export {
@@ -68,6 +69,7 @@ import {
   abrirResultadoPorId, guardarResultadoEntrevista,
   aprobarCandidatoPorId, rechazarCandidatoPorId, pasarAPsicoPorId,
   registrarAsistencia,
+  abrirDetalleCandidatoPorId,
 } from './candidatos.js';
 
 import {
@@ -96,6 +98,7 @@ window.aprobarCandidatoPorId = aprobarCandidatoPorId;
 window.rechazarCandidatoPorId = rechazarCandidatoPorId;
 window.pasarAPsicoPorId = pasarAPsicoPorId;
 window.registrarAsistencia = registrarAsistencia;
+window.abrirDetalleCandidatoPorId = abrirDetalleCandidatoPorId;
 
 // Calendario de entrevistas
 window.renderCalendario = renderCalendario;

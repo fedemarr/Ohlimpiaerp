@@ -3,6 +3,15 @@ import { $, avatarEl, badge, fillSelect } from '@shared/helpers.js';
 import { toast, abrirModal, cerrarModal } from '@shared/ui.js';
 import { supaSync } from '@shared/supabase.js';
 import { listarAdjuntos, obtenerUrlFirmada, TIPO_LEGIBLE } from '@shared/adjuntos.js';
+import { calcularEstadoVencimiento } from '../documentacion/documentacion.js';
+
+// Busca, para un DNI, la documentación de ingreso más reciente que tenga
+// vencimiento de antecedentes cargado (puede no haber ninguna si el legajo
+// se importó por CSV o es muy viejo).
+function _antecedentesDelLegajo(dni) {
+  const docs = (DB.documentacionIngreso || []).filter(d => d.dni === dni && d.antecVencimiento);
+  return docs.length ? docs[docs.length - 1] : null;
+}
 
 // ========== ESTADO INTERNO ==========
 
@@ -32,6 +41,11 @@ export function renderLegajos(lista) {
       ? `<div class="prueba-bar"><div style="font-size:11px;font-weight:500;color:${pr.pct > 80 ? 'var(--rojo)' : pr.pct > 50 ? 'var(--naranja)' : 'var(--azul)'};">Día ${pr.diasPasados}/${pr.diasTotales}</div><div class="prueba-bar-track"><div class="prueba-bar-fill${pr.pct > 80 ? ' danger' : pr.pct > 50 ? ' warn' : ''}" style="width:${pr.pct}%;"></div></div></div>`
       : `<span class="badge badge-verde">Completado</span>`;
     const adjLegal = l.adjuntosLegal && l.adjuntosLegal.length ? `<span class="chip">📎 ${l.adjuntosLegal.length}</span>` : '';
+    const docAntec = _antecedentesDelLegajo(l.dni);
+    const estAntec = docAntec ? calcularEstadoVencimiento(docAntec.antecVencimiento) : null;
+    const antecEl = estAntec
+      ? `<span style="display:inline-block;padding:2px 6px;border-radius:4px;font-size:10px;font-weight:600;background:${estAntec.bg};color:${estAntec.color};">${estAntec.texto}</span>`
+      : '<span class="text-muted">—</span>';
     return `<tr onclick="verLegajo(${l.nro})">
       <td style="font-family:'DM Mono',monospace;font-weight:700;color:var(--azul);">${l.nro}</td>
       <td><div style="display:flex;align-items:center;gap:10px;">${avatarEl(l.nombre)}<div style="font-weight:500;">${l.nombre}</div></div></td>
@@ -43,6 +57,7 @@ export function renderLegajos(lista) {
       <td>${pruebaEl}</td>
       <td>${badge(l.estado)}</td>
       <td>${l.estadoLegal ? badge(l.estadoLegal) + '<br>' + adjLegal : '<span class="text-muted">—</span>'}</td>
+      <td>${antecEl}</td>
       <td style="font-size:12px;color:var(--texto-suave);">${l.fechaBaja || '—'}</td>
       <td style="font-size:12px;color:${l.fechaReincorp ? 'var(--verde)' : 'var(--texto-muy-suave)'};">${l.fechaReincorp || '—'}</td>
       <td>${l.estadoMedico ? `<span class="badge badge-naranja" style="font-size:10px;">🏥 ${l.estadoMedico.split(' ')[0]}</span>` : ''}${badge(l.seguro === 'Completo' ? 'Completo' : 'Pendiente')}</td>
