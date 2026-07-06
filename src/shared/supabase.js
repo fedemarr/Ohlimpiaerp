@@ -22,6 +22,13 @@ export const _SM = {
   casosLegales: 'casos_legales',
   enfermos: 'enfermos',
   reasignaciones: 'reasignaciones',
+  // Config persistida de motivos/aprobadores (objetos {id, nombre|cargo, anulado}).
+  // OJO: legacy.js todavía usa DB.motivosReasignacion/DB.aprobadoresReas como
+  // arrays planos de strings (config-usuarios y gestión de precios los leen
+  // así) — esas claves NO se tocan acá; el módulo Reasignaciones sincroniza
+  // ambas vistas (ver sincronizarConfigReasignaciones en reasignaciones.js).
+  motivosReasignacionCfg: 'motivos_reasignacion',
+  aprobadoresReasCfg: 'aprobadores_reasignacion',
   feriados: 'feriados',
   planillasAdelantos: 'planillas_adelantos',
   prestamos: 'prestamos',
@@ -69,6 +76,16 @@ export function _toSnake(obj) {
     nombreReferido: 'nombre_referido', rrhhId: 'rrhh_id',
     anuladoPor: 'anulado_por', anuladoFecha: 'anulado_fecha', creadoPor: 'creado_por',
     cuentaBancaria: 'cuenta_bancaria',
+    // Reasignaciones (v021)
+    legajoIdLocal: 'legajo_id_local', nombreAsociado: 'nombre_asociado',
+    funcionOrigen: 'funcion_origen', zonaOrigen: 'zona_origen',
+    funcionDestino: 'funcion_destino', zonaDestino: 'zona_destino',
+    fechaSolicitud: 'fecha_solicitud', fechaEfectiva: 'fecha_efectiva',
+    fechaEjecucion: 'fecha_ejecucion', elevadoPor: 'elevado_por',
+    originadaPor: 'originada_por', pedidoVinculadoIdLocal: 'pedido_vinculado_id_local',
+    requiereAltura: 'requiere_altura', requierePolizaEsp: 'requiere_poliza_esp',
+    aprobadoPor: 'aprobado_por', editadoPor: 'editado_por', editadoEn: 'editado_en',
+    fechaAnulacion: 'fecha_anulacion', historialMovimientos: 'historial_movimientos',
     // Monotributos / Uniformes / Retenciones
     nroSocio: 'nro_socio', fechaAlta: 'fecha_alta', historialCategorias: 'historial_categorias',
     // Tabla adjuntos
@@ -130,6 +147,16 @@ export function _toCamel(obj) {
     nombre_referido: 'nombreReferido', rrhh_id: 'rrhhId',
     anulado_por: 'anuladoPor', anulado_fecha: 'anuladoFecha', creado_por: 'creadoPor',
     cuenta_bancaria: 'cuentaBancaria',
+    // Reasignaciones (v021)
+    legajo_id_local: 'legajoIdLocal', nombre_asociado: 'nombreAsociado',
+    funcion_origen: 'funcionOrigen', zona_origen: 'zonaOrigen',
+    funcion_destino: 'funcionDestino', zona_destino: 'zonaDestino',
+    fecha_solicitud: 'fechaSolicitud', fecha_efectiva: 'fechaEfectiva',
+    fecha_ejecucion: 'fechaEjecucion', elevado_por: 'elevadoPor',
+    originada_por: 'originadaPor', pedido_vinculado_id_local: 'pedidoVinculadoIdLocal',
+    requiere_altura: 'requiereAltura', requiere_poliza_esp: 'requierePolizaEsp',
+    aprobado_por: 'aprobadoPor', editado_por: 'editadoPor', editado_en: 'editadoEn',
+    fecha_anulacion: 'fechaAnulacion', historial_movimientos: 'historialMovimientos',
     id_local: 'id_local', created_at: 'created_at', updated_at: 'updated_at',
     // Monotributos / Uniformes / Retenciones
     nro_socio: 'nroSocio', fecha_alta: 'fechaAlta', historial_categorias: 'historialCategorias',

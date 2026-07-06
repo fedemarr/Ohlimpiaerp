@@ -1517,7 +1517,6 @@
         <h3>🔄 Solicitudes de reasignación pendientes</h3>
         <div class="filtros-bar">
           <input type="text" placeholder="🔍 Buscar asociado..." id="buscar-reas" oninput="filtrarReas()">
-          <select id="cf-reas-motivo" onchange="filtrarReas()"><option value="">Todos los motivos</option></select>
           <select id="cf-reas-sup" onchange="filtrarReas()"><option value="">Todos los supervisores</option></select>
           <button class="btn btn-ghost btn-sm" onclick="abrirAgenteIA('reasignaciones',{})">🤖 Agente IA</button>
         </div>
@@ -1532,7 +1531,10 @@
           <th>Supervisor destino</th>
           <th>Motivo<select style="display:block;width:100%;font-size:10px;padding:2px 4px;border:1px solid var(--borde-fuerte);border-radius:5px;margin-top:4px;outline:none;" onchange="filtrarReas()" id="cf-rn-motivo"><option value="">Todos</option></select></th>
           <th>Fecha solicitud</th>
-          <th>Solicitado por</th>
+          <th>Fecha efectiva</th>
+          <th>Elevado por</th>
+          <th>Originada por</th>
+          <th>Días</th>
           <th>Impacto seguro</th>
           <th>Estado</th>
           <th></th>
@@ -1549,8 +1551,6 @@
         <h3>📋 Historial completo de reasignaciones</h3>
         <div class="filtros-bar">
           <input type="text" placeholder="🔍 Buscar asociado o servicio..." id="buscar-reas-h" oninput="filtrarReasH()">
-          <select id="cf-rh-estado" onchange="filtrarReasH()"><option value="">Todos los estados</option><option>Pendiente</option><option>Aprobado</option><option>Rechazado</option></select>
-          <select id="cf-rh-motivo" onchange="filtrarReasH()"><option value="">Todos los motivos</option></select>
         </div>
       </div>
       <div class="tabla-wrap"><table>
@@ -1560,10 +1560,10 @@
           <th>Servicio origen</th>
           <th>Servicio destino</th>
           <th>Motivo<select style="display:block;width:100%;font-size:10px;padding:2px 4px;border:1px solid var(--borde-fuerte);border-radius:5px;margin-top:4px;outline:none;" onchange="filtrarReasH()" id="cf-rh-mot2"><option value="">Todos</option></select></th>
-          <th>Fecha</th>
-          <th>Solicitado por</th>
-          <th>Aprobado por</th>
-          <th>Estado<select style="display:block;width:100%;font-size:10px;padding:2px 4px;border:1px solid var(--borde-fuerte);border-radius:5px;margin-top:4px;outline:none;" onchange="filtrarReasH()" id="cf-rh-est"><option value="">Todos</option><option>Pendiente</option><option>Aprobado</option><option>Rechazado</option></select></th>
+          <th>Fecha efectiva</th>
+          <th>Elevado por</th>
+          <th>Aprobado/Rechazado por</th>
+          <th>Estado<select style="display:block;width:100%;font-size:10px;padding:2px 4px;border:1px solid var(--borde-fuerte);border-radius:5px;margin-top:4px;outline:none;" onchange="filtrarReasH()" id="cf-rh-est"><option value="">Todos</option><option>Borrador</option><option>Pendiente</option><option>Aprobada esperando fecha efectiva</option><option>Aprobada ejecutada</option><option>Rechazada</option><option>Anulada</option></select></th>
           <th></th>
         </tr></thead>
         <tbody id="tbody-reas-hist"></tbody>
@@ -1615,25 +1615,12 @@
           <div class="form-group"><label>Categoría</label><input type="text" id="reas-categoria" readonly style="background:var(--fondo);"></div>
         </div>
 
-        <!-- Sugeridor IA — PUNTO 3 -->
-        <div style="background:linear-gradient(135deg,var(--azul-oscuro),var(--azul));border-radius:var(--radio-lg);padding:16px 18px;color:white;">
-          <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;">
-            <span class="ia-badge"><span class="ia-dot"></span>Sugeridor IA</span>
-            <span style="font-size:13px;font-weight:500;">Propuesta de servicios destino</span>
-          </div>
-          <p style="font-size:12px;opacity:.8;margin-bottom:12px;">El agente analiza los pedidos de personal pendientes, la cercanía al domicilio del asociado, su categoría y sus capacitaciones para sugerir los mejores destinos posibles.</p>
-          <div id="ia-sugerencias" style="display:none;margin-bottom:12px;"></div>
-          <button class="btn btn-acento btn-sm" onclick="sugerirServiciosIA()" id="btn-sugerir-ia">
-            🤖 Sugerir servicios destino
-          </button>
-        </div>
-
         <!-- Destino -->
         <div class="form-section">Servicio destino</div>
         <div class="form-grid form-grid-2">
           <div class="form-group">
             <label>Servicio destino *</label>
-            <input type="text" id="reas-serv-dest" list="dl-serv-reas" placeholder="O seleccioná una sugerencia IA de arriba...">
+            <input type="text" id="reas-serv-dest" list="dl-serv-reas" placeholder="Buscar servicio...">
             <datalist id="dl-serv-reas"></datalist>
           </div>
           <div class="form-group">
@@ -1656,49 +1643,30 @@
           </div>
         </div>
         <div class="form-grid form-grid-2">
+          <div class="form-group"><label>Elevado por</label><input type="text" id="reas-elevado-por" readonly style="background:var(--fondo);"></div>
           <div class="form-group">
-            <label>Elevado por *</label>
-            <select id="reas-solicitante">
-              <option>Coordinador de Operaciones (Santiago Ayala)</option>
-              <option>Supervisor saliente</option>
+            <label>Solicitud originada por *</label>
+            <select id="reas-originada-por">
+              <option value="">— Seleccionar —</option>
+              <option>Asociado</option>
+              <option>Supervisor</option>
+              <option>Central de Operaciones</option>
               <option>RRHH</option>
-              <option>El propio asociado (requiere aval del supervisor)</option>
             </select>
           </div>
-          <div class="form-group">
-            <label>Pedido de personal vinculado</label>
-            <select id="reas-pedido-vinculado"><option value="">Sin vinculación</option></select>
-            <span class="form-hint">Si la reasignación cubre un pedido existente, vincularlo acá</span>
-          </div>
+        </div>
+        <div class="form-group">
+          <label>Pedido de personal vinculado</label>
+          <select id="reas-pedido-vinculado"><option value="">Sin vinculación</option></select>
+          <span class="form-hint">Si la reasignación cubre un pedido existente, vincularlo acá — se marca "Cubierto" al ejecutarse</span>
         </div>
         <div class="form-group"><label>Descripción / contexto *</label><textarea id="reas-desc" placeholder="Explicá el motivo y el contexto del movimiento..."></textarea></div>
-
-        <!-- Aprobación — PUNTO 2 -->
-        <div class="form-section">Aprobación requerida</div>
-        <div style="background:var(--azul-suave);border:1px solid var(--azul-claro);border-radius:var(--radio);padding:14px;">
-          <div style="font-size:13px;font-weight:500;color:var(--azul-oscuro);margin-bottom:8px;">
-            🔒 Esta reasignación requiere aprobación de:
-          </div>
-          <div style="display:flex;flex-wrap:wrap;gap:10px;margin-bottom:10px;" id="lista-aprobadores-req">
-            <!-- Se renderiza dinámicamente desde DB.aprobadoresReas -->
-          </div>
-          <div style="font-size:11px;color:var(--azul);">Solo los roles autorizados en Configuración → Reasignaciones pueden aprobar o rechazar.</div>
-        </div>
 
         <!-- Seguros -->
         <div class="form-section">Impacto en seguros</div>
         <div class="form-grid form-grid-2">
           <div class="form-group"><label>¿Nuevo servicio requiere trabajo en altura?</label><select id="reas-altura"><option>No</option><option>Sí — agregar cobertura adicional</option></select></div>
           <div class="form-group"><label>¿Cliente requiere póliza especial?</label><select id="reas-poliza"><option>No</option><option>Sí — actualizar póliza</option></select></div>
-        </div>
-
-        <!-- Notificaciones -->
-        <div class="form-section">Notificaciones automáticas</div>
-        <div style="display:flex;flex-wrap:wrap;gap:10px;">
-          <label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer;"><input type="checkbox" id="reas-notif-asoc" checked> Notificar al asociado</label>
-          <label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer;"><input type="checkbox" id="reas-notif-sup-sal" checked> Notificar al supervisor saliente</label>
-          <label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer;"><input type="checkbox" id="reas-notif-sup-ent" checked> Notificar al supervisor entrante</label>
-          <label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer;"><input type="checkbox" id="reas-notif-aprob" checked> Notificar a los aprobadores</label>
         </div>
 
       </div>

@@ -19,7 +19,7 @@ import { documScreenConfig, filtrarDocum, poblarFiltrosColumnasDocum } from './m
 import { altasScreenConfig, filtrarAltas, poblarFiltrosColumnasAltas, renderAltas, poblarSelectsAltas } from './modules/altas/index.js';
 import { legajosScreenConfig, filtrarLegajos, renderLegajos } from './modules/legajos/index.js';
 import { pedidosScreenConfig, filtrarPedidos } from './modules/pedidos/index.js';
-import { reasignacionesScreenConfig } from './modules/reasignaciones/index.js';
+import { reasignacionesScreenConfig, sincronizarConfigReasignaciones } from './modules/reasignaciones/index.js';
 import './modules/personal_rrhh/index.js';
 
 // ========== BIND SHARED A WINDOW (PRIMERO) ==========
@@ -166,7 +166,13 @@ registerAuthCallbacks({
     poblarFiltrosColumnasAltas();
   },
   verificarAccionesVencidas() {},
-  cargarDatos: () => supaInit(DB, toast),
+  async cargarDatos() {
+    await supaInit(DB, toast);
+    // Refresca DB.motivosReasignacion/DB.aprobadoresReas (arrays planos que
+    // legacy.js sigue leyendo) desde la config real recién cargada, para
+    // que no queden con el seed default hasta visitar Reasignaciones.
+    sincronizarConfigReasignaciones();
+  },
   iniciarPolling,
   detenerPolling,
 });

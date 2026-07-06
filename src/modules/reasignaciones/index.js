@@ -1,27 +1,28 @@
 // Módulo Reasignaciones — Entry point
 
 export {
+  sincronizarConfigReasignaciones,
   tabReas,
-  renderReasignaciones, renderReasPend, renderReasHist, renderRotacion, verDetalleRotacion,
+  renderReasignaciones, renderReasPend, renderReasHist, renderRotacion,
   filtrarReas, filtrarReasH, filtrarRotacion,
   poblarSelectsReas, autocompletarReas,
-  guardarReasignacion, puedeAprobarReasignacion, aprobarReasignacion, rechazarReasignacion,
-  verDetalleReas, abrirModalReasDesde,
-  renderConfigMotivosReas, agregarMotivoReas, eliminarMotivoReas,
-  renderConfigAprobadoresReas, agregarAprobadorReas, eliminarAprobadorReas,
-  sugerirServiciosIA, seleccionarSugerenciaIA,
+  abrirNuevaReasignacion, abrirModalReasDesde, abrirBorradorReasignacionPorId,
+  guardarReasignacion, puedeAprobarReasignacion,
+  aprobarReasignacionPorId, rechazarReasignacionPorId, anularReasignacionPorId,
+  abrirDetalleReasignacionPorId, abrirDetalleRotacionPorNro,
+  renderConfigMotivosReas, agregarMotivoReas, eliminarMotivoReasPorId,
+  renderConfigAprobadoresReas, agregarAprobadorReas, eliminarAprobadorReasPorId,
 } from './reasignaciones.js';
 
 // ========== SCREEN CONFIG ==========
 
-import { renderReasignaciones } from './reasignaciones.js';
-import { abrirModal } from '@shared/ui.js';
+import { renderReasignaciones, abrirNuevaReasignacion } from './reasignaciones.js';
 
 export const reasignacionesScreenConfig = {
   reasignaciones: {
     title: 'Reasignaciones',
     btn: '+ Nueva reasignación',
-    fn: () => abrirModal('modal-reasignacion'),
+    fn: () => abrirNuevaReasignacion(),
     render: renderReasignaciones,
   },
 };
@@ -30,14 +31,15 @@ export const reasignacionesScreenConfig = {
 
 import {
   tabReas,
-  renderReasPend, renderReasHist, renderRotacion, verDetalleRotacion,
+  renderReasPend, renderReasHist, renderRotacion,
   filtrarReas, filtrarReasH, filtrarRotacion,
   poblarSelectsReas, autocompletarReas,
-  guardarReasignacion, puedeAprobarReasignacion, aprobarReasignacion, rechazarReasignacion,
-  verDetalleReas, abrirModalReasDesde,
-  renderConfigMotivosReas, agregarMotivoReas, eliminarMotivoReas,
-  renderConfigAprobadoresReas, agregarAprobadorReas, eliminarAprobadorReas,
-  sugerirServiciosIA, seleccionarSugerenciaIA,
+  abrirModalReasDesde, abrirBorradorReasignacionPorId,
+  guardarReasignacion, puedeAprobarReasignacion,
+  aprobarReasignacionPorId, rechazarReasignacionPorId, anularReasignacionPorId,
+  abrirDetalleReasignacionPorId, abrirDetalleRotacionPorNro,
+  renderConfigMotivosReas, agregarMotivoReas, eliminarMotivoReasPorId,
+  renderConfigAprobadoresReas, agregarAprobadorReas, eliminarAprobadorReasPorId,
 } from './reasignaciones.js';
 
 window.tabReas = tabReas;
@@ -45,23 +47,24 @@ window.renderReasignaciones = renderReasignaciones;
 window.renderReasPend = renderReasPend;
 window.renderReasHist = renderReasHist;
 window.renderRotacion = renderRotacion;
-window.verDetalleRotacion = verDetalleRotacion;
 window.filtrarReas = filtrarReas;
 window.filtrarReasH = filtrarReasH;
 window.filtrarRotacion = filtrarRotacion;
 window.poblarSelectsReas = poblarSelectsReas;
 window.autocompletarReas = autocompletarReas;
+window.abrirNuevaReasignacion = abrirNuevaReasignacion;
+window.abrirModalReasDesde = abrirModalReasDesde;
+window.abrirBorradorReasignacionPorId = abrirBorradorReasignacionPorId;
 window.guardarReasignacion = guardarReasignacion;
 window.puedeAprobarReasignacion = puedeAprobarReasignacion;
-window.aprobarReasignacion = aprobarReasignacion;
-window.rechazarReasignacion = rechazarReasignacion;
-window.verDetalleReas = verDetalleReas;
-window.abrirModalReasDesde = abrirModalReasDesde;
+window.aprobarReasignacionPorId = aprobarReasignacionPorId;
+window.rechazarReasignacionPorId = rechazarReasignacionPorId;
+window.anularReasignacionPorId = anularReasignacionPorId;
+window.abrirDetalleReasignacionPorId = abrirDetalleReasignacionPorId;
+window.abrirDetalleRotacionPorNro = abrirDetalleRotacionPorNro;
 window.renderConfigMotivosReas = renderConfigMotivosReas;
 window.agregarMotivoReas = agregarMotivoReas;
-window.eliminarMotivoReas = eliminarMotivoReas;
+window.eliminarMotivoReasPorId = eliminarMotivoReasPorId;
 window.renderConfigAprobadoresReas = renderConfigAprobadoresReas;
 window.agregarAprobadorReas = agregarAprobadorReas;
-window.eliminarAprobadorReas = eliminarAprobadorReas;
-window.sugerirServiciosIA = sugerirServiciosIA;
-window.seleccionarSugerenciaIA = seleccionarSugerenciaIA;
+window.eliminarAprobadorReasPorId = eliminarAprobadorReasPorId;
