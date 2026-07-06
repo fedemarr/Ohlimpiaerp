@@ -29,6 +29,8 @@ export const _SM = {
   // ambas vistas (ver sincronizarConfigReasignaciones en reasignaciones.js).
   motivosReasignacionCfg: 'motivos_reasignacion',
   aprobadoresReasCfg: 'aprobadores_reasignacion',
+  capacitaciones: 'capacitaciones',
+  materialesCapacitacion: 'materiales_capacitacion',
   feriados: 'feriados',
   planillasAdelantos: 'planillas_adelantos',
   prestamos: 'prestamos',
@@ -86,6 +88,11 @@ export function _toSnake(obj) {
     requiereAltura: 'requiere_altura', requierePolizaEsp: 'requiere_poliza_esp',
     aprobadoPor: 'aprobado_por', editadoPor: 'editado_por', editadoEn: 'editado_en',
     fechaAnulacion: 'fecha_anulacion', historialMovimientos: 'historial_movimientos',
+    // Capacitaciones (v022)
+    metodoEvaluacion: 'metodo_evaluacion', adjuntoIdLocal: 'adjunto_id_local',
+    materialesIds: 'materiales_ids', coordinadoAsociado: 'coordinado_asociado',
+    coordinadoSupervisor: 'coordinado_supervisor', tipoCapacitacion: 'tipo_capacitacion',
+    archivoPath: 'archivo_path', requiereEval: 'requiere_eval',
     // Monotributos / Uniformes / Retenciones
     nroSocio: 'nro_socio', fechaAlta: 'fecha_alta', historialCategorias: 'historial_categorias',
     // Tabla adjuntos
@@ -157,6 +164,11 @@ export function _toCamel(obj) {
     requiere_altura: 'requiereAltura', requiere_poliza_esp: 'requierePolizaEsp',
     aprobado_por: 'aprobadoPor', editado_por: 'editadoPor', editado_en: 'editadoEn',
     fecha_anulacion: 'fechaAnulacion', historial_movimientos: 'historialMovimientos',
+    // Capacitaciones (v022)
+    metodo_evaluacion: 'metodoEvaluacion', adjunto_id_local: 'adjuntoIdLocal',
+    materiales_ids: 'materialesIds', coordinado_asociado: 'coordinadoAsociado',
+    coordinado_supervisor: 'coordinadoSupervisor', tipo_capacitacion: 'tipoCapacitacion',
+    archivo_path: 'archivoPath', requiere_eval: 'requiereEval',
     id_local: 'id_local', created_at: 'created_at', updated_at: 'updated_at',
     // Monotributos / Uniformes / Retenciones
     nro_socio: 'nroSocio', fecha_alta: 'fechaAlta', historial_categorias: 'historialCategorias',

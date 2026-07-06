@@ -20,6 +20,7 @@ import { altasScreenConfig, filtrarAltas, poblarFiltrosColumnasAltas, renderAlta
 import { legajosScreenConfig, filtrarLegajos, renderLegajos } from './modules/legajos/index.js';
 import { pedidosScreenConfig, filtrarPedidos } from './modules/pedidos/index.js';
 import { reasignacionesScreenConfig, sincronizarConfigReasignaciones } from './modules/reasignaciones/index.js';
+import { capacitacionesScreenConfig, filtrarCapacitaciones } from './modules/capacitaciones/index.js';
 import './modules/personal_rrhh/index.js';
 
 // ========== BIND SHARED A WINDOW (PRIMERO) ==========
@@ -49,6 +50,7 @@ registerScreens(altasScreenConfig);
 registerScreens(legajosScreenConfig);
 registerScreens(pedidosScreenConfig);
 registerScreens(reasignacionesScreenConfig);
+registerScreens(capacitacionesScreenConfig);
 
 // ========== REGISTRAR FILTROS DE BÚSQUEDA GLOBAL ==========
 
@@ -60,6 +62,7 @@ registerSearchFilters({
   altas: filtrarAltas,
   legajos: filtrarLegajos,
   pedidos: filtrarPedidos,
+  capacitaciones: filtrarCapacitaciones,
 });
 
 // ========== LEGACY (import dinámico) ==========
@@ -80,8 +83,9 @@ async function loadLegacy() {
     });
 
     // Registrar pantallas legacy que necesitan btn en topbar
+    // (capacitaciones se saca de acá — ahora la registra el módulo migrado
+    // src/modules/capacitaciones/index.js, más abajo)
     registerScreens({
-      capacitaciones: { title: 'Capacitaciones', btn: '+ Registrar capacitación', fn: () => abrirModal('modal-capacitacion'), render: () => { if (window.renderCapacitaciones) window.renderCapacitaciones(); } },
       legal: { title: 'Situaciones legales', btn: '+ Nuevo caso', fn: () => abrirModal('modal-legal'), render: () => { if (window.renderLegal) window.renderLegal(); } },
       enfermos: { title: 'Enfermos y accidentes', btn: '+ Nuevo caso', fn: () => abrirModal('modal-enfermo'), render: () => { if (window.renderEnfermos) window.renderEnfermos(); } },
       clientes: { title: 'Clientes', btn: '+ Nuevo cliente', fn: () => abrirModal('modal-cliente'), render: () => { if (window.renderClientes) window.renderClientes(); } },

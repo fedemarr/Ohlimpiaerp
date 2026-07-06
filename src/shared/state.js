@@ -21,6 +21,10 @@ export const DB = {
   aprobadoresReas: ['Gerente de Operaciones', 'Gerente de RRHH'],
   // Motivos de reasignación — configurables desde Configuración → Reasignaciones
   motivosReasignacion: ['Baja del servicio (cliente)', 'Conflicto con cliente', 'Conflicto con compañeros', 'Pedido del supervisor', 'Pedido del asociado', 'Reducción de personal en servicio', 'Cobertura de otro servicio', 'Sanción disciplinaria', 'Mejora de condiciones', 'Cambio de categoría/función', 'Reingreso', 'Otro'],
+  // Catálogos de Capacitaciones (hardcoded por ahora, no en DB — spec §4.4)
+  tiposCapacitacion: ['Capacitación de Ingreso: Cooperativismo', 'Capacitación de Ingreso: Productos y maquinarias', 'Capacitación de Ingreso: Normativas de trabajo', 'Maquinarias: uso, manejo y mantenimiento', 'Interpretación del Plan de trabajo en Servicio', 'Productos, herramientas y modalidades de limpieza', 'Liderazgo', 'Atención al Cliente'],
+  instructores: ['Miguel Pereyra', 'Patricia Scaglia', 'Marina Iglesias', 'Gina Martinez', 'Santiago Ayala', 'Encargado', 'Referente', 'Supervisor'],
+  metodosEval: ['Evaluación oral', 'Evaluación escrita', 'Auditoría proceso', 'Auditoría SOL', 'Auditoría sistema', 'Evolución de indicador', 'Informe del supervisor', 'Encuesta al asociado'],
   smvm: [
     { periodo: '2024-01', valor: 156000, resolucion: 'Res. 1/2024', vigente: false },
     { periodo: '2024-07', valor: 234315, resolucion: 'Res. 7/2024', vigente: false },
@@ -29,6 +33,8 @@ export const DB = {
   candidatos: [],
   turnos: [],
   reasignaciones: [],
+  capacitaciones: [],
+  materialesCapacitacion: [],
   pedidos: [
     { id: 1, fecha: '09/10/2023', supervisor: 'Claudia Cazenave', servicio: 'HOSPITAL.CAMPANA', zona: 'Buenos Aires', puesto: 'Operario', horario: '22hs a 06hs nocturno 6×1', urgencia: 'Alto', estado: 'Cubierto', candidato: 'Lima Romina', obs: '' },
     { id: 2, fecha: '27/11/2023', supervisor: 'Alvaro Uballes', servicio: 'HIT.LIBERTADOR.CEL', zona: 'CABA', puesto: 'Retén', horario: 'Rotativos full time 6×1', urgencia: 'Medio', estado: 'Pendiente', candidato: '', obs: '' },

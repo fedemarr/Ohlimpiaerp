@@ -114,7 +114,13 @@ export function verLegajo(nro) {
   const pr = calcularPrueba(l);
   $('legajo-title').textContent = `Legajo N° ${l.nro} — ${l.nombre}`;
 
-  const reasDelAsoc = (DB.reasignaciones || []).filter(r => r.nro === l.nro && r.estado === 'Aprobado');
+  // Campos actualizados a los nombres nuevos de la reescritura de
+  // Reasignaciones (nroSocio/servicioOrigen/etc. en vez de nro/servOrig/etc.,
+  // y 'Aprobada ejecutada' en vez de 'Aprobado') — quedaron desactualizados
+  // acá cuando se reescribió ese módulo.
+  const reasDelAsoc = (DB.reasignaciones || []).filter(r => String(r.nroSocio) === String(l.nro) && r.estado === 'Aprobada ejecutada');
+  const capsDelAsoc = (DB.capacitaciones || []).filter(c => !c.anulado && String(c.legajoIdLocal) === String(l.nro))
+    .sort((a, b) => (b.fecha || '').localeCompare(a.fecha || ''));
 
   $('legajo-body').innerHTML = `
     <div style="display:flex;align-items:center;gap:14px;margin-bottom:18px;">
@@ -130,6 +136,7 @@ export function verLegajo(nro) {
       <button class="tab-btn" onclick="tabLeg(2,this)">Movimientos ${reasDelAsoc.length > 0 ? `<span class="badge badge-azul" style="font-size:10px;margin-left:4px;">${reasDelAsoc.length}</span>` : ''}</button>
       <button class="tab-btn" onclick="tabLeg(3,this)">Historial completo</button>
       <button class="tab-btn" onclick="tabLeg(4,this)">📎 Adjuntos</button>
+      <button class="tab-btn" onclick="tabLeg(5,this)">🎓 Capacitaciones</button>
     </div>
     <div id="leg-tab-0" class="tab-content active"><div class="info-grid">
       <div class="info-item"><div class="key">DNI</div><div class="val">${l.dni}</div></div>
@@ -160,16 +167,16 @@ export function verLegajo(nro) {
               <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:8px;">
                 <div>
                   <div style="font-size:13px;font-weight:600;">
-                    <span style="color:var(--texto-suave);">${r.servOrig}</span>
+                    <span style="color:var(--texto-suave);">${r.servicioOrigen}</span>
                     <span style="margin:0 8px;color:var(--azul);">→</span>
-                    <span style="color:var(--azul);">${r.servDest}</span>
+                    <span style="color:var(--azul);">${r.servicioDestino}</span>
                   </div>
-                  <div style="font-size:11px;color:var(--texto-suave);margin-top:4px;">${r.supOrig} → ${r.supDest}</div>
-                  <div style="font-size:11px;color:var(--texto-muy-suave);margin-top:2px;">${r.desc || ''}</div>
+                  <div style="font-size:11px;color:var(--texto-suave);margin-top:4px;">${r.supervisorOrigen} → ${r.supervisorDestino}</div>
+                  <div style="font-size:11px;color:var(--texto-muy-suave);margin-top:2px;">${r.descripcion || ''}</div>
                 </div>
                 <div style="text-align:right;">
                   <div><span class="chip" style="font-size:10px;">${r.motivo}</span></div>
-                  <div style="font-size:11px;color:var(--texto-muy-suave);margin-top:4px;">${r.fecha}</div>
+                  <div style="font-size:11px;color:var(--texto-muy-suave);margin-top:4px;">${r.fechaEfectiva}</div>
                 </div>
               </div>
             </div>`).join('')}
@@ -177,12 +184,33 @@ export function verLegajo(nro) {
     </div>
     <div id="leg-tab-3" class="tab-content"><div class="timeline">
       <div class="tl-item"><div class="tl-dot"></div><div class="tl-content"><h4>Alta como asociado</h4><p>${l.ingreso} — ${l.servicio}</p></div></div>
-      ${reasDelAsoc.map(r => `<div class="tl-item"><div class="tl-dot" style="background:var(--azul-medio);"></div><div class="tl-content"><h4>Reasignación: ${r.servOrig} → ${r.servDest}</h4><p>${r.fecha} · ${r.motivo}</p></div></div>`).join('')}
+      ${reasDelAsoc.map(r => `<div class="tl-item"><div class="tl-dot" style="background:var(--azul-medio);"></div><div class="tl-content"><h4>Reasignación: ${r.servicioOrigen} → ${r.servicioDestino}</h4><p>${r.fechaEfectiva} · ${r.motivo}</p></div></div>`).join('')}
       ${l.estadoLegal ? `<div class="tl-item"><div class="tl-dot rojo"></div><div class="tl-content"><h4>Situación legal: ${l.estadoLegal}</h4><p>Registrada en el sistema</p></div></div>` : ''}
       ${l.fechaBaja ? `<div class="tl-item"><div class="tl-dot rojo"></div><div class="tl-content"><h4>Baja registrada</h4><p>${l.fechaBaja}</p></div></div>` : ''}
       ${l.fechaReincorp ? `<div class="tl-item"><div class="tl-dot" style="background:var(--verde);"></div><div class="tl-content"><h4>Reincorporación</h4><p>${l.fechaReincorp}${l.legajoAnteriorNro ? ' · Legajo anterior N° ' + l.legajoAnteriorNro : ''}</p></div></div>` : ''}
     </div></div>
     <div id="leg-tab-4" class="tab-content"><div id="leg-adjuntos-lista" style="color:var(--texto-suave);">Cargando…</div></div>
+    <div id="leg-tab-5" class="tab-content">
+      ${capsDelAsoc.length === 0 ? '<div class="empty-state"><div class="icon">🎓</div><p>Sin capacitaciones registradas</p></div>' : `
+        <div class="tabla-wrap"><table style="width:100%;border-collapse:collapse;font-size:13px;">
+          <thead><tr style="background:#1e3a8a;color:white;">
+            <th style="padding:8px;text-align:left;">Fecha</th>
+            <th style="padding:8px;text-align:left;">Tipo</th>
+            <th style="padding:8px;text-align:left;">Instructor</th>
+            <th style="padding:8px;text-align:center;">Estado</th>
+            <th style="padding:8px;text-align:center;">Resultado</th>
+            <th style="padding:8px;text-align:center;">Puntaje</th>
+          </tr></thead>
+          <tbody>${capsDelAsoc.map(c => `<tr>
+            <td style="padding:6px 8px;">${(c.fecha || '').split('-').reverse().join('/')}</td>
+            <td style="padding:6px 8px;">${c.tipo}</td>
+            <td style="padding:6px 8px;">${c.instructor}</td>
+            <td style="padding:6px 8px;text-align:center;">${badge(c.estado)}</td>
+            <td style="padding:6px 8px;text-align:center;">${c.resultado || '—'}</td>
+            <td style="padding:6px 8px;text-align:center;">${c.puntaje != null ? c.puntaje : '—'}</td>
+          </tr>`).join('')}</tbody>
+        </table></div>`}
+    </div>
   `;
   abrirModal('modal-legajo');
   cargarAdjuntosLegajo(l.dni);
