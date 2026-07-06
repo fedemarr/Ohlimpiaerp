@@ -1303,10 +1303,7 @@
       <div style="font-size:13px;color:var(--texto-suave);margin-top:2px;">Ranking acumulativo · Premios individuales y grupales a fin de año</div>
     </div>
     <div style="display:flex;gap:8px;align-items:center;">
-      <select id="comp-anio" onchange="renderCompetencia()" style="padding:7px 12px;border:1px solid var(--borde-fuerte);border-radius:var(--radio);font-size:13px;font-family:inherit;outline:none;">
-        <option>2026</option><option>2025</option>
-      </select>
-      <button class="btn btn-ghost btn-sm" onclick="abrirModal('modal-reglas')">📋 Reglas del torneo</button>
+      <select id="comp-anio" onchange="renderCompetencia()" style="padding:7px 12px;border:1px solid var(--borde-fuerte);border-radius:var(--radio);font-size:13px;font-family:inherit;outline:none;"></select>
       <a id="link-ranking-publico" href="#" onclick="verRankingPublico(event)" class="btn btn-acento btn-sm">🌐 Ver ranking público</a>
     </div>
   </div>
@@ -1443,7 +1440,7 @@
   <div id="comp-tab-reglas" class="tab-content">
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:18px;">
       <div class="card">
-        <div class="card-header"><h3>📋 Reglas del torneo</h3><button class="btn btn-primary btn-sm" onclick="abrirModal('modal-reglas-edit')">✏️ Editar reglas</button></div>
+        <div class="card-header"><h3>📋 Reglas del torneo</h3><button class="btn btn-primary btn-sm" onclick="abrirModalEditarReglas()">✏️ Editar reglas</button></div>
         <div class="card-body" id="panel-reglas"></div>
       </div>
       <div class="card">
@@ -1491,13 +1488,12 @@
     </div>
     <div class="modal-body">
       <div class="alerta alerta-info" style="margin-bottom:16px;font-size:12px;">
-        Este ranking es visible para todos sin necesidad de login. Una vez en producción tendrá su propia URL pública tipo <strong>ohlimpia-sistema.netlify.app/ranking</strong>
+        Vista previa del ranking con los datos reales de hoy. La página pública para compartir sin login todavía no está construida.
       </div>
       <div id="ranking-publico-content"></div>
     </div>
     <div class="modal-footer">
       <button class="btn btn-secondary" onclick="cerrarModal('modal-ranking-publico')">Cerrar</button>
-      <button class="btn btn-primary" onclick="toast('🔗 Link copiado: ohlimpia-sistema.netlify.app/ranking')">📋 Copiar link público</button>
     </div>
   </div>
 </div>

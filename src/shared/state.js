@@ -39,6 +39,26 @@ export const DB = {
   plantillasEvaluacion: [],
   evaluacionesEnviadas: [],
   respuestasEvaluacion: [],
+  // Reglas de Competencia Anual — objeto singleton (no array). supaInit()
+  // carga reglasCompetencia como array genérico vía _SM; se reshapea a
+  // este objeto en sincronizarReglasCompetencia() (competencia.js),
+  // mismo patrón que sincronizarConfigReasignaciones().
+  reglasCompetencia: {
+    id: 'global',
+    duracion: 'Todo el año calendario',
+    desempate: 'Mayor cantidad de evaluaciones respondidas',
+    descuentoAusente: 10,
+    puntajes: [
+      { accion: 'Responder una evaluación', pts: 10, bonus: false },
+      { accion: 'Respuesta correcta (por pregunta)', pts: 5, bonus: false },
+      { accion: 'Capacitación presencial en oficina', pts: 20, bonus: true },
+      { accion: 'Capacitación en servicio', pts: 10, bonus: false },
+      { accion: 'Capacitación vía video (con evaluación)', pts: 8, bonus: false },
+      { accion: 'Participación en equipo (mismo servicio responde juntos)', pts: 15, bonus: true },
+      { accion: 'Capacitación por Meet/Virtual', pts: 12, bonus: false },
+      { accion: 'No participar en evaluación (descuento al equipo y supervisor)', pts: -10, bonus: false },
+    ],
+  },
   pedidos: [
     { id: 1, fecha: '09/10/2023', supervisor: 'Claudia Cazenave', servicio: 'HOSPITAL.CAMPANA', zona: 'Buenos Aires', puesto: 'Operario', horario: '22hs a 06hs nocturno 6×1', urgencia: 'Alto', estado: 'Cubierto', candidato: 'Lima Romina', obs: '' },
     { id: 2, fecha: '27/11/2023', supervisor: 'Alvaro Uballes', servicio: 'HIT.LIBERTADOR.CEL', zona: 'CABA', puesto: 'Retén', horario: 'Rotativos full time 6×1', urgencia: 'Medio', estado: 'Pendiente', candidato: '', obs: '' },

@@ -42,6 +42,7 @@ export const _SM = {
   monotributos: 'monotributos',
   uniformes: 'uniformes',
   retenciones: 'retenciones',
+  reglasCompetencia: 'reglas_competencia',
   paritarias: 'paritarias',
   retenes: 'retenes',
   sugerencias: 'sugerencias',
@@ -106,6 +107,8 @@ export function _toSnake(obj) {
     // Monotributos / Uniformes / Retenciones
     nroSocio: 'nro_socio', fechaAlta: 'fecha_alta', historialCategorias: 'historial_categorias',
     fechaLiberacion: 'fecha_liberacion',
+    // Competencia Anual (v025)
+    descuentoAusente: 'descuento_ausente',
     // Tabla adjuntos
     nombreArchivo: 'nombre_archivo',
     fechaVencimiento: 'fecha_vencimiento',
@@ -190,6 +193,8 @@ export function _toCamel(obj) {
     // Monotributos / Uniformes / Retenciones
     nro_socio: 'nroSocio', fecha_alta: 'fechaAlta', historial_categorias: 'historialCategorias',
     fecha_liberacion: 'fechaLiberacion',
+    // Competencia Anual (v025)
+    descuento_ausente: 'descuentoAusente',
     // Tabla adjuntos
     nombre_archivo: 'nombreArchivo',
     fecha_vencimiento: 'fechaVencimiento',

@@ -23,6 +23,7 @@ import { reasignacionesScreenConfig, sincronizarConfigReasignaciones } from './m
 import { capacitacionesScreenConfig, filtrarCapacitaciones } from './modules/capacitaciones/index.js';
 import { uniformesScreenConfig, filtrarUniformes } from './modules/uniformes/index.js';
 import { retencionesScreenConfig, filtrarRetenciones } from './modules/retenciones/index.js';
+import { competenciaScreenConfig, sincronizarReglasCompetencia } from './modules/competencia/index.js';
 import './modules/personal_rrhh/index.js';
 
 // ========== BIND SHARED A WINDOW (PRIMERO) ==========
@@ -55,6 +56,7 @@ registerScreens(reasignacionesScreenConfig);
 registerScreens(capacitacionesScreenConfig);
 registerScreens(uniformesScreenConfig);
 registerScreens(retencionesScreenConfig);
+registerScreens(competenciaScreenConfig);
 
 // ========== REGISTRAR FILTROS DE BÚSQUEDA GLOBAL ==========
 
@@ -97,7 +99,6 @@ async function loadLegacy() {
       clientes: { title: 'Clientes', btn: '+ Nuevo cliente', fn: () => abrirModal('modal-cliente'), render: () => { if (window.renderClientes) window.renderClientes(); } },
       objetivos: { title: 'Objetivos / Servicios', btn: '+ Nuevo objetivo', fn: () => abrirModal('modal-objetivo'), render: () => { if (window.renderObjetivos) window.renderObjetivos(); } },
       vacaciones: { title: 'Vacaciones y descanso', btn: '', fn: null, render: () => { if (window.renderVacaciones) window.renderVacaciones(); } },
-      competencia: { title: 'Competencia anual', btn: '', fn: null, render: () => { if (window.renderCompetencia) window.renderCompetencia(); } },
       configuracion: { title: 'Configuración', btn: '', fn: null, render: () => { if (window.renderConfiguracion) window.renderConfiguracion(); } },
       smvm: { title: 'SMVM histórico', btn: '', fn: null, render: () => { if (window.renderSMVM) window.renderSMVM(); } },
       feriados: { title: 'Feriados', btn: '+ Agregar feriado', fn: () => abrirModal('modal-feriado'), render: () => { if (window.renderFeriados) window.renderFeriados(); } },
@@ -180,6 +181,9 @@ registerAuthCallbacks({
     // legacy.js sigue leyendo) desde la config real recién cargada, para
     // que no queden con el seed default hasta visitar Reasignaciones.
     sincronizarConfigReasignaciones();
+    // Reshapea DB.reglasCompetencia del array crudo que cargó supaInit()
+    // (vía _SM) al objeto singleton que usa el módulo Competencia Anual.
+    sincronizarReglasCompetencia();
   },
   iniciarPolling,
   detenerPolling,
