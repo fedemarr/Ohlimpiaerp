@@ -40,7 +40,6 @@ export function navTo(sec, el) {
     });
   }
   const cfg = SCREEN_CONFIG[sec];
-  console.log('🔧 DEBUG navTo:', sec, '| cfg encontrado:', !!cfg, '| cfg.fn:', cfg?.fn);
   if (!cfg) return;
   $('topbar-title').textContent = cfg.title;
   const btn = $('btn-top');
@@ -48,13 +47,11 @@ export function navTo(sec, el) {
   btn.style.display = cfg.btn ? 'inline-flex' : 'none';
   currentTopFn = cfg.fn;
   currentScreen = sec;
-  console.log('🔧 DEBUG navTo: currentTopFn seteado a', currentTopFn);
   cfg.render();
   setTimeout(() => { activarOrdenamiento(); _poblarFiltrosColumnas(); }, 50);
 }
 
 export function topAction() {
-  console.log('🔧 DEBUG topAction: currentTopFn =', currentTopFn, '| currentScreen =', currentScreen);
   if (currentTopFn) currentTopFn();
 }
 
