@@ -1407,52 +1407,74 @@ DB.reglasCompetencia = {
   ]
 };
 
-// Datos de competencia — se calculan de capacitaciones y evaluaciones reales
-// En producción vendrán de Firebase. Por ahora generamos datos demo.
+// Respuestas reales (Evaluaciones, Etapa 3) de un asociado, cruzando
+// evaluaciones_enviadas → respuestas_evaluacion. El id de una evaluación
+// recién creada en esta misma sesión puede venir sin truncar (Date.now())
+// mientras que respuestas_evaluacion.evaluacion_id_local siempre llega ya
+// truncado (lo escribe la función de Vercel leyendo la fila real de la
+// base) — se comparan las dos formas, mismo criterio que
+// verDetalleEvaluacionPorId en src/modules/capacitaciones/evaluaciones.js.
+function respuestasDelAsociado(nroSocio, evalsAsoc){
+  const ids = new Set();
+  evalsAsoc.forEach(e=>{ ids.add(String(e.id)); ids.add(String(e.id).slice(-9)); });
+  return (DB.respuestasEvaluacion||[]).filter(r=>!r.anulado && ids.has(String(r.evaluacionIdLocal)));
+}
+
+// Datos de competencia — puntaje por asociado a partir de sus
+// capacitaciones y evaluaciones reales (Etapas 1-3 del módulo
+// Capacitaciones). Felicitaciones de clientes y el bonus de equipo
+// siguen siendo demo: no hay tabla real de felicitaciones todavía.
 function generarDatosCompetencia(){
-  const anio = ($('comp-anio')||{value:'2026'}).value;
-  // Generar puntajes por asociado basados en sus capacitaciones reales + datos demo
   const activos = DB.legajos.filter(l=>l.estado==='Activo');
   return activos.map(l=>{
-    // Capacitaciones reales del asociado
-    const caps = DB.capacitaciones.filter(c=>c.nroSocio===String(l.nro));
+    // Capacitaciones reales del asociado (excluye anuladas/canceladas)
+    const caps = DB.capacitaciones.filter(c=>!c.anulado && String(c.nroSocio)===String(l.nro));
     const presenciales = caps.filter(c=>c.lugar==='Oficina Central').length;
     const otrasModalidades = caps.filter(c=>c.lugar!=='Oficina Central').length;
-    const aprobadas = caps.filter(c=>c.resultado==='Aprobado').length;
+    const capsAprobadas = caps.filter(c=>c.resultado==='Aprobado').length;
 
-    // Puntaje base de capacitaciones
+    // Evaluaciones reales del asociado
+    const evalsAsoc = (DB.evaluacionesEnviadas||[]).filter(e=>!e.anulado && String(e.nroSocio)===String(l.nro));
+    const evalRespondidas = evalsAsoc.filter(e=>e.estado==='Respondida').length;
+    const respuestasCorrectas = respuestasDelAsociado(l.nro, evalsAsoc).filter(r=>r.correcta).length;
+    // Nota promedio de las evaluaciones respondidas (0-100%) suma hasta
+    // 10 pts extra — interpretación propia, no había regla explícita para esto.
+    const respondidasConNota = evalsAsoc.filter(e=>e.estado==='Respondida' && e.puntaje!=null);
+    const notaPromedio = respondidasConNota.length
+      ? Math.round(respondidasConNota.reduce((s,e)=>s+e.puntaje,0)/respondidasConNota.length)
+      : 0;
+    const ptsNota = Math.round(notaPromedio/10);
+
+    // Puntaje base
     let pts = 0;
-    pts += presenciales * 20;    // Presencial: 20 pts (regla del torneo)
-    pts += otrasModalidades * 10; // Otras: 10 pts
-    pts += aprobadas * 5;         // Respuestas correctas
+    pts += presenciales * 20;       // Presencial: 20 pts (regla del torneo)
+    pts += otrasModalidades * 10;   // Otras modalidades: 10 pts
+    pts += capsAprobadas * 5;       // Capacitación aprobada
+    pts += evalRespondidas * 10;    // Responder una evaluación
+    pts += respuestasCorrectas * 5; // Respuesta correcta (por pregunta)
+    pts += ptsNota;
 
-    // Puntaje de evaluaciones (demo basado en participación simulada)
+    // Felicitaciones de clientes (demo — sin tabla real todavía)
     const seed = (l.nro * 7 + 13) % 100;
-    const evalResp = seed > 30 ? Math.floor(seed/20)+1 : 0;
-    const evalCorr = Math.floor(evalResp * 0.7);
-    pts += evalResp * 10;
-    pts += evalCorr * 5;
-
-    // Felicitaciones de clientes (demo)
     const felicit = seed > 80 ? Math.floor(seed/40) : 0;
     pts += felicit * 25;
 
     // Bonus equipo (si hay más de 1 en el mismo servicio)
     const mismoServ = activos.filter(x=>x.servicio===l.servicio&&x.nro!==l.nro).length;
-    const bonusEquipo = mismoServ>0 && evalResp>0 ? 15 : 0;
+    const bonusEquipo = mismoServ>0 && evalRespondidas>0 ? 15 : 0;
     pts += bonusEquipo;
 
     return {
       nro: l.nro, nombre: l.nombre, servicio: l.servicio,
       supervisor: l.supervisor,
-      ptsEvaluaciones: evalResp*10 + evalCorr*5,
+      ptsEvaluaciones: evalRespondidas*10 + respuestasCorrectas*5 + ptsNota,
       ptsPresenciales: presenciales*20,
       ptsFelicitaciones: felicit*25,
       ptsBonusEquipo: bonusEquipo,
       total: pts,
-      evalEnviadas: 3, evalRespondidas: evalResp,
-      aprobadas: evalCorr, felicit,
-      participa: evalResp > 0 || caps.length > 0
+      evalEnviadas: evalsAsoc.length, evalRespondidas,
+      aprobadas: respuestasCorrectas, felicit,
+      participa: evalRespondidas > 0 || caps.length > 0
     };
   }).sort((a,b)=>b.total-a.total);
 }
