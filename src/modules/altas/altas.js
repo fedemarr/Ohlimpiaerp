@@ -487,6 +487,12 @@ export function confirmarAlta() {
   DB.legajos.push(legajo);
   supaSync('legajos', legajo);
 
+  // Uniformes: al dar de alta con talle de ambo/calzado cargado, se
+  // genera sola una entrega "Pendiente" (por entregar) — Gabi no tiene
+  // que volver a cargar algo que ya se supo en el alta. Indirección por
+  // window para no crear un import cruzado entre módulos.
+  if (window.crearEntregaUniformeDesdeAlta) window.crearEntregaUniformeDesdeAlta(legajo);
+
   // Actualizar estado del psicotécnico si viene de ahí
   const psicoIdx = parseInt(($('alta-idx') || {}).value);
   if (!isNaN(psicoIdx) && DB.psicos[psicoIdx]) {

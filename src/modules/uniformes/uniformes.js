@@ -72,6 +72,21 @@ export function poblarSelectsUniformes() {
   dl.innerHTML = (DB.legajos || []).filter(l => l.estado === 'Activo').map(l => `<option value="${l.nombre}">${l.nombre} — ${l.nro}</option>`).join('');
 }
 
+function talleDeLegajo(leg) {
+  return [leg.ambo ? 'Ambo ' + leg.ambo : '', leg.calzado ? 'Calzado ' + leg.calzado : ''].filter(Boolean).join(' / ');
+}
+
+// Autocompleta N° de socio y talle (desde el ambo/calzado ya cargados en
+// el legajo, del alta) apenas se elige un asociado del datalist.
+export function autocompletarUniforme() {
+  const val = ($('uni-nombre') || { value: '' }).value;
+  const leg = (DB.legajos || []).find(l => l.nombre === val);
+  if (!leg) return;
+  if ($('uni-nroSocio')) $('uni-nroSocio').value = leg.nro;
+  const talleEl = $('uni-talle');
+  if (talleEl && !talleEl.value) talleEl.value = talleDeLegajo(leg);
+}
+
 // ========== AGREGAR / EDITAR ==========
 
 export function abrirNuevaEntregaUniforme() {
@@ -143,4 +158,30 @@ export function eliminarUniformePorId(id) {
   supaSync('uniformes', u);
   renderUniformes();
   toast('✅ Entrega eliminada');
+}
+
+// ========== AUTOMÁTICO DESDE ALTAS ==========
+// Se llama desde confirmarAlta() (src/modules/altas/altas.js) apenas se
+// crea el legajo — deja la entrega como "Pendiente" (por entregar) con el
+// talle que ya se cargó en el alta, para que Uniformes no tenga que
+// cargar de nuevo algo que ya se sabe. Se puede editar/completar a mano
+// después (prendas, descuento) cuando se entrega de verdad.
+export function crearEntregaUniformeDesdeAlta(legajo) {
+  if (!legajo?.ambo && !legajo?.calzado) return;
+  const u = {
+    id: Date.now(),
+    nombre: legajo.nombre,
+    nroSocio: String(legajo.nro),
+    legajoIdLocal: String(legajo.nro),
+    fecha: new Date().toISOString().slice(0, 10),
+    talle: talleDeLegajo(legajo),
+    prendas: [],
+    descuento: 0,
+    estado: 'Pendiente',
+    observaciones: 'Generado automáticamente al dar de alta',
+  };
+  if (!DB.uniformes) DB.uniformes = [];
+  DB.uniformes.push(u);
+  supaSync('uniformes', u);
+  renderUniformes();
 }

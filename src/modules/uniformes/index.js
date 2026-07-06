@@ -3,7 +3,7 @@
 export {
   renderUniformes, filtrarUniformes, poblarSelectsUniformes,
   abrirNuevaEntregaUniforme, abrirEditarUniformePorId, guardarUniforme,
-  eliminarUniformePorId,
+  eliminarUniformePorId, autocompletarUniforme, crearEntregaUniformeDesdeAlta,
 } from './uniformes.js';
 
 // ========== SCREEN CONFIG ==========
@@ -23,6 +23,7 @@ export const uniformesScreenConfig = {
 
 import {
   filtrarUniformes, abrirEditarUniformePorId, guardarUniforme, eliminarUniformePorId,
+  autocompletarUniforme, crearEntregaUniformeDesdeAlta,
 } from './uniformes.js';
 
 window.renderUniformes = renderUniformes;
@@ -32,3 +33,5 @@ window.abrirNuevaEntregaUniforme = abrirNuevaEntregaUniforme;
 window.abrirEditarUniformePorId = abrirEditarUniformePorId;
 window.guardarUniforme = guardarUniforme;
 window.eliminarUniformePorId = eliminarUniformePorId;
+window.autocompletarUniforme = autocompletarUniforme;
+window.crearEntregaUniformeDesdeAlta = crearEntregaUniformeDesdeAlta;

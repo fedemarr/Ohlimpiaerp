@@ -64,6 +64,14 @@ export function poblarSelectsRetenciones() {
   dl.innerHTML = (DB.legajos || []).filter(l => l.estado === 'Activo').map(l => `<option value="${l.nombre}">${l.nombre} — ${l.nro}</option>`).join('');
 }
 
+// Autocompleta N° de socio apenas se elige un asociado del datalist.
+export function autocompletarRetencion() {
+  const val = ($('ret2-nombre') || { value: '' }).value;
+  const leg = (DB.legajos || []).find(l => l.nombre === val);
+  if (!leg) return;
+  if ($('ret2-nroSocio')) $('ret2-nroSocio').value = leg.nro;
+}
+
 // ========== AGREGAR / EDITAR ==========
 
 export function abrirNuevaRetencion() {

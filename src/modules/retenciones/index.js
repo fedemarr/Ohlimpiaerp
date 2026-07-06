@@ -3,7 +3,7 @@
 export {
   renderRetenciones, filtrarRetenciones, poblarSelectsRetenciones,
   abrirNuevaRetencion, abrirEditarRetencionPorId, guardarRetencion,
-  liberarRetencionPorId, eliminarRetencionPorId,
+  liberarRetencionPorId, eliminarRetencionPorId, autocompletarRetencion,
 } from './retenciones.js';
 
 // ========== SCREEN CONFIG ==========
@@ -23,7 +23,7 @@ export const retencionesScreenConfig = {
 
 import {
   filtrarRetenciones, abrirEditarRetencionPorId, guardarRetencion,
-  liberarRetencionPorId, eliminarRetencionPorId,
+  liberarRetencionPorId, eliminarRetencionPorId, autocompletarRetencion,
 } from './retenciones.js';
 
 window.renderRetenciones = renderRetenciones;
@@ -34,3 +34,4 @@ window.abrirEditarRetencionPorId = abrirEditarRetencionPorId;
 window.guardarRetencion = guardarRetencion;
 window.liberarRetencionPorId = liberarRetencionPorId;
 window.eliminarRetencionPorId = eliminarRetencionPorId;
+window.autocompletarRetencion = autocompletarRetencion;

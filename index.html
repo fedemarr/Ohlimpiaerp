@@ -2524,7 +2524,7 @@
     <div class="modal-header"><h3 id="uni-modal-title">Nueva entrega de uniforme</h3><button class="btn-close" onclick="cerrarModal('modal-uniforme')">×</button></div>
     <div class="modal-body">
       <div class="form-grid gap-12">
-        <div class="form-group"><label>Nombre *</label><input type="text" id="uni-nombre" list="dl-uni-nombre" placeholder="Buscar asociado..."><datalist id="dl-uni-nombre"></datalist></div>
+        <div class="form-group"><label>Nombre *</label><input type="text" id="uni-nombre" list="dl-uni-nombre" placeholder="Buscar asociado..." oninput="autocompletarUniforme()"><datalist id="dl-uni-nombre"></datalist></div>
         <div class="form-grid form-grid-2">
           <div class="form-group"><label>N° de socio</label><input type="text" id="uni-nroSocio"></div>
           <div class="form-group"><label>Fecha de entrega</label><input type="date" id="uni-fecha"></div>
@@ -2553,7 +2553,7 @@
     <div class="modal-header"><h3 id="ret2-modal-title">Nueva retención</h3><button class="btn-close" onclick="cerrarModal('modal-retencion')">×</button></div>
     <div class="modal-body">
       <div class="form-grid gap-12">
-        <div class="form-group"><label>Nombre *</label><input type="text" id="ret2-nombre" list="dl-ret2-nombre" placeholder="Buscar asociado..."><datalist id="dl-ret2-nombre"></datalist></div>
+        <div class="form-group"><label>Nombre *</label><input type="text" id="ret2-nombre" list="dl-ret2-nombre" placeholder="Buscar asociado..." oninput="autocompletarRetencion()"><datalist id="dl-ret2-nombre"></datalist></div>
         <div class="form-grid form-grid-2">
           <div class="form-group"><label>N° de socio</label><input type="text" id="ret2-nroSocio"></div>
           <div class="form-group"><label>Tipo</label>
