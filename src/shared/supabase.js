@@ -301,3 +301,11 @@ export async function fetchCandidatosYTurnos() {
     turnos: (rTurnos.data || []).map(row => _toCamel(row)),
   };
 }
+
+// Chequeo liviano de solo sugerencias — usado por el polling del perfil
+// DEVELOPER para detectar tickets nuevos sin recargar toda la app.
+export async function fetchSugerencias() {
+  const { data, error } = await SUPA.from('sugerencias').select('*').order('created_at', { ascending: true });
+  if (error) return null;
+  return (data || []).map(row => _toCamel(row));
+}

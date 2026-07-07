@@ -4,7 +4,7 @@
 import './styles/main.css';
 
 // ── Shared ──
-import { SUPA, supaInit, supaSync, supaDel, fetchCandidatosYTurnos } from '@shared/supabase.js';
+import { SUPA, supaInit, supaSync, supaDel, fetchCandidatosYTurnos, fetchSugerencias } from '@shared/supabase.js';
 import { DB, PERFILES, MENU, BADGE_MAP, AREAS, LOCALIDADES_BA, currentUser } from '@shared/state.js';
 import { $, initials, avatarEl, badge, formatPeriodo, hoyStr, esFeriado, esFinde, getDiasDelMes, calcularDiasEntre, toTitleCase, cleanText, applyTitleCase, validarCampos, fillSelect, fillDL } from '@shared/helpers.js';
 import { toast, abrirModal, cerrarModal, initModalClickOutside, makeTableSortable, activarOrdenamiento, activarOrdenamientoTabla, handleBuscadorKeydown, confirmarModalInputSimple } from '@shared/ui.js';
@@ -24,7 +24,7 @@ import { capacitacionesScreenConfig, filtrarCapacitaciones } from './modules/cap
 import { uniformesScreenConfig, filtrarUniformes } from './modules/uniformes/index.js';
 import { retencionesScreenConfig, filtrarRetenciones } from './modules/retenciones/index.js';
 import { competenciaScreenConfig, sincronizarReglasCompetencia } from './modules/competencia/index.js';
-import { developerScreenConfig, sincronizarSugerenciasComoTickets } from './modules/developer/index.js';
+import { developerScreenConfig, sincronizarSugerenciasComoTickets, renderDevInicio, renderDevTickets } from './modules/developer/index.js';
 import './modules/personal_rrhh/index.js';
 
 // ========== BIND SHARED A WINDOW (PRIMERO) ==========
@@ -162,6 +162,35 @@ function detenerPolling() {
   if (pollingId) { clearInterval(pollingId); pollingId = null; }
 }
 
+// Chequeo periódico de sugerencias nuevas (perfil DEVELOPER) — mismo
+// patrón que chequearPostulacionesNuevas, para que los tickets aparezcan
+// en vivo sin necesidad de relogueaarse.
+const INTERVALO_POLLING_TICKETS_MS = 25000;
+let pollingTicketsId = null;
+
+async function chequearTicketsNuevosDev() {
+  const sugerencias = await fetchSugerencias();
+  if (!sugerencias) return;
+  DB.sugerencias = sugerencias;
+  const antes = (DB.tickets || []).length;
+  await sincronizarSugerenciasComoTickets();
+  const nuevos = (DB.tickets || []).length - antes;
+  if (nuevos > 0) {
+    toast('🎫 ' + nuevos + ' ticket(s) nuevo(s) desde sugerencias');
+    if (currentScreen === 'dev_inicio') renderDevInicio();
+    if (currentScreen === 'dev_tickets') renderDevTickets();
+  }
+}
+
+function iniciarPollingTickets() {
+  if (pollingTicketsId) return;
+  pollingTicketsId = setInterval(chequearTicketsNuevosDev, INTERVALO_POLLING_TICKETS_MS);
+}
+
+function detenerPollingTickets() {
+  if (pollingTicketsId) { clearInterval(pollingTicketsId); pollingTicketsId = null; }
+}
+
 registerAuthCallbacks({
   construirMenu,
   poblarSelects() {
@@ -190,8 +219,16 @@ registerAuthCallbacks({
     // tickets (nunca duplica — matchea por sugerenciaId).
     if (currentUser?.perfil === 'DEVELOPER') await sincronizarSugerenciasComoTickets();
   },
-  iniciarPolling,
-  detenerPolling,
+  iniciarPolling() {
+    // DEVELOPER no tiene pantalla de candidatos — en vez de chequear
+    // postulaciones nuevas, chequea sugerencias nuevas como tickets.
+    if (currentUser?.perfil === 'DEVELOPER') iniciarPollingTickets();
+    else iniciarPolling();
+  },
+  detenerPolling() {
+    detenerPolling();
+    detenerPollingTickets();
+  },
 });
 
 // ========== CALLBACKS DE NAV ==========
