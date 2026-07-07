@@ -83,7 +83,7 @@ export default async function handler(req, res) {
 
     const message = await anthropic.messages.create({
       model: 'claude-opus-4-8',
-      max_tokens: 1536,
+      max_tokens: 4096,
       output_config: { format: { type: 'json_schema', schema: SCHEMA } },
       messages: [{
         role: 'user',
@@ -98,6 +98,10 @@ export default async function handler(req, res) {
 
     if (message.stop_reason === 'refusal') {
       res.status(422).json({ error: 'La generación fue rechazada por los filtros de seguridad del modelo' });
+      return;
+    }
+    if (message.stop_reason === 'max_tokens') {
+      res.status(502).json({ error: 'La respuesta del modelo fue demasiado larga y se cortó — probá de nuevo' });
       return;
     }
 
