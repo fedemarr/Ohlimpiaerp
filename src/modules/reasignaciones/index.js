@@ -43,7 +43,6 @@ import {
 } from './reasignaciones.js';
 
 window.tabReas = tabReas;
-window.renderReasignaciones = renderReasignaciones;
 window.renderReasPend = renderReasPend;
 window.renderReasHist = renderReasHist;
 window.renderRotacion = renderRotacion;
