@@ -175,6 +175,10 @@ tbody tr{cursor:pointer;transition:background .1s;}
 /* MODAL */
 .modal-overlay{position:fixed;inset:0;background:rgba(10,20,60,.5);backdrop-filter:blur(3px);z-index:200;display:none;align-items:flex-start;justify-content:center;padding:20px;overflow-y:auto;}
 .modal-overlay.open{display:flex;}
+
+/* CAMPANA DE NOTIFICACIONES */
+.campana-dropdown{display:none;position:absolute;top:100%;right:0;margin-top:8px;width:320px;max-height:360px;overflow-y:auto;background:white;border:1px solid var(--borde);border-radius:var(--radio);box-shadow:var(--sombra);z-index:250;}
+.campana-dropdown.open{display:block;}
 .modal{background:white;border-radius:var(--radio-lg);width:100%;max-width:780px;box-shadow:0 20px 60px rgba(0,0,0,.2);animation:modalIn .2s ease;margin:auto;}
 @keyframes modalIn{from{opacity:0;transform:translateY(-14px) scale(.98)}to{opacity:1;transform:none}}
 .modal-header{padding:18px 24px;border-bottom:1px solid var(--borde);display:flex;align-items:center;justify-content:space-between;}

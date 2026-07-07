@@ -49,6 +49,8 @@ export const _SM = {
   personalRrhh: 'personal_rrhh',
   adjuntos: 'adjuntos',
   tickets: 'tickets',
+  vacaciones: 'vacaciones',
+  notificacionesSistema: 'notificaciones_sistema',
 };
 
 // camelCase → snake_case para guardar en Supabase
@@ -121,6 +123,24 @@ export function _toSnake(obj) {
     borradoEn: 'borrado_en',
     // Tickets (v026 — perfil DEVELOPER)
     sugerenciaId: 'sugerencia_id', respuestaDev: 'respuesta_dev', resueltoAt: 'resuelto_at',
+    // Vacaciones (v027) + campos nuevos de Legajos (v028)
+    fechaDesde: 'fecha_desde', fechaHasta: 'fecha_hasta', diasSolicitados: 'dias_solicitados',
+    fechaRetorno: 'fecha_retorno',
+    reemplazanteLegajoIdLocal: 'reemplazante_legajo_id_local', reemplazanteNombre: 'reemplazante_nombre',
+    descripcionReemplazo: 'descripcion_reemplazo',
+    aprobadoPorGerente: 'aprobado_por_gerente', fechaAprobacionGerente: 'fecha_aprobacion_gerente',
+    motivoRechazoGerente: 'motivo_rechazo_gerente',
+    votoPresidente: 'voto_presidente', votoPresidenteFecha: 'voto_presidente_fecha', votoPresidenteMotivo: 'voto_presidente_motivo',
+    votoTesorero: 'voto_tesorero', votoTesoreroFecha: 'voto_tesorero_fecha', votoTesoreroMotivo: 'voto_tesorero_motivo',
+    votoSecretario: 'voto_secretario', votoSecretarioFecha: 'voto_secretario_fecha', votoSecretarioMotivo: 'voto_secretario_motivo',
+    fechaAprobacionConsejo: 'fecha_aprobacion_consejo', fechaRechazoConsejo: 'fecha_rechazo_consejo',
+    anuladoPorNombre: 'anulado_por_nombre', motivoAnulacion: 'motivo_anulacion',
+    solicitudAnulacionMotivo: 'solicitud_anulacion_motivo',
+    votoAnulPresidente: 'voto_anul_presidente', votoAnulTesorero: 'voto_anul_tesorero', votoAnulSecretario: 'voto_anul_secretario',
+    diasVacacionesAnuales: 'dias_vacaciones_anuales', jefeDirectoLegajoIdLocal: 'jefe_directo_legajo_id_local',
+    // Notificaciones del sistema (v029)
+    entidadTipo: 'entidad_tipo', entidadIdLocal: 'entidad_id_local',
+    destinatarioNombre: 'destinatario_nombre', leidaEn: 'leida_en',
   };
   const r = {};
   for (const [k, v] of Object.entries(obj)) {
@@ -209,6 +229,24 @@ export function _toCamel(obj) {
     borrado_en: 'borradoEn',
     // Tickets (v026 — perfil DEVELOPER)
     sugerencia_id: 'sugerenciaId', respuesta_dev: 'respuestaDev', resuelto_at: 'resueltoAt',
+    // Vacaciones (v027) + campos nuevos de Legajos (v028)
+    fecha_desde: 'fechaDesde', fecha_hasta: 'fechaHasta', dias_solicitados: 'diasSolicitados',
+    fecha_retorno: 'fechaRetorno',
+    reemplazante_legajo_id_local: 'reemplazanteLegajoIdLocal', reemplazante_nombre: 'reemplazanteNombre',
+    descripcion_reemplazo: 'descripcionReemplazo',
+    aprobado_por_gerente: 'aprobadoPorGerente', fecha_aprobacion_gerente: 'fechaAprobacionGerente',
+    motivo_rechazo_gerente: 'motivoRechazoGerente',
+    voto_presidente: 'votoPresidente', voto_presidente_fecha: 'votoPresidenteFecha', voto_presidente_motivo: 'votoPresidenteMotivo',
+    voto_tesorero: 'votoTesorero', voto_tesorero_fecha: 'votoTesoreroFecha', voto_tesorero_motivo: 'votoTesoreroMotivo',
+    voto_secretario: 'votoSecretario', voto_secretario_fecha: 'votoSecretarioFecha', voto_secretario_motivo: 'votoSecretarioMotivo',
+    fecha_aprobacion_consejo: 'fechaAprobacionConsejo', fecha_rechazo_consejo: 'fechaRechazoConsejo',
+    anulado_por_nombre: 'anuladoPorNombre', motivo_anulacion: 'motivoAnulacion',
+    solicitud_anulacion_motivo: 'solicitudAnulacionMotivo',
+    voto_anul_presidente: 'votoAnulPresidente', voto_anul_tesorero: 'votoAnulTesorero', voto_anul_secretario: 'votoAnulSecretario',
+    dias_vacaciones_anuales: 'diasVacacionesAnuales', jefe_directo_legajo_id_local: 'jefeDirectoLegajoIdLocal',
+    // Notificaciones del sistema (v029)
+    entidad_tipo: 'entidadTipo', entidad_id_local: 'entidadIdLocal',
+    destinatario_nombre: 'destinatarioNombre', leida_en: 'leidaEn',
   };
   const r = {};
   for (const [k, v] of Object.entries(obj)) {

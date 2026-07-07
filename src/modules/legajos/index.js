@@ -7,6 +7,7 @@ export {
   editarLegajoActual, guardarEdicionLegajo,
   imprimirLegajo,
   verAdjuntoLegajo,
+  SECTORES_ADMIN, toggleSeccionVacacionesLegajo,
 } from './legajos.js';
 
 export {
@@ -35,6 +36,7 @@ import {
   editarLegajoActual, guardarEdicionLegajo,
   imprimirLegajo,
   verAdjuntoLegajo,
+  toggleSeccionVacacionesLegajo,
 } from './legajos.js';
 
 import {
@@ -50,6 +52,7 @@ window.editarLegajoActual = editarLegajoActual;
 window.guardarEdicionLegajo = guardarEdicionLegajo;
 window.imprimirLegajo = imprimirLegajo;
 window.verAdjuntoLegajo = verAdjuntoLegajo;
+window.toggleSeccionVacacionesLegajo = toggleSeccionVacacionesLegajo;
 window.abrirImportadorLegajos = abrirImportadorLegajos;
 window.descargarPlantillaLegajos = descargarPlantillaLegajos;
 window.seleccionarArchivoImportacion = seleccionarArchivoImportacion;

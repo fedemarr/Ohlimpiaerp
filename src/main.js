@@ -25,6 +25,8 @@ import { uniformesScreenConfig, filtrarUniformes } from './modules/uniformes/ind
 import { retencionesScreenConfig, filtrarRetenciones } from './modules/retenciones/index.js';
 import { competenciaScreenConfig, sincronizarReglasCompetencia } from './modules/competencia/index.js';
 import { developerScreenConfig, sincronizarSugerenciasComoTickets, renderDevInicio, renderDevTickets } from './modules/developer/index.js';
+import { vacacionesScreenConfig } from './modules/vacaciones/index.js';
+import { renderCampanaNotificaciones, fetchNotificacionesPendientes, toggleCampanaDropdown, marcarNotifLeidaYRefrescar } from '@shared/notificaciones.js';
 import './modules/personal_rrhh/index.js';
 
 // ========== BIND SHARED A WINDOW (PRIMERO) ==========
@@ -43,6 +45,8 @@ window.confirmarModalInputSimple = confirmarModalInputSimple;
 window.toast = toast;
 window.hoyStr = hoyStr;
 window.$ = $;
+window.toggleCampanaDropdown = toggleCampanaDropdown;
+window.marcarNotifLeidaYRefrescar = marcarNotifLeidaYRefrescar;
 
 // ========== REGISTRAR PANTALLAS ==========
 
@@ -59,6 +63,7 @@ registerScreens(uniformesScreenConfig);
 registerScreens(retencionesScreenConfig);
 registerScreens(competenciaScreenConfig);
 registerScreens(developerScreenConfig);
+registerScreens(vacacionesScreenConfig);
 
 // ========== REGISTRAR FILTROS DE BÚSQUEDA GLOBAL ==========
 
@@ -100,7 +105,7 @@ async function loadLegacy() {
       enfermos: { title: 'Enfermos y accidentes', btn: '+ Nuevo caso', fn: () => abrirModal('modal-enfermo'), render: () => { if (window.renderEnfermos) window.renderEnfermos(); } },
       clientes: { title: 'Clientes', btn: '+ Nuevo cliente', fn: () => abrirModal('modal-cliente'), render: () => { if (window.renderClientes) window.renderClientes(); } },
       objetivos: { title: 'Objetivos / Servicios', btn: '+ Nuevo objetivo', fn: () => abrirModal('modal-objetivo'), render: () => { if (window.renderObjetivos) window.renderObjetivos(); } },
-      vacaciones: { title: 'Vacaciones y descanso', btn: '', fn: null, render: () => { if (window.renderVacaciones) window.renderVacaciones(); } },
+      descansos: { title: 'Descansos — Sector Operativo', btn: '+ Solicitar descanso', fn: () => abrirModal('modal-vac-op'), render: () => { if (window.renderVacOp) window.renderVacOp(); } },
       configuracion: { title: 'Configuración', btn: '', fn: null, render: () => { if (window.renderConfiguracion) window.renderConfiguracion(); } },
       smvm: { title: 'SMVM histórico', btn: '', fn: null, render: () => { if (window.renderSMVM) window.renderSMVM(); } },
       feriados: { title: 'Feriados', btn: '+ Agregar feriado', fn: () => abrirModal('modal-feriado'), render: () => { if (window.renderFeriados) window.renderFeriados(); } },
@@ -191,6 +196,30 @@ function detenerPollingTickets() {
   if (pollingTicketsId) { clearInterval(pollingTicketsId); pollingTicketsId = null; }
 }
 
+// Chequeo periódico de la campana de notificaciones (todos los perfiles
+// logueados, ver shared/notificaciones.js) — se creó de cero esta sesión,
+// no existía nada parecido en el proyecto.
+const INTERVALO_POLLING_CAMPANA_MS = 25000;
+let pollingCampanaId = null;
+
+async function chequearNotificacionesNuevas() {
+  if (!currentUser?.nombre) return;
+  const pendientes = await fetchNotificacionesPendientes(currentUser.nombre);
+  const otros = (DB.notificacionesSistema || []).filter(n => n.destinatarioNombre !== currentUser.nombre);
+  DB.notificacionesSistema = [...otros, ...pendientes];
+  renderCampanaNotificaciones();
+}
+
+function iniciarPollingCampana() {
+  if (pollingCampanaId) return;
+  chequearNotificacionesNuevas();
+  pollingCampanaId = setInterval(chequearNotificacionesNuevas, INTERVALO_POLLING_CAMPANA_MS);
+}
+
+function detenerPollingCampana() {
+  if (pollingCampanaId) { clearInterval(pollingCampanaId); pollingCampanaId = null; }
+}
+
 registerAuthCallbacks({
   construirMenu,
   poblarSelects() {
@@ -224,10 +253,12 @@ registerAuthCallbacks({
     // postulaciones nuevas, chequea sugerencias nuevas como tickets.
     if (currentUser?.perfil === 'DEVELOPER') iniciarPollingTickets();
     else iniciarPolling();
+    iniciarPollingCampana();
   },
   detenerPolling() {
     detenerPolling();
     detenerPollingTickets();
+    detenerPollingCampana();
   },
 });
 

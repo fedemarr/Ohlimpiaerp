@@ -254,6 +254,25 @@ export function tabLeg(idx, btn) {
 
 // ========== EDITAR ==========
 
+// Sectores administrativos hardcodeados (mismo catálogo que hoy vive en
+// legacy.js como DB.sectoresAdmin) — reexportado para que src/modules/
+// vacaciones/ lo reuse sin duplicar la lista.
+export const SECTORES_ADMIN = [
+  'Consejo de Administración', 'Coord. General', 'Coord. RRHH',
+  'Coord. Operaciones y Planeamiento', 'Coord. Calidad',
+  'Coord. Logística y Distribución', 'Coord. Marketing y Ventas',
+  'Coord. Administración y Finanzas',
+];
+
+// Muestra/oculta la sección de campos de Vacaciones según si el
+// servicio cargado es 'ADMINISTRATIVO' (mismo criterio que ya usa el
+// resto del proyecto para distinguir administrativos de operarios).
+export function toggleSeccionVacacionesLegajo() {
+  const servicio = ($('edit-servicio') || { value: '' }).value.trim().toUpperCase();
+  const sec = $('edit-admin-vac-section');
+  if (sec) sec.style.display = servicio === 'ADMINISTRATIVO' ? 'block' : 'none';
+}
+
 export function editarLegajoActual() {
   const l = DB.legajos.find(x => x.nro === legajoActualNro);
   if (!l) return;
@@ -281,6 +300,14 @@ export function editarLegajoActual() {
   for (let i = 0; i < ef.options.length; i++) {
     if (ef.options[i].text === l.funcion) { ef.selectedIndex = i; break; }
   }
+  fillSelect('edit-sector', SECTORES_ADMIN);
+  if ($('edit-sector')) $('edit-sector').value = l.sector || '';
+  if ($('edit-dias-vac')) $('edit-dias-vac').value = l.diasVacacionesAnuales || 0;
+  const jefe = l.jefeDirectoLegajoIdLocal ? DB.legajos.find(x => String(x.nro) === String(l.jefeDirectoLegajoIdLocal)) : null;
+  if ($('edit-jefe-directo')) $('edit-jefe-directo').value = jefe ? `${jefe.nombre} (N°${jefe.nro})` : '';
+  const dlJefe = $('dl-edit-jefe-directo');
+  if (dlJefe) dlJefe.innerHTML = DB.legajos.filter(x => x.estado === 'Activo' && x.nro !== l.nro).map(x => `<option value="${x.nombre} (N°${x.nro})">`).join('');
+  toggleSeccionVacacionesLegajo();
   cerrarModal('modal-legajo');
   abrirModal('modal-editar-legajo');
 }
@@ -322,6 +349,13 @@ export function guardarEdicionLegajo() {
   if (fb && fb.value) { l.fechaBaja = new Date(fb.value).toLocaleDateString('es-AR'); }
   const el = $('edit-estado-legal');
   if (el) l.estadoLegal = el.value || '';
+  if (l.servicio.trim().toUpperCase() === 'ADMINISTRATIVO') {
+    l.sector = ($('edit-sector') || { value: '' }).value || '';
+    l.diasVacacionesAnuales = parseInt(($('edit-dias-vac') || { value: 0 }).value) || 0;
+    const jefeTexto = ($('edit-jefe-directo') || { value: '' }).value;
+    const jefeMatch = jefeTexto.match(/\(N°(\d+)\)\s*$/);
+    l.jefeDirectoLegajoIdLocal = jefeMatch ? jefeMatch[1] : '';
+  }
   supaSync('legajos', l);
   cerrarModal('modal-editar-legajo');
   renderLegajos();

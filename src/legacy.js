@@ -12782,7 +12782,9 @@ window.renderAreasPersonal = renderAreasPersonal;
 window.renderArt42 = renderArt42;
 window.renderCRM = renderCRM;
 window.renderCalendarioPlan = renderCalendarioPlan;
-window.renderCalendarioVacaciones = renderCalendarioVacaciones;
+// window.renderCalendarioVacaciones ya NO se bindea acá — colisionaba con
+// el calendario nuevo del módulo Vacaciones migrado (src/modules/vacaciones/
+// calendario.js). La función vieja queda arriba como referencia, sin uso.
 window.renderCatPendientes = renderCatPendientes;
 window.renderCategoriasSind = renderCategoriasSind;
 window.renderCfgEtapasCRM = renderCfgEtapasCRM;

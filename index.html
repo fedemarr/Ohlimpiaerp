@@ -69,6 +69,14 @@
     <input type="text" id="buscador-global" placeholder="🔍 Buscar en todo el sistema..." oninput="busquedaGlobal()" style="width:100%;padding:7px 12px;border:1px solid var(--borde-fuerte);border-radius:var(--radio);font-size:13px;font-family:inherit;outline:none;background:var(--fondo);">
   </div>
   <div class="topbar-actions">
+    <div style="position:relative;">
+      <button type="button" onclick="toggleCampanaDropdown()" style="position:relative;background:none;border:none;font-size:18px;cursor:pointer;padding:4px 8px;">
+        🔔<span id="campana-badge" class="nav-badge" style="display:none;position:absolute;top:-2px;right:0;">0</span>
+      </button>
+      <div id="campana-dropdown" class="campana-dropdown">
+        <div id="campana-lista"></div>
+      </div>
+    </div>
     <span class="ia-badge"><span class="ia-dot"></span>Agente IA</span>
     <button class="btn btn-primary btn-sm" id="btn-top" style="display:none;" onclick="topAction()"></button>
   </div>
@@ -1196,81 +1204,83 @@
 
 <!-- VACACIONES Y DESCANSO -->
 <div class="screen" id="screen-vacaciones">
-  <div class="stats-grid">
-    <div class="stat-card azul"><div class="stat-label">De vacaciones ahora</div><div class="stat-valor" id="st-vac-ahora">0</div><div class="stat-sub">Período activo</div></div>
-    <div class="stat-card acento"><div class="stat-label">Solicitudes pendientes</div><div class="stat-valor" id="st-vac-pend">0</div><div class="stat-sub">Sin aprobar</div></div>
-    <div class="stat-card verde"><div class="stat-label">Aprobadas este año</div><div class="stat-valor" id="st-vac-aprobadas">0</div><div class="stat-sub">Administrativo + Operativo</div></div>
-    <div class="stat-card rojo"><div class="stat-label">Días pendientes</div><div class="stat-valor" id="st-vac-dias">0</div><div class="stat-sub">Sin usar (acumulado)</div></div>
-  </div>
-
   <!-- TABS -->
   <div class="tabs" style="background:white;border-radius:var(--radio-lg) var(--radio-lg) 0 0;padding:0 20px;box-shadow:var(--sombra);border-bottom:none;">
-    <button class="tab-btn active" onclick="tabVacaciones('admin',this)">👔 Sector Administrativo</button>
-    <button class="tab-btn" onclick="tabVacaciones('operativo',this)">👷 Sector Operativo</button>
-    <button class="tab-btn" onclick="tabVacaciones('calendario',this)">📅 Calendario de ausencias</button>
+    <button class="tab-btn active" data-vac-tab="pendientes" onclick="cambiarTabVacaciones('pendientes',this)">📋 Pendientes</button>
+    <button class="tab-btn" data-vac-tab="historial" onclick="cambiarTabVacaciones('historial',this)">📚 Historial</button>
+    <button class="tab-btn" data-vac-tab="saldos" onclick="cambiarTabVacaciones('saldos',this)">📊 Panorama de saldos</button>
+    <button class="tab-btn" data-vac-tab="calendario" onclick="cambiarTabVacaciones('calendario',this)">📅 Calendario</button>
   </div>
 
-  <!-- TAB ADMINISTRATIVO -->
-  <div id="vac-tab-admin" class="tab-content active">
+  <!-- TAB PENDIENTES -->
+  <div id="vac-tab-pendientes" class="tab-content active">
     <div class="card" style="border-radius:0 var(--radio-lg) var(--radio-lg) var(--radio-lg);">
       <div class="card-header">
-        <h3>Vacaciones — Sector Administrativo</h3>
+        <h3>Bandeja de pendientes</h3>
         <div class="filtros-bar">
-          <button class="btn btn-primary btn-sm" onclick="abrirModal('modal-vac-admin')">+ Registrar vacaciones</button>
-          <select id="cf-vac-anio-admin" onchange="filtrarVacAdmin()"><option value="">Todos los años</option><option value="2026">2026</option><option value="2025">2025</option><option value="2024">2024</option><option value="2023">2023</option></select>
-          <select id="cf-vac-sector" onchange="filtrarVacAdmin()"><option value="">Todos los sectores</option></select>
-          <input type="text" placeholder="🔍 Buscar asociado..." id="buscar-vac-admin" oninput="filtrarVacAdmin()">
+          <input type="text" placeholder="🔍 Buscar asociado..." id="vac-pend-buscar" oninput="filtrarPendientes()">
+          <select id="vac-pend-sector" onchange="filtrarPendientes()"><option value="">Todos los sectores</option></select>
+          <select id="vac-pend-estado" onchange="filtrarPendientes()">
+            <option value="">Todos los estados</option>
+            <option>Borrador</option><option>Pendiente aprobación Gerente</option><option>Pendiente aprobación Consejo</option>
+            <option>Solicitud de anulación pendiente</option>
+          </select>
         </div>
       </div>
       <div class="tabla-wrap"><table>
         <thead><tr>
-          <th>N° Socio<input type="text" placeholder="🔍" style="display:block;width:55px;font-size:10px;padding:2px 4px;border:1px solid var(--borde-fuerte);border-radius:5px;margin-top:4px;outline:none;" oninput="filtrarVacAdmin()" id="cf-va-nro"></th>
-          <th>Asociado<input type="text" placeholder="🔍" style="display:block;width:100%;font-size:10px;padding:2px 4px;border:1px solid var(--borde-fuerte);border-radius:5px;margin-top:4px;outline:none;" oninput="filtrarVacAdmin()" id="cf-va-nombre"></th>
-          <th>Sector<select style="display:block;width:100%;font-size:10px;padding:2px 4px;border:1px solid var(--borde-fuerte);border-radius:5px;margin-top:4px;outline:none;" onchange="filtrarVacAdmin()" id="cf-va-sector"><option value="">Todos</option></select></th>
-          <th>Antigüedad</th>
-          <th>Días corresp.</th>
-          <th>Planilla entregada<select style="display:block;width:100%;font-size:10px;padding:2px 4px;border:1px solid var(--borde-fuerte);border-radius:5px;margin-top:4px;outline:none;" onchange="filtrarVacAdmin()" id="cf-va-planilla"><option value="">Todas</option><option>SI</option><option>NO</option></select></th>
-          <th>Días solicitados</th>
-          <th>Desde</th>
-          <th>Hasta</th>
-          <th>Días pendientes</th>
-          <th>Cumple política<select style="display:block;width:100%;font-size:10px;padding:2px 4px;border:1px solid var(--borde-fuerte);border-radius:5px;margin-top:4px;outline:none;" onchange="filtrarVacAdmin()" id="cf-va-cumple"><option value="">Todos</option><option>SI</option><option>NO</option></select></th>
-          <th>Reemplaza<input type="text" placeholder="🔍" style="display:block;width:100%;font-size:10px;padding:2px 4px;border:1px solid var(--borde-fuerte);border-radius:5px;margin-top:4px;outline:none;" oninput="filtrarVacAdmin()" id="cf-va-reemplazo"></th>
-          <th></th>
+          <th>Solicitante</th><th>Sector</th><th>Desde</th><th>Hasta</th><th>Días</th><th>Reemplazante</th>
+          <th>Fecha solicitud</th><th>Antigüedad pedido</th><th>Estado</th><th>Progreso</th><th>Alertas</th><th></th>
         </tr></thead>
-        <tbody id="tbody-vac-admin"></tbody>
+        <tbody id="tbody-vac-pendientes"></tbody>
       </table></div>
     </div>
   </div>
 
-  <!-- TAB OPERATIVO -->
-  <div id="vac-tab-operativo" class="tab-content">
+  <!-- TAB HISTORIAL -->
+  <div id="vac-tab-historial" class="tab-content">
     <div class="card" style="border-radius:0 var(--radio-lg) var(--radio-lg) var(--radio-lg);">
       <div class="card-header">
-        <h3>Días de descanso — Sector Operativo</h3>
+        <h3>Historial completo</h3>
         <div class="filtros-bar">
-          <button class="btn btn-primary btn-sm" onclick="abrirModal('modal-vac-op')">+ Solicitar descanso</button>
-          <input type="text" placeholder="🔍 Buscar asociado..." id="buscar-vac-op" oninput="filtrarVacOp()">
-          <select id="cf-vo-estado" onchange="filtrarVacOp()"><option value="">Todos los estados</option><option>Pendiente</option><option>Aprobado</option><option>Rechazado</option></select>
-          <select id="cf-vo-anio" onchange="filtrarVacOp()"><option value="">Todos los años</option><option>2026</option><option>2025</option><option>2024</option><option>2023</option></select>
+          <input type="text" placeholder="🔍 Buscar asociado..." id="vac-hist-buscar" oninput="filtrarHistorial()">
+          <select id="vac-hist-sector" onchange="filtrarHistorial()"><option value="">Todos los sectores</option></select>
+          <select id="vac-hist-estado" onchange="filtrarHistorial()">
+            <option value="">Todos los estados</option>
+            <option>Borrador</option><option>Pendiente aprobación Gerente</option><option>Pendiente aprobación Consejo</option>
+            <option>Aprobada</option><option>Rechazada por Gerente</option><option>Rechazada por Consejo</option>
+            <option>Anulada por solicitante</option><option>Anulada por Gerente</option>
+            <option>Solicitud de anulación pendiente</option><option>Anulada por Consejo</option><option>Anulación rechazada por Consejo</option>
+          </select>
+          <select id="vac-hist-anio" onchange="filtrarHistorial()"><option value="">Todos los años</option><option>2026</option><option>2025</option><option>2024</option></select>
         </div>
       </div>
       <div class="tabla-wrap"><table>
         <thead><tr>
-          <th>Fecha solicitud<input type="text" placeholder="🔍" style="display:block;width:65px;font-size:10px;padding:2px 4px;border:1px solid var(--borde-fuerte);border-radius:5px;margin-top:4px;outline:none;" oninput="filtrarVacOp()" id="cf-vo-fecha-sol"></th>
-          <th>Asociado<input type="text" placeholder="🔍" style="display:block;width:100%;font-size:10px;padding:2px 4px;border:1px solid var(--borde-fuerte);border-radius:5px;margin-top:4px;outline:none;" oninput="filtrarVacOp()" id="cf-vo-nombre"></th>
-          <th>N° Socio</th>
-          <th>Supervisor<select style="display:block;width:100%;font-size:10px;padding:2px 4px;border:1px solid var(--borde-fuerte);border-radius:5px;margin-top:4px;outline:none;" onchange="filtrarVacOp()" id="cf-vo-sup"><option value="">Todos</option></select></th>
-          <th>Servicio<input type="text" placeholder="🔍" style="display:block;width:100%;font-size:10px;padding:2px 4px;border:1px solid var(--borde-fuerte);border-radius:5px;margin-top:4px;outline:none;" oninput="filtrarVacOp()" id="cf-vo-serv"></th>
-          <th>Cant. días<select style="display:block;width:100%;font-size:10px;padding:2px 4px;border:1px solid var(--borde-fuerte);border-radius:5px;margin-top:4px;outline:none;" onchange="filtrarVacOp()" id="cf-vo-cant"><option value="">Todas</option><option>Una semana</option><option>Dos semanas</option></select></th>
-          <th>Desde</th><th>Hasta</th><th>Retorno</th>
-          <th>Cumple política<select style="display:block;width:100%;font-size:10px;padding:2px 4px;border:1px solid var(--borde-fuerte);border-radius:5px;margin-top:4px;outline:none;" onchange="filtrarVacOp()" id="cf-vo-cumple"><option value="">Todos</option><option>SI</option><option>NO</option></select></th>
-          <th>Form. físico<select style="display:block;width:100%;font-size:10px;padding:2px 4px;border:1px solid var(--borde-fuerte);border-radius:5px;margin-top:4px;outline:none;" onchange="filtrarVacOp()" id="cf-vo-form"><option value="">Todos</option><option>Entregado</option><option>Pendiente</option></select></th>
-          <th>Reemplaza<input type="text" placeholder="🔍" style="display:block;width:100%;font-size:10px;padding:2px 4px;border:1px solid var(--borde-fuerte);border-radius:5px;margin-top:4px;outline:none;" oninput="filtrarVacOp()" id="cf-vo-reemplazo"></th>
-          <th>Estado<select style="display:block;width:100%;font-size:10px;padding:2px 4px;border:1px solid var(--borde-fuerte);border-radius:5px;margin-top:4px;outline:none;" onchange="filtrarVacOp()" id="cf-vo-est"><option value="">Todos</option><option>Pendiente</option><option>Aprobado</option><option>Rechazado</option></select></th>
-          <th></th>
+          <th>Solicitante</th><th>Sector</th><th>Desde</th><th>Hasta</th><th>Días</th><th>Reemplazante</th>
+          <th>Fecha solicitud</th><th>Antigüedad pedido</th><th>Estado</th><th>Progreso</th><th>Alertas</th><th></th>
         </tr></thead>
-        <tbody id="tbody-vac-op"></tbody>
+        <tbody id="tbody-vac-historial"></tbody>
+      </table></div>
+    </div>
+  </div>
+
+  <!-- TAB PANORAMA DE SALDOS -->
+  <div id="vac-tab-saldos" class="tab-content">
+    <div class="card" style="border-radius:0 var(--radio-lg) var(--radio-lg) var(--radio-lg);">
+      <div class="card-header">
+        <h3>Panorama de saldos</h3>
+        <div class="filtros-bar">
+          <select id="vac-saldo-sector" onchange="filtrarPanoramaSaldos()"><option value="">Todos los sectores</option></select>
+          <label style="display:flex;align-items:center;gap:4px;font-size:12.5px;"><input type="checkbox" id="vac-saldo-solo-alertas" onchange="filtrarPanoramaSaldos()"> Solo con alertas</label>
+          <button class="btn btn-secondary btn-sm" onclick="exportarSaldosExcel()">📥 Exportar a Excel</button>
+        </div>
+      </div>
+      <div class="tabla-wrap"><table>
+        <thead><tr>
+          <th>Asociado</th><th>Sector</th><th>Antigüedad</th><th>Días asignados</th><th>Días tomados</th><th>Días en proceso</th><th>Días disponibles</th><th>Alerta</th>
+        </tr></thead>
+        <tbody id="tbody-vac-saldos"></tbody>
       </table></div>
     </div>
   </div>
@@ -1279,17 +1289,57 @@
   <div id="vac-tab-calendario" class="tab-content">
     <div class="card" style="border-radius:0 var(--radio-lg) var(--radio-lg) var(--radio-lg);">
       <div class="card-header">
-        <h3>📅 Calendario de ausencias</h3>
+        <h3>📅 Calendario — <span id="vac-cal-titulo"></span></h3>
         <div style="display:flex;gap:8px;align-items:center;">
-          <button class="btn btn-secondary btn-sm" onclick="cambiarMesVac(-1)">← Anterior</button>
-          <span id="mes-vac-label" style="font-size:13px;font-weight:500;min-width:140px;text-align:center;"></span>
-          <button class="btn btn-secondary btn-sm" onclick="cambiarMesVac(1)">Siguiente →</button>
+          <select id="vac-cal-sector" onchange="renderCalendarioVacaciones()"><option value="">Todos los sectores</option></select>
+          <button class="btn btn-secondary btn-sm" onclick="mesAnteriorVac()">← Anterior</button>
+          <button class="btn btn-secondary btn-sm" onclick="mesSiguienteVac()">Siguiente →</button>
         </div>
       </div>
       <div class="card-body" style="overflow-x:auto;">
-        <div id="calendario-vacaciones"></div>
+        <div id="vac-calendario-grilla"></div>
       </div>
     </div>
+  </div>
+</div>
+
+<!-- DESCANSOS (sector operativo) — se mantiene tal cual estaba, sin
+     migrar, ver DISENO_vacaciones.md (Vacaciones y Descansos son
+     módulos separados; Descansos no tiene diseño propio todavía). -->
+<div class="screen" id="screen-descansos">
+  <div class="stats-grid">
+    <div class="stat-card azul"><div class="stat-label">De descanso ahora</div><div class="stat-valor" id="st-vac-ahora">0</div><div class="stat-sub">Período activo</div></div>
+    <div class="stat-card acento"><div class="stat-label">Solicitudes pendientes</div><div class="stat-valor" id="st-vac-pend">0</div><div class="stat-sub">Sin aprobar</div></div>
+    <div class="stat-card verde"><div class="stat-label">Aprobadas este año</div><div class="stat-valor" id="st-vac-aprobadas">0</div><div class="stat-sub">Operativo</div></div>
+    <div class="stat-card rojo"><div class="stat-label">Días pendientes</div><div class="stat-valor" id="st-vac-dias">0</div><div class="stat-sub">Sin usar (acumulado)</div></div>
+  </div>
+  <div class="card">
+    <div class="card-header">
+      <h3>Días de descanso — Sector Operativo</h3>
+      <div class="filtros-bar">
+        <button class="btn btn-primary btn-sm" onclick="abrirModal('modal-vac-op')">+ Solicitar descanso</button>
+        <input type="text" placeholder="🔍 Buscar asociado..." id="buscar-vac-op" oninput="filtrarVacOp()">
+        <select id="cf-vo-estado" onchange="filtrarVacOp()"><option value="">Todos los estados</option><option>Pendiente</option><option>Aprobado</option><option>Rechazado</option></select>
+        <select id="cf-vo-anio" onchange="filtrarVacOp()"><option value="">Todos los años</option><option>2026</option><option>2025</option><option>2024</option><option>2023</option></select>
+      </div>
+    </div>
+    <div class="tabla-wrap"><table>
+      <thead><tr>
+        <th>Fecha solicitud<input type="text" placeholder="🔍" style="display:block;width:65px;font-size:10px;padding:2px 4px;border:1px solid var(--borde-fuerte);border-radius:5px;margin-top:4px;outline:none;" oninput="filtrarVacOp()" id="cf-vo-fecha-sol"></th>
+        <th>Asociado<input type="text" placeholder="🔍" style="display:block;width:100%;font-size:10px;padding:2px 4px;border:1px solid var(--borde-fuerte);border-radius:5px;margin-top:4px;outline:none;" oninput="filtrarVacOp()" id="cf-vo-nombre"></th>
+        <th>N° Socio</th>
+        <th>Supervisor<select style="display:block;width:100%;font-size:10px;padding:2px 4px;border:1px solid var(--borde-fuerte);border-radius:5px;margin-top:4px;outline:none;" onchange="filtrarVacOp()" id="cf-vo-sup"><option value="">Todos</option></select></th>
+        <th>Servicio<input type="text" placeholder="🔍" style="display:block;width:100%;font-size:10px;padding:2px 4px;border:1px solid var(--borde-fuerte);border-radius:5px;margin-top:4px;outline:none;" oninput="filtrarVacOp()" id="cf-vo-serv"></th>
+        <th>Cant. días<select style="display:block;width:100%;font-size:10px;padding:2px 4px;border:1px solid var(--borde-fuerte);border-radius:5px;margin-top:4px;outline:none;" onchange="filtrarVacOp()" id="cf-vo-cant"><option value="">Todas</option><option>Una semana</option><option>Dos semanas</option></select></th>
+        <th>Desde</th><th>Hasta</th><th>Retorno</th>
+        <th>Cumple política<select style="display:block;width:100%;font-size:10px;padding:2px 4px;border:1px solid var(--borde-fuerte);border-radius:5px;margin-top:4px;outline:none;" onchange="filtrarVacOp()" id="cf-vo-cumple"><option value="">Todos</option><option>SI</option><option>NO</option></select></th>
+        <th>Form. físico<select style="display:block;width:100%;font-size:10px;padding:2px 4px;border:1px solid var(--borde-fuerte);border-radius:5px;margin-top:4px;outline:none;" onchange="filtrarVacOp()" id="cf-vo-form"><option value="">Todos</option><option>Entregado</option><option>Pendiente</option></select></th>
+        <th>Reemplaza<input type="text" placeholder="🔍" style="display:block;width:100%;font-size:10px;padding:2px 4px;border:1px solid var(--borde-fuerte);border-radius:5px;margin-top:4px;outline:none;" oninput="filtrarVacOp()" id="cf-vo-reemplazo"></th>
+        <th>Estado<select style="display:block;width:100%;font-size:10px;padding:2px 4px;border:1px solid var(--borde-fuerte);border-radius:5px;margin-top:4px;outline:none;" onchange="filtrarVacOp()" id="cf-vo-est"><option value="">Todos</option><option>Pendiente</option><option>Aprobado</option><option>Rechazado</option></select></th>
+        <th></th>
+      </tr></thead>
+      <tbody id="tbody-vac-op"></tbody>
+    </table></div>
   </div>
 </div>
 
@@ -4441,7 +4491,7 @@
         </div>
         <div class="form-grid form-grid-2">
           <div class="form-group"><label>Función</label><select id="edit-funcion"></select></div>
-          <div class="form-group"><label>Servicio actual</label><input type="text" id="edit-servicio"></div>
+          <div class="form-group"><label>Servicio actual</label><input type="text" id="edit-servicio" oninput="toggleSeccionVacacionesLegajo()"></div>
         </div>
         <div class="form-grid form-grid-2">
           <div class="form-group"><label>Supervisor</label><input type="text" id="edit-supervisor"></div>
@@ -4461,6 +4511,17 @@
           <div class="form-group"><label>Calzado</label><input type="number" id="edit-calzado" min="34" max="48"></div>
           <div class="form-group"><label>Ambo</label><select id="edit-ambo"><option>XS</option><option>S</option><option>M</option><option>L</option><option>XL</option><option>XXL</option><option>XXXL</option></select></div>
           <div class="form-group"><label>Seguro</label><select id="edit-seguro"><option>Completo</option><option>Pendiente de asegurar</option></select></div>
+        </div>
+        <div id="edit-admin-vac-section" style="display:none;">
+          <div class="form-section">Datos para Vacaciones (solo administrativos)</div>
+          <div class="form-grid form-grid-3">
+            <div class="form-group"><label>Sector</label><select id="edit-sector"></select></div>
+            <div class="form-group"><label>Días de vacaciones/año</label><input type="number" id="edit-dias-vac" min="0" max="60"></div>
+            <div class="form-group"><label>Jefe directo</label>
+              <input type="text" id="edit-jefe-directo" list="dl-edit-jefe-directo" placeholder="Buscar por nombre...">
+              <datalist id="dl-edit-jefe-directo"></datalist>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -4657,46 +4718,6 @@
     <div class="modal-footer">
       <button class="btn btn-secondary" onclick="cerrarModal('modal-capacitacion')">Cancelar</button>
       <button class="btn btn-primary" onclick="guardarCapacitacion()">Guardar capacitación</button>
-    </div>
-  </div>
-</div>
-
-<!-- MODAL NUEVA VACACIÓN ADMIN -->
-<div class="modal-overlay" id="modal-vac-admin">
-  <div class="modal" style="max-width:720px;">
-    <div class="modal-header"><h3>👔 Registrar vacaciones — Administrativo</h3><button class="btn-close" onclick="cerrarModal('modal-vac-admin')">×</button></div>
-    <div class="modal-body">
-      <div class="form-grid gap-12">
-        <div class="form-grid form-grid-2">
-          <div class="form-group" style="position:relative;">
-            <label>Asociado *</label>
-            <input type="text" id="va-asociado" placeholder="Buscar por nombre o N° socio..." autocomplete="off" oninput="buscarAsocVac('va')">
-            <div id="va-asoc-results" style="display:none;position:absolute;top:100%;left:0;right:0;background:white;border:1px solid var(--borde);border-radius:0 0 var(--radio) var(--radio);max-height:180px;overflow-y:auto;z-index:200;box-shadow:var(--sombra);"></div>
-          </div>
-          <div class="form-group"><label>Sector</label><select id="va-sector"></select></div>
-        </div>
-        <div class="form-grid form-grid-3">
-          <div class="form-group"><label>Año *</label><select id="va-anio"><option>2026</option><option>2025</option><option>2024</option><option>2023</option></select></div>
-          <div class="form-group"><label>Días que corresponden</label><input type="number" id="va-dias-corresp" placeholder="Auto por antigüedad" readonly style="background:var(--fondo);"></div>
-          <div class="form-group"><label>Planilla entregada</label><select id="va-planilla"><option>NO</option><option>SI</option></select></div>
-        </div>
-        <div class="form-section">Período solicitado</div>
-        <div class="form-grid form-grid-3">
-          <div class="form-group"><label>Días solicitados</label><input type="number" id="va-dias-sol" oninput="calcularVacAdmin()"></div>
-          <div class="form-group"><label>Fecha desde *</label><input type="date" id="va-desde" oninput="calcularVacAdmin()"></div>
-          <div class="form-group"><label>Fecha hasta *</label><input type="date" id="va-hasta" oninput="calcularVacAdmin()"></div>
-        </div>
-        <div class="form-grid form-grid-3">
-          <div class="form-group"><label>Días pendientes</label><input type="number" id="va-pendientes" readonly style="background:var(--fondo);"></div>
-          <div class="form-group"><label>¿Cumple política?</label><select id="va-cumple"><option>SI</option><option>NO</option></select></div>
-          <div class="form-group"><label>¿Quién reemplaza?</label><input type="text" id="va-reemplaza" list="dl-asoc-va2"><datalist id="dl-asoc-va2"></datalist></div>
-        </div>
-        <div class="form-group"><label>Observaciones</label><textarea id="va-obs"></textarea></div>
-      </div>
-    </div>
-    <div class="modal-footer">
-      <button class="btn btn-secondary" onclick="cerrarModal('modal-vac-admin')">Cancelar</button>
-      <button class="btn btn-primary" onclick="guardarVacAdmin()">Guardar</button>
     </div>
   </div>
 </div>
