@@ -61,8 +61,14 @@ export function construirMenu() {
   const nav = $('sidebar-nav');
   nav.innerHTML = '';
   const perfil = PERFILES[currentUser.perfil];
+  if (!perfil) console.warn('construirMenu: no se encontró PERFILES["' + currentUser.perfil + '"] — revisar el campo perfil del usuario');
+  // El perfil DEVELOPER solo ve sus propias 4 secciones — nada más del ERP,
+  // ni siquiera los placeholders "Próximamente" que ven todos los demás.
+  const esDeveloper = currentUser.perfil === 'DEVELOPER';
   MENU.forEach(sec => {
-    const items = sec.items.filter(i => i.disabled || !perfil || perfil.modulos.includes(i.key));
+    const items = sec.items.filter(i => esDeveloper
+      ? (perfil && perfil.modulos.includes(i.key))
+      : (i.disabled || !perfil || perfil.modulos.includes(i.key)));
     if (!items.length) return;
     const sDiv = document.createElement('div');
     sDiv.className = 'nav-section';
