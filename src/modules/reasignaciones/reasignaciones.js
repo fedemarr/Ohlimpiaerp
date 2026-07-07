@@ -21,6 +21,7 @@ import { $, avatarEl, badge, cleanText } from '@shared/helpers.js';
 import { toast, abrirModal, cerrarModal, abrirModalInput } from '@shared/ui.js';
 import { supaSync } from '@shared/supabase.js';
 import { construirMenu } from '@shared/nav.js';
+import { sugerirServicioDestino } from './sugeridor.js';
 
 // ========== HELPERS DE FECHA ==========
 
@@ -425,6 +426,63 @@ export function autocompletarReas() {
   if ($('reas-serv-orig')) $('reas-serv-orig').value = leg.servicio;
   if ($('reas-sup-orig')) $('reas-sup-orig').value = leg.supervisor;
   if ($('reas-categoria')) $('reas-categoria').value = leg.funcion;
+  const btnSug = $('btn-sugerir-destino');
+  if (btnSug) btnSug.disabled = false;
+  const cont = $('reas-sugerencias');
+  if (cont) cont.innerHTML = '';
+}
+
+// ========== SUGERIDOR IA DE SERVICIO DESTINO ==========
+// Reemplaza al botón "🤖 Sugerir servicios destino" que existía en
+// legacy.js — era un simulacro con setTimeout, sin lógica real (ver
+// DISENO_reasignaciones.md §3.20). Esta es la versión real, vía
+// api/sugerir-reasignacion.js.
+
+let _ultimasSugerencias = [];
+
+export async function abrirSugeridorDestino() {
+  const nro = ($('reas-nro') || { value: '' }).value;
+  if (!nro) { toast('⚠️ Elegí primero un asociado'); return; }
+  const cont = $('reas-sugerencias');
+  const btn = $('btn-sugerir-destino');
+  if (btn) { btn.disabled = true; btn.textContent = '🤖 Analizando…'; }
+  if (cont) cont.innerHTML = '<div style="padding:10px;font-size:12.5px;color:var(--texto-suave);">Cruzando localidad, capacitaciones e historial…</div>';
+  try {
+    _ultimasSugerencias = await sugerirServicioDestino(nro);
+    pintarSugerenciasDestino(_ultimasSugerencias);
+  } catch (e) {
+    if (cont) cont.innerHTML = '⚠️ ' + (e.message || 'No se pudieron generar las sugerencias');
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = '🤖 Sugerir servicios destino'; }
+  }
+}
+
+function pintarSugerenciasDestino(sugerencias) {
+  const cont = $('reas-sugerencias');
+  if (!cont) return;
+  if (!sugerencias.length) {
+    cont.innerHTML = '<div style="padding:10px;font-size:12.5px;color:var(--texto-suave);">No se encontraron servicios activos para sugerir.</div>';
+    return;
+  }
+  cont.innerHTML = sugerencias.map((s, i) => `
+    <div style="background:#f5f3ff;border:1px solid #c4b5fd;border-radius:8px;padding:10px 12px;margin-bottom:8px;cursor:pointer;" onclick="elegirSugerenciaDestino(${i})">
+      <div style="display:flex;justify-content:space-between;align-items:center;">
+        <strong style="font-size:13px;color:#5b21b6;">${s.servicio}</strong>
+        <span class="badge badge-azul">${s.score} pts</span>
+      </div>
+      <div style="font-size:12px;color:var(--texto-suave);margin:2px 0;">👔 ${s.supervisor} · 📍 ${s.zona}</div>
+      <div style="font-size:12.5px;margin-top:4px;">${s.justificacion}</div>
+      ${s.alertas && s.alertas.length ? `<div style="margin-top:6px;font-size:11.5px;color:#b45309;">${s.alertas.map(a => '⚠️ ' + a).join('<br>')}</div>` : ''}
+    </div>`).join('')
+    + '<div style="font-size:11px;color:var(--texto-suave);">Click en una tarjeta para completar el servicio destino y el supervisor.</div>';
+}
+
+export function elegirSugerenciaDestino(idx) {
+  const s = _ultimasSugerencias[idx];
+  if (!s) return;
+  if ($('reas-serv-dest')) $('reas-serv-dest').value = s.servicio;
+  if ($('reas-sup-dest')) $('reas-sup-dest').value = s.supervisor;
+  toast('✓ Servicio destino completado desde la sugerencia');
 }
 
 // ========== ABRIR MODAL — NUEVA / RETOMAR BORRADOR ==========
@@ -440,6 +498,9 @@ export function abrirNuevaReasignacion() {
   const pedEl = $('reas-pedido-vinculado'); if (pedEl) pedEl.value = '';
   const elevEl = $('reas-elevado-por'); if (elevEl) elevEl.value = currentUser?.nombre || '';
   delete ($('modal-reasignacion') || {}).dataset?.editId;
+  const btnSug = $('btn-sugerir-destino'); if (btnSug) btnSug.disabled = true;
+  const sugCont = $('reas-sugerencias'); if (sugCont) sugCont.innerHTML = '';
+  _ultimasSugerencias = [];
   poblarSelectsReas();
   abrirModal('modal-reasignacion');
 }
@@ -454,6 +515,7 @@ export function abrirModalReasDesde(nro) {
   if ($('reas-serv-orig')) $('reas-serv-orig').value = leg.servicio;
   if ($('reas-sup-orig')) $('reas-sup-orig').value = leg.supervisor;
   if ($('reas-categoria')) $('reas-categoria').value = leg.funcion;
+  if ($('btn-sugerir-destino')) $('btn-sugerir-destino').disabled = false;
 }
 
 export function abrirBorradorReasignacionPorId(id) {
@@ -476,6 +538,7 @@ export function abrirBorradorReasignacionPorId(id) {
   if ($('reas-altura')) $('reas-altura').value = r.requiereAltura ? 'Sí — agregar cobertura adicional' : 'No';
   if ($('reas-poliza')) $('reas-poliza').value = r.requierePolizaEsp ? 'Sí — actualizar póliza' : 'No';
   if ($('reas-elevado-por')) $('reas-elevado-por').value = r.elevadoPor || '';
+  if ($('btn-sugerir-destino')) $('btn-sugerir-destino').disabled = false;
   $('modal-reasignacion').dataset.editId = r.id;
   abrirModal('modal-reasignacion');
 }

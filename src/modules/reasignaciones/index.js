@@ -12,6 +12,7 @@ export {
   abrirDetalleReasignacionPorId, abrirDetalleRotacionPorNro,
   renderConfigMotivosReas, agregarMotivoReas, eliminarMotivoReasPorId,
   renderConfigAprobadoresReas, agregarAprobadorReas, eliminarAprobadorReasPorId,
+  abrirSugeridorDestino, elegirSugerenciaDestino,
 } from './reasignaciones.js';
 
 // ========== SCREEN CONFIG ==========
@@ -40,9 +41,12 @@ import {
   abrirDetalleReasignacionPorId, abrirDetalleRotacionPorNro,
   renderConfigMotivosReas, agregarMotivoReas, eliminarMotivoReasPorId,
   renderConfigAprobadoresReas, agregarAprobadorReas, eliminarAprobadorReasPorId,
+  abrirSugeridorDestino, elegirSugerenciaDestino,
 } from './reasignaciones.js';
 
 window.tabReas = tabReas;
+window.abrirSugeridorDestino = abrirSugeridorDestino;
+window.elegirSugerenciaDestino = elegirSugerenciaDestino;
 window.renderReasPend = renderReasPend;
 window.renderReasHist = renderReasHist;
 window.renderRotacion = renderRotacion;
