@@ -49,10 +49,36 @@ desde el legajo, todavía no existe ese campo).
 
 ---
 
+## Módulo: Descansos (sector operativo)
+
+Ver `DISENO_descansos.md` §10.2 y `src/modules/descansos/aprobacion.js`
+/ `anulacion.js` / `descansos.js`. Mismo mecanismo que Vacaciones
+(`crearNotificacion()`, campana del sistema) — dos niveles de
+aprobación unipersonales (Operaciones → RRHH) en vez de Gerente →
+Consejo:
+
+| Transición | A quién avisar | Tipo (mismo que usa la campana) |
+|---|---|---|
+| Elevado (Borrador → Pendiente Operaciones) | Gerente de Operaciones | `descanso_solicitado` |
+| Operaciones aprueba (→ Pendiente RRHH) | Gerente de RRHH + supervisor solicitante | `descanso_a_rrhh` |
+| Operaciones rechaza | Supervisor solicitante | `descanso_rechazado_operaciones` |
+| RRHH aprueba (→ Aprobado) | Supervisor solicitante + operario | `descanso_aprobado` |
+| RRHH rechaza | Supervisor solicitante | `descanso_rechazado_rrhh` |
+| Supervisor anula | Gerente de Operaciones y/o RRHH (según en qué etapa estaba) | `descanso_anulado_supervisor` |
+| Gerente anula post-aprobación | Supervisor solicitante + operario | `descanso_anulado_post_aprobacion` |
+
+**Mismo pendiente técnico que Vacaciones:** el operario en general NO
+es un usuario logueado del sistema (es personal operativo sin cuenta),
+así que hoy esas notificaciones "al operario" quedan en la tabla pero
+nadie las ve en la campana — es exactamente el caso de uso real para
+el bot de WhatsApp (notificar a alguien que no tiene sesión en el ERP).
+
+---
+
 ## Módulos pendientes de relevar
 
 Se van a ir agregando acá a medida que se migren:
 Reportes y sugerencias (campanita de avisos ya existe, sin WhatsApp),
 Reasignaciones, Sanciones, Enfermos y accidentes, Situaciones legales,
-Pedidos de adelantos, Descansos (operativo), y cualquier otro módulo
-que dispare notificaciones internas.
+Pedidos de adelantos, y cualquier otro módulo que dispare
+notificaciones internas.

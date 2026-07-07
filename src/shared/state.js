@@ -110,7 +110,7 @@ export const PERFILES = {
   'RRHH': { color: 'badge-azul', modulos: ['inicio', 'candidatos', 'psicotecnico', 'preocupacional', 'documentacion', 'altas', 'legajos', 'reasignaciones', 'capacitaciones', 'vacaciones', 'descansos', 'competencia', 'reclamos', 'paritarias', 'liquidacion', 'liq_admin', 'liquidaciones', 'retenes', 'monotributos', 'uniformes', 'retenciones', 'sanciones', 'adelantos', 'pedidos_adelantos', 'gestion_adelantos', 'sugerencias'], desc: 'RRHH, legajos, capacitaciones.' },
   'Operaciones': { color: 'badge-verde', modulos: ['inicio', 'pedidos', 'legajos', 'reasignaciones', 'capacitaciones', 'vacaciones', 'descansos', 'competencia', 'clientes', 'objetivos', 'precios', 'paritarias', 'crm', 'reclamos', 'cobros', 'liquidacion', 'retenes', 'mantenimiento', 'feriados', 'uniformes', 'sanciones', 'pedidos_adelantos', 'sugerencias'], desc: 'Operaciones y ventas.' },
   'Finanzas': { color: 'badge-acento', modulos: ['inicio', 'legajos', 'smvm', 'cobros', 'paritarias', 'liquidacion', 'liq_admin', 'liquidaciones', 'retenes', 'mantenimiento', 'monotributos', 'retenciones', 'adelantos', 'gestion_adelantos', 'sugerencias'], desc: 'Finanzas y liquidación.' },
-  'Supervisor': { color: 'badge-gris', modulos: ['inicio', 'pedidos', 'legajos', 'competencia', 'liquidacion', 'liquidaciones', 'adelantos', 'pedidos_adelantos', 'sugerencias'], desc: 'Pedidos, legajos, competencia y liquidación de horas.' },
+  'Supervisor': { color: 'badge-gris', modulos: ['inicio', 'pedidos', 'legajos', 'descansos', 'competencia', 'liquidacion', 'liquidaciones', 'adelantos', 'pedidos_adelantos', 'sugerencias'], desc: 'Pedidos, legajos, descansos, competencia y liquidación de horas.' },
   'Ventas': { color: 'badge-naranja', modulos: ['inicio', 'clientes', 'objetivos', 'crm', 'reclamos', 'sugerencias'], desc: 'Clientes, objetivos, CRM y reclamos.' },
   'Logística': { color: 'badge-gris', modulos: ['inicio', 'legajos', 'sugerencias'], desc: 'Consulta de legajos.' },
   'Asociado': { color: 'badge-verde', modulos: ['mis_adelantos'], desc: 'Portal del asociado — pedidos de adelanto y préstamo.' },
@@ -167,7 +167,7 @@ export const MENU = [
   { section: 'Personal', items: [
     { key: 'capacitaciones', icon: '🎓', label: 'Capacitaciones', perfiles: ['Administrador total', 'RRHH', 'Operaciones'] },
     { key: 'vacaciones', icon: '🏖️', label: 'Vacaciones', perfiles: ['Administrador total', 'RRHH', 'Operaciones'] },
-    { key: 'descansos', icon: '👷', label: 'Descansos', perfiles: ['Administrador total', 'RRHH', 'Operaciones'] },
+    { key: 'descansos', icon: '👷', label: 'Descansos', perfiles: ['Administrador total', 'RRHH', 'Operaciones', 'Supervisor'] },
     { key: 'competencia', icon: '🏆', label: 'Competencia anual', perfiles: ['Administrador total', 'RRHH', 'Operaciones'] },
   ]},
   { section: 'Finanzas', items: [

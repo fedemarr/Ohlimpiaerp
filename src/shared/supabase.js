@@ -51,6 +51,7 @@ export const _SM = {
   tickets: 'tickets',
   vacaciones: 'vacaciones',
   notificacionesSistema: 'notificaciones_sistema',
+  descansos: 'descansos',
 };
 
 // camelCase → snake_case para guardar en Supabase
@@ -141,6 +142,14 @@ export function _toSnake(obj) {
     // Notificaciones del sistema (v029)
     entidadTipo: 'entidad_tipo', entidadIdLocal: 'entidad_id_local',
     destinatarioNombre: 'destinatario_nombre', leidaEn: 'leida_en',
+    // Descansos (v030)
+    nombreOperario: 'nombre_operario', supervisorSolicitante: 'supervisor_solicitante',
+    duracionDias: 'duracion_dias',
+    aprobadoPorOperaciones: 'aprobado_por_operaciones', fechaAprobacionOperaciones: 'fecha_aprobacion_operaciones',
+    motivoRechazoOperaciones: 'motivo_rechazo_operaciones',
+    aprobadoPorRrhh: 'aprobado_por_rrhh', fechaAprobacionRrhh: 'fecha_aprobacion_rrhh',
+    motivoRechazoRrhh: 'motivo_rechazo_rrhh',
+    anuladoPor: 'anulado_por', pagaJornadaCompleta: 'paga_jornada_completa',
   };
   const r = {};
   for (const [k, v] of Object.entries(obj)) {
@@ -247,6 +256,14 @@ export function _toCamel(obj) {
     // Notificaciones del sistema (v029)
     entidad_tipo: 'entidadTipo', entidad_id_local: 'entidadIdLocal',
     destinatario_nombre: 'destinatarioNombre', leida_en: 'leidaEn',
+    // Descansos (v030)
+    nombre_operario: 'nombreOperario', supervisor_solicitante: 'supervisorSolicitante',
+    duracion_dias: 'duracionDias',
+    aprobado_por_operaciones: 'aprobadoPorOperaciones', fecha_aprobacion_operaciones: 'fechaAprobacionOperaciones',
+    motivo_rechazo_operaciones: 'motivoRechazoOperaciones',
+    aprobado_por_rrhh: 'aprobadoPorRrhh', fecha_aprobacion_rrhh: 'fechaAprobacionRrhh',
+    motivo_rechazo_rrhh: 'motivoRechazoRrhh',
+    anulado_por: 'anuladoPor', paga_jornada_completa: 'pagaJornadaCompleta',
   };
   const r = {};
   for (const [k, v] of Object.entries(obj)) {

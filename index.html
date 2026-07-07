@@ -1307,39 +1307,82 @@
      migrar, ver DISENO_vacaciones.md (Vacaciones y Descansos son
      módulos separados; Descansos no tiene diseño propio todavía). -->
 <div class="screen" id="screen-descansos">
-  <div class="stats-grid">
-    <div class="stat-card azul"><div class="stat-label">De descanso ahora</div><div class="stat-valor" id="st-vac-ahora">0</div><div class="stat-sub">Período activo</div></div>
-    <div class="stat-card acento"><div class="stat-label">Solicitudes pendientes</div><div class="stat-valor" id="st-vac-pend">0</div><div class="stat-sub">Sin aprobar</div></div>
-    <div class="stat-card verde"><div class="stat-label">Aprobadas este año</div><div class="stat-valor" id="st-vac-aprobadas">0</div><div class="stat-sub">Operativo</div></div>
-    <div class="stat-card rojo"><div class="stat-label">Días pendientes</div><div class="stat-valor" id="st-vac-dias">0</div><div class="stat-sub">Sin usar (acumulado)</div></div>
+  <!-- TABS -->
+  <div class="tabs" style="background:white;border-radius:var(--radio-lg) var(--radio-lg) 0 0;padding:0 20px;box-shadow:var(--sombra);border-bottom:none;">
+    <button class="tab-btn active" data-desc-tab="pendientes" onclick="cambiarTabDescansos('pendientes',this)">📋 Pendientes</button>
+    <button class="tab-btn" data-desc-tab="historial" onclick="cambiarTabDescansos('historial',this)">📚 Historial</button>
+    <button class="tab-btn" data-desc-tab="calendario" onclick="cambiarTabDescansos('calendario',this)">📅 Calendario</button>
   </div>
-  <div class="card">
-    <div class="card-header">
-      <h3>Días de descanso — Sector Operativo</h3>
-      <div class="filtros-bar">
-        <button class="btn btn-primary btn-sm" onclick="abrirModal('modal-vac-op')">+ Solicitar descanso</button>
-        <input type="text" placeholder="🔍 Buscar asociado..." id="buscar-vac-op" oninput="filtrarVacOp()">
-        <select id="cf-vo-estado" onchange="filtrarVacOp()"><option value="">Todos los estados</option><option>Pendiente</option><option>Aprobado</option><option>Rechazado</option></select>
-        <select id="cf-vo-anio" onchange="filtrarVacOp()"><option value="">Todos los años</option><option>2026</option><option>2025</option><option>2024</option><option>2023</option></select>
+
+  <!-- TAB PENDIENTES -->
+  <div id="desc-tab-pendientes" class="tab-content active">
+    <div class="card" style="border-radius:0 var(--radio-lg) var(--radio-lg) var(--radio-lg);">
+      <div class="card-header">
+        <h3>Bandeja de pendientes</h3>
+        <div class="filtros-bar">
+          <input type="text" placeholder="🔍 Buscar operario..." id="desc-pend-buscar" oninput="filtrarPendientesDescansos()">
+          <select id="desc-pend-servicio" onchange="filtrarPendientesDescansos()"><option value="">Todos los servicios</option></select>
+          <select id="desc-pend-supervisor" onchange="filtrarPendientesDescansos()"><option value="">Todos los supervisores</option></select>
+          <select id="desc-pend-estado" onchange="filtrarPendientesDescansos()">
+            <option value="">Todos los estados</option>
+            <option>Borrador</option><option>Pendiente aprobación Operaciones</option><option>Pendiente aprobación RRHH</option>
+          </select>
+        </div>
+      </div>
+      <div class="tabla-wrap"><table>
+        <thead><tr>
+          <th>Operario</th><th>Servicio</th><th>Supervisor</th><th>Desde</th><th>Hasta</th><th>Duración</th>
+          <th>Reemplazante</th><th>Motivo</th><th>Fecha solicitud</th><th>Antigüedad pedido</th><th>Estado</th><th>Progreso</th><th></th>
+        </tr></thead>
+        <tbody id="tbody-desc-pendientes"></tbody>
+      </table></div>
+    </div>
+  </div>
+
+  <!-- TAB HISTORIAL -->
+  <div id="desc-tab-historial" class="tab-content">
+    <div class="card" style="border-radius:0 var(--radio-lg) var(--radio-lg) var(--radio-lg);">
+      <div class="card-header">
+        <h3>Historial completo</h3>
+        <div class="filtros-bar">
+          <input type="text" placeholder="🔍 Buscar operario..." id="desc-hist-buscar" oninput="filtrarHistorialDescansos()">
+          <select id="desc-hist-servicio" onchange="filtrarHistorialDescansos()"><option value="">Todos los servicios</option></select>
+          <select id="desc-hist-supervisor" onchange="filtrarHistorialDescansos()"><option value="">Todos los supervisores</option></select>
+          <select id="desc-hist-estado" onchange="filtrarHistorialDescansos()">
+            <option value="">Todos los estados</option>
+            <option>Borrador</option><option>Pendiente aprobación Operaciones</option><option>Pendiente aprobación RRHH</option>
+            <option>Aprobado</option><option>Rechazado por Operaciones</option><option>Rechazado por RRHH</option>
+            <option>Anulado por supervisor</option><option>Anulado post-aprobación</option>
+          </select>
+          <select id="desc-hist-anio" onchange="filtrarHistorialDescansos()"><option value="">Todos los años</option><option>2026</option><option>2025</option><option>2024</option></select>
+        </div>
+      </div>
+      <div class="tabla-wrap"><table>
+        <thead><tr>
+          <th>Operario</th><th>Servicio</th><th>Supervisor</th><th>Desde</th><th>Hasta</th><th>Duración</th>
+          <th>Reemplazante</th><th>Motivo</th><th>Fecha solicitud</th><th>Antigüedad pedido</th><th>Estado</th><th>Progreso</th><th></th>
+        </tr></thead>
+        <tbody id="tbody-desc-historial"></tbody>
+      </table></div>
+    </div>
+  </div>
+
+  <!-- TAB CALENDARIO -->
+  <div id="desc-tab-calendario" class="tab-content">
+    <div class="card" style="border-radius:0 var(--radio-lg) var(--radio-lg) var(--radio-lg);">
+      <div class="card-header">
+        <h3>📅 Calendario — <span id="desc-cal-titulo"></span></h3>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <select id="desc-cal-servicio" onchange="renderCalendarioDescansos()"><option value="">Todos los servicios</option></select>
+          <select id="desc-cal-supervisor" onchange="renderCalendarioDescansos()"><option value="">Todos los supervisores</option></select>
+          <button class="btn btn-secondary btn-sm" onclick="mesAnteriorDesc()">← Anterior</button>
+          <button class="btn btn-secondary btn-sm" onclick="mesSiguienteDesc()">Siguiente →</button>
+        </div>
+      </div>
+      <div class="card-body" style="overflow-x:auto;">
+        <div id="desc-calendario-grilla"></div>
       </div>
     </div>
-    <div class="tabla-wrap"><table>
-      <thead><tr>
-        <th>Fecha solicitud<input type="text" placeholder="🔍" style="display:block;width:65px;font-size:10px;padding:2px 4px;border:1px solid var(--borde-fuerte);border-radius:5px;margin-top:4px;outline:none;" oninput="filtrarVacOp()" id="cf-vo-fecha-sol"></th>
-        <th>Asociado<input type="text" placeholder="🔍" style="display:block;width:100%;font-size:10px;padding:2px 4px;border:1px solid var(--borde-fuerte);border-radius:5px;margin-top:4px;outline:none;" oninput="filtrarVacOp()" id="cf-vo-nombre"></th>
-        <th>N° Socio</th>
-        <th>Supervisor<select style="display:block;width:100%;font-size:10px;padding:2px 4px;border:1px solid var(--borde-fuerte);border-radius:5px;margin-top:4px;outline:none;" onchange="filtrarVacOp()" id="cf-vo-sup"><option value="">Todos</option></select></th>
-        <th>Servicio<input type="text" placeholder="🔍" style="display:block;width:100%;font-size:10px;padding:2px 4px;border:1px solid var(--borde-fuerte);border-radius:5px;margin-top:4px;outline:none;" oninput="filtrarVacOp()" id="cf-vo-serv"></th>
-        <th>Cant. días<select style="display:block;width:100%;font-size:10px;padding:2px 4px;border:1px solid var(--borde-fuerte);border-radius:5px;margin-top:4px;outline:none;" onchange="filtrarVacOp()" id="cf-vo-cant"><option value="">Todas</option><option>Una semana</option><option>Dos semanas</option></select></th>
-        <th>Desde</th><th>Hasta</th><th>Retorno</th>
-        <th>Cumple política<select style="display:block;width:100%;font-size:10px;padding:2px 4px;border:1px solid var(--borde-fuerte);border-radius:5px;margin-top:4px;outline:none;" onchange="filtrarVacOp()" id="cf-vo-cumple"><option value="">Todos</option><option>SI</option><option>NO</option></select></th>
-        <th>Form. físico<select style="display:block;width:100%;font-size:10px;padding:2px 4px;border:1px solid var(--borde-fuerte);border-radius:5px;margin-top:4px;outline:none;" onchange="filtrarVacOp()" id="cf-vo-form"><option value="">Todos</option><option>Entregado</option><option>Pendiente</option></select></th>
-        <th>Reemplaza<input type="text" placeholder="🔍" style="display:block;width:100%;font-size:10px;padding:2px 4px;border:1px solid var(--borde-fuerte);border-radius:5px;margin-top:4px;outline:none;" oninput="filtrarVacOp()" id="cf-vo-reemplazo"></th>
-        <th>Estado<select style="display:block;width:100%;font-size:10px;padding:2px 4px;border:1px solid var(--borde-fuerte);border-radius:5px;margin-top:4px;outline:none;" onchange="filtrarVacOp()" id="cf-vo-est"><option value="">Todos</option><option>Pendiente</option><option>Aprobado</option><option>Rechazado</option></select></th>
-        <th></th>
-      </tr></thead>
-      <tbody id="tbody-vac-op"></tbody>
-    </table></div>
   </div>
 </div>
 
@@ -4718,51 +4761,6 @@
     <div class="modal-footer">
       <button class="btn btn-secondary" onclick="cerrarModal('modal-capacitacion')">Cancelar</button>
       <button class="btn btn-primary" onclick="guardarCapacitacion()">Guardar capacitación</button>
-    </div>
-  </div>
-</div>
-
-<!-- MODAL NUEVA SOLICITUD OPERATIVO -->
-<div class="modal-overlay" id="modal-vac-op">
-  <div class="modal" style="max-width:720px;">
-    <div class="modal-header"><h3>👷 Solicitud de días de descanso — Operativo</h3><button class="btn-close" onclick="cerrarModal('modal-vac-op')">×</button></div>
-    <div class="modal-body">
-      <div class="form-grid gap-12">
-        <div class="form-grid form-grid-2">
-          <div class="form-group" style="position:relative;">
-            <label>Asociado *</label>
-            <input type="text" id="vo-asociado" placeholder="Buscar por nombre o N° socio..." autocomplete="off" oninput="buscarAsocVac('vo')">
-            <div id="vo-asoc-results" style="display:none;position:absolute;top:100%;left:0;right:0;background:white;border:1px solid var(--borde);border-radius:0 0 var(--radio) var(--radio);max-height:180px;overflow-y:auto;z-index:200;box-shadow:var(--sombra);"></div>
-          </div>
-          <div class="form-group"><label>N° Socio</label><input type="text" id="vo-nro" readonly style="background:var(--fondo);"></div>
-        </div>
-        <div class="form-grid form-grid-2">
-          <div class="form-group"><label>Supervisor</label><select id="vo-supervisor"></select></div>
-          <div class="form-group"><label>Servicio</label><input type="text" id="vo-servicio" list="dl-serv-vo"><datalist id="dl-serv-vo"></datalist></div>
-        </div>
-        <div class="form-section">Período solicitado</div>
-        <div class="form-grid form-grid-2">
-          <div class="form-group"><label>Cantidad de días *</label>
-            <select id="vo-cantidad"><option>Una semana</option><option>Dos semanas</option></select>
-          </div>
-          <div class="form-group"><label>Año al que corresponde</label><select id="vo-anio"><option>2026</option><option>2025</option><option>2024</option></select></div>
-        </div>
-        <div class="form-grid form-grid-3">
-          <div class="form-group"><label>Fecha de inicio *</label><input type="date" id="vo-desde"></div>
-          <div class="form-group"><label>Fecha de finalización *</label><input type="date" id="vo-hasta"></div>
-          <div class="form-group"><label>Fecha de retorno *</label><input type="date" id="vo-retorno"></div>
-        </div>
-        <div class="form-grid form-grid-3">
-          <div class="form-group"><label>¿Cumple política?</label><select id="vo-cumple"><option>SI</option><option>NO</option></select></div>
-          <div class="form-group"><label>Formulario físico</label><select id="vo-form"><option>Pendiente</option><option>Entregado</option></select></div>
-          <div class="form-group"><label>¿Quién reemplaza?</label><input type="text" id="vo-reemplaza" list="dl-asoc-vo2"><datalist id="dl-asoc-vo2"></datalist></div>
-        </div>
-        <div class="form-group"><label>Observaciones</label><textarea id="vo-obs"></textarea></div>
-      </div>
-    </div>
-    <div class="modal-footer">
-      <button class="btn btn-secondary" onclick="cerrarModal('modal-vac-op')">Cancelar</button>
-      <button class="btn btn-primary" onclick="guardarVacOp()">Registrar solicitud</button>
     </div>
   </div>
 </div>

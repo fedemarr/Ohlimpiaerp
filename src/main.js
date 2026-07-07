@@ -26,6 +26,7 @@ import { retencionesScreenConfig, filtrarRetenciones } from './modules/retencion
 import { competenciaScreenConfig, sincronizarReglasCompetencia } from './modules/competencia/index.js';
 import { developerScreenConfig, sincronizarSugerenciasComoTickets, renderDevInicio, renderDevTickets } from './modules/developer/index.js';
 import { vacacionesScreenConfig } from './modules/vacaciones/index.js';
+import { descansosScreenConfig } from './modules/descansos/index.js';
 import { renderCampanaNotificaciones, fetchNotificacionesPendientes, toggleCampanaDropdown, marcarNotifLeidaYRefrescar } from '@shared/notificaciones.js';
 import './modules/personal_rrhh/index.js';
 
@@ -64,6 +65,7 @@ registerScreens(retencionesScreenConfig);
 registerScreens(competenciaScreenConfig);
 registerScreens(developerScreenConfig);
 registerScreens(vacacionesScreenConfig);
+registerScreens(descansosScreenConfig);
 
 // ========== REGISTRAR FILTROS DE BÚSQUEDA GLOBAL ==========
 
@@ -105,7 +107,6 @@ async function loadLegacy() {
       enfermos: { title: 'Enfermos y accidentes', btn: '+ Nuevo caso', fn: () => abrirModal('modal-enfermo'), render: () => { if (window.renderEnfermos) window.renderEnfermos(); } },
       clientes: { title: 'Clientes', btn: '+ Nuevo cliente', fn: () => abrirModal('modal-cliente'), render: () => { if (window.renderClientes) window.renderClientes(); } },
       objetivos: { title: 'Objetivos / Servicios', btn: '+ Nuevo objetivo', fn: () => abrirModal('modal-objetivo'), render: () => { if (window.renderObjetivos) window.renderObjetivos(); } },
-      descansos: { title: 'Descansos — Sector Operativo', btn: '+ Solicitar descanso', fn: () => abrirModal('modal-vac-op'), render: () => { if (window.renderVacOp) window.renderVacOp(); } },
       configuracion: { title: 'Configuración', btn: '', fn: null, render: () => { if (window.renderConfiguracion) window.renderConfiguracion(); } },
       smvm: { title: 'SMVM histórico', btn: '', fn: null, render: () => { if (window.renderSMVM) window.renderSMVM(); } },
       feriados: { title: 'Feriados', btn: '+ Agregar feriado', fn: () => abrirModal('modal-feriado'), render: () => { if (window.renderFeriados) window.renderFeriados(); } },
