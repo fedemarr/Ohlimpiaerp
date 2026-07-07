@@ -59,7 +59,15 @@ export function tabReas(tab, btn) {
   const content = $('reas-tab-' + tab);
   if (content) content.classList.add('active');
   if (btn) btn.classList.add('active');
+  else document.querySelector(`#screen-reasignaciones .tab-btn[data-reas-tab="${tab}"]`)?.classList.add('active');
   renderReasignaciones();
+}
+
+// Punto de entrada de la pantalla (screenConfig.render) — siempre entra
+// por la pestaña Pendientes, sin importar en qué pestaña se había
+// quedado la última visita (ver fix en src/shared/nav.js).
+export function renderReasignacionesInicial() {
+  tabReas('pendientes');
 }
 
 // ========== EJECUCIÓN AUTOMÁTICA POR FECHA ==========

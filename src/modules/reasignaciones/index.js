@@ -2,7 +2,7 @@
 
 export {
   sincronizarConfigReasignaciones,
-  tabReas,
+  tabReas, renderReasignacionesInicial,
   renderReasignaciones, renderReasPend, renderReasHist, renderRotacion,
   filtrarReas, filtrarReasH, filtrarRotacion,
   poblarSelectsReas, autocompletarReas,
@@ -16,14 +16,14 @@ export {
 
 // ========== SCREEN CONFIG ==========
 
-import { renderReasignaciones, abrirNuevaReasignacion } from './reasignaciones.js';
+import { renderReasignacionesInicial, abrirNuevaReasignacion } from './reasignaciones.js';
 
 export const reasignacionesScreenConfig = {
   reasignaciones: {
     title: 'Reasignaciones',
     btn: '+ Nueva reasignación',
     fn: () => abrirNuevaReasignacion(),
-    render: renderReasignaciones,
+    render: renderReasignacionesInicial,
   },
 };
 

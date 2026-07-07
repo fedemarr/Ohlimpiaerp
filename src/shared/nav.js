@@ -29,7 +29,14 @@ export function registerNavCallbacks(cbs) {
 export function navTo(sec, el) {
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
-  document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+  // OJO: NO tocar .tab-content acá. Antes se le sacaba "active" a las
+  // pestañas de TODOS los módulos en cada navegación, pero como cada
+  // módulo pone su propia clase "active" en sus pestañas al click (no acá),
+  // el resultado era que la pantalla quedaba con datos cargados pero sin
+  // ninguna pestaña visible hasta que el usuario clickeaba una a mano
+  // (bug reportado en Reasignaciones y Vacaciones). Es seguro no tocarlo:
+  // .screen:not(.active) ya está display:none, así que no hay bleed-through
+  // de pestañas de pantallas ocultas.
   const screenEl = $('screen-' + sec);
   if (screenEl) screenEl.classList.add('active');
   if (el) el.classList.add('active');
