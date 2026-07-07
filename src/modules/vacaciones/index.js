@@ -45,11 +45,15 @@ export function cambiarTabVacaciones(tab, btn) {
   (RENDER_POR_TAB[tab] || (() => {}))();
 }
 
+// Siempre entra por la pestaña Pendientes, sin importar en qué pestaña
+// se había quedado la última visita — si no se resetea acá, el tab-content
+// que quedó marcado "active" de una navegación anterior se muestra vacío
+// porque nunca se le pidió (re)renderizar sus datos.
 function renderVacacionesInicial() {
   poblarSelectsVacacionesTab();
   poblarSelectSectorSaldos();
   poblarSelectSectorCalendario();
-  renderPendientes();
+  cambiarTabVacaciones('pendientes');
 }
 
 // ========== SCREEN CONFIG ==========
