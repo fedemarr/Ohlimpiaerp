@@ -4,11 +4,11 @@
 
 import { DB, currentUser } from '@shared/state.js';
 import { $ } from '@shared/helpers.js';
-import { toast, abrirModal, cerrarModal } from '@shared/ui.js';
+import { toast, abrirModal, cerrarModal, abrirModalInput } from '@shared/ui.js';
 import { supaSync } from '@shared/supabase.js';
 import { SECTORES_ADMIN } from '@modules/legajos/index.js';
 import { gerenteDeSector, rolEnConsejo, nombresConsejo } from './permisos.js';
-import { diasDisponibles, calcularAntiguedad, tieneSuperposicion } from './saldo.js';
+import { diasDisponibles, calcularAntiguedad, tieneSuperposicion, calcularDiasAsignadosPorAntiguedad, buscarSuperposicionesSector } from './saldo.js';
 import { aprobarComoGerente, rechazarComoGerente, votarConsejo, getVacacionById } from './aprobacion.js';
 import { puedeAnularSolicitante, puedeAnularGerente, puedeSolicitarAnulacion, anularPorSolicitante, anularPorGerente, solicitarAnulacion, votarAnulacionConsejo } from './anulacion.js';
 import { crearNotificacion } from '@shared/notificaciones.js';
@@ -40,6 +40,19 @@ const ESTADO_BADGE = {
 // no estaba resuelto en el diseño original).
 function legajoDelUsuarioActual() {
   return (DB.legajos || []).find(l => l.nombre === currentUser?.nombre);
+}
+
+// Vacaciones v1.1 — parsear con hora explícita para que .getDay() no se
+// corra por el huso horario: 'YYYY-MM-DD' sin hora se interpreta como
+// UTC medianoche, y en Argentina (UTC-3) eso cae en el día anterior.
+function esLunes(fechaISO) {
+  return !!fechaISO && new Date(fechaISO + 'T00:00:00').getDay() === 1;
+}
+function esDomingo(fechaISO) {
+  return !!fechaISO && new Date(fechaISO + 'T00:00:00').getDay() === 0;
+}
+function diasDeAnticipacion(fechaDesdeISO) {
+  return Math.floor((new Date(fechaDesdeISO + 'T00:00:00') - new Date()) / (24 * 3600 * 1000));
 }
 
 function progresoAprobacion(v) {
@@ -157,6 +170,9 @@ export function renderPendientes() {
         if (puedeAnularSolicitante(v)) acciones.push(btn('🗑 Anular', `abrirAnularSolicitante('${v.id}')`));
       }
       if (esGerente && puedeAnularGerente(v) && v.sector === sector) acciones.push(btn('🗑 Anular', `abrirAnularGerente('${v.id}')`));
+      if (esRRHHoAdmin && v.estado === 'Borrador' && v.requiereAutorizacionPreavisoCorto) {
+        acciones.push(btn('✅ Autorizar preaviso corto', `autorizarPreavisoCorto('${v.id}')`, '#7c3aed'));
+      }
       acciones.push(btn('👁', `abrirDetalleVacacion('${v.id}')`));
       return filaVacacion(v, { acciones });
     }).join('');
@@ -281,11 +297,15 @@ export function abrirEditarSolicitud(idLocal) {
 function pintarSolicitanteEnModal(legajo) {
   const anio = new Date().getFullYear();
   const disponibles = diasDisponibles(legajo, anio);
+  const asignados = calcularDiasAsignadosPorAntiguedad(legajo);
+  const origen = legajo.diasVacacionesAnuales > 0
+    ? 'asignados manualmente por RRHH'
+    : `por antigüedad de ${calcularAntiguedad(legajo) || '—'}`;
   $('vs-info-solicitante').innerHTML = `
     <div><strong>${legajo.nombre}</strong> — N° ${legajo.nro} — ${legajo.sector}</div>
     <div>Antigüedad: ${calcularAntiguedad(legajo) || '—'}</div>
-    <div>Días asignados ${anio}: ${legajo.diasVacacionesAnuales || 0} · Días disponibles: <strong>${disponibles}</strong></div>
-    ${!legajo.diasVacacionesAnuales ? '<div style="color:var(--rojo);">⚠️ Todavía no tenés días asignados para este año. Contactá a RRHH.</div>' : ''}
+    <div>Días asignados ${anio}: ${asignados} (${origen}) · Días disponibles: <strong>${disponibles}</strong></div>
+    ${!asignados ? '<div style="color:var(--rojo);">⚠️ No se pudo calcular tus días asignados (falta la fecha de ingreso en tu legajo). Contactá a RRHH.</div>' : ''}
   `;
 }
 
@@ -316,12 +336,19 @@ export function recalcularSolicitud() {
       const retorno = new Date(h); retorno.setDate(retorno.getDate() + 1);
       $('vs-retorno').value = retorno.toISOString().slice(0, 10);
       if (d.getFullYear() !== h.getFullYear()) avisos.push('❌ Las vacaciones no pueden cruzar el fin de año. Dividí en dos solicitudes.');
-      if ((d - new Date()) < 48 * 3600 * 1000) avisos.push('⚠️ Este pedido tiene menos de 48hs de anticipación.');
+      // Vacaciones v1.1 — política oficial: desde debe ser lunes, hasta
+      // domingo (semana completa), y mínimo 15 días de anticipación para
+      // poder elevar. Acá solo se informa; el bloqueo real es al elevar
+      // (ver validarSolicitud/elevarSolicitudDesdeModal) porque el
+      // borrador tiene que poder guardarse igual con fechas incompletas.
+      if (!esLunes(desde)) avisos.push('❌ Las vacaciones deben comenzar un día lunes.');
+      if (!esDomingo(hasta)) avisos.push('❌ Las vacaciones deben terminar un día domingo (semana completa).');
+      const anticipacion = diasDeAnticipacion(desde);
+      if (anticipacion < 15) avisos.push(`⚠️ Este pedido tiene ${anticipacion} día(s) de anticipación — la política exige mínimo 15. Se puede guardar como borrador, pero para elevarlo RRHH tiene que autorizar la excepción.`);
       const legajo = legajoDelUsuarioActual();
       if (legajo) {
         const disponibles = diasDisponibles(legajo, d.getFullYear());
         if (dias > disponibles) avisos.push(`⚠️ Este pedido excede tu saldo disponible en ${dias - disponibles} día(s). Podés elevarlo si el gerente aprueba en excepción.`);
-        if (legajo.jefeDirectoLegajoIdLocal && tieneSuperposicion(legajo.jefeDirectoLegajoIdLocal, desde, hasta)) avisos.push('👔 Tu jefe directo tiene vacaciones que se superponen con estas fechas — el Gerente lo verá al aprobar.');
       }
     }
   }
@@ -361,6 +388,9 @@ function validarSolicitud(legajo) {
   if (!$('vs-desde').value || !$('vs-hasta').value) { toast('⚠️ Completá las fechas'); return false; }
   if (new Date($('vs-hasta').value) < new Date($('vs-desde').value)) { toast('⚠️ La fecha hasta debe ser posterior a la fecha desde'); return false; }
   if (new Date($('vs-desde').value).getFullYear() !== new Date($('vs-hasta').value).getFullYear()) { toast('❌ No se puede cruzar el fin de año — dividí en dos solicitudes'); return false; }
+  // Vacaciones v1.1 — política oficial: siempre lunes a domingo (semana completa).
+  if (!esLunes($('vs-desde').value)) { toast('❌ Las vacaciones deben comenzar un día lunes'); return false; }
+  if (!esDomingo($('vs-hasta').value)) { toast('❌ Las vacaciones deben terminar un día domingo (semana completa)'); return false; }
   if (!$('vs-reemplazante').value.trim()) { toast('⚠️ Indicá quién te reemplaza'); return false; }
   const reemplazoMatch = $('vs-reemplazante').value.match(/\(N°(\d+)\)\s*$/);
   if (!reemplazoMatch) { toast('⚠️ Elegí un reemplazante de la lista'); return false; }
@@ -389,8 +419,16 @@ export async function guardarBorradorSolicitud() {
 export async function elevarSolicitudDesdeModal() {
   const legajo = legajoDelUsuarioActual();
   if (!legajo || !validarSolicitud(legajo)) return;
-  if (!legajo.diasVacacionesAnuales) { toast('⚠️ Todavía no tenés días asignados — no se puede elevar hasta que RRHH los cargue'); return; }
-  const v = armarObjetoSolicitud(legajo, 'Pendiente aprobación Gerente');
+  if (!calcularDiasAsignadosPorAntiguedad(legajo)) { toast('⚠️ No se pudieron calcular tus días asignados — no se puede elevar. Contactá a RRHH.'); return; }
+
+  // Vacaciones v1.1 — Cambio 1: mínimo 15 días de anticipación para
+  // elevar. Con menos, queda guardado como Borrador marcado para que
+  // RRHH autorice la excepción (autorizarPreavisoCorto), en vez de
+  // bloquear directamente.
+  const requierePreaviso = diasDeAnticipacion($('vs-desde').value) < 15;
+  const v = armarObjetoSolicitud(legajo, requierePreaviso ? 'Borrador' : 'Pendiente aprobación Gerente');
+  if (requierePreaviso) v.requiereAutorizacionPreavisoCorto = true;
+
   let registro;
   if (_solicitudEditandoId) {
     registro = getVacacionById(_solicitudEditandoId);
@@ -401,6 +439,13 @@ export async function elevarSolicitudDesdeModal() {
     DB.vacaciones.push(registro);
   }
   await supaSync('vacaciones', registro);
+
+  if (requierePreaviso) {
+    cerrarModal('modal-vac-solicitud');
+    renderPendientes();
+    toast('⚠️ Menos de 15 días de anticipación — quedó guardada como borrador. RRHH tiene que autorizar la excepción antes de poder elevarla.');
+    return;
+  }
   const gerente = gerenteDeSector(legajo.sector);
   if (gerente) await crearNotificacion({ tipo: 'vacacion_solicitada', entidadIdLocal: registro.id, destinatarioNombre: gerente, mensaje: `🏖️ ${legajo.nombre} solicitó vacaciones (${registro.fechaDesde} a ${registro.fechaHasta}).` });
   cerrarModal('modal-vac-solicitud');
@@ -412,7 +457,16 @@ export async function elevarSolicitud(idLocal) {
   const v = getVacacionById(idLocal);
   if (!v || v.estado !== 'Borrador') return;
   const legajo = (DB.legajos || []).find(l => String(l.nro) === String(v.legajoIdLocal));
-  if (!legajo?.diasVacacionesAnuales) { toast('⚠️ Todavía no tenés días asignados — no se puede elevar'); return; }
+  if (!legajo || !calcularDiasAsignadosPorAntiguedad(legajo)) { toast('⚠️ No se pudieron calcular los días asignados — no se puede elevar'); return; }
+  if (!esLunes(v.fechaDesde)) { toast('❌ Las vacaciones deben comenzar un día lunes — editá la solicitud'); return; }
+  if (!esDomingo(v.fechaHasta)) { toast('❌ Las vacaciones deben terminar un día domingo — editá la solicitud'); return; }
+  if (diasDeAnticipacion(v.fechaDesde) < 15 && !v.autorizadaExcepcionPor) {
+    v.requiereAutorizacionPreavisoCorto = true;
+    await supaSync('vacaciones', v);
+    renderPendientes();
+    toast('⚠️ Menos de 15 días de anticipación — queda marcada para que RRHH autorice la excepción.');
+    return;
+  }
   v.estado = 'Pendiente aprobación Gerente';
   await supaSync('vacaciones', v);
   const gerente = gerenteDeSector(v.sector);
@@ -421,9 +475,50 @@ export async function elevarSolicitud(idLocal) {
   toast('📤 Solicitud elevada — esperando al Gerente');
 }
 
+// Vacaciones v1.1 — Cambio 1: RRHH/Admin autoriza una excepción de
+// preaviso corto sobre un borrador marcado. Salta directo a "Pendiente
+// aprobación Consejo" (se saltea el nivel Gerente para estos casos).
+export function autorizarPreavisoCorto(idLocal) {
+  const v = getVacacionById(idLocal);
+  if (!v || v.estado !== 'Borrador' || !v.requiereAutorizacionPreavisoCorto) { toast('⚠️ Esta solicitud no está esperando autorización de preaviso corto'); return; }
+  abrirModalInput({
+    titulo: 'Autorizar preaviso corto',
+    etiqueta: 'Motivo de la excepción (obligatorio)',
+    placeholder: 'Por qué se autoriza a pesar de tener menos de 15 días de anticipación...',
+  }, async (motivo) => {
+    v.requiereAutorizacionPreavisoCorto = false;
+    v.motivoExcepcionPreaviso = motivo;
+    v.autorizadaExcepcionPor = currentUser?.nombre || '';
+    v.fechaAutorizacionExcepcion = new Date().toISOString();
+    v.estado = 'Pendiente aprobación Consejo';
+    await supaSync('vacaciones', v);
+    const { presidente, tesorero, secretario } = nombresConsejo();
+    for (const destinatario of [presidente, tesorero, secretario, v.nombreAsociado]) {
+      await crearNotificacion({ tipo: 'vacacion_preaviso_corto_autorizado', entidadIdLocal: v.id, destinatarioNombre: destinatario, mensaje: `✅ RRHH autorizó el preaviso corto de ${v.nombreAsociado} — pasa directo al Consejo.` });
+    }
+    renderPendientes();
+    toast('✅ Excepción autorizada — pasa directo al Consejo');
+  });
+}
+
 // ========== ACCIONES DE FILA (wrappers con prompt genérico) ==========
 
-export function aprobarComoGerentePorId(idLocal) { aprobarComoGerente(idLocal).then(renderPendientes); }
+// Vacaciones v1.1 — Cambio 4: el aviso de superposición se mudó de "al
+// elevar" (contra el jefe directo) a "al aprobar" (contra todo el
+// sector) — mismo patrón que descansos.js:aprobarOperacionesPorId.
+export async function aprobarComoGerentePorId(idLocal) {
+  const v = getVacacionById(idLocal);
+  if (v) {
+    const legajoSolicitante = (DB.legajos || []).find(l => String(l.nro) === String(v.legajoIdLocal));
+    const superpuestas = buscarSuperposicionesSector(v, legajoSolicitante);
+    if (superpuestas.length) {
+      const detalle = superpuestas.map(s => `${s.esJefeDirecto ? '👔 (jefe directo) ' : ''}${s.nombreAsociado}: ${s.fechaDesde} al ${s.fechaHasta}`).join('\n');
+      if (!confirm(`⚠️ Superposición detectada en el sector:\n${detalle}\n\n¿Confirmás la aprobación igual?`)) return;
+    }
+  }
+  await aprobarComoGerente(idLocal);
+  renderPendientes();
+}
 export function votarConsejoPorId(idLocal, voto) { votarConsejo(idLocal, voto).then(renderPendientes); }
 export function votarAnulacionPorId(idLocal, voto) { votarAnulacionConsejo(idLocal, voto).then(() => { renderPendientes(); renderHistorial(); }); }
 

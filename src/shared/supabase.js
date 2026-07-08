@@ -150,6 +150,11 @@ export function _toSnake(obj) {
     aprobadoPorRrhh: 'aprobado_por_rrhh', fechaAprobacionRrhh: 'fecha_aprobacion_rrhh',
     motivoRechazoRrhh: 'motivo_rechazo_rrhh',
     anuladoPor: 'anulado_por', pagaJornadaCompleta: 'paga_jornada_completa',
+    // Vacaciones v1.1 (v031) — excepción de preaviso corto
+    requiereAutorizacionPreavisoCorto: 'requiere_autorizacion_preaviso_corto',
+    motivoExcepcionPreaviso: 'motivo_excepcion_preaviso',
+    autorizadaExcepcionPor: 'autorizada_excepcion_por',
+    fechaAutorizacionExcepcion: 'fecha_autorizacion_excepcion',
   };
   const r = {};
   for (const [k, v] of Object.entries(obj)) {
@@ -264,6 +269,11 @@ export function _toCamel(obj) {
     aprobado_por_rrhh: 'aprobadoPorRrhh', fecha_aprobacion_rrhh: 'fechaAprobacionRrhh',
     motivo_rechazo_rrhh: 'motivoRechazoRrhh',
     anulado_por: 'anuladoPor', paga_jornada_completa: 'pagaJornadaCompleta',
+    // Vacaciones v1.1 (v031) — excepción de preaviso corto
+    requiere_autorizacion_preaviso_corto: 'requiereAutorizacionPreavisoCorto',
+    motivo_excepcion_preaviso: 'motivoExcepcionPreaviso',
+    autorizada_excepcion_por: 'autorizadaExcepcionPor',
+    fecha_autorizacion_excepcion: 'fechaAutorizacionExcepcion',
   };
   const r = {};
   for (const [k, v] of Object.entries(obj)) {

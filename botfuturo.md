@@ -40,6 +40,8 @@ los mismos eventos que deberían disparar un mensaje de WhatsApp:
 | Consejo rechaza la anulación | Solicitante | `vacacion_anulacion_rechazada` |
 | Solicitante anula (Borrador/Pendiente Gerente) | Gerente (si aplica) | `vacacion_anulada_solicitante` |
 | Gerente anula a pedido del solicitante | Solicitante | `vacacion_anulada_gerente` |
+| RRHH autoriza excepción de preaviso corto (v1.1) → salta a Pendiente Consejo | 3 miembros del Consejo + solicitante | `vacacion_preaviso_corto_autorizado` |
+| "Comunicar saldos" (v1.1, botón manual de RRHH en Panorama de saldos) | Cada administrativo activo, con su saldo del año | `vacacion_saldo_anual` |
 
 **Nota técnica para cuando se implemente el bot:** el destinatario hoy
 se resuelve por `destinatario_nombre` (texto), no por un id de usuario o

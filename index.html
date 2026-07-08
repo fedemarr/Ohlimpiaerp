@@ -1274,11 +1274,12 @@
           <select id="vac-saldo-sector" onchange="filtrarPanoramaSaldos()"><option value="">Todos los sectores</option></select>
           <label style="display:flex;align-items:center;gap:4px;font-size:12.5px;"><input type="checkbox" id="vac-saldo-solo-alertas" onchange="filtrarPanoramaSaldos()"> Solo con alertas</label>
           <button class="btn btn-secondary btn-sm" onclick="exportarSaldosExcel()">📥 Exportar a Excel</button>
+          <button class="btn btn-secondary btn-sm" onclick="comunicarSaldos()">📢 Comunicar saldos</button>
         </div>
       </div>
       <div class="tabla-wrap"><table>
         <thead><tr>
-          <th>Asociado</th><th>Sector</th><th>Antigüedad</th><th>Días asignados</th><th>Días tomados</th><th>Días en proceso</th><th>Días disponibles</th><th>Alerta</th>
+          <th>Asociado</th><th>Sector</th><th>Antigüedad</th><th>Días asignados</th><th>Origen</th><th>Días tomados</th><th>Días en proceso</th><th>Días disponibles</th><th>Alerta</th>
         </tr></thead>
         <tbody id="tbody-vac-saldos"></tbody>
       </table></div>
@@ -4564,7 +4565,7 @@
           <div class="form-section">Datos para Vacaciones (solo administrativos)</div>
           <div class="form-grid form-grid-3">
             <div class="form-group"><label>Sector</label><select id="edit-sector"></select></div>
-            <div class="form-group"><label>Días de vacaciones/año</label><input type="number" id="edit-dias-vac" min="0" max="60"></div>
+            <div class="form-group"><label>Días de vacaciones/año (override manual)</label><input type="number" id="edit-dias-vac" min="0" max="60"><div class="form-hint">Dejar en 0 para que se calcule solo por antigüedad (14/21/28/35 según escala oficial).</div></div>
             <div class="form-group"><label>Jefe directo</label>
               <input type="text" id="edit-jefe-directo" list="dl-edit-jefe-directo" placeholder="Buscar por nombre...">
               <datalist id="dl-edit-jefe-directo"></datalist>
