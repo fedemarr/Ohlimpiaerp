@@ -23,7 +23,7 @@ import { reasignacionesScreenConfig, sincronizarConfigReasignaciones } from './m
 import { capacitacionesScreenConfig, filtrarCapacitaciones } from './modules/capacitaciones/index.js';
 import { uniformesScreenConfig } from './modules/uniformes/index.js';
 import { retencionesScreenConfig, filtrarRetenciones } from './modules/retenciones/index.js';
-import { competenciaScreenConfig, sincronizarReglasCompetencia } from './modules/competencia/index.js';
+import { competenciaScreenConfig } from './modules/competencia/index.js';
 import { developerScreenConfig, sincronizarSugerenciasComoTickets, renderDevInicio, renderDevTickets } from './modules/developer/index.js';
 import { vacacionesScreenConfig } from './modules/vacaciones/index.js';
 import { descansosScreenConfig } from './modules/descansos/index.js';
@@ -241,9 +241,6 @@ registerAuthCallbacks({
     // legacy.js sigue leyendo) desde la config real recién cargada, para
     // que no queden con el seed default hasta visitar Reasignaciones.
     sincronizarConfigReasignaciones();
-    // Reshapea DB.reglasCompetencia del array crudo que cargó supaInit()
-    // (vía _SM) al objeto singleton que usa el módulo Competencia Anual.
-    sincronizarReglasCompetencia();
     // Perfil exclusivo del desarrollador: convierte sugerencias nuevas en
     // tickets (nunca duplica — matchea por sugerenciaId).
     if (currentUser?.perfil === 'DEVELOPER') await sincronizarSugerenciasComoTickets();

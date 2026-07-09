@@ -1408,23 +1408,25 @@
     <div class="stat-card verde"><div class="stat-label">Equipos activos</div><div class="stat-valor" id="st-comp-equipos">0</div><div class="stat-sub">Servicios con 2+</div></div>
     <div class="stat-card acento"><div class="stat-label">Líder individual</div><div class="stat-valor" id="st-comp-lider" style="font-size:14px;"></div><div class="stat-sub" id="st-comp-lider-pts"></div></div>
     <div class="stat-card azul"><div class="stat-label">Equipo líder</div><div class="stat-valor" id="st-comp-equipo-lider" style="font-size:12px;"></div><div class="stat-sub" id="st-comp-equipo-pts"></div></div>
-    <div class="stat-card rojo"><div class="stat-label">No participan</div><div class="stat-valor" id="st-comp-nop">0</div><div class="stat-sub">⚠️ Riesgo alto</div></div>
+    <div class="stat-card rojo"><div class="stat-label">No participan</div><div class="stat-valor" id="st-comp-nop">0</div><div class="stat-sub">⚠️ Riesgo alto/muy alto</div></div>
   </div>
 
   <!-- TABS -->
   <div class="tabs" style="background:white;border-radius:var(--radio-lg) var(--radio-lg) 0 0;padding:0 20px;box-shadow:var(--sombra);border-bottom:none;">
-    <button class="tab-btn active" onclick="tabComp('individual',this)">⭐ Tabla individual</button>
-    <button class="tab-btn" onclick="tabComp('equipos',this)">🏅 Tabla de equipos</button>
-    <button class="tab-btn" onclick="tabComp('supervisores',this)">👔 Tabla de supervisores</button>
+    <button class="tab-btn active" onclick="tabComp('individual',this)">⭐ Individual</button>
+    <button class="tab-btn" onclick="tabComp('equipos',this)">🏅 Servicios</button>
+    <button class="tab-btn" onclick="tabComp('supervisores',this)">👔 Supervisores</button>
     <button class="tab-btn" onclick="tabComp('noparticipan',this)">⚠️ No participan</button>
-    <button class="tab-btn" onclick="tabComp('reglas',this)">📋 Reglas y puntos</button>
+    <button class="tab-btn" onclick="tabComp('historial',this)">📜 Historial</button>
+    <button class="tab-btn" onclick="tabComp('reglas',this)">📋 Reglas del torneo</button>
+    <button class="tab-btn" onclick="tabComp('premios',this)">🏆 Premios</button>
   </div>
 
   <!-- TAB INDIVIDUAL -->
   <div id="comp-tab-individual" class="tab-content active">
     <div class="card" style="border-radius:0 var(--radio-lg) var(--radio-lg) var(--radio-lg);">
       <div class="card-header">
-        <h3>⭐ Ranking individual — Goleadores</h3>
+        <h3>⭐ Ranking individual</h3>
         <div class="filtros-bar">
           <input type="text" placeholder="🔍 Buscar asociado..." id="buscar-comp-ind" oninput="filtrarCompInd()">
           <select id="f-comp-serv" onchange="filtrarCompInd()"><option value="">Todos los servicios</option></select>
@@ -1437,24 +1439,22 @@
           <th>Asociado</th>
           <th>Servicio</th>
           <th>Supervisor</th>
-          <th style="text-align:center;">Eval. respondidas</th>
-          <th style="text-align:center;">Correctas</th>
           <th style="text-align:center;">Pts. evaluaciones</th>
           <th style="text-align:center;">Pts. presenciales</th>
           <th style="text-align:center;">Pts. felicitaciones</th>
           <th style="text-align:center;">Total pts.</th>
-          <th style="text-align:center;">Tendencia</th>
+          <th style="text-align:center;">Actividad<br>(30d)</th>
         </tr></thead>
         <tbody id="tbody-comp-ind"></tbody>
       </table></div>
     </div>
   </div>
 
-  <!-- TAB EQUIPOS -->
+  <!-- TAB SERVICIOS -->
   <div id="comp-tab-equipos" class="tab-content">
     <div class="card" style="border-radius:0 var(--radio-lg) var(--radio-lg) var(--radio-lg);">
       <div class="card-header">
-        <h3>🏅 Tabla de equipos — por servicio</h3>
+        <h3>🏅 Ranking por servicio</h3>
         <div class="filtros-bar">
           <input type="text" placeholder="🔍 Buscar servicio..." id="buscar-comp-eq" oninput="filtrarCompEq()">
         </div>
@@ -1462,14 +1462,14 @@
       <div class="tabla-wrap"><table>
         <thead><tr>
           <th style="width:50px;">Pos.</th>
-          <th>Servicio / Equipo</th>
+          <th>Servicio</th>
           <th style="text-align:center;">Miembros</th>
           <th style="text-align:center;">Supervisor</th>
-          <th style="text-align:center;">Pts. totales equipo</th>
-          <th style="text-align:center;">Promedio por miembro</th>
+          <th style="text-align:center;">Pts. totales</th>
+          <th style="text-align:center;">Promedio</th>
           <th style="text-align:center;">Participación %</th>
           <th style="text-align:center;">Pts. felicitaciones</th>
-          <th style="text-align:center;">Total pts.</th>
+          <th style="text-align:center;">Puntaje oficial</th>
         </tr></thead>
         <tbody id="tbody-comp-eq"></tbody>
       </table></div>
@@ -1480,8 +1480,8 @@
   <div id="comp-tab-supervisores" class="tab-content">
     <div class="card" style="border-radius:0 var(--radio-lg) var(--radio-lg) var(--radio-lg);">
       <div class="card-header">
-        <h3>👔 Tabla de supervisores</h3>
-        <span class="text-muted">Puntaje = suma de toda su gente ÷ cantidad de personas</span>
+        <h3>👔 Ranking por supervisor</h3>
+        <span class="text-muted">Puntaje = (suma de su gente ÷ cantidad) × % participación</span>
       </div>
       <div class="tabla-wrap"><table>
         <thead><tr>
@@ -1489,10 +1489,10 @@
           <th>Supervisor</th>
           <th style="text-align:center;">Personas a cargo</th>
           <th style="text-align:center;">Servicios</th>
-          <th style="text-align:center;">Pts. totales equipo</th>
-          <th style="text-align:center;">Puntaje promedio</th>
+          <th style="text-align:center;">Pts. totales</th>
+          <th style="text-align:center;">Puntaje oficial</th>
           <th style="text-align:center;">% participación</th>
-          <th style="text-align:center;">No participan</th>
+          <th>No participan</th>
         </tr></thead>
         <tbody id="tbody-comp-sup"></tbody>
       </table></div>
@@ -1501,12 +1501,22 @@
 
   <!-- TAB NO PARTICIPAN -->
   <div id="comp-tab-noparticipan" class="tab-content">
-    <div class="card" style="border-radius:0 var(--radio-lg) var(--radio-lg) var(--radio-lg);">
+    <div class="stats-grid" style="grid-template-columns:repeat(3,1fr);margin-bottom:14px;">
+      <div class="stat-card rojo"><div class="stat-label">🔴 Riesgo muy alto</div><div class="stat-valor" id="st-comp-nop-muyalto">0</div><div class="stat-sub">0% de participación</div></div>
+      <div class="stat-card rojo"><div class="stat-label">🟠 Riesgo alto</div><div class="stat-valor" id="st-comp-nop-alto">0</div><div class="stat-sub">Menos de 30%</div></div>
+      <div class="stat-card acento"><div class="stat-label">🟡 Riesgo medio</div><div class="stat-valor" id="st-comp-nop-medio">0</div><div class="stat-sub">Entre 30% y 60%</div></div>
+    </div>
+    <div class="card" style="border-radius:var(--radio-lg);">
       <div class="card-header">
-        <h3>⚠️ Asociados que no participan</h3>
-        <div style="display:flex;gap:8px;">
-          <button class="btn btn-acento btn-sm" onclick="notificarNoParticipantes()">📱 Notificar por WhatsApp</button>
-          <button class="btn btn-ghost btn-sm" onclick="analizarNoParticipantesIA()">🤖 Análisis IA</button>
+        <h3>⚠️ Asociados con baja participación</h3>
+        <div class="filtros-bar">
+          <select id="f-comp-nop-riesgo" multiple onchange="filtrarCompNop()" style="min-width:160px;">
+            <option value="Muy alto" selected>🔴 Muy alto</option>
+            <option value="Alto" selected>🟠 Alto</option>
+            <option value="Medio" selected>🟡 Medio</option>
+            <option value="Bajo">🟢 Bajo</option>
+          </select>
+          <button class="btn btn-acento btn-sm" onclick="abrirNotificarMasivoRiesgoAlto()">📱 Notificar a todos en riesgo alto</button>
         </div>
       </div>
       <div class="alerta alerta-danger" style="margin:14px 14px 0;">
@@ -1518,10 +1528,10 @@
           <th>N° Socio</th>
           <th>Servicio</th>
           <th>Supervisor</th>
-          <th style="text-align:center;">Evaluaciones enviadas</th>
-          <th style="text-align:center;">Respondidas</th>
-          <th style="text-align:center;">Participación</th>
-          <th style="text-align:center;">Último contacto</th>
+          <th style="text-align:center;">Evaluaciones</th>
+          <th style="text-align:center;">Capacitaciones</th>
+          <th style="text-align:center;">% Participación</th>
+          <th style="text-align:center;">Días sin actividad</th>
           <th style="text-align:center;">Riesgo</th>
           <th></th>
         </tr></thead>
@@ -1530,44 +1540,66 @@
     </div>
   </div>
 
-  <!-- TAB REGLAS -->
-  <div id="comp-tab-reglas" class="tab-content">
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:18px;">
-      <div class="card">
-        <div class="card-header"><h3>📋 Reglas del torneo</h3><button class="btn btn-primary btn-sm" onclick="abrirModalEditarReglas()">✏️ Editar reglas</button></div>
-        <div class="card-body" id="panel-reglas"></div>
-      </div>
-      <div class="card">
-        <div class="card-header"><h3>🎁 Tabla de puntajes</h3></div>
-        <div class="card-body" id="panel-puntajes"></div>
-      </div>
-      <div class="card" style="grid-column:span 2;">
-        <div class="card-header"><h3>🎁 Premios a definir</h3><span class="badge badge-acento">Pendiente de asignación</span></div>
-        <div class="card-body">
-          <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px;">
-            <div style="background:linear-gradient(135deg,#ffd700,#ffed4a);border-radius:var(--radio-lg);padding:20px;text-align:center;">
-              <div style="font-size:32px;">🥇</div>
-              <div style="font-weight:700;font-size:14px;margin-top:6px;">1° Individual</div>
-              <div style="font-size:12px;color:#7a6000;margin-top:4px;">Premio a definir</div>
-            </div>
-            <div style="background:linear-gradient(135deg,#c0c0c0,#e8e8e8);border-radius:var(--radio-lg);padding:20px;text-align:center;">
-              <div style="font-size:32px;">🥈</div>
-              <div style="font-weight:700;font-size:14px;margin-top:6px;">2° Individual</div>
-              <div style="font-size:12px;color:#666;margin-top:4px;">Premio a definir</div>
-            </div>
-            <div style="background:linear-gradient(135deg,#cd7f32,#e8a85a);border-radius:var(--radio-lg);padding:20px;text-align:center;">
-              <div style="font-size:32px;">🥉</div>
-              <div style="font-weight:700;font-size:14px;margin-top:6px;">3° Individual</div>
-              <div style="font-size:12px;color:#7a4000;margin-top:4px;">Premio a definir</div>
-            </div>
-            <div style="background:linear-gradient(135deg,var(--azul-claro),var(--azul-suave));border-radius:var(--radio-lg);padding:20px;text-align:center;grid-column:span 3;">
-              <div style="font-size:32px;">🏆</div>
-              <div style="font-weight:700;font-size:14px;margin-top:6px;">Equipo campeón del año</div>
-              <div style="font-size:12px;color:var(--azul);margin-top:4px;">Premio grupal a definir</div>
-            </div>
-          </div>
+  <!-- TAB HISTORIAL -->
+  <div id="comp-tab-historial" class="tab-content">
+    <div class="card" style="border-radius:0 var(--radio-lg) var(--radio-lg) var(--radio-lg);">
+      <div class="card-header">
+        <h3>📜 Historial de movimientos</h3>
+        <div class="filtros-bar">
+          <input type="text" placeholder="🔍 Buscar destinatario..." id="ch-buscar" oninput="filtrarHistorialMovimientos()">
+          <select id="ch-regla" onchange="filtrarHistorialMovimientos()"><option value="">Todas las reglas</option></select>
+          <input type="number" placeholder="Año" id="ch-anio" oninput="filtrarHistorialMovimientos()" style="width:80px;">
+          <select id="ch-estado" onchange="filtrarHistorialMovimientos()">
+            <option value="">Todos los estados</option><option value="vigente">Vigente</option><option value="revertido">Revertido</option>
+          </select>
+          <select id="ch-origen" onchange="filtrarHistorialMovimientos()">
+            <option value="">Todos los orígenes</option><option value="Automático">Automático</option><option value="Manual">Manual</option>
+          </select>
+          <button class="btn btn-primary btn-sm" onclick="abrirCargaManual()">+ Carga manual</button>
+          <button class="btn btn-secondary btn-sm" onclick="backfill2026()">⏮ Backfill 2026</button>
         </div>
       </div>
+      <div class="tabla-wrap"><table>
+        <thead><tr>
+          <th>Fecha</th><th>Regla</th><th>Destinatario</th><th>Tipo</th><th>Servicio</th>
+          <th style="text-align:center;">Puntos</th><th>Origen</th><th>Estado</th><th></th>
+        </tr></thead>
+        <tbody id="tbody-comp-historial"></tbody>
+      </table></div>
+    </div>
+  </div>
+
+  <!-- TAB REGLAS -->
+  <div id="comp-tab-reglas" class="tab-content">
+    <div class="card" style="border-radius:0 var(--radio-lg) var(--radio-lg) var(--radio-lg);">
+      <div class="card-header">
+        <h3>📋 Reglas del torneo</h3>
+        <button class="btn btn-primary btn-sm" onclick="abrirNuevaRegla()">+ Nueva regla</button>
+      </div>
+      <div class="tabla-wrap"><table>
+        <thead><tr>
+          <th>Regla</th><th>Origen</th><th>Módulo</th>
+          <th style="text-align:center;">Pts. operario</th><th style="text-align:center;">Pts. compañero</th><th style="text-align:center;">Pts. supervisor</th>
+          <th>Vigente desde</th><th style="text-align:center;">Estado</th><th></th>
+        </tr></thead>
+        <tbody id="tbody-comp-reglas"></tbody>
+      </table></div>
+    </div>
+  </div>
+
+  <!-- TAB PREMIOS -->
+  <div id="comp-tab-premios" class="tab-content">
+    <div id="comp-premios-banner" style="margin-bottom:14px;"></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:18px;" id="comp-premios-podio"></div>
+    <div class="card" style="border-radius:var(--radio-lg);">
+      <div class="card-header"><h3>🗄️ Años cerrados</h3></div>
+      <div class="tabla-wrap"><table>
+        <thead><tr>
+          <th>Año</th><th>Fecha de cierre</th><th>Cerrado por</th>
+          <th>Ganador individual</th><th>Ganador servicio</th><th style="text-align:center;">Premios entregados</th><th></th>
+        </tr></thead>
+        <tbody id="tbody-comp-premios-anios"></tbody>
+      </table></div>
     </div>
   </div>
 
@@ -1592,25 +1624,11 @@
   </div>
 </div>
 
-<!-- MODAL EDITAR REGLAS -->
-<div class="modal-overlay" id="modal-reglas-edit">
-  <div class="modal" style="max-width:620px;">
-    <div class="modal-header"><h3>📋 Editar reglas del torneo</h3><button class="btn-close" onclick="cerrarModal('modal-reglas-edit')">×</button></div>
-    <div class="modal-body">
-      <div class="form-grid gap-12">
-        <div class="form-section">Puntajes por acción</div>
-        <div style="display:grid;grid-template-columns:1fr auto;gap:8px;align-items:center;" id="reglas-puntajes-form"></div>
-        <div class="form-section">Reglas generales</div>
-        <div class="form-group"><label>Duración del torneo</label><select id="reg-duracion"><option>Todo el año calendario</option><option>Por trimestre (4 torneos)</option><option>Por semestre (2 torneos)</option></select></div>
-        <div class="form-group"><label>Desempate</label><select id="reg-desempate"><option>Mayor cantidad de evaluaciones respondidas</option><option>Mayor tasa de aprobación</option><option>Más antigüedad en la cooperativa</option></select></div>
-      </div>
-    </div>
-    <div class="modal-footer">
-      <button class="btn btn-secondary" onclick="cerrarModal('modal-reglas-edit')">Cancelar</button>
-      <button class="btn btn-primary" onclick="guardarReglas()">Guardar reglas</button>
-    </div>
-  </div>
-</div>
+<!-- Los demás modales de Competencia (versión de regla, nueva regla,
+     historial de versiones, carga manual, detalle de evento, notificar,
+     cerrar año, detalle de premios por año) se crean dinámicamente por
+     JS (patrón ensureModal, igual que Uniformes) — no hace falta
+     markup estático acá. -->
 
 <!-- REASIGNACIONES -->
 <div class="screen" id="screen-reasignaciones">

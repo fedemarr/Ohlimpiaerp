@@ -43,6 +43,12 @@ export const _SM = {
   uniformes: 'uniformes',
   retenciones: 'retenciones',
   reglasCompetencia: 'reglas_competencia',
+  reglasCompetenciaVersiones: 'reglas_competencia_versiones',
+  eventosPuntos: 'eventos_puntos',
+  movimientosPuntos: 'movimientos_puntos',
+  premiosCompetenciaAnual: 'premios_competencia_anual',
+  notificacionesNoParticipan: 'notificaciones_no_participan',
+  aniosCompetencia: 'anios_competencia',
   paritarias: 'paritarias',
   retenes: 'retenes',
   sugerencias: 'sugerencias',
@@ -192,6 +198,21 @@ export function _toSnake(obj) {
     fechaConfirmada: 'fecha_confirmada', confirmadaPor: 'confirmada_por',
     prendasDevueltas: 'prendas_devueltas', montoDescuento: 'monto_descuento',
     tallesUniforme: 'talles_uniforme',
+    // Competencia Anual v2 (v033)
+    moduloOrigen: 'modulo_origen', reglaIdLocal: 'regla_id_local',
+    puntosIndividual: 'puntos_individual', puntosPorCompanero: 'puntos_por_companero', puntosSupervisor: 'puntos_supervisor',
+    reglaVersionIdLocal: 'regla_version_id_local', operarioIdLocal: 'operario_id_local',
+    servicioAlMomento: 'servicio_al_momento', supervisorAlMomento: 'supervisor_al_momento',
+    fechaEvento: 'fecha_evento', referenciaExterna: 'referencia_externa',
+    fechaReversion: 'fecha_reversion', revertidoPor: 'revertido_por', motivoReversion: 'motivo_reversion',
+    eventoIdLocal: 'evento_id_local', destinatarioIdLocal: 'destinatario_id_local',
+    nombreDestinatario: 'nombre_destinatario', tipoDestinatario: 'tipo_destinatario',
+    puntosCongelados: 'puntos_congelados', fechaMovimiento: 'fecha_movimiento', anioCompetencia: 'anio_competencia',
+    ganadorIdLocal: 'ganador_id_local', nombreGanador: 'nombre_ganador', puntosFinales: 'puntos_finales',
+    compartidoCon: 'compartido_con', fechaEntrega: 'fecha_entrega', entregadoPor: 'entregado_por',
+    descripcionPremio: 'descripcion_premio', nivelRiesgo: 'nivel_riesgo', destinatarioTipo: 'destinatario_tipo',
+    fechaEnviado: 'fecha_enviado', enviadoPor: 'enviado_por',
+    fechaCierre: 'fecha_cierre', cerradoPor: 'cerrado_por', observacionesCierre: 'observaciones_cierre',
   };
   const r = {};
   for (const [k, v] of Object.entries(obj)) {
@@ -342,6 +363,21 @@ export function _toCamel(obj) {
     fecha_confirmada: 'fechaConfirmada', confirmada_por: 'confirmadaPor',
     prendas_devueltas: 'prendasDevueltas', monto_descuento: 'montoDescuento',
     talles_uniforme: 'tallesUniforme',
+    // Competencia Anual v2 (v033)
+    modulo_origen: 'moduloOrigen', regla_id_local: 'reglaIdLocal',
+    puntos_individual: 'puntosIndividual', puntos_por_companero: 'puntosPorCompanero', puntos_supervisor: 'puntosSupervisor',
+    regla_version_id_local: 'reglaVersionIdLocal', operario_id_local: 'operarioIdLocal',
+    servicio_al_momento: 'servicioAlMomento', supervisor_al_momento: 'supervisorAlMomento',
+    fecha_evento: 'fechaEvento', referencia_externa: 'referenciaExterna',
+    fecha_reversion: 'fechaReversion', revertido_por: 'revertidoPor', motivo_reversion: 'motivoReversion',
+    evento_id_local: 'eventoIdLocal', destinatario_id_local: 'destinatarioIdLocal',
+    nombre_destinatario: 'nombreDestinatario', tipo_destinatario: 'tipoDestinatario',
+    puntos_congelados: 'puntosCongelados', fecha_movimiento: 'fechaMovimiento', anio_competencia: 'anioCompetencia',
+    ganador_id_local: 'ganadorIdLocal', nombre_ganador: 'nombreGanador', puntos_finales: 'puntosFinales',
+    compartido_con: 'compartidoCon', fecha_entrega: 'fechaEntrega', entregado_por: 'entregadoPor',
+    descripcion_premio: 'descripcionPremio', nivel_riesgo: 'nivelRiesgo', destinatario_tipo: 'destinatarioTipo',
+    fecha_enviado: 'fechaEnviado', enviado_por: 'enviadoPor',
+    fecha_cierre: 'fechaCierre', cerrado_por: 'cerradoPor', observaciones_cierre: 'observacionesCierre',
   };
   const r = {};
   for (const [k, v] of Object.entries(obj)) {

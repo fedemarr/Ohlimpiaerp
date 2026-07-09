@@ -15,6 +15,10 @@ import { $, cleanText, toTitleCase } from '@shared/helpers.js';
 import { toast, abrirModal, cerrarModal } from '@shared/ui.js';
 import { supaSync } from '@shared/supabase.js';
 import { subirAdjunto, obtenerUrlFirmada } from '@shared/adjuntos.js';
+// Hook a Competencia Anual (ver src/modules/competencia/movimientos.js)
+// — mismo patrón de import cross-módulo que ya usa legajos.js con
+// documentacion.js. Genera puntos cuando se aprueba una capacitación.
+import { registrarEvento, esAdministrativo } from '../competencia/movimientos.js';
 
 // ========== HELPERS ==========
 
@@ -391,6 +395,27 @@ export function guardarDictadoCap() {
   c.editadoEn = new Date().toISOString();
 
   supaSync('capacitaciones', c);
+
+  // Competencia Anual: capacitación aprobada suma puntos. El campo
+  // real `lugar` solo tiene 4 valores (Servicio/Oficina Central/
+  // Virtual/Externo) — "Virtual" y "Externo" fusionan en la regla
+  // "Capacitación virtual" (no hay distinción real de video vs Meet).
+  if (resultado === 'Aprobado') {
+    const legajo = (DB.legajos || []).find(l => String(l.nro) === String(c.nroSocio) && l.estado === 'Activo');
+    if (legajo && !esAdministrativo(legajo)) {
+      const codigoRegla = c.lugar === 'Oficina Central' ? 'capacitacion_presencial'
+        : c.lugar === 'Servicio' ? 'capacitacion_servicio'
+        : (c.lugar === 'Virtual' || c.lugar === 'Externo') ? 'capacitacion_virtual' : null;
+      if (codigoRegla) {
+        registrarEvento({
+          reglaCodigo: codigoRegla, fecha: c.fecha, protagonista: legajo,
+          referenciaExterna: 'cap:' + String(c.id), origenModulo: 'Capacitaciones',
+          observaciones: 'Capacitación aprobada: ' + (c.tipo || ''), generadoPor: currentUser?.nombre || 'Sistema',
+        });
+      }
+    }
+  }
+
   cerrarModal('modal-cap-dictar');
   renderCapacitaciones();
   toast(resultado === 'Pendiente evaluación'

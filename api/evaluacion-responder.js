@@ -108,6 +108,78 @@ export default async function handler(req, res) {
       puntaje,
     }).eq('id_local', ev.capacitacion_id_local);
 
+    // Competencia Anual: puntos por responder la evaluación + por cada
+    // respuesta correcta (src/modules/competencia/movimientos.js). Esta
+    // función serverless es autocontenida (sin acceso a DB.legajos ni al
+    // bundle del frontend, mismo criterio que el resto de api/*.js) —
+    // se duplica acá minimalista la resolución de versión vigente.
+    // Ninguna de las 2 reglas tiene cascada en el seed (compañero/
+    // supervisor en 0), así que alcanza con el movimiento del operario.
+    // Los puntos son un efecto secundario: si algo falla acá, no debe
+    // romper la corrección de la evaluación en sí (try/catch propio).
+    try {
+      let offset = 90000;
+      const nextIdLocal = () => idLocal(offset++);
+
+      const { data: legajo } = await supa
+        .from('legajos').select('nro, nombre, servicio, supervisor, estado')
+        .eq('nro', Number(ev.nro_socio)).maybeSingle();
+
+      if (legajo && legajo.estado === 'Activo' && (legajo.servicio || '').trim().toUpperCase() !== 'ADMINISTRATIVO') {
+        const fechaEvento = ahora;
+        const fechaISO = fechaEvento.slice(0, 10);
+
+        const resolverReglaYVersion = async (codigo) => {
+          const { data: regla } = await supa.from('reglas_competencia').select('id_local, activa').eq('codigo', codigo).eq('anulado', false).maybeSingle();
+          if (!regla || !regla.activa) return null;
+          const { data: versiones } = await supa.from('reglas_competencia_versiones')
+            .select('id_local, puntos_individual, vigencia_desde, vigencia_hasta')
+            .eq('regla_id_local', regla.id_local).eq('anulado', false)
+            .lte('vigencia_desde', fechaISO)
+            .order('vigencia_desde', { ascending: false });
+          const version = (versiones || []).find(v => !v.vigencia_hasta || v.vigencia_hasta >= fechaISO);
+          return version ? { regla, version } : null;
+        };
+
+        const generarMovimientoOperario = async ({ regla, version, puntos, referenciaExterna }) => {
+          const { data: eventoExistente } = await supa.from('eventos_puntos')
+            .select('id').eq('regla_id_local', regla.id_local).eq('referencia_externa', referenciaExterna).eq('anulado', false).maybeSingle();
+          if (eventoExistente) return;
+          const eventoIdLocal = nextIdLocal();
+          await supa.from('eventos_puntos').insert({
+            id_local: eventoIdLocal, regla_id_local: regla.id_local, regla_version_id_local: version.id_local,
+            operario_id_local: String(legajo.nro), nombre_operario: legajo.nombre,
+            servicio_al_momento: legajo.servicio || '', supervisor_al_momento: legajo.supervisor || '',
+            fecha_evento: fechaEvento, origen: 'Automático', modulo_origen: 'Capacitaciones',
+            referencia_externa: referenciaExterna, cargado_por: 'Sistema (evaluacion-responder)',
+          });
+          await supa.from('movimientos_puntos').insert({
+            id_local: nextIdLocal(),
+            evento_id_local: eventoIdLocal, regla_id_local: regla.id_local, regla_version_id_local: version.id_local,
+            destinatario_id_local: String(legajo.nro), nombre_destinatario: legajo.nombre, tipo_destinatario: 'Operario',
+            servicio_al_momento: legajo.servicio || '', supervisor_al_momento: legajo.supervisor || '',
+            puntos_congelados: puntos, fecha_evento: fechaEvento, anio_competencia: new Date(fechaEvento).getFullYear(),
+          });
+        };
+
+        const resp = await resolverReglaYVersion('responder_evaluacion');
+        if (resp) {
+          await generarMovimientoOperario({ ...resp, puntos: resp.version.puntos_individual, referenciaExterna: 'eval:' + ev.id_local });
+        }
+
+        if (aciertos > 0) {
+          const ok = await resolverReglaYVersion('respuesta_correcta');
+          if (ok) {
+            // Un solo movimiento agregado (aciertos × puntos), no uno
+            // por pregunta — evita decenas de filas por evaluación.
+            await generarMovimientoOperario({ ...ok, puntos: aciertos * ok.version.puntos_individual, referenciaExterna: 'eval:' + ev.id_local + ':aciertos' });
+          }
+        }
+      }
+    } catch (eComp) {
+      console.error('evaluacion-responder - hook Competencia Anual:', eComp);
+    }
+
     res.status(200).json({ resultado, puntaje });
   } catch (e) {
     console.error('evaluacion-responder error:', e);

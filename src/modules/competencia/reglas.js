@@ -1,120 +1,308 @@
-// Módulo Competencia Anual — Reglas y puntajes (rehecho de cero).
+// Competencia Anual v2 — catálogo de reglas y versiones con vigencia
+// temporal (política A.6, mismo patrón que src/modules/uniformes/precios.js:
+// "Corregir" edita la versión vigente in-place; "Nueva vigencia" cierra la
+// vigente y crea una fila nueva — los movimientos ya generados guardan su
+// propia reglaVersionIdLocal y no se recalculan nunca).
 //
-// Bugs reales corregidos de la versión en legacy.js:
-//   - El panel "Tabla de puntajes" armaba un <div> por regla pero nunca
-//     insertaba el texto de la acción ni el puntaje adentro — se veía
-//     vacío. Acá sí se muestra.
-//   - `guardarReglas()` llamaba a supaSync('reglasCompetencia', ...) pero
-//     esa clave nunca estuvo en el mapa de tablas (_SM) — el guardado no
-//     hacía nada. Ahora sí persiste (tabla reglas_competencia, v025).
-//   - El input de puntaje de "No participar en evaluación" (-10 pts) tenía
-//     `min="1"` en el HTML viejo, así que nunca se podía volver a poner un
-//     valor negativo una vez cambiado — se corrige el mínimo.
-//   - Cada input de puntaje mutaba `DB.reglasCompetencia` directo por un
-//     `onchange` inline, sin pasar por guardarReglas() ni por supaSync —
-//     ahora todo se junta y persiste en un solo punto (Guardar reglas).
+// Reemplaza por completo la versión anterior de este archivo, que
+// gestionaba el singleton plano de sql/v025 (ver v033: esa tabla se
+// renombró a reglas_competencia_legado_singleton).
 
-import { DB } from '@shared/state.js';
+import { DB, currentUser } from '@shared/state.js';
 import { $ } from '@shared/helpers.js';
 import { toast, abrirModal, cerrarModal } from '@shared/ui.js';
 import { supaSync } from '@shared/supabase.js';
+import { getReglaById, getVersionVigente } from './movimientos.js';
 
-// Mismos valores que el default de DB.reglasCompetencia en state.js — se
-// duplican acá (en vez de leerlos de DB.reglasCompetencia en el momento
-// del sync) porque para cuando esta función corre, supaInit() ya
-// sobreescribió DB.reglasCompetencia con el array crudo de Supabase.
-const PUNTAJES_DEFAULT = [
-  { accion: 'Responder una evaluación', pts: 10, bonus: false },
-  { accion: 'Respuesta correcta (por pregunta)', pts: 5, bonus: false },
-  { accion: 'Capacitación presencial en oficina', pts: 20, bonus: true },
-  { accion: 'Capacitación en servicio', pts: 10, bonus: false },
-  { accion: 'Capacitación vía video (con evaluación)', pts: 8, bonus: false },
-  { accion: 'Participación en equipo (mismo servicio responde juntos)', pts: 15, bonus: true },
-  { accion: 'Capacitación por Meet/Virtual', pts: 12, bonus: false },
-  { accion: 'No participar en evaluación (descuento al equipo y supervisor)', pts: -10, bonus: false },
-];
+const ORIGENES_REGLA = ['Automático', 'Manual', 'Ambas'];
+const MODULOS_ORIGEN = ['Capacitaciones', 'Comercial', 'Sanciones', 'Reasignaciones'];
 
-// supaInit() carga reglasCompetencia como array genérico (vía _SM), pero
-// acá se usa como objeto singleton — se llama una vez después de
-// supaInit(), mismo patrón que sincronizarConfigReasignaciones().
-export function sincronizarReglasCompetencia() {
-  const filas = Array.isArray(DB.reglasCompetencia) ? DB.reglasCompetencia : [];
-  const fila = filas.find(r => !r.anulado);
-  if (!fila) {
-    DB.reglasCompetencia = {
-      id: 'global', duracion: 'Todo el año calendario',
-      desempate: 'Mayor cantidad de evaluaciones respondidas',
-      descuentoAusente: 10, puntajes: PUNTAJES_DEFAULT,
-    };
-    return;
-  }
-  DB.reglasCompetencia = {
-    id: 'global',
-    duracion: fila.duracion || 'Todo el año calendario',
-    desempate: fila.desempate || 'Mayor cantidad de evaluaciones respondidas',
-    descuentoAusente: fila.descuentoAusente ?? 10,
-    puntajes: (fila.puntajes && fila.puntajes.length) ? fila.puntajes : PUNTAJES_DEFAULT,
-  };
+function slugify(texto) {
+  return (texto || '')
+    .toLowerCase()
+    .normalize('NFD').replace(/[̀-ͯ]/g, '')
+    .replace(/[^a-z0-9]+/g, '_')
+    .replace(/^_+|_+$/g, '')
+    .slice(0, 60);
 }
+
+function versionesDeRegla(reglaIdLocal) {
+  return (DB.reglasCompetenciaVersiones || [])
+    .filter(v => !v.anulado && String(v.reglaIdLocal) === String(reglaIdLocal))
+    .sort((a, b) => b.vigenciaDesde.localeCompare(a.vigenciaDesde));
+}
+
+// ========== TAB 6 — TABLA DE REGLAS ==========
 
 export function renderReglas() {
-  const reg = DB.reglasCompetencia;
-  const panelReg = $('panel-reglas');
-  if (panelReg) {
-    panelReg.innerHTML = `
-      <div style="display:flex;flex-direction:column;gap:10px;">
-        <div class="info-item"><div class="key">Duración</div><div class="val">${reg.duracion}</div></div>
-        <div class="info-item"><div class="key">Desempate</div><div class="val">${reg.desempate}</div></div>
-        <div class="divider"></div>
-        <div style="font-size:11px;font-weight:700;text-transform:uppercase;color:var(--texto-suave);">Equipos</div>
-        <div class="info-item"><div class="key">Formación</div><div class="val">Por servicio (fijos)</div></div>
-        <div class="info-item"><div class="key">Solitarios</div><div class="val">Solo tabla individual (sin equipo)</div></div>
-        <div class="info-item"><div class="key">Supervisores</div><div class="val">Puntaje promedio de toda su gente</div></div>
-        <div class="divider"></div>
-        <div style="font-size:11px;color:var(--texto-muy-suave);">⭐ Los ítems con bonus están marcados con estrella dorada</div>
-      </div>`;
-  }
-  const panelPts = $('panel-puntajes');
-  if (panelPts) {
-    panelPts.innerHTML = `<div style="display:flex;flex-direction:column;gap:8px;">
-      ${reg.puntajes.map(p => {
-        const esDescuento = p.pts < 0;
-        return `<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 12px;background:${esDescuento ? 'var(--rojo-suave)' : p.bonus ? 'var(--acento-suave)' : 'var(--fondo)'};border-radius:var(--radio);border:1px solid ${esDescuento ? '#f5c6c0' : p.bonus ? '#e6c84a' : 'var(--borde)'};">
-          <span style="font-size:12.5px;">${p.bonus ? '⭐ ' : ''}${p.accion}</span>
-          <span style="font-weight:700;font-size:13px;color:${esDescuento ? 'var(--rojo)' : 'var(--azul)'};">${p.pts > 0 ? '+' : ''}${p.pts} pts</span>
-        </div>`;
-      }).join('')}
-    </div>`;
-  }
+  const tbody = $('tbody-comp-reglas');
+  if (!tbody) return;
+  const hoy = new Date().toISOString().slice(0, 10);
+  const reglas = (DB.reglasCompetencia || []).filter(r => !r.anulado)
+    .sort((a, b) => (b.activa - a.activa) || (a.orden || 0) - (b.orden || 0));
+  tbody.innerHTML = reglas.length === 0
+    ? '<tr><td colspan="9" style="text-align:center;padding:24px;opacity:.5;">Sin reglas cargadas</td></tr>'
+    : reglas.map(r => {
+      const version = getVersionVigente(r.id, hoy);
+      return `<tr style="${!r.activa ? 'opacity:.5;' : ''}">
+        <td>${r.destaca ? '⭐ ' : ''}${r.nombre}</td>
+        <td><span class="badge badge-azul">${r.origen}</span></td>
+        <td style="font-size:12px;">${r.moduloOrigen || '—'}</td>
+        <td style="text-align:center;">${version ? (version.puntosIndividual > 0 ? '+' : '') + version.puntosIndividual : '—'}</td>
+        <td style="text-align:center;">${version && version.puntosPorCompanero ? (version.puntosPorCompanero > 0 ? '+' : '') + version.puntosPorCompanero : '—'}</td>
+        <td style="text-align:center;">${version && version.puntosSupervisor ? (version.puntosSupervisor > 0 ? '+' : '') + version.puntosSupervisor : '—'}</td>
+        <td style="font-size:12px;">${version ? version.vigenciaDesde : '—'}</td>
+        <td style="text-align:center;"><span class="badge ${r.activa ? 'badge-verde' : 'badge-gris'}">${r.activa ? 'Activa' : 'Inactiva'}</span></td>
+        <td style="white-space:nowrap;">
+          <button class="btn btn-xs btn-secondary" onclick="abrirCorregirVersionRegla('${r.id}')">✏️ Corregir</button>
+          <button class="btn btn-xs" onclick="abrirNuevaVigenciaRegla('${r.id}')">📅 Nueva vigencia</button>
+          <button class="btn btn-xs" onclick="abrirHistorialVersionesRegla('${r.id}')">🕐 Historial</button>
+          <button class="btn btn-xs" onclick="activarDesactivarReglaPorId('${r.id}')">${r.activa ? '🚫 Desactivar' : '✅ Activar'}</button>
+        </td>
+      </tr>`;
+    }).join('');
 }
 
-export function abrirModalEditarReglas() {
-  const reg = DB.reglasCompetencia;
-  const form = $('reglas-puntajes-form');
-  if (form) {
-    form.innerHTML = reg.puntajes.map((p, i) => `
-      <span style="font-size:12px;">${p.bonus ? '⭐ ' : ''}${p.accion}</span>
-      <input type="number" data-idx="${i}" value="${p.pts}" min="-100" max="100" style="width:60px;padding:4px 8px;border:1px solid var(--borde-fuerte);border-radius:6px;font-size:12px;outline:none;">
-    `).join('');
-  }
-  if ($('reg-duracion')) $('reg-duracion').value = reg.duracion;
-  if ($('reg-desempate')) $('reg-desempate').value = reg.desempate;
-  abrirModal('modal-reglas-edit');
-}
-
-export function guardarReglas() {
-  const reg = DB.reglasCompetencia;
-  reg.duracion = ($('reg-duracion') || { value: reg.duracion }).value;
-  reg.desempate = ($('reg-desempate') || { value: reg.desempate }).value;
-  document.querySelectorAll('#reglas-puntajes-form input[data-idx]').forEach(inp => {
-    const idx = parseInt(inp.dataset.idx, 10);
-    const val = parseInt(inp.value, 10);
-    if (reg.puntajes[idx] && !isNaN(val)) reg.puntajes[idx].pts = val;
-  });
-
-  supaSync('reglasCompetencia', reg);
-  cerrarModal('modal-reglas-edit');
+export async function activarDesactivarReglaPorId(reglaIdLocal) {
+  const regla = getReglaById(reglaIdLocal);
+  if (!regla) return;
+  regla.activa = !regla.activa;
+  await supaSync('reglasCompetencia', regla);
   renderReglas();
-  if (window.renderCompetencia) window.renderCompetencia();
-  toast('✅ Reglas del torneo actualizadas');
+  toast(regla.activa ? '✅ Regla activada' : '🚫 Regla desactivada — deja de generar puntos nuevos, los movimientos ya generados no se tocan');
+}
+
+export async function anularReglaPorId(reglaIdLocal) {
+  const regla = getReglaById(reglaIdLocal);
+  if (!regla) return;
+  const tieneMovimientos = (DB.movimientosPuntos || []).some(m => !m.anulado && !m.revertido && String(m.reglaIdLocal) === String(reglaIdLocal));
+  if (tieneMovimientos) { toast('⚠️ Esta regla tiene movimientos vigentes — revertilos o desactivala en vez de anularla'); return; }
+  if (!confirm(`¿Anular la regla "${regla.nombre}"? No se puede deshacer.`)) return;
+  regla.anulado = true;
+  await supaSync('reglasCompetencia', regla);
+  renderReglas();
+  toast('🗑 Regla anulada');
+}
+
+// ========== MODAL — CORREGIR / NUEVA VIGENCIA ==========
+
+let _reglaModo = 'corregir'; // 'corregir' | 'vigencia'
+let _reglaEditandoId = null;
+let _versionEditandoId = null;
+
+function ensureModalReglaVersion() {
+  if ($('modal-comp-regla-version')) return;
+  const m = document.createElement('div');
+  m.className = 'modal-overlay';
+  m.id = 'modal-comp-regla-version';
+  m.innerHTML = `
+    <div class="modal" style="max-width:420px;">
+      <div class="modal-header"><h3 id="crv-titulo">Editar puntaje</h3><button class="btn-close" onclick="cerrarModal('modal-comp-regla-version')">×</button></div>
+      <div class="modal-body">
+        <div class="form-group"><label>Puntos al operario *</label><input type="number" id="crv-individual"></div>
+        <div class="form-group"><label>Puntos a cada compañero del servicio</label><input type="number" id="crv-companero" value="0"></div>
+        <div class="form-group"><label>Puntos al supervisor</label><input type="number" id="crv-supervisor" value="0"></div>
+        <div class="form-group" id="crv-grupo-vigencia" style="display:none;"><label>Vigente desde *</label><input type="date" id="crv-vigencia-desde"></div>
+        <div class="form-group"><label>Motivo *</label><textarea id="crv-motivo" rows="2"></textarea></div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="cerrarModal('modal-comp-regla-version')">Cancelar</button>
+        <button class="btn btn-primary" onclick="guardarVersionReglaDesdeModal()">Guardar</button>
+      </div>
+    </div>`;
+  document.body.appendChild(m);
+}
+
+export function abrirCorregirVersionRegla(reglaIdLocal) {
+  const regla = getReglaById(reglaIdLocal);
+  if (!regla) return;
+  const hoy = new Date().toISOString().slice(0, 10);
+  const version = getVersionVigente(reglaIdLocal, hoy);
+  if (!version) { toast('⚠️ Esta regla no tiene una versión vigente para corregir'); return; }
+  _reglaModo = 'corregir'; _reglaEditandoId = reglaIdLocal; _versionEditandoId = version.id;
+  ensureModalReglaVersion();
+  $('crv-titulo').textContent = `Corregir puntaje — ${regla.nombre}`;
+  $('crv-individual').value = version.puntosIndividual;
+  $('crv-companero').value = version.puntosPorCompanero || 0;
+  $('crv-supervisor').value = version.puntosSupervisor || 0;
+  $('crv-grupo-vigencia').style.display = 'none';
+  $('crv-motivo').value = '';
+  abrirModal('modal-comp-regla-version');
+}
+
+export function abrirNuevaVigenciaRegla(reglaIdLocal) {
+  const regla = getReglaById(reglaIdLocal);
+  if (!regla) return;
+  const hoy = new Date().toISOString().slice(0, 10);
+  const version = getVersionVigente(reglaIdLocal, hoy);
+  _reglaModo = 'vigencia'; _reglaEditandoId = reglaIdLocal; _versionEditandoId = null;
+  ensureModalReglaVersion();
+  $('crv-titulo').textContent = `Nueva vigencia — ${regla.nombre}`;
+  $('crv-individual').value = version ? version.puntosIndividual : 0;
+  $('crv-companero').value = version ? (version.puntosPorCompanero || 0) : 0;
+  $('crv-supervisor').value = version ? (version.puntosSupervisor || 0) : 0;
+  $('crv-grupo-vigencia').style.display = 'block';
+  $('crv-vigencia-desde').value = hoy;
+  $('crv-motivo').value = '';
+  abrirModal('modal-comp-regla-version');
+}
+
+export async function guardarVersionReglaDesdeModal() {
+  const puntosIndividual = parseInt($('crv-individual').value, 10);
+  const puntosPorCompanero = parseInt($('crv-companero').value, 10) || 0;
+  const puntosSupervisor = parseInt($('crv-supervisor').value, 10) || 0;
+  const motivo = ($('crv-motivo').value || '').trim();
+  if (isNaN(puntosIndividual)) { toast('⚠️ Ingresá los puntos al operario'); return; }
+  if (!motivo) { toast('⚠️ El motivo es obligatorio'); return; }
+
+  if (_reglaModo === 'corregir') {
+    const version = (DB.reglasCompetenciaVersiones || []).find(v => String(v.id) === String(_versionEditandoId));
+    if (!version) { toast('⚠️ No se encontró la versión'); return; }
+    version.puntosIndividual = puntosIndividual;
+    version.puntosPorCompanero = puntosPorCompanero;
+    version.puntosSupervisor = puntosSupervisor;
+    version.motivoCarga = motivo;
+    version.cargadaPor = currentUser?.nombre || '';
+    await supaSync('reglasCompetenciaVersiones', version);
+    toast('✅ Puntaje corregido — los movimientos históricos no cambian');
+  } else {
+    const vigenciaDesde = $('crv-vigencia-desde').value;
+    if (!vigenciaDesde) { toast('⚠️ Ingresá la fecha de vigencia'); return; }
+    const anterior = getVersionVigente(_reglaEditandoId, vigenciaDesde);
+    if (anterior) {
+      const cierre = new Date(vigenciaDesde + 'T00:00:00');
+      cierre.setDate(cierre.getDate() - 1);
+      anterior.vigenciaHasta = cierre.toISOString().slice(0, 10);
+      await supaSync('reglasCompetenciaVersiones', anterior);
+    }
+    const nueva = {
+      id: Date.now(),
+      reglaIdLocal: _reglaEditandoId,
+      puntosIndividual, puntosPorCompanero, puntosSupervisor,
+      vigenciaDesde, vigenciaHasta: null,
+      cargadaPor: currentUser?.nombre || '', motivoCarga: motivo,
+    };
+    if (!DB.reglasCompetenciaVersiones) DB.reglasCompetenciaVersiones = [];
+    DB.reglasCompetenciaVersiones.push(nueva);
+    await supaSync('reglasCompetenciaVersiones', nueva);
+    toast('✅ Nueva vigencia guardada — los movimientos anteriores mantienen el puntaje congelado');
+  }
+  cerrarModal('modal-comp-regla-version');
+  renderReglas();
+}
+
+// ========== MODAL — HISTORIAL DE VERSIONES ==========
+
+function ensureModalReglaHistorial() {
+  if ($('modal-comp-regla-historial')) return;
+  const m = document.createElement('div');
+  m.className = 'modal-overlay';
+  m.id = 'modal-comp-regla-historial';
+  m.innerHTML = `
+    <div class="modal" style="max-width:480px;">
+      <div class="modal-header"><h3 id="chv-titulo">Historial</h3><button class="btn-close" onclick="cerrarModal('modal-comp-regla-historial')">×</button></div>
+      <div class="modal-body" id="chv-cuerpo"></div>
+      <div class="modal-footer"><button class="btn btn-secondary" onclick="cerrarModal('modal-comp-regla-historial')">Cerrar</button></div>
+    </div>`;
+  document.body.appendChild(m);
+}
+
+export function abrirHistorialVersionesRegla(reglaIdLocal) {
+  const regla = getReglaById(reglaIdLocal);
+  if (!regla) return;
+  ensureModalReglaHistorial();
+  $('chv-titulo').textContent = `Historial — ${regla.nombre}`;
+  const versiones = versionesDeRegla(reglaIdLocal);
+  $('chv-cuerpo').innerHTML = versiones.map(v => `<div class="info-item">
+      <div class="key">${v.vigenciaDesde} ${v.vigenciaHasta ? 'al ' + v.vigenciaHasta : '(vigente)'}</div>
+      <div class="val">Operario ${v.puntosIndividual > 0 ? '+' : ''}${v.puntosIndividual} / Compañero ${v.puntosPorCompanero || 0} / Supervisor ${v.puntosSupervisor || 0} — cargado por ${v.cargadaPor}${v.motivoCarga ? ' — ' + v.motivoCarga : ''}</div>
+    </div>`).join('') || '<p style="opacity:.5;">Sin historial</p>';
+  abrirModal('modal-comp-regla-historial');
+}
+
+// ========== MODAL — NUEVA REGLA ==========
+
+function ensureModalReglaNueva() {
+  if ($('modal-comp-regla-nueva')) return;
+  const m = document.createElement('div');
+  m.className = 'modal-overlay';
+  m.id = 'modal-comp-regla-nueva';
+  m.innerHTML = `
+    <div class="modal" style="max-width:480px;">
+      <div class="modal-header"><h3>+ Nueva regla</h3><button class="btn-close" onclick="cerrarModal('modal-comp-regla-nueva')">×</button></div>
+      <div class="modal-body">
+        <div class="form-group"><label>Nombre *</label><input type="text" id="crn-nombre"></div>
+        <div class="form-group"><label>Descripción</label><textarea id="crn-desc" rows="2"></textarea></div>
+        <div class="form-group"><label>Origen *</label>
+          <select id="crn-origen">${ORIGENES_REGLA.map(o => `<option>${o}</option>`).join('')}</select>
+        </div>
+        <div class="form-group"><label>Módulo origen</label>
+          <select id="crn-modulo"><option value="">—</option>${MODULOS_ORIGEN.map(m2 => `<option>${m2}</option>`).join('')}</select>
+        </div>
+        <div class="form-group"><label>Puntos al operario *</label><input type="number" id="crn-individual" value="0"></div>
+        <div class="form-group"><label>Puntos a cada compañero</label><input type="number" id="crn-companero" value="0"></div>
+        <div class="form-group"><label>Puntos al supervisor</label><input type="number" id="crn-supervisor" value="0"></div>
+        <div class="form-group"><label><input type="checkbox" id="crn-destaca"> ⭐ Destacar</label></div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="cerrarModal('modal-comp-regla-nueva')">Cancelar</button>
+        <button class="btn btn-primary" onclick="guardarReglaNueva()">Guardar</button>
+      </div>
+    </div>`;
+  document.body.appendChild(m);
+}
+
+export function abrirNuevaRegla() {
+  ensureModalReglaNueva();
+  ['crn-nombre', 'crn-desc'].forEach(id => { $(id).value = ''; });
+  $('crn-origen').value = 'Manual';
+  $('crn-modulo').value = '';
+  $('crn-individual').value = 0;
+  $('crn-companero').value = 0;
+  $('crn-supervisor').value = 0;
+  $('crn-destaca').checked = false;
+  abrirModal('modal-comp-regla-nueva');
+}
+
+export async function guardarReglaNueva() {
+  const nombre = ($('crn-nombre').value || '').trim();
+  const puntosIndividual = parseInt($('crn-individual').value, 10);
+  if (!nombre) { toast('⚠️ Ingresá el nombre de la regla'); return; }
+  if (isNaN(puntosIndividual)) { toast('⚠️ Ingresá los puntos al operario'); return; }
+  const codigo = slugify(nombre) || `regla_${Date.now()}`;
+  if ((DB.reglasCompetencia || []).some(r => !r.anulado && r.codigo === codigo)) {
+    toast('⚠️ Ya existe una regla con un nombre muy similar (código duplicado)'); return;
+  }
+  const hoy = new Date().toISOString().slice(0, 10);
+  const nueva = {
+    id: Date.now(),
+    codigo,
+    nombre,
+    descripcion: ($('crn-desc').value || '').trim(),
+    origen: $('crn-origen').value,
+    moduloOrigen: $('crn-modulo').value || null,
+    activa: true,
+    destaca: $('crn-destaca').checked,
+    orden: (DB.reglasCompetencia || []).length + 1,
+  };
+  if (!DB.reglasCompetencia) DB.reglasCompetencia = [];
+  DB.reglasCompetencia.push(nueva);
+  await supaSync('reglasCompetencia', nueva);
+
+  const version = {
+    id: Date.now() + 1,
+    reglaIdLocal: nueva.id,
+    puntosIndividual,
+    puntosPorCompanero: parseInt($('crn-companero').value, 10) || 0,
+    puntosSupervisor: parseInt($('crn-supervisor').value, 10) || 0,
+    vigenciaDesde: hoy, vigenciaHasta: null,
+    cargadaPor: currentUser?.nombre || '', motivoCarga: 'Alta inicial de la regla',
+  };
+  if (!DB.reglasCompetenciaVersiones) DB.reglasCompetenciaVersiones = [];
+  DB.reglasCompetenciaVersiones.push(version);
+  await supaSync('reglasCompetenciaVersiones', version);
+
+  cerrarModal('modal-comp-regla-nueva');
+  renderReglas();
+  toast('✅ Regla creada');
 }
