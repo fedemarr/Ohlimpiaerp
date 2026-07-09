@@ -8268,70 +8268,11 @@ function guardarMonotributo(){
 }
 
 
-// ══════════════════════════════════════════════════════════
-// MÓDULO UNIFORMES
-// ══════════════════════════════════════════════════════════
-function renderUniformes(){
-  const q=($('uni-buscar')?.value||'').toLowerCase();
-  const rows=(DB.uniformes||[]).filter(r=>!q||r.nombre?.toLowerCase().includes(q));
-  const all=DB.uniformes||[];
-  const hoy=new Date(); const mesStr=hoy.toISOString().slice(0,7);
-  if($('st-uni-total'))     $('st-uni-total').textContent     = all.length;
-  if($('st-uni-mes'))       $('st-uni-mes').textContent       = all.filter(r=>r.fecha?.slice(0,7)===mesStr).length;
-  const totalDesc=all.reduce((s,r)=>s+(parseFloat(r.descuento)||0),0);
-  if($('st-uni-monto'))     $('st-uni-monto').textContent     = '$'+totalDesc.toLocaleString('es-AR');
-  if($('st-uni-pendiente')) $('st-uni-pendiente').textContent = all.filter(r=>r.estado==='Pendiente').length;
-  const tbody=$('tbody-uni');if(!tbody)return;
-  if(!rows.length){tbody.innerHTML=`<tr><td colspan="8" style="padding:40px;text-align:center;color:var(--texto-muy-suave);">Sin entregas registradas.</td></tr>`;return;}
-  const estadoColor={'Descontado':'badge-verde','Pendiente':'badge-naranja','Cancelado':'badge-gris'};
-  tbody.innerHTML=rows.map((r,i)=>`<tr>
-    <td style="padding:6px 14px;border:1px solid var(--borde);font-weight:500;">${r.nombre}</td>
-    <td style="padding:6px 8px;border:1px solid var(--borde);font-size:11px;">${r.nroSocio||'—'}</td>
-    <td style="padding:6px 8px;border:1px solid var(--borde);font-size:11px;">${r.fecha||'—'}</td>
-    <td style="padding:6px 8px;border:1px solid var(--borde);font-size:11px;">${r.talle||'—'}</td>
-    <td style="padding:6px 8px;border:1px solid var(--borde);font-size:11px;">${(r.prendas||[]).map(p=>p.cantidad+'x '+p.tipo).join(', ')||'—'}</td>
-    <td style="padding:6px 8px;border:1px solid var(--borde);text-align:right;font-weight:600;color:var(--rojo);">$${(parseFloat(r.descuento)||0).toLocaleString('es-AR')}</td>
-    <td style="padding:6px 8px;border:1px solid var(--borde);text-align:center;"><span class="badge ${estadoColor[r.estado]||'badge-gris'}">${r.estado||'—'}</span></td>
-    <td style="padding:6px 8px;border:1px solid var(--borde);">
-      <button class="btn btn-xs btn-secondary" onclick="editarUniforme(${i})">✏️</button>
-    </td>
-  </tr>`).join('');
-}
-function abrirModalNuevoUniforme(idx=null){
-  const r=idx!==null?(DB.uniformes||[])[idx]:{};
-  $('uni-modal-title').textContent=idx!==null?'Editar entrega':'Nueva entrega de uniforme';
-  $('uni-idx').value=idx!==null?idx:'';
-  ['nombre','nroSocio','fecha','talle','descuento','estado','obs'].forEach(f=>{
-    const el=$('uni-'+f);if(el)el.value=r[f]||'';
-  });
-  if($('uni-fecha')&&!r.fecha) $('uni-fecha').value=new Date().toISOString().slice(0,10);
-  const dl=$('dl-uni-nombre');
-  if(dl) dl.innerHTML=(DB.legajos||[]).filter(l=>l.estado==='Activo').map(l=>`<option value="${l.nombre}">${l.nombre} — ${l.nro}</option>`).join('');
-  // Prendas
-  if($('uni-prendas')) $('uni-prendas').value=(r.prendas||[]).map(p=>p.cantidad+'x '+p.tipo).join(', ')||'';
-  abrirModal('modal-uniforme');
-}
-function editarUniforme(i){abrirModalNuevoUniforme(i);}
-function guardarUniforme(){
-  const idx=$('uni-idx')?.value;
-  const prendasStr=$('uni-prendas')?.value||'';
-  const prendas=prendasStr.split(',').map(s=>{
-    const m=s.trim().match(/^(\d+)x?\s*(.+)$/i);
-    return m?{cantidad:parseInt(m[1]),tipo:m[2].trim()}:null;
-  }).filter(Boolean);
-  const obj={
-    nombre:$('uni-nombre')?.value.trim(),nroSocio:$('uni-nroSocio')?.value.trim(),
-    fecha:$('uni-fecha')?.value,talle:$('uni-talle')?.value.trim(),
-    prendas,descuento:parseFloat($('uni-descuento')?.value)||0,
-    estado:$('uni-estado')?.value||'Pendiente',obs:$('uni-obs')?.value.trim(),
-  };
-  if(!obj.nombre){toast('Ingresá el nombre');return;}
-  if(idx!=='') DB.uniformes[parseInt(idx)]=obj;
-  else DB.uniformes.push({...obj,id:Date.now()});
-  cerrarModal('modal-uniforme');
-  supaSync('uniformes', DB.uniformes[DB.uniformes.length-1]); toast('✅ Uniforme registrado');
-  renderUniformes();
-}
+// MÓDULO UNIFORMES — migrado por completo a src/modules/uniformes/
+// (rediseño v2, política A.11, ver sql/v032_uniformes.sql). El código
+// viejo que vivía acá (tabla plana `uniformes`, sin ciclo de estados)
+// se eliminó: ya no está registrado en ningún screenConfig desde que
+// se migró (ver main.js).
 
 // ══════════════════════════════════════════════════════════
 // MÓDULO RETENCIONES
@@ -12524,7 +12465,6 @@ window.abrirModalNuevoMant = abrirModalNuevoMant;
 window.abrirModalNuevoMonotributo = abrirModalNuevoMonotributo;
 window.abrirModalNuevoReten = abrirModalNuevoReten;
 window.abrirModalNuevoSuplemento = abrirModalNuevoSuplemento;
-window.abrirModalNuevoUniforme = abrirModalNuevoUniforme;
 window.abrirModalParitaria = abrirModalParitaria;
 window.abrirModalPropuestaPrecio = abrirModalPropuestaPrecio;
 window.abrirModalSolicitarAsociado = abrirModalSolicitarAsociado;
@@ -12629,7 +12569,6 @@ window.editarMotivoEFT = editarMotivoEFT;
 window.editarMotivoNF = editarMotivoNF;
 window.editarRetencion = editarRetencion;
 window.editarSancion = editarSancion;
-window.editarUniforme = editarUniforme;
 window.elevarPrestamo = elevarPrestamo;
 window.eliminarCategoriaSind = eliminarCategoriaSind;
 window.eliminarCfgVentas = eliminarCfgVentas;

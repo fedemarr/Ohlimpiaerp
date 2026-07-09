@@ -21,7 +21,7 @@ import { legajosScreenConfig, filtrarLegajos, renderLegajos } from './modules/le
 import { pedidosScreenConfig, filtrarPedidos } from './modules/pedidos/index.js';
 import { reasignacionesScreenConfig, sincronizarConfigReasignaciones } from './modules/reasignaciones/index.js';
 import { capacitacionesScreenConfig, filtrarCapacitaciones } from './modules/capacitaciones/index.js';
-import { uniformesScreenConfig, filtrarUniformes } from './modules/uniformes/index.js';
+import { uniformesScreenConfig } from './modules/uniformes/index.js';
 import { retencionesScreenConfig, filtrarRetenciones } from './modules/retenciones/index.js';
 import { competenciaScreenConfig, sincronizarReglasCompetencia } from './modules/competencia/index.js';
 import { developerScreenConfig, sincronizarSugerenciasComoTickets, renderDevInicio, renderDevTickets } from './modules/developer/index.js';
@@ -78,7 +78,6 @@ registerSearchFilters({
   legajos: filtrarLegajos,
   pedidos: filtrarPedidos,
   capacitaciones: filtrarCapacitaciones,
-  uniformes: filtrarUniformes,
   retenciones: filtrarRetenciones,
 });
 

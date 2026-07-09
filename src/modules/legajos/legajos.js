@@ -330,6 +330,7 @@ export function guardarEdicionLegajo() {
     $('edit-dni').focus();
     return;
   }
+  const estadoPrevio = l.estado;
   l.nombre = `${a} ${n}`;
   l.dni = dni;
   l.cuit = $('edit-cuit').value;
@@ -357,6 +358,18 @@ export function guardarEdicionLegajo() {
     l.jefeDirectoLegajoIdLocal = jefeMatch ? jefeMatch[1] : '';
   }
   supaSync('legajos', l);
+  // Uniformes: si el legajo pasó a Baja en esta edición, dispara la
+  // orden automática de devolución de uniformes sin cargo (política
+  // A.11 §13). Indirección por window para no crear un import cruzado
+  // entre módulos (mismo criterio que el hook de Altas).
+  if (estadoPrevio !== 'Baja' && l.estado === 'Baja' && window.generarOrdenDevolucionUniformes) {
+    // l.fechaBaja se guarda como DD/MM/AAAA (formato argentino) — la
+    // tabla devoluciones_por_baja espera fecha ISO (date de Postgres).
+    const fechaBajaISO = l.fechaBaja
+      ? l.fechaBaja.split('/').reverse().join('-')
+      : new Date().toISOString().slice(0, 10);
+    window.generarOrdenDevolucionUniformes(l, fechaBajaISO);
+  }
   cerrarModal('modal-editar-legajo');
   renderLegajos();
   toast('✓ Legajo actualizado');

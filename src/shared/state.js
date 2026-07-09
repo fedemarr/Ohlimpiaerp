@@ -110,9 +110,9 @@ export const PERFILES = {
   'RRHH': { color: 'badge-azul', modulos: ['inicio', 'candidatos', 'psicotecnico', 'preocupacional', 'documentacion', 'altas', 'legajos', 'reasignaciones', 'capacitaciones', 'vacaciones', 'descansos', 'competencia', 'reclamos', 'paritarias', 'liquidacion', 'liq_admin', 'liquidaciones', 'retenes', 'monotributos', 'uniformes', 'retenciones', 'sanciones', 'adelantos', 'pedidos_adelantos', 'gestion_adelantos', 'sugerencias'], desc: 'RRHH, legajos, capacitaciones.' },
   'Operaciones': { color: 'badge-verde', modulos: ['inicio', 'pedidos', 'legajos', 'reasignaciones', 'capacitaciones', 'vacaciones', 'descansos', 'competencia', 'clientes', 'objetivos', 'precios', 'paritarias', 'crm', 'reclamos', 'cobros', 'liquidacion', 'retenes', 'mantenimiento', 'feriados', 'uniformes', 'sanciones', 'pedidos_adelantos', 'sugerencias'], desc: 'Operaciones y ventas.' },
   'Finanzas': { color: 'badge-acento', modulos: ['inicio', 'legajos', 'smvm', 'cobros', 'paritarias', 'liquidacion', 'liq_admin', 'liquidaciones', 'retenes', 'mantenimiento', 'monotributos', 'retenciones', 'adelantos', 'gestion_adelantos', 'sugerencias'], desc: 'Finanzas y liquidación.' },
-  'Supervisor': { color: 'badge-gris', modulos: ['inicio', 'pedidos', 'legajos', 'descansos', 'competencia', 'liquidacion', 'liquidaciones', 'adelantos', 'pedidos_adelantos', 'sugerencias'], desc: 'Pedidos, legajos, descansos, competencia y liquidación de horas.' },
+  'Supervisor': { color: 'badge-gris', modulos: ['inicio', 'pedidos', 'legajos', 'descansos', 'competencia', 'liquidacion', 'liquidaciones', 'adelantos', 'pedidos_adelantos', 'uniformes', 'sugerencias'], desc: 'Pedidos, legajos, descansos, competencia y liquidación de horas.' },
   'Ventas': { color: 'badge-naranja', modulos: ['inicio', 'clientes', 'objetivos', 'crm', 'reclamos', 'sugerencias'], desc: 'Clientes, objetivos, CRM y reclamos.' },
-  'Logística': { color: 'badge-gris', modulos: ['inicio', 'legajos', 'sugerencias'], desc: 'Consulta de legajos.' },
+  'Logística': { color: 'badge-gris', modulos: ['inicio', 'legajos', 'uniformes', 'sugerencias'], desc: 'Consulta de legajos y gestión de pedidos de uniformes.' },
   'Asociado': { color: 'badge-verde', modulos: ['mis_adelantos'], desc: 'Portal del asociado — pedidos de adelanto y préstamo.' },
   'DEVELOPER': { color: 'badge-azul', modulos: ['dev_inicio', 'dev_tickets', 'dev_proyeccion', 'dev_seguridad'], desc: 'Panel de desarrollo — tickets, roadmap y seguridad.' },
 };
@@ -135,7 +135,7 @@ export const MENU = [
     { key: 'legajos', icon: '📁', label: 'Legajos', perfiles: ['Administrador total', 'RRHH', 'Operaciones', 'Finanzas', 'Supervisor', 'Ventas', 'Logística'] },
     { key: 'reasignaciones', icon: '🔄', label: 'Reasignaciones', badge: 'reas', perfiles: ['Administrador total', 'RRHH', 'Operaciones'] },
     { key: 'monotributos', icon: '💸', label: 'Monotributos', perfiles: ['Administrador total', 'RRHH', 'Finanzas'] },
-    { key: 'uniformes', icon: '👕', label: 'Uniformes', perfiles: ['Administrador total', 'RRHH', 'Operaciones'] },
+    { key: 'uniformes', icon: '👕', label: 'Uniformes', perfiles: ['Administrador total', 'RRHH', 'Operaciones', 'Supervisor', 'Logística'] },
     { key: 'retenciones', icon: '🔒', label: 'Retenciones', perfiles: ['Administrador total', 'RRHH', 'Finanzas'] },
   ]},
   { section: 'Operaciones', items: [
