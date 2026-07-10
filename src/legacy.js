@@ -5196,16 +5196,6 @@ if(DB.retenes.length===0){
 // tabla persiste de verdad en Supabase (v017).
 if(!DB.monotributos) DB.monotributos = [];
 
-// Sanciones
-if(!DB.sanciones) DB.sanciones = [];
-if(DB.sanciones.length===0){
-  DB.sanciones = [
-    {id:1,asociado:'Herrera Nicolas Damian',nroSocio:118,tipo:'Apercibimiento',motivo:'Llegadas tarde reiteradas en marzo 2026',fecha:'03/04/2026',supervisor:'Santiago Ayala',estado:'Notificado',adjuntos:[]},
-    {id:2,asociado:'Morales Yanina Soledad',nroSocio:107,tipo:'Suspensión 1 día',motivo:'Ausencia sin aviso previo el 28/03/2026',fecha:'01/04/2026',supervisor:'Alvaro Uballes',estado:'Notificado',adjuntos:[]},
-    {id:3,asociado:'Ojeda Natalia Fernanda',nroSocio:127,tipo:'Apercibimiento',motivo:'Uso de teléfono celular en horario de trabajo',fecha:'02/04/2026',supervisor:'Lorena Unzain',estado:'Pendiente',adjuntos:[]},
-  ];
-}
-
 // Feriados del mes
 if(!DB.feriados) DB.feriados = [];
 if(DB.feriados.length===0){
@@ -5294,10 +5284,6 @@ if(!DB.uniformes) DB.uniformes = [];
 // ── DB Retenciones ──
 if(!DB.retenciones) DB.retenciones = [];
 // [{id, nombre, nroSocio, tipo:'conflicto'|'enfermedad'|'otra', periodo, monto, motivo, estado, fecha}]
-
-// ── DB Sanciones ──
-if(!DB.sanciones) DB.sanciones = [];
-// [{id, nombre, nroSocio, tipo, fecha, descripcion, descuento, estado, aprobadoPor}]
 
 if(!DB.mantPersonal) DB.mantPersonal = [
   {id:1, nombre:'Soria Guillermo', nroSocio:'3301', categoriBase:'Operario/a limpieza especializado/a', activo:true},
@@ -7864,71 +7850,6 @@ function guardarRetencion(){
   else DB.retenciones.push({...obj,id:Date.now()});
   cerrarModal('modal-retencion');
   supaSync('retenciones', DB.retenciones[DB.retenciones.length-1]); toast('✅ Retención guardada');renderRetenciones();
-}
-
-// ══════════════════════════════════════════════════════════
-// MÓDULO SANCIONES
-// ══════════════════════════════════════════════════════════
-function renderSanciones(){
-  const filtro=$('sanc-filtro')?.value||'';
-  const rows=(DB.sanciones||[]).filter(r=>!filtro||r.estado===filtro);
-  const all=DB.sanciones||[];
-  const hoy=new Date();const mesStr=hoy.toISOString().slice(0,7);
-  if($('st-sanc-total'))     $('st-sanc-total').textContent     = all.length;
-  if($('st-sanc-mes'))       $('st-sanc-mes').textContent       = all.filter(r=>r.fecha?.slice(0,7)===mesStr||r.fecha?.slice(6,7)===mesStr.slice(5,7)).length;
-  if($('st-sanc-resueltas')) $('st-sanc-resueltas').textContent = all.filter(r=>r.estado==='Resuelta').length;
-  const totalDesc=all.reduce((s,r)=>s+(parseFloat(r.descuento)||0),0);
-  if($('st-sanc-monto')) $('st-sanc-monto').textContent='$'+totalDesc.toLocaleString('es-AR');
-  const tbody=$('tbody-sanc');if(!tbody)return;
-  if(!rows.length){tbody.innerHTML=`<tr><td colspan="9" style="padding:40px;text-align:center;color:var(--texto-muy-suave);">Sin sanciones registradas.</td></tr>`;return;}
-  const estadoColor={'Activa':'badge-rojo','Resuelta':'badge-verde','En proceso':'badge-naranja'};
-  tbody.innerHTML=rows.map((r,i)=>`<tr>
-    <td style="padding:6px 14px;border:1px solid var(--borde);font-weight:500;">${r.nombre}</td>
-    <td style="padding:6px 8px;border:1px solid var(--borde);font-size:11px;">${r.nroSocio||'—'}</td>
-    <td style="padding:6px 8px;border:1px solid var(--borde);font-size:11px;">${r.tipo||'—'}</td>
-    <td style="padding:6px 8px;border:1px solid var(--borde);font-size:11px;">${r.fecha||'—'}</td>
-    <td style="padding:6px 8px;border:1px solid var(--borde);font-size:11px;max-width:180px;">${r.descripcion||'—'}</td>
-    <td style="padding:6px 8px;border:1px solid var(--borde);text-align:right;font-weight:600;color:var(--rojo);">$${(parseFloat(r.descuento)||0).toLocaleString('es-AR')}</td>
-    <td style="padding:6px 8px;border:1px solid var(--borde);text-align:center;"><span class="badge ${estadoColor[r.estado]||'badge-gris'}">${r.estado||'—'}</span></td>
-    <td style="padding:6px 8px;border:1px solid var(--borde);font-size:11px;">${r.aprobadoPor||'—'}</td>
-    <td style="padding:6px 8px;border:1px solid var(--borde);">
-      <button class="btn btn-xs btn-secondary" onclick="editarSancion(${i})">✏️</button>
-      <button class="btn btn-xs" style="background:#dcfce7;color:#065f46;border:1px solid #9fdaba;" onclick="resolverSancion(${i})">Resolver</button>
-    </td>
-  </tr>`).join('');
-}
-function abrirModalNuevaSancion(idx=null){
-  const r=idx!==null?(DB.sanciones||[])[idx]:{};
-  $('sanc-modal-title').textContent=idx!==null?'Editar sanción':'Nueva sanción';
-  $('sanc-idx').value=idx!==null?idx:'';
-  ['nombre','nroSocio','tipo','fecha','descripcion','descuento','estado','aprobadoPor'].forEach(f=>{
-    const el=$('sanc-'+f);if(el)el.value=r[f]||'';
-  });
-  if($('sanc-fecha')&&!r.fecha) $('sanc-fecha').value=new Date().toISOString().slice(0,10);
-  if($('sanc-estado')&&!r.estado) $('sanc-estado').value='Activa';
-  const dl=$('dl-sanc-nombre');
-  if(dl) dl.innerHTML=(DB.legajos||[]).filter(l=>l.estado==='Activo').map(l=>`<option value="${l.nombre}">${l.nombre} — ${l.nro}</option>`).join('');
-  abrirModal('modal-sancion');
-}
-function editarSancion(i){abrirModalNuevaSancion(i);}
-function resolverSancion(i){
-  if(!confirm('¿Marcar esta sanción como resuelta?')) return;
-  DB.sanciones[i].estado='Resuelta';
-  toast('✅ Sanción resuelta');renderSanciones();
-}
-function guardarSancion(){
-  const idx=$('sanc-idx')?.value;
-  const obj={
-    nombre:$('sanc-nombre')?.value.trim(),nroSocio:$('sanc-nroSocio')?.value.trim(),
-    tipo:$('sanc-tipo')?.value.trim(),fecha:$('sanc-fecha')?.value,
-    descripcion:$('sanc-descripcion')?.value.trim(),descuento:parseFloat($('sanc-descuento')?.value)||0,
-    estado:$('sanc-estado')?.value||'Activa',aprobadoPor:$('sanc-aprobadoPor')?.value.trim(),
-  };
-  if(!obj.nombre){toast('Ingresá el nombre');return;}
-  if(idx!=='') DB.sanciones[parseInt(idx)]=obj;
-  else DB.sanciones.push({...obj,id:Date.now()});
-  cerrarModal('modal-sancion');
-  supaSync('sanciones', DB.sanciones[DB.sanciones.length-1]); toast('✅ Sanción guardada');renderSanciones();
 }
 
 
@@ -11986,7 +11907,6 @@ window.abrirModalMotivoTipo = abrirModalMotivoTipo;
 window.abrirModalNuevaGrilla = abrirModalNuevaGrilla;
 window.abrirModalNuevaPlanilla = abrirModalNuevaPlanilla;
 window.abrirModalNuevaRetencion = abrirModalNuevaRetencion;
-window.abrirModalNuevaSancion = abrirModalNuevaSancion;
 window.abrirModalNuevaVigencia = abrirModalNuevaVigencia;
 window.abrirModalNuevoAdminLiq = abrirModalNuevoAdminLiq;
 window.abrirModalNuevoMant = abrirModalNuevoMant;
@@ -12096,7 +12016,6 @@ window.editarMonotributo = editarMonotributo;
 window.editarMotivoEFT = editarMotivoEFT;
 window.editarMotivoNF = editarMotivoNF;
 window.editarRetencion = editarRetencion;
-window.editarSancion = editarSancion;
 window.elevarPrestamo = elevarPrestamo;
 window.eliminarCategoriaSind = eliminarCategoriaSind;
 window.eliminarCfgVentas = eliminarCfgVentas;
@@ -12171,7 +12090,6 @@ window.guardarParitaria = guardarParitaria;
 window.guardarPrestamo = guardarPrestamo;
 window.guardarPropuestaPrecio = guardarPropuestaPrecio;
 window.guardarReclamo = guardarReclamo;
-window.guardarSancion = guardarSancion;
 window.guardarUsuario = guardarUsuario;
 window.guardarVacAdmin = guardarVacAdmin;
 window.buscarAsocVac = buscarAsocVac;
@@ -12328,7 +12246,6 @@ window.renderRetenResumen = renderRetenResumen;
 window.renderRetenes = renderRetenes;
 window.renderRevisionRRHH = renderRevisionRRHH;
 window.renderSMVM = renderSMVM;
-window.renderSanciones = renderSanciones;
 window.renderSolicitudesPrestamos = renderSolicitudesPrestamos;
 window.renderStatsCRM = renderStatsCRM;
 window.renderStatsReclamos = renderStatsReclamos;
@@ -12347,7 +12264,6 @@ window.resolverItemPrestamo = resolverItemPrestamo;
 window.resolverItemRRHH = resolverItemRRHH;
 window.resolverItemRRHHConMotivo = resolverItemRRHHConMotivo;
 window.resolverItemYRefrescar = resolverItemYRefrescar;
-window.resolverSancion = resolverSancion;
 window.seleccionarAsocParaArea = seleccionarAsocParaArea;
 window.seleccionarAsocSearch = seleccionarAsocSearch;
 window.seleccionarTodasCategorias = seleccionarTodasCategorias;

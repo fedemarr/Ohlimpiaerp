@@ -27,6 +27,7 @@ import { competenciaScreenConfig } from './modules/competencia/index.js';
 import { developerScreenConfig, sincronizarSugerenciasComoTickets, renderDevInicio, renderDevTickets } from './modules/developer/index.js';
 import { vacacionesScreenConfig } from './modules/vacaciones/index.js';
 import { descansosScreenConfig } from './modules/descansos/index.js';
+import { sancionesScreenConfig } from './modules/sanciones/index.js';
 import { renderCampanaNotificaciones, fetchNotificacionesPendientes, toggleCampanaDropdown, marcarNotifLeidaYRefrescar } from '@shared/notificaciones.js';
 import './modules/personal_rrhh/index.js';
 
@@ -66,6 +67,7 @@ registerScreens(competenciaScreenConfig);
 registerScreens(developerScreenConfig);
 registerScreens(vacacionesScreenConfig);
 registerScreens(descansosScreenConfig);
+registerScreens(sancionesScreenConfig);
 
 // ========== REGISTRAR FILTROS DE BÚSQUEDA GLOBAL ==========
 
@@ -118,7 +120,6 @@ async function loadLegacy() {
       retenes: { title: 'Retenes', btn: '', fn: null, render: () => { if (window.renderRetenes) window.renderRetenes(); } },
       mantenimiento: { title: 'Mantenimiento', btn: '', fn: null, render: () => { if (window.renderMantenimiento) window.renderMantenimiento(); } },
       monotributos: { title: 'Monotributos', btn: '+ Nuevo monotributista', fn: () => { if (window.abrirModalNuevoMonotributo) window.abrirModalNuevoMonotributo(); }, render: () => { if (window.renderMonotributos) window.renderMonotributos(); } },
-      sanciones: { title: 'Sanciones', btn: '+ Nueva sanción', fn: () => abrirModal('modal-sancion'), render: () => { if (window.renderSanciones) window.renderSanciones(); } },
       paritarias: { title: 'Paritarias', btn: '', fn: null, render: () => { if (window.renderParitarias) window.renderParitarias(); } },
       liquidaciones: { title: 'Liquidaciones', btn: '', fn: null, render: () => { if (window.renderLiquidaciones) window.renderLiquidaciones(); } },
       pedidos_adelantos: { title: 'Pedidos de adelantos', btn: '', fn: null, render: () => { if (window.renderPedidosAdelantos) window.renderPedidosAdelantos(); } },

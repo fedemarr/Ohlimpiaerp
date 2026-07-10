@@ -121,6 +121,8 @@ export function verLegajo(nro) {
   const reasDelAsoc = (DB.reasignaciones || []).filter(r => String(r.nroSocio) === String(l.nro) && r.estado === 'Aprobada ejecutada');
   const capsDelAsoc = (DB.capacitaciones || []).filter(c => !c.anulado && String(c.legajoIdLocal) === String(l.nro))
     .sort((a, b) => (b.fecha || '').localeCompare(a.fecha || ''));
+  const sancionesDelAsoc = (DB.sancionesDisciplinarias || []).filter(s => !s.anulado && String(s.legajoIdLocal) === String(l.nro))
+    .sort((a, b) => new Date(b.fechaIniciacion) - new Date(a.fechaIniciacion));
 
   $('legajo-body').innerHTML = `
     <div style="display:flex;align-items:center;gap:14px;margin-bottom:18px;">
@@ -137,6 +139,7 @@ export function verLegajo(nro) {
       <button class="tab-btn" onclick="tabLeg(3,this)">Historial completo</button>
       <button class="tab-btn" onclick="tabLeg(4,this)">📎 Adjuntos</button>
       <button class="tab-btn" onclick="tabLeg(5,this)">🎓 Capacitaciones</button>
+      <button class="tab-btn" onclick="tabLeg(6,this)">⚠️ Antecedentes ${sancionesDelAsoc.length > 0 ? `<span class="badge badge-rojo" style="font-size:10px;margin-left:4px;">${sancionesDelAsoc.length}</span>` : ''}</button>
     </div>
     <div id="leg-tab-0" class="tab-content active"><div class="info-grid">
       <div class="info-item"><div class="key">DNI</div><div class="val">${l.dni}</div></div>
@@ -210,6 +213,26 @@ export function verLegajo(nro) {
             <td style="padding:6px 8px;text-align:center;">${c.puntaje != null ? c.puntaje : '—'}</td>
           </tr>`).join('')}</tbody>
         </table></div>`}
+    </div>
+    <div id="leg-tab-6" class="tab-content">
+      ${sancionesDelAsoc.length === 0 ? '<div class="empty-state"><div class="icon">✅</div><p>Sin antecedentes disciplinarios</p></div>' : `
+        <div style="display:flex;flex-direction:column;gap:8px;">
+          ${sancionesDelAsoc.map(s => `
+            <div style="background:var(--fondo);border:1px solid var(--borde);border-radius:var(--radio);padding:10px 14px;">
+              <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;flex-wrap:wrap;">
+                <div>
+                  <div style="font-size:13px;font-weight:600;">
+                    ${s.nivel === 0 ? '<span class="chip">Registro informal</span>' : `Nivel ${s.nivel} — ${s.nombreNivel}`}
+                  </div>
+                  <div style="font-size:12px;color:var(--texto-suave);margin-top:2px;">${s.nombreInfraccion}</div>
+                </div>
+                <div style="text-align:right;">
+                  <span class="chip" style="font-size:10px;">${s.estado}</span>
+                  <div style="font-size:11px;color:var(--texto-muy-suave);margin-top:4px;">${s.fechaHecho}</div>
+                </div>
+              </div>
+            </div>`).join('')}
+        </div>`}
     </div>
   `;
   abrirModal('modal-legajo');
