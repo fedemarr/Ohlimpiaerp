@@ -83,10 +83,12 @@ export const DB = {
     { nro: 22, nombre: 'Godoy Alicia Alejandra', dni: '25189767', funcion: 'Operario', servicio: '—', supervisor: '—', ingreso: '28/08/2015', estado: 'Baja', estadoLegal: 'Estado judicial', estadoMedico: '', fechaBaja: '15/03/2024', fechaReincorp: '', seguro: '—', localidad: 'Avellaneda', tel: '', mail: '', cuit: '', estadoCivil: '', nac: '', banco: '', calzado: 38, ambo: 'S', periodoPrueba: 6, fechaIngresoPrueba: '2015-08-28', adjuntosLegal: ['carta_doc_1.pdf', 'escrito_judicial.pdf'], adjuntosMedico: [] },
     { nro: 97, nombre: 'Sanchez Ocas Segundo', dni: '94243288', funcion: 'Operario', servicio: 'LOS.PINOS', supervisor: 'Alvaro Uballes', ingreso: '12/02/2016', estado: 'Activo', estadoLegal: '', estadoMedico: '', fechaBaja: '05/06/2018', fechaReincorp: '14/01/2020', seguro: 'Completo', localidad: 'CABA', tel: '', mail: '', cuit: '20942432888', estadoCivil: '', nac: '', banco: '', calzado: 42, ambo: 'L', periodoPrueba: 6, fechaIngresoPrueba: '2020-01-14', adjuntosLegal: [], adjuntosMedico: [] },
   ],
-  casosLegales: [
-    { id: 1, asociado: 'Godoy Alicia Alejandra', nroSocio: 22, estado: 'Estado judicial', abogado: 'Dr. Martínez Carlos', estudio: 'Estudio Martínez & Asoc.', supervisor: 'Matias Maidana', servicio: 'COTO.SARANDI', fechaInicio: '15/01/2024', ultimaNovedad: '10/03/2024', adjuntos: ['carta_doc_1.pdf', 'escrito_judicial.pdf'] },
-    { id: 2, asociado: 'Camacho Solis Katherine', nroSocio: 46, estado: 'Carta documento recibida', abogado: 'Dr. García Luis', estudio: 'Estudio García', supervisor: 'Alejandro Cacciato', servicio: 'CIBRA', fechaInicio: '20/03/2026', ultimaNovedad: '01/04/2026', adjuntos: ['carta_doc_1.pdf'] },
-  ],
+  // Situaciones Legales v1.1 — sin seed mock (confidencialidad: no
+  // hardcodear casos, ni siquiera de prueba, en el bundle de JS). Sale
+  // entero de Supabase vía supaInit().
+  casosLegales: [],
+  novedadesCasoLegal: [],
+  casosLegalesAdjuntos: [],
   enfermos: [
     { id: 1, asociado: 'Rodriguez Maria Elena', nroSocio: 155, tipo: 'Enfermedad inculpable', fechaHecho: '15/02/2026', dias: 45, ultimoContacto: '28/03/2026', certif: 'Presentado', estado: 'Activo — sin trabajar', habilitado: 'No — en reposo médico', adjuntos: ['certif_medico.pdf', 'orden_medica.pdf'] },
     { id: 2, asociado: 'Gomez Diego Alejandro', nroSocio: 71, tipo: 'Accidente laboral', fechaHecho: '01/03/2026', dias: 32, ultimoContacto: '30/03/2026', certif: 'Presentado', estado: 'En tratamiento', habilitado: 'No — en reposo médico', adjuntos: ['certif_medico.pdf'] },

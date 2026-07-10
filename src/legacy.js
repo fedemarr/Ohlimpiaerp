@@ -78,94 +78,10 @@ export function poblarSelects(){
 
 // ========== IMPRIMIR ==========
 
-// ========== LEGAL ==========
-function renderLegal(lista){
-  const rows=lista||DB.casosLegales;
-  $('st-legal-activos').textContent=DB.casosLegales.filter(c=>c.estado!=='Cerrado').length;
-  $('st-legal-concil').textContent=DB.casosLegales.filter(c=>c.estado.includes('Conciliación')).length;
-  $('st-legal-juicios').textContent=DB.casosLegales.filter(c=>c.estado==='Estado judicial').length;
-  $('st-legal-abogados').textContent=[...new Set(DB.casosLegales.map(c=>c.abogado))].length;
-  $('tbody-legal').innerHTML=rows.map((c,i)=>{
-    const adjHtml=(c.adjuntos||[]).map(a=>`<span class="chip" style="cursor:pointer;" onclick="event.stopPropagation();verAdjunto('${a}')" title="Ver ${a}">📎 ${a}</span>`).join(' ');
-    return `<tr>
-      <td style="font-weight:500;">${c.asociado}</td>
-      <td style="font-family:'DM Mono',monospace;font-size:12px;color:var(--azul);">${c.nroSocio}</td>
-      <td>${badge(c.estado)}</td>
-      <td style="font-size:12px;">${c.abogado}</td>
-      <td style="font-size:12px;">${c.estudio}</td>
-      <td style="font-size:12px;">${c.supervisor}</td>
-      <td style="font-size:12px;">${c.servicio}</td>
-      <td style="font-size:12px;color:var(--texto-suave);">${c.fechaInicio}</td>
-      <td style="font-size:12px;color:var(--texto-suave);">${c.ultimaNovedad}</td>
-      <td style="min-width:140px;">${adjHtml||'<span class="text-muted">Sin adjuntos</span>'}
-        <label style="display:inline-flex;align-items:center;gap:4px;cursor:pointer;margin-top:4px;">
-          <input type="file" accept=".pdf,.jpg,.png" style="display:none;" onchange="subirAdjuntoLegal(${i},this)">
-          <span class="badge badge-azul" style="font-size:10px;cursor:pointer;">+ Adjuntar</span>
-        </label>
-      </td>
-      <td><button class="btn btn-secondary btn-sm" onclick="verCasoLegal(${i})">Ver</button></td>
-    </tr>`;
-  }).join('');
-}
-function filtrarLegal(){
-  const asoc    = ($('cf-legal-asoc')||{value:''}).value.toLowerCase();
-  const nro     = ($('cf-legal-nro')||{value:''}).value.toLowerCase();
-  const estado  = ($('cf-legal-estado')||{value:''}).value;
-  const abog    = ($('cf-legal-abog')||{value:''}).value.toLowerCase();
-  const estudio = ($('cf-legal-estudio')||{value:''}).value.toLowerCase();
-  const sup     = ($('cf-legal-sup')||{value:''}).value.toLowerCase();
-  const serv    = ($('cf-legal-serv')||{value:''}).value.toLowerCase();
-  const fecha   = ($('cf-legal-fecha')||{value:''}).value.toLowerCase();
-  const novedad = ($('cf-legal-novedad')||{value:''}).value.toLowerCase();
-  const bg      = ($('buscador-global')||{value:''}).value.toLowerCase();
-  renderLegal(DB.casosLegales.filter(c=>
-    (!asoc    || c.asociado.toLowerCase().includes(asoc)) &&
-    (!nro     || String(c.nroSocio).includes(nro)) &&
-    (!estado  || c.estado === estado) &&
-    (!abog    || c.abogado.toLowerCase().includes(abog)) &&
-    (!estudio || c.estudio.toLowerCase().includes(estudio)) &&
-    (!sup     || c.supervisor.toLowerCase().includes(sup)) &&
-    (!serv    || c.servicio.toLowerCase().includes(serv)) &&
-    (!fecha   || c.fechaInicio.includes(fecha)) &&
-    (!novedad || c.ultimaNovedad.includes(novedad)) &&
-    (!bg      || c.asociado.toLowerCase().includes(bg) || c.abogado.toLowerCase().includes(bg))
-  ));
-}
-function verCasoLegal(idx){
-  const c=DB.casosLegales[idx];if(!c)return;
-  const adjHtml=(c.adjuntos||[]).map(a=>`<div style="display:flex;align-items:center;gap:8px;padding:6px 10px;background:var(--fondo);border-radius:var(--radio);border:1px solid var(--borde);margin-bottom:5px;cursor:pointer;" onclick="verAdjunto('${a}')">📎 <span style="font-size:13px;">${a}</span></div>`).join('');
-  const body=`<div class="info-grid" style="margin-bottom:16px;">
-    <div class="info-item"><div class="key">Asociado</div><div class="val">${c.asociado}</div></div>
-    <div class="info-item"><div class="key">Estado legal</div><div class="val">${badge(c.estado)}</div></div>
-    <div class="info-item"><div class="key">Abogado actor</div><div class="val">${c.abogado}</div></div>
-    <div class="info-item"><div class="key">Estudio jurídico</div><div class="val">${c.estudio}</div></div>
-    <div class="info-item"><div class="key">Supervisor</div><div class="val">${c.supervisor}</div></div>
-    <div class="info-item"><div class="key">Servicio</div><div class="val">${c.servicio}</div></div>
-    <div class="info-item"><div class="key">Fecha inicio</div><div class="val">${c.fechaInicio}</div></div>
-    <div class="info-item"><div class="key">Última novedad</div><div class="val">${c.ultimaNovedad}</div></div>
-  </div>
-  <div class="form-section" style="margin-bottom:10px;">Documentos adjuntos</div>
-  ${adjHtml||'<p class="text-muted">Sin documentos adjuntos</p>'}
-  <label style="display:inline-flex;align-items:center;gap:6px;cursor:pointer;margin-top:10px;" class="btn btn-ghost btn-sm">
-    <input type="file" accept=".pdf,.jpg,.png" style="display:none;" onchange="subirAdjuntoLegal(${idx},this)">
-    📎 Adjuntar documento
-  </label>`;
-  // Reutilizar modal-ver-pedido
-  $('pedido-title').textContent=`⚖️ Caso legal — ${c.asociado}`;
-  $('pedido-body').innerHTML=body;
-  abrirModal('modal-ver-pedido');
-}
-function subirAdjuntoLegal(idx,input){
-  if(!input.files.length)return;
-  const nombre=input.files[0].name;
-  DB.casosLegales[idx].adjuntos=(DB.casosLegales[idx].adjuntos||[]);
-  DB.casosLegales[idx].adjuntos.push(nombre);
-  renderLegal();toast(`✓ "${nombre}" adjuntado al caso legal`);
-}
+// ========== LEGAL — migrado a src/modules/situaciones_legales/ ==========
 function verAdjunto(nombre){
   toast(`📎 Abriendo: ${nombre} — (en producción se abrirá el archivo real desde Firebase Storage)`);
 }
-function analizarLegalIA(){toast('🤖 Analizando patrones... abogados frecuentes, servicios y supervisores en común.');}
 
 
 // ========== ENFERMOS ==========
@@ -251,19 +167,6 @@ function subirAdjuntoEnfermo(idx,input){
 function analizarEnfermosIA(){toast('🤖 Analizando ausentismo... tipos de evento, servicios y períodos más frecuentes.');}
 
 // ========== GUARDAR LEGAL + SINCRONIZAR LEGAJO ==========
-function guardarLegal(){
-  const asoc=$('leg-asociado').value.trim();if(!asoc){toast('Seleccioná el asociado');return;}
-  const estado=$('leg-estado').value;
-  const nuevo={id:Date.now(),asociado:asoc,nroSocio:'—',estado,abogado:$('leg-abogado').value,estudio:$('leg-estudio').value,supervisor:$('leg-supervisor').value,servicio:$('leg-servicio').value,fechaInicio:new Date().toLocaleDateString('es-AR'),ultimaNovedad:new Date().toLocaleDateString('es-AR'),adjuntos:[]};
-  DB.casosLegales.push(nuevo);
-  // Sincronizar con legajo
-  const nombreBusq=asoc.split('(')[0].trim().toLowerCase();
-  const leg=DB.legajos.find(l=>l.nombre.toLowerCase().includes(nombreBusq));
-  if(leg){ leg.estadoLegal=estado; toast(`✓ Caso legal registrado y reflejado en legajo de ${leg.nombre}`);}
-  else supaSync('casosLegales', DB.casosLegales[DB.casosLegales.length-1]); toast('✓ Caso legal registrado');
-  cerrarModal('modal-legal');construirMenu();renderLegal();
-}
-
 // ========== GUARDAR ENFERMO + SINCRONIZAR LEGAJO ==========
 function guardarEnfermo(){
   const asoc=$('enf-asociado').value.trim();if(!asoc){toast('Seleccioná el asociado');return;}
@@ -11958,7 +11861,6 @@ window.agregarSMVM = agregarSMVM;
 window.alertarAccionesVencidasModulo = alertarAccionesVencidasModulo;
 window.analizarCobrosIA = analizarCobrosIA;
 window.analizarEnfermosIA = analizarEnfermosIA;
-window.analizarLegalIA = analizarLegalIA;
 window.analizarReclamosIA = analizarReclamosIA;
 window.anularPago = anularPago;
 window.aplicarAumentoAsociados = aplicarAumentoAsociados;
@@ -12044,7 +11946,6 @@ window.filtrarCobrados = filtrarCobrados;
 window.filtrarCobros = filtrarCobros;
 window.filtrarEnfermos = filtrarEnfermos;
 window.filtrarLeads = filtrarLeads;
-window.filtrarLegal = filtrarLegal;
 window.filtrarObjetivos = filtrarObjetivos;
 window.filtrarReclamos = filtrarReclamos;
 window.filtrarVacAdmin = filtrarVacAdmin;
@@ -12080,7 +11981,6 @@ window.guardarItemInformal = guardarItemInformal;
 window.guardarItemPlanilla = guardarItemPlanilla;
 window.guardarItemPrestamo = guardarItemPrestamo;
 window.guardarLead = guardarLead;
-window.guardarLegal = guardarLegal;
 window.guardarMonotributo = guardarMonotributo;
 window.guardarMotivoEFT = guardarMotivoEFT;
 window.guardarMotivoNF = guardarMotivoNF;
@@ -12206,7 +12106,6 @@ window.renderHistorialPedidos = renderHistorialPedidos;
 window.renderHistorialPrecios = renderHistorialPrecios;
 window.renderInicio = renderInicio;
 window.renderLeads = renderLeads;
-window.renderLegal = renderLegal;
 window.renderLiqAdmin = renderLiqAdmin;
 window.renderLiqArt42 = renderLiqArt42;
 window.renderLiqSuplemento = renderLiqSuplemento;
@@ -12283,7 +12182,6 @@ window.setValoresPeriodo = setValoresPeriodo;
 window.simularRegistroPublico = simularRegistroPublico;
 window.solicitarCatAlt = solicitarCatAlt;
 window.subirAdjuntoEnfermo = subirAdjuntoEnfermo;
-window.subirAdjuntoLegal = subirAdjuntoLegal;
 window.tabCliModal = tabCliModal;
 window.tabCobros = tabCobros;
 window.tabCrm = tabCrm;
@@ -12314,7 +12212,6 @@ window.validarFechasArt42 = validarFechasArt42;
 window.verAccionesCobro = verAccionesCobro;
 window.verAdjunto = verAdjunto;
 window.verCasoEnfermo = verCasoEnfermo;
-window.verCasoLegal = verCasoLegal;
 window.verCatAlt = verCatAlt;
 window.verCliente = verCliente;
 window.verDetalleEvaluacion = verDetalleEvaluacion;

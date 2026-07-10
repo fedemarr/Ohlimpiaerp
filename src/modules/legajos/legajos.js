@@ -1,4 +1,4 @@
-import { DB } from '@shared/state.js';
+import { DB, currentUser } from '@shared/state.js';
 import { $, avatarEl, badge, fillSelect } from '@shared/helpers.js';
 import { toast, abrirModal, cerrarModal } from '@shared/ui.js';
 import { supaSync } from '@shared/supabase.js';
@@ -123,6 +123,17 @@ export function verLegajo(nro) {
     .sort((a, b) => (b.fecha || '').localeCompare(a.fecha || ''));
   const sancionesDelAsoc = (DB.sancionesDisciplinarias || []).filter(s => !s.anulado && String(s.legajoIdLocal) === String(l.nro))
     .sort((a, b) => new Date(b.fechaIniciacion) - new Date(a.fechaIniciacion));
+  // Tab "⚖️ Legal": solo lectura y solo visible para RRHH/Admin — es el
+  // reemplazo de la fuga de confidencialidad que era mostrar
+  // l.estadoLegal como badge/banner para cualquier perfil (ver delta
+  // de Situaciones Legales v1.1). No se propaga más a l.estadoLegal
+  // desde ese módulo; los legajos viejos que ya lo tenían seteado
+  // siguen mostrándolo tal cual (no se retro-corrige el histórico).
+  const puedeVerLegal = ['RRHH', 'Administrador total'].includes(currentUser?.perfil);
+  const casosLegalesDelAsoc = puedeVerLegal
+    ? (DB.casosLegales || []).filter(c => String(c.nroSocio) === String(l.nro))
+      .sort((a, b) => new Date(b.id) - new Date(a.id))
+    : [];
 
   $('legajo-body').innerHTML = `
     <div style="display:flex;align-items:center;gap:14px;margin-bottom:18px;">
@@ -140,6 +151,7 @@ export function verLegajo(nro) {
       <button class="tab-btn" onclick="tabLeg(4,this)">📎 Adjuntos</button>
       <button class="tab-btn" onclick="tabLeg(5,this)">🎓 Capacitaciones</button>
       <button class="tab-btn" onclick="tabLeg(6,this)">⚠️ Antecedentes ${sancionesDelAsoc.length > 0 ? `<span class="badge badge-rojo" style="font-size:10px;margin-left:4px;">${sancionesDelAsoc.length}</span>` : ''}</button>
+      ${puedeVerLegal ? `<button class="tab-btn" onclick="tabLeg(7,this)">⚖️ Legal ${casosLegalesDelAsoc.length > 0 ? `<span class="badge badge-naranja" style="font-size:10px;margin-left:4px;">${casosLegalesDelAsoc.length}</span>` : ''}</button>` : ''}
     </div>
     <div id="leg-tab-0" class="tab-content active"><div class="info-grid">
       <div class="info-item"><div class="key">DNI</div><div class="val">${l.dni}</div></div>
@@ -234,6 +246,24 @@ export function verLegajo(nro) {
             </div>`).join('')}
         </div>`}
     </div>
+    ${puedeVerLegal ? `
+    <div id="leg-tab-7" class="tab-content">
+      ${casosLegalesDelAsoc.length === 0 ? '<div class="empty-state"><div class="icon">✅</div><p>Sin situaciones legales registradas</p></div>' : `
+        <div style="display:flex;flex-direction:column;gap:8px;">
+          ${casosLegalesDelAsoc.map(c => `
+            <div style="background:var(--fondo);border:1px solid var(--borde);border-radius:var(--radio);padding:10px 14px;">
+              <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;flex-wrap:wrap;">
+                <div>
+                  <div style="font-size:13px;font-weight:600;">${c.tipoReclamo || 'Situación legal'}</div>
+                  <div style="font-size:12px;color:var(--texto-suave);margin-top:2px;">${c.estado}${c.estado === 'Cerrado' && c.resultado ? ' — ' + c.resultado : ''}</div>
+                </div>
+                <div style="text-align:right;">
+                  <div style="font-size:11px;color:var(--texto-muy-suave);margin-top:4px;">${c.fechaInicio}</div>
+                </div>
+              </div>
+            </div>`).join('')}
+        </div>`}
+    </div>` : ''}
   `;
   abrirModal('modal-legajo');
   cargarAdjuntosLegajo(l.dni);

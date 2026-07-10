@@ -58,6 +58,8 @@ export const _SM = {
   valoresHoraCategoria: 'valores_hora_categoria',
   plusAdicionales: 'plus_adicionales',
   valoresPlus: 'valores_plus',
+  novedadesCasoLegal: 'novedades_caso_legal',
+  casosLegalesAdjuntos: 'casos_legales_adjuntos',
   paritarias: 'paritarias',
   retenes: 'retenes',
   sugerencias: 'sugerencias',
@@ -248,6 +250,15 @@ export function _toSnake(obj) {
     // Categorías v1 (v035)
     esReten: 'es_reten', categoriaIdLocal: 'categoria_id_local', servicioNombre: 'servicio_nombre',
     valorHora: 'valor_hora', plusIdLocal: 'plus_id_local', valorAdicional: 'valor_adicional',
+    // Situaciones Legales v1.1 (v036)
+    abogadoCooperativa: 'abogado_cooperativa', estudioCooperativa: 'estudio_cooperativa',
+    supervisorActual: 'supervisor_actual', supervisorAlAlta: 'supervisor_al_alta',
+    tipoReclamo: 'tipo_reclamo', tipoCliente: 'tipo_cliente', montoReclamado: 'monto_reclamado',
+    relacionOtrosCasos: 'relacion_otros_casos', fechaProximaInstancia: 'fecha_proxima_instancia',
+    montoFinal: 'monto_final',
+    casoIdLocal: 'caso_id_local', novedadIdLocal: 'novedad_id_local',
+    tipoEvento: 'tipo_evento', cargadaPor: 'cargada_por', cargadaEn: 'cargada_en',
+    tipoMime: 'tipo_mime', subidoPor: 'subido_por',
   };
   const r = {};
   for (const [k, v] of Object.entries(obj)) {
@@ -439,6 +450,15 @@ export function _toCamel(obj) {
     // Categorías v1 (v035)
     es_reten: 'esReten', categoria_id_local: 'categoriaIdLocal', servicio_nombre: 'servicioNombre',
     valor_hora: 'valorHora', plus_id_local: 'plusIdLocal', valor_adicional: 'valorAdicional',
+    // Situaciones Legales v1.1 (v036)
+    abogado_cooperativa: 'abogadoCooperativa', estudio_cooperativa: 'estudioCooperativa',
+    supervisor_actual: 'supervisorActual', supervisor_al_alta: 'supervisorAlAlta',
+    tipo_reclamo: 'tipoReclamo', tipo_cliente: 'tipoCliente', monto_reclamado: 'montoReclamado',
+    relacion_otros_casos: 'relacionOtrosCasos', fecha_proxima_instancia: 'fechaProximaInstancia',
+    monto_final: 'montoFinal',
+    caso_id_local: 'casoIdLocal', novedad_id_local: 'novedadIdLocal',
+    tipo_evento: 'tipoEvento', cargada_por: 'cargadaPor', cargada_en: 'cargadaEn',
+    tipo_mime: 'tipoMime', subido_por: 'subidoPor',
   };
   const r = {};
   for (const [k, v] of Object.entries(obj)) {
