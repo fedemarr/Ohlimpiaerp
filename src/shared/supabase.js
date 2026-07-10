@@ -54,6 +54,10 @@ export const _SM = {
   sancionDescargos: 'sancion_descargos',
   catalogoInfracciones: 'catalogo_infracciones',
   catalogoInfraccionesVersiones: 'catalogo_infracciones_versiones',
+  categoriasBase: 'categorias_base',
+  valoresHoraCategoria: 'valores_hora_categoria',
+  plusAdicionales: 'plus_adicionales',
+  valoresPlus: 'valores_plus',
   paritarias: 'paritarias',
   retenes: 'retenes',
   sugerencias: 'sugerencias',
@@ -241,6 +245,9 @@ export function _toSnake(obj) {
     ejecutadoPor: 'ejecutado_por', ejecutadoRol: 'ejecutado_rol', ejecutadoEn: 'ejecutado_en',
     fechaPresentacion: 'fecha_presentacion', registradoPor: 'registrado_por',
     sancionSugeridaPrimeraVez: 'sancion_sugerida_primera_vez', sancionSugeridaReiteracion: 'sancion_sugerida_reiteracion',
+    // Categorías v1 (v035)
+    esReten: 'es_reten', categoriaIdLocal: 'categoria_id_local', servicioNombre: 'servicio_nombre',
+    valorHora: 'valor_hora', plusIdLocal: 'plus_id_local', valorAdicional: 'valor_adicional',
   };
   const r = {};
   for (const [k, v] of Object.entries(obj)) {
@@ -429,6 +436,9 @@ export function _toCamel(obj) {
     ejecutado_por: 'ejecutadoPor', ejecutado_rol: 'ejecutadoRol', ejecutado_en: 'ejecutadoEn',
     fecha_presentacion: 'fechaPresentacion', registrado_por: 'registradoPor',
     sancion_sugerida_primera_vez: 'sancionSugeridaPrimeraVez', sancion_sugerida_reiteracion: 'sancionSugeridaReiteracion',
+    // Categorías v1 (v035)
+    es_reten: 'esReten', categoria_id_local: 'categoriaIdLocal', servicio_nombre: 'servicioNombre',
+    valor_hora: 'valorHora', plus_id_local: 'plusIdLocal', valor_adicional: 'valorAdicional',
   };
   const r = {};
   for (const [k, v] of Object.entries(obj)) {

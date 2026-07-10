@@ -28,6 +28,7 @@ import { developerScreenConfig, sincronizarSugerenciasComoTickets, renderDevInic
 import { vacacionesScreenConfig } from './modules/vacaciones/index.js';
 import { descansosScreenConfig } from './modules/descansos/index.js';
 import { sancionesScreenConfig } from './modules/sanciones/index.js';
+import { categoriasScreenConfig } from './modules/categorias/index.js';
 import { renderCampanaNotificaciones, fetchNotificacionesPendientes, toggleCampanaDropdown, marcarNotifLeidaYRefrescar } from '@shared/notificaciones.js';
 import './modules/personal_rrhh/index.js';
 
@@ -68,6 +69,7 @@ registerScreens(developerScreenConfig);
 registerScreens(vacacionesScreenConfig);
 registerScreens(descansosScreenConfig);
 registerScreens(sancionesScreenConfig);
+registerScreens(categoriasScreenConfig);
 
 // ========== REGISTRAR FILTROS DE BÚSQUEDA GLOBAL ==========
 

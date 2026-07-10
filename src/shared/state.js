@@ -56,6 +56,12 @@ export const DB = {
   sancionDescargos: [],
   catalogoInfracciones: [],
   catalogoInfraccionesVersiones: [],
+  // Categorías v1 (v035) — catálogo de categorías, valores hora y
+  // plus adicionales, todos con vigencia temporal.
+  categoriasBase: [],
+  valoresHoraCategoria: [],
+  plusAdicionales: [],
+  valoresPlus: [],
   pedidos: [
     { id: 1, fecha: '09/10/2023', supervisor: 'Claudia Cazenave', servicio: 'HOSPITAL.CAMPANA', zona: 'Buenos Aires', puesto: 'Operario', horario: '22hs a 06hs nocturno 6×1', urgencia: 'Alto', estado: 'Cubierto', candidato: 'Lima Romina', obs: '' },
     { id: 2, fecha: '27/11/2023', supervisor: 'Alvaro Uballes', servicio: 'HIT.LIBERTADOR.CEL', zona: 'CABA', puesto: 'Retén', horario: 'Rotativos full time 6×1', urgencia: 'Medio', estado: 'Pendiente', candidato: '', obs: '' },
@@ -103,8 +109,8 @@ export const DB = {
 // ========== PERFILES Y ACCESOS ==========
 
 export const PERFILES = {
-  'Administrador total': { color: 'badge-rojo', modulos: ['inicio', 'candidatos', 'pedidos', 'psicotecnico', 'preocupacional', 'documentacion', 'altas', 'legajos', 'reasignaciones', 'legal', 'enfermos', 'capacitaciones', 'vacaciones', 'descansos', 'competencia', 'clientes', 'objetivos', 'precios', 'paritarias', 'crm', 'reclamos', 'cobros', 'liquidacion', 'feriados', 'liq_admin', 'liquidaciones', 'retenes', 'mantenimiento', 'configuracion', 'smvm', 'monotributos', 'uniformes', 'retenciones', 'sanciones', 'adelantos', 'pedidos_adelantos', 'gestion_adelantos', 'sugerencias'], desc: 'Acceso completo.' },
-  'RRHH': { color: 'badge-azul', modulos: ['inicio', 'candidatos', 'psicotecnico', 'preocupacional', 'documentacion', 'altas', 'legajos', 'reasignaciones', 'capacitaciones', 'vacaciones', 'descansos', 'competencia', 'reclamos', 'paritarias', 'liquidacion', 'liq_admin', 'liquidaciones', 'retenes', 'monotributos', 'uniformes', 'retenciones', 'sanciones', 'adelantos', 'pedidos_adelantos', 'gestion_adelantos', 'sugerencias'], desc: 'RRHH, legajos, capacitaciones.' },
+  'Administrador total': { color: 'badge-rojo', modulos: ['inicio', 'candidatos', 'pedidos', 'psicotecnico', 'preocupacional', 'documentacion', 'altas', 'legajos', 'reasignaciones', 'legal', 'enfermos', 'capacitaciones', 'vacaciones', 'descansos', 'competencia', 'clientes', 'objetivos', 'precios', 'paritarias', 'categorias', 'crm', 'reclamos', 'cobros', 'liquidacion', 'feriados', 'liq_admin', 'liquidaciones', 'retenes', 'mantenimiento', 'configuracion', 'smvm', 'monotributos', 'uniformes', 'retenciones', 'sanciones', 'adelantos', 'pedidos_adelantos', 'gestion_adelantos', 'sugerencias'], desc: 'Acceso completo.' },
+  'RRHH': { color: 'badge-azul', modulos: ['inicio', 'candidatos', 'psicotecnico', 'preocupacional', 'documentacion', 'altas', 'legajos', 'reasignaciones', 'capacitaciones', 'vacaciones', 'descansos', 'competencia', 'reclamos', 'paritarias', 'categorias', 'liquidacion', 'liq_admin', 'liquidaciones', 'retenes', 'monotributos', 'uniformes', 'retenciones', 'sanciones', 'adelantos', 'pedidos_adelantos', 'gestion_adelantos', 'sugerencias'], desc: 'RRHH, legajos, capacitaciones.' },
   'Operaciones': { color: 'badge-verde', modulos: ['inicio', 'pedidos', 'legajos', 'reasignaciones', 'capacitaciones', 'vacaciones', 'descansos', 'competencia', 'clientes', 'objetivos', 'precios', 'paritarias', 'crm', 'reclamos', 'cobros', 'liquidacion', 'retenes', 'mantenimiento', 'feriados', 'uniformes', 'sanciones', 'pedidos_adelantos', 'sugerencias'], desc: 'Operaciones y ventas.' },
   'Finanzas': { color: 'badge-acento', modulos: ['inicio', 'legajos', 'smvm', 'cobros', 'paritarias', 'liquidacion', 'liq_admin', 'liquidaciones', 'retenes', 'mantenimiento', 'monotributos', 'retenciones', 'adelantos', 'gestion_adelantos', 'sugerencias'], desc: 'Finanzas y liquidación.' },
   'Supervisor': { color: 'badge-gris', modulos: ['inicio', 'pedidos', 'legajos', 'descansos', 'competencia', 'liquidacion', 'liquidaciones', 'adelantos', 'pedidos_adelantos', 'uniformes', 'sanciones', 'sugerencias'], desc: 'Pedidos, legajos, descansos, competencia y liquidación de horas.' },
@@ -158,6 +164,7 @@ export const MENU = [
   ]},
   { section: 'Administración', items: [
     { key: 'paritarias', icon: '📜', label: 'Paritarias', perfiles: ['Administrador total', 'RRHH', 'Operaciones', 'Finanzas'] },
+    { key: 'categorias', icon: '🏷️', label: 'Categorías', perfiles: ['Administrador total', 'RRHH'] },
     { key: 'configuracion', icon: '⚙️', label: 'Configuración', perfiles: ['Administrador total'] },
     { key: 'smvm', icon: '💵', label: 'SMVM histórico', perfiles: ['Administrador total', 'Finanzas'] },
   ]},
