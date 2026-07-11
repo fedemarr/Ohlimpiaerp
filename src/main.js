@@ -30,6 +30,7 @@ import { descansosScreenConfig } from './modules/descansos/index.js';
 import { sancionesScreenConfig } from './modules/sanciones/index.js';
 import { categoriasScreenConfig } from './modules/categorias/index.js';
 import { situacionesLegalesScreenConfig } from './modules/situaciones_legales/index.js';
+import { enfermosAccidentesScreenConfig } from './modules/enfermos_accidentes/index.js';
 import { renderCampanaNotificaciones, fetchNotificacionesPendientes, toggleCampanaDropdown, marcarNotifLeidaYRefrescar } from '@shared/notificaciones.js';
 import './modules/personal_rrhh/index.js';
 
@@ -72,6 +73,7 @@ registerScreens(descansosScreenConfig);
 registerScreens(sancionesScreenConfig);
 registerScreens(categoriasScreenConfig);
 registerScreens(situacionesLegalesScreenConfig);
+registerScreens(enfermosAccidentesScreenConfig);
 
 // ========== REGISTRAR FILTROS DE BÚSQUEDA GLOBAL ==========
 
@@ -108,7 +110,6 @@ async function loadLegacy() {
     // (capacitaciones/uniformes/retenciones se sacan de acá — ahora los
     // registran los módulos migrados, más abajo)
     registerScreens({
-      enfermos: { title: 'Enfermos y accidentes', btn: '+ Nuevo caso', fn: () => abrirModal('modal-enfermo'), render: () => { if (window.renderEnfermos) window.renderEnfermos(); } },
       clientes: { title: 'Clientes', btn: '+ Nuevo cliente', fn: () => abrirModal('modal-cliente'), render: () => { if (window.renderClientes) window.renderClientes(); } },
       objetivos: { title: 'Objetivos / Servicios', btn: '+ Nuevo objetivo', fn: () => abrirModal('modal-objetivo'), render: () => { if (window.renderObjetivos) window.renderObjetivos(); } },
       configuracion: { title: 'Configuración', btn: '', fn: null, render: () => { if (window.renderConfiguracion) window.renderConfiguracion(); } },

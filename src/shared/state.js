@@ -89,11 +89,14 @@ export const DB = {
   casosLegales: [],
   novedadesCasoLegal: [],
   casosLegalesAdjuntos: [],
-  enfermos: [
-    { id: 1, asociado: 'Rodriguez Maria Elena', nroSocio: 155, tipo: 'Enfermedad inculpable', fechaHecho: '15/02/2026', dias: 45, ultimoContacto: '28/03/2026', certif: 'Presentado', estado: 'Activo — sin trabajar', habilitado: 'No — en reposo médico', adjuntos: ['certif_medico.pdf', 'orden_medica.pdf'] },
-    { id: 2, asociado: 'Gomez Diego Alejandro', nroSocio: 71, tipo: 'Accidente laboral', fechaHecho: '01/03/2026', dias: 32, ultimoContacto: '30/03/2026', certif: 'Presentado', estado: 'En tratamiento', habilitado: 'No — en reposo médico', adjuntos: ['certif_medico.pdf'] },
-    { id: 3, asociado: 'Torres Ana Beatriz', nroSocio: 98, tipo: 'Accidente in itinere', fechaHecho: '10/01/2026', dias: 82, ultimoContacto: '02/04/2026', certif: 'Presentado', estado: 'En tratamiento', habilitado: 'No — en reposo médico', adjuntos: ['certif_medico.pdf', 'estudio_rx.pdf', 'kine_informe.pdf'] },
-  ],
+  // Enfermos y Accidentes v1 (v037) — sin seed mock (confidencialidad
+  // de datos médicos: no hardcodear casos, ni de prueba, en el bundle
+  // de JS — mismo criterio que Situaciones Legales). Sale entero de
+  // Supabase vía supaInit().
+  casosEnfermosAccidentes: [],
+  certificadosMedicos: [],
+  retirosEnfermosPendientes: [],
+  casoEventosEnfermos: [],
   sugerencias: [],
   // Se puebla desde Supabase Auth (tabla public.usuarios) al loguear —
   // ver cargarListaUsuarios() en src/shared/auth.js. Ya no vive hardcodeado

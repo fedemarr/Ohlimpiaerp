@@ -79,106 +79,8 @@ export function poblarSelects(){
 // ========== IMPRIMIR ==========
 
 // ========== LEGAL — migrado a src/modules/situaciones_legales/ ==========
-function verAdjunto(nombre){
-  toast(`📎 Abriendo: ${nombre} — (en producción se abrirá el archivo real desde Firebase Storage)`);
-}
 
-
-// ========== ENFERMOS ==========
-function renderEnfermos(lista){
-  const rows=lista||DB.enfermos;
-  $('st-enf-activos').textContent=DB.enfermos.filter(e=>e.estado==='Activo — sin trabajar').length;
-  $('st-enf-acc').textContent=DB.enfermos.filter(e=>e.tipo.includes('Accidente')).length;
-  $('st-enf-enf').textContent=DB.enfermos.filter(e=>e.tipo.includes('Enfermedad')).length;
-  $('st-enf-dias').textContent=DB.enfermos.reduce((s,e)=>s+e.dias,0);
-  $('tbody-enfermos').innerHTML=rows.map((e,i)=>{
-    const adjHtml=(e.adjuntos||[]).map(a=>`<span class="chip" style="cursor:pointer;" onclick="event.stopPropagation();verAdjunto('${a}')" title="${a}">📎 ${a.split('.')[0]}</span>`).join(' ');
-    return `<tr onclick="verCasoEnfermo(${i})">
-      <td><div style="font-weight:500;">${e.asociado}</div><div class="text-muted">N° ${e.nroSocio}</div></td>
-      <td><span class="chip" style="font-size:11px;">${e.tipo}</span></td>
-      <td style="font-size:12px;color:var(--texto-suave);">${e.fechaHecho}</td>
-      <td><div style="font-size:18px;font-weight:700;color:var(--rojo);">${e.dias}</div><div class="text-muted">días</div></td>
-      <td style="font-size:12px;">${e.ultimoContacto}</td>
-      <td>${badge(e.certif==='Presentado'?'Apto':'Pendiente')}</td>
-      <td>${badge(e.estado)}</td>
-      <td>${badge(e.habilitado==='Sí — alta médica confirmada'?'Activo':'No asistió')}<div class="text-muted" style="font-size:10px;">${e.habilitado}</div></td>
-      <td style="min-width:130px;">${adjHtml||'<span class="text-muted">Sin adjuntos</span>'}
-        <label style="display:inline-flex;align-items:center;gap:4px;cursor:pointer;margin-top:3px;">
-          <input type="file" accept=".pdf,.jpg,.png" style="display:none;" onchange="subirAdjuntoEnfermo(${i},this)">
-          <span class="badge badge-azul" style="font-size:10px;cursor:pointer;">+ Adjuntar</span>
-        </label>
-      </td>
-      <td><button class="btn btn-secondary btn-sm" onclick="event.stopPropagation();verCasoEnfermo(${i})">Ver</button></td>
-    </tr>`;
-  }).join('');
-}
-function filtrarEnfermos(){
-  const asoc    = ($('cf-enf-asoc')||{value:''}).value.toLowerCase();
-  const tipo    = ($('cf-enf-tipo')||{value:''}).value;
-  const fecha   = ($('cf-enf-fecha')||{value:''}).value.toLowerCase();
-  const diasMin = parseInt(($('cf-enf-dias')||{value:''}).value)||0;
-  const contacto= ($('cf-enf-contacto')||{value:''}).value.toLowerCase();
-  const certif  = ($('cf-enf-certif')||{value:''}).value;
-  const estado  = ($('cf-enf-estado')||{value:''}).value;
-  const hab     = ($('cf-enf-hab')||{value:''}).value;
-  const bg      = ($('buscador-global')||{value:''}).value.toLowerCase();
-  renderEnfermos(DB.enfermos.filter(e=>
-    (!asoc    || e.asociado.toLowerCase().includes(asoc)) &&
-    (!tipo    || e.tipo === tipo) &&
-    (!fecha   || e.fechaHecho.includes(fecha)) &&
-    (!diasMin || e.dias >= diasMin) &&
-    (!contacto|| e.ultimoContacto.includes(contacto)) &&
-    (!certif  || e.certif === certif) &&
-    (!estado  || e.estado === estado) &&
-    (!hab     || e.habilitado === hab) &&
-    (!bg      || e.asociado.toLowerCase().includes(bg))
-  ));
-}
-function verCasoEnfermo(idx){
-  const e=DB.enfermos[idx];if(!e)return;
-  const adjHtml=(e.adjuntos||[]).map(a=>`<div style="display:flex;align-items:center;gap:8px;padding:6px 10px;background:var(--fondo);border-radius:var(--radio);border:1px solid var(--borde);margin-bottom:5px;cursor:pointer;" onclick="verAdjunto('${a}')">📎 <span style="font-size:13px;">${a}</span></div>`).join('');
-  const body=`<div class="info-grid" style="margin-bottom:16px;">
-    <div class="info-item"><div class="key">Asociado</div><div class="val">${e.asociado}</div></div>
-    <div class="info-item"><div class="key">Tipo de evento</div><div class="val">${e.tipo}</div></div>
-    <div class="info-item"><div class="key">Fecha del hecho</div><div class="val">${e.fechaHecho}</div></div>
-    <div class="info-item"><div class="key">Días sin trabajar</div><div class="val" style="color:var(--rojo);font-size:18px;font-weight:700;">${e.dias}</div></div>
-    <div class="info-item"><div class="key">Estado</div><div class="val">${badge(e.estado)}</div></div>
-    <div class="info-item"><div class="key">Habilitado para cubrir</div><div class="val">${e.habilitado}</div></div>
-    <div class="info-item"><div class="key">Certif. médico</div><div class="val">${badge(e.certif==='Presentado'?'Apto':'Pendiente')}</div></div>
-    <div class="info-item"><div class="key">Último contacto</div><div class="val">${e.ultimoContacto}</div></div>
-  </div>
-  <div class="form-section" style="margin-bottom:10px;">Documentos médicos adjuntos</div>
-  ${adjHtml||'<p class="text-muted">Sin documentos adjuntos aún</p>'}
-  <label style="display:inline-flex;align-items:center;gap:6px;cursor:pointer;margin-top:10px;" class="btn btn-ghost btn-sm">
-    <input type="file" accept=".pdf,.jpg,.png" style="display:none;" onchange="subirAdjuntoEnfermo(${idx},this)">
-    📎 Adjuntar certificado o estudio
-  </label>`;
-  $('pedido-title').textContent=`🏥 Caso médico — ${e.asociado}`;
-  $('pedido-body').innerHTML=body;
-  abrirModal('modal-ver-pedido');
-}
-function subirAdjuntoEnfermo(idx,input){
-  if(!input.files.length)return;
-  const nombre=input.files[0].name;
-  DB.enfermos[idx].adjuntos=(DB.enfermos[idx].adjuntos||[]);
-  DB.enfermos[idx].adjuntos.push(nombre);
-  renderEnfermos();toast(`✓ "${nombre}" adjuntado al caso médico`);
-}
-function analizarEnfermosIA(){toast('🤖 Analizando ausentismo... tipos de evento, servicios y períodos más frecuentes.');}
-
-// ========== GUARDAR LEGAL + SINCRONIZAR LEGAJO ==========
-// ========== GUARDAR ENFERMO + SINCRONIZAR LEGAJO ==========
-function guardarEnfermo(){
-  const asoc=$('enf-asociado').value.trim();if(!asoc){toast('Seleccioná el asociado');return;}
-  const estado=$('enf-estado').value;
-  DB.enfermos.push({id:Date.now(),asociado:asoc,nroSocio:'—',tipo:$('enf-tipo').value,fechaHecho:new Date().toLocaleDateString('es-AR'),dias:parseInt($('enf-dias').value)||0,ultimoContacto:new Date().toLocaleDateString('es-AR'),certif:'Pendiente',estado,habilitado:'No — en reposo médico',adjuntos:[]});
-  // Sincronizar con legajo
-  const nombreBusq=asoc.split('(')[0].trim().toLowerCase();
-  const leg=DB.legajos.find(l=>l.nombre.toLowerCase().includes(nombreBusq));
-  if(leg){ leg.estadoMedico=estado; toast(`✓ Caso médico registrado y reflejado en legajo de ${leg.nombre}`);}
-  else supaSync('enfermos', DB.enfermos[DB.enfermos.length-1]); toast('✓ Caso médico registrado');
-  cerrarModal('modal-enfermo');construirMenu();renderEnfermos();
-}
+// ========== ENFERMOS — migrado a src/modules/enfermos_accidentes/ ==========
 
 // ========== CONFIGURACIÓN ==========
 function renderConfiguracion(){
@@ -11860,7 +11762,6 @@ window.agregarRespObjetivo = agregarRespObjetivo;
 window.agregarSMVM = agregarSMVM;
 window.alertarAccionesVencidasModulo = alertarAccionesVencidasModulo;
 window.analizarCobrosIA = analizarCobrosIA;
-window.analizarEnfermosIA = analizarEnfermosIA;
 window.analizarReclamosIA = analizarReclamosIA;
 window.anularPago = anularPago;
 window.aplicarAumentoAsociados = aplicarAumentoAsociados;
@@ -11944,7 +11845,6 @@ window.filtrarAcciones = filtrarAcciones;
 window.filtrarClientes = filtrarClientes;
 window.filtrarCobrados = filtrarCobrados;
 window.filtrarCobros = filtrarCobros;
-window.filtrarEnfermos = filtrarEnfermos;
 window.filtrarLeads = filtrarLeads;
 window.filtrarObjetivos = filtrarObjetivos;
 window.filtrarReclamos = filtrarReclamos;
@@ -11973,7 +11873,6 @@ window.guardarConceptoLiq = guardarConceptoLiq;
 window.guardarConfigAdelantos = guardarConfigAdelantos;
 window.guardarCuota = guardarCuota;
 window.guardarDescuentoLiq = guardarDescuentoLiq;
-window.guardarEnfermo = guardarEnfermo;
 window.guardarEvaluacion = guardarEvaluacion;
 window.guardarFeriado = guardarFeriado;
 window.guardarInformal = guardarInformal;
@@ -12084,7 +11983,6 @@ window.renderConfigVentas = renderConfigVentas;
 window.renderConfiguracion = renderConfiguracion;
 window.renderContactosClienteTemp = renderContactosClienteTemp;
 window.renderDescuentosLiq = renderDescuentosLiq;
-window.renderEnfermos = renderEnfermos;
 window.renderEscalaSalarial = renderEscalaSalarial;
 window.renderEvaluaciones = renderEvaluaciones;
 window.renderFeriados = renderFeriados;
@@ -12181,7 +12079,6 @@ window.setValorLiq = setValorLiq;
 window.setValoresPeriodo = setValoresPeriodo;
 window.simularRegistroPublico = simularRegistroPublico;
 window.solicitarCatAlt = solicitarCatAlt;
-window.subirAdjuntoEnfermo = subirAdjuntoEnfermo;
 window.tabCliModal = tabCliModal;
 window.tabCobros = tabCobros;
 window.tabCrm = tabCrm;
@@ -12210,8 +12107,6 @@ window.toggleNuevaGrillaTipo = toggleNuevaGrillaTipo;
 window.togglePermiso = togglePermiso;
 window.validarFechasArt42 = validarFechasArt42;
 window.verAccionesCobro = verAccionesCobro;
-window.verAdjunto = verAdjunto;
-window.verCasoEnfermo = verCasoEnfermo;
 window.verCatAlt = verCatAlt;
 window.verCliente = verCliente;
 window.verDetalleEvaluacion = verDetalleEvaluacion;

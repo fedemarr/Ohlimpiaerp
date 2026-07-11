@@ -135,6 +135,16 @@ export function verLegajo(nro) {
       .sort((a, b) => new Date(b.id) - new Date(a.id))
     : [];
 
+  // Tab "🏥 Historial médico": mismo criterio de acceso que el
+  // módulo Enfermos y Accidentes (MENU/PERFILES: Admin/RRHH/Operaciones)
+  // — nunca muestra el diagnóstico CIE-10 acá, solo tipo/fechas/estado
+  // (diseño §3.9/§9.2 — confidencialidad del diagnóstico).
+  const puedeVerMedico = ['Administrador total', 'RRHH', 'Operaciones'].includes(currentUser?.perfil);
+  const casosMedicosDelAsoc = puedeVerMedico
+    ? (DB.casosEnfermosAccidentes || []).filter(c => !c.anulado && String(c.nroSocio) === String(l.nro))
+      .sort((a, b) => new Date(b.id) - new Date(a.id))
+    : [];
+
   $('legajo-body').innerHTML = `
     <div style="display:flex;align-items:center;gap:14px;margin-bottom:18px;">
       ${avatarEl(l.nombre, 56)}
@@ -152,6 +162,7 @@ export function verLegajo(nro) {
       <button class="tab-btn" onclick="tabLeg(5,this)">🎓 Capacitaciones</button>
       <button class="tab-btn" onclick="tabLeg(6,this)">⚠️ Antecedentes ${sancionesDelAsoc.length > 0 ? `<span class="badge badge-rojo" style="font-size:10px;margin-left:4px;">${sancionesDelAsoc.length}</span>` : ''}</button>
       ${puedeVerLegal ? `<button class="tab-btn" onclick="tabLeg(7,this)">⚖️ Legal ${casosLegalesDelAsoc.length > 0 ? `<span class="badge badge-naranja" style="font-size:10px;margin-left:4px;">${casosLegalesDelAsoc.length}</span>` : ''}</button>` : ''}
+      ${puedeVerMedico ? `<button class="tab-btn" onclick="tabLeg(8,this)">🏥 Historial médico ${casosMedicosDelAsoc.some(c => c.estado === 'Abierto') ? '<span class="badge badge-rojo" style="font-size:10px;margin-left:4px;">En tratamiento</span>' : ''}</button>` : ''}
     </div>
     <div id="leg-tab-0" class="tab-content active"><div class="info-grid">
       <div class="info-item"><div class="key">DNI</div><div class="val">${l.dni}</div></div>
@@ -259,6 +270,24 @@ export function verLegajo(nro) {
                 </div>
                 <div style="text-align:right;">
                   <div style="font-size:11px;color:var(--texto-muy-suave);margin-top:4px;">${c.fechaInicio}</div>
+                </div>
+              </div>
+            </div>`).join('')}
+        </div>`}
+    </div>` : ''}
+    ${puedeVerMedico ? `
+    <div id="leg-tab-8" class="tab-content">
+      ${casosMedicosDelAsoc.length === 0 ? '<div class="empty-state"><div class="icon">✅</div><p>Sin casos médicos registrados</p></div>' : `
+        <div style="display:flex;flex-direction:column;gap:8px;">
+          ${casosMedicosDelAsoc.map(c => `
+            <div style="background:var(--fondo);border:1px solid var(--borde);border-radius:var(--radio);padding:10px 14px;">
+              <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;flex-wrap:wrap;">
+                <div>
+                  <div style="font-size:13px;font-weight:600;">${c.tipoCaso}${c.subtipo ? ' — ' + c.subtipo : ''}</div>
+                  <div style="font-size:12px;color:var(--texto-suave);margin-top:2px;">${c.estado}</div>
+                </div>
+                <div style="text-align:right;">
+                  <div style="font-size:11px;color:var(--texto-muy-suave);margin-top:4px;">${c.fechaInicio}${c.fechaAltaEfectiva ? ' al ' + c.fechaAltaEfectiva : ''}</div>
                 </div>
               </div>
             </div>`).join('')}
