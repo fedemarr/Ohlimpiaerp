@@ -31,6 +31,8 @@ import { sancionesScreenConfig } from './modules/sanciones/index.js';
 import { categoriasScreenConfig } from './modules/categorias/index.js';
 import { situacionesLegalesScreenConfig } from './modules/situaciones_legales/index.js';
 import { enfermosAccidentesScreenConfig } from './modules/enfermos_accidentes/index.js';
+import { pedidosAdelantosScreenConfig } from './modules/pedidos_adelantos/index.js';
+import { gestionAdelantosScreenConfig } from './modules/gestion_adelantos/index.js';
 import { renderCampanaNotificaciones, fetchNotificacionesPendientes, toggleCampanaDropdown, marcarNotifLeidaYRefrescar } from '@shared/notificaciones.js';
 import './modules/personal_rrhh/index.js';
 
@@ -74,6 +76,8 @@ registerScreens(sancionesScreenConfig);
 registerScreens(categoriasScreenConfig);
 registerScreens(situacionesLegalesScreenConfig);
 registerScreens(enfermosAccidentesScreenConfig);
+registerScreens(pedidosAdelantosScreenConfig);
+registerScreens(gestionAdelantosScreenConfig);
 
 // ========== REGISTRAR FILTROS DE BÚSQUEDA GLOBAL ==========
 
@@ -126,8 +130,6 @@ async function loadLegacy() {
       monotributos: { title: 'Monotributos', btn: '+ Nuevo monotributista', fn: () => { if (window.abrirModalNuevoMonotributo) window.abrirModalNuevoMonotributo(); }, render: () => { if (window.renderMonotributos) window.renderMonotributos(); } },
       paritarias: { title: 'Paritarias', btn: '', fn: null, render: () => { if (window.renderParitarias) window.renderParitarias(); } },
       liquidaciones: { title: 'Liquidaciones', btn: '', fn: null, render: () => { if (window.renderLiquidaciones) window.renderLiquidaciones(); } },
-      pedidos_adelantos: { title: 'Pedidos de adelantos', btn: '', fn: null, render: () => { if (window.renderPedidosAdelantos) window.renderPedidosAdelantos(); } },
-      gestion_adelantos: { title: 'Gestión de adelantos', btn: '', fn: null, render: () => { if (window.renderGestionAdelantos) window.renderGestionAdelantos(); } },
       sugerencias: { title: 'Reportes y sugerencias', btn: '+ Nueva sugerencia', fn: () => window.abrirModalSugerencia(), render: () => { if (window.renderSugerencias) window.renderSugerencias(); } },
     });
 

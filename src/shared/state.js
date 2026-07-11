@@ -97,6 +97,16 @@ export const DB = {
   certificadosMedicos: [],
   retirosEnfermosPendientes: [],
   casoEventosEnfermos: [],
+  // Pedidos de Adelantos + Gestión de Adelantos v1.1 (v038) — modelo
+  // aplanado, reemplaza planillasAdelantos/planillasInformales/
+  // adelantosInformales/solicitudesPrestamos (esas quedan huérfanas en
+  // legacy.js, no se leen más). prestamos sigue siendo la misma tabla
+  // de siempre, ahora extendida con el flujo nuevo.
+  pedidosAdelantos: [],
+  pedidosAdelantosEventos: [],
+  descuentosAdelantosPendientes: [],
+  configuracionAdelantosPrestamos: [],
+  topesAdelantosVersiones: [],
   sugerencias: [],
   // Se puebla desde Supabase Auth (tabla public.usuarios) al loguear —
   // ver cargarListaUsuarios() en src/shared/auth.js. Ya no vive hardcodeado
