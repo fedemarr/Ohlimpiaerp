@@ -89,6 +89,10 @@ export const _SM = {
   objetivoAdjuntos: 'objetivo_adjuntos',
   objetivoSupervisoresHistorial: 'objetivo_supervisores_historial',
   objetivoEventos: 'objetivo_eventos',
+  pendientesAuthLiq: 'pendientes_auth_liq',
+  historialAuthLiq: 'historial_auth_liq',
+  catAltPendientesLiq: 'cat_alt_pendientes_liq',
+  art42: 'registros_art42',
 };
 
 // camelCase → snake_case para guardar en Supabase
@@ -316,6 +320,13 @@ export function _toSnake(obj) {
     valorEft: 'valor_eft', textoFactura: 'texto_factura', periodoFact: 'periodo_fact', reqOC: 'req_oc',
     dadoDeBajaPor: 'dado_de_baja_por', motivoBaja: 'motivo_baja', motivoCambio: 'motivo_cambio',
     aSatisfacer: 'a_satisfacer',
+    // Liquidación de horas v1.1 (v040)
+    objCodigo: 'objetivo_codigo', horasEFT: 'horas_eft', horasContratadas: 'horas_contratadas',
+    alertaEFT: 'alerta_eft', totalHorasFacturables: 'total_horas_facturables',
+    totalHorasNoFacturables: 'total_horas_no_facturables', totalAPagar: 'total_a_pagar',
+    grillaId: 'grilla_id_local', asocIdx: 'asoc_idx', resueltoPor: 'resuelto_por',
+    fechaResolucion: 'fecha_resolucion', nroSocio: 'nro_socio', horasPorDia: 'horas_por_dia',
+    catActual: 'cat_actual', catPropuesta: 'cat_propuesta', propuestoPor: 'propuesto_por',
   };
   const r = {};
   for (const [k, v] of Object.entries(obj)) {
@@ -557,6 +568,13 @@ export function _toCamel(obj) {
     valor_eft: 'valorEft', texto_factura: 'textoFactura', periodo_fact: 'periodoFact', req_oc: 'reqOC',
     dado_de_baja_por: 'dadoDeBajaPor', motivo_baja: 'motivoBaja', motivo_cambio: 'motivoCambio',
     a_satisfacer: 'aSatisfacer',
+    // Liquidación de horas v1.1 (v040)
+    objetivo_codigo: 'objCodigo', horas_eft: 'horasEFT', horas_contratadas: 'horasContratadas',
+    alerta_eft: 'alertaEFT', total_horas_facturables: 'totalHorasFacturables',
+    total_horas_no_facturables: 'totalHorasNoFacturables', total_a_pagar: 'totalAPagar',
+    grilla_id_local: 'grillaId', asoc_idx: 'asocIdx', resuelto_por: 'resueltoPor',
+    fecha_resolucion: 'fechaResolucion', nro_socio: 'nroSocio', horas_por_dia: 'horasPorDia',
+    cat_actual: 'catActual', cat_propuesta: 'catPropuesta', propuesto_por: 'propuestoPor',
   };
   const r = {};
   for (const [k, v] of Object.entries(obj)) {

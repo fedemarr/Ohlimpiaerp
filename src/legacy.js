@@ -7,6 +7,7 @@ import { $, initials, avatarEl, badge, formatPeriodo, hoyStr, esFeriado, esFinde
 import { toast, abrirModal, cerrarModal, activarOrdenamiento } from '@shared/ui.js';
 import { supaSync, supaDel, supaInit } from '@shared/supabase.js';
 import { crearNotificacion } from '@shared/notificaciones.js';
+import { obtenerValorHoraVigente } from './modules/categorias/consultas.js';
 
 // ========== ESTADO ==========
 
@@ -3120,15 +3121,7 @@ function guardarPropuestaPrecio(){
 
 // ========== DASHBOARD DE INICIO ==========
 
-// Categorías salariales con valores hora actuales
-DB.categoriasSalariales = [
-  {id:1, nombre:'Operario/a limpieza', valorHoraActual:4800},
-  {id:2, nombre:'Operario/a limpieza especializado/a', valorHoraActual:5200},
-  {id:3, nombre:'Encargado/a de turno', valorHoraActual:5800},
-  {id:4, nombre:'Supervisor/a', valorHoraActual:7200},
-  {id:5, nombre:'Coordinador/a de área', valorHoraActual:9500},
-  {id:6, nombre:'Administrativo/a', valorHoraActual:6400},
-];
+// (Duplicado sin guard de DB.categoriasSalariales eliminado — v040, Parte B. Pisaba en runtime al seed con codigo de la línea ~2617, dejando el badge de código del ABM de categorías sindicales siempre vacío.)
 
 DB.paritarias = [
   {
@@ -3695,6 +3688,25 @@ function getCategoriaVH(nombreCategoria){
   return DB.categoriasSalariales.find(c=>c.nombre===nombreCategoria)?.valorHoraActual||0;
 }
 
+// Validación (no bloqueante) de que exista valor-hora vigente cargado en el
+// módulo Categorías para el operario + servicio — v040, Cambio 5 acotado.
+// NO reemplaza getCategoriaVH/DB.categoriasSalariales (el cálculo real de
+// Liquidación de horas sigue siendo ese, decisión explícita de esta
+// migración) — solo alerta si a RRHH se le pasó cargar el valor real.
+function validarValorHoraAsociado(legajoNro, objCodigo){
+  const legajo = (DB.legajos||[]).find(l=>String(l.nro)===String(legajoNro));
+  if(!legajo){ return; }
+  if(!legajo.categoriaIdLocal){
+    toast(`⚠️ ${legajo.nombre}: sin categoría asignada — cargala en Legajos.`);
+    return;
+  }
+  const hoyISO = new Date().toISOString().slice(0,10);
+  const vigente = obtenerValorHoraVigente(legajo.categoriaIdLocal, objCodigo, hoyISO);
+  if(!vigente){
+    toast(`⚠️ Sin valor hora vigente para la categoría de ${legajo.nombre} en ${objCodigo} — cargalo en Categorías antes de cerrar el mes.`);
+  }
+}
+
 function generarHorasPrecargas(mesISO,objCodigo){
   const params=DB.parametrosServicio[objCodigo]||{diasSemana:[1,2,3,4,5],horasPorDia:8,trabajaFeriados:false,trabajaFinde:false};
   const horas={};
@@ -3807,7 +3819,7 @@ function guardarMotivoNF(){
   if(!nombre){toast('Ingresá el nombre del motivo');return;}
   if(_mnfEditIdx !== null){
     DB.motivosNoFact[_mnfEditIdx] = {...DB.motivosNoFact[_mnfEditIdx], nombre, codigo, descripcion:$('mnf-descripcion')?.value||''};
-    supaSync('motivosFueraEFT', DB.motivosFueraEFT[DB.motivosFueraEFT.length-1]); toast('✅ Motivo actualizado');
+    supaSync('motivosNoFact', DB.motivosNoFact[_mnfEditIdx]); toast('✅ Motivo actualizado');
   } else {
     DB.motivosNoFact.push({id:Date.now(), nombre, codigo, descripcion:$('mnf-descripcion')?.value||'', activo:true});
     supaSync('motivosNoFact', DB.motivosNoFact[DB.motivosNoFact.length-1]); toast('✅ Motivo agregado');
@@ -3857,12 +3869,14 @@ if(!DB.historialAuth)   DB.historialAuth   = [];
 
 function registrarPendienteAuth(tipo, grillaId, asocIdx, detalle, solicitadoPor){
   // tipo: 'no_facturable' | 'fuera_eft'
-  DB.pendientesAuth.push({
+  const pend={
     id: Date.now() + Math.random(),
     tipo, grillaId, asocIdx, detalle, solicitadoPor,
     fecha: new Date().toLocaleDateString('es-AR'),
     estado: 'Pendiente',
-  });
+  };
+  DB.pendientesAuth.push(pend);
+  supaSync('pendientesAuthLiq', {...pend, grillaId:idLocalTrunc(pend.grillaId)});
   construirMenu();
 }
 
@@ -3896,6 +3910,10 @@ function renderPendientesAuth(){
       <td style="font-size:12px;color:var(--texto-suave);">${p.fecha}</td>
       <td>
         ${esOps ? `
+          <div style="display:flex;gap:4px;">
+            <button class="btn btn-xs" style="background:#d1fae5;color:#065f46;border:1px solid #6ee7b7;"
+              onclick="resolverAuth('${p.id}','Aprobada')">✓ Aprobar</button>
+            <button class="btn btn-xs" style="background:#fee2e2;color:#dc2626;border:1px solid #fca5a5;"
               onclick="resolverAuth('${p.id}','Rechazada')">✕ Rechazar</button>
           </div>` :
           '<span style="font-size:11px;color:var(--texto-suave);">Esperando Operaciones</span>'
@@ -3935,11 +3953,16 @@ function resolverAuth(pendId, decision){
     }
   }
 
+  supaSync('pendientesAuthLiq', {...pend, grillaId:idLocalTrunc(pend.grillaId)});
+  if(grilla) supaSync('grillasLiq', grilla);
+
   // Mover de pendientes al historial (splice elimina de pendientes)
   const pendIdx = DB.pendientesAuth.findIndex(p=>p.id==pendId);
   if(pendIdx !== -1) DB.pendientesAuth.splice(pendIdx, 1);
   if(!DB.historialAuth) DB.historialAuth = [];
-  DB.historialAuth.push({...pend});
+  const histEntry={...pend};
+  DB.historialAuth.push(histEntry);
+  supaSync('historialAuthLiq', {...histEntry, grillaId:idLocalTrunc(histEntry.grillaId)});
 
   construirMenu();
   renderPendientesAuth();
@@ -4032,12 +4055,14 @@ function guardarMotivoEFT(){
   if(!nombre){toast('Ingresá el nombre del motivo');return;}
   if(_meftEditIdx !== null){
     DB.motivosFueraEFT[_meftEditIdx] = {...DB.motivosFueraEFT[_meftEditIdx], nombre, codigo, descripcion:$('meft-descripcion')?.value||''};
+    supaSync('motivosFueraEFT', DB.motivosFueraEFT[_meftEditIdx]);
     toast('✅ Motivo actualizado');
   } else {
     DB.motivosFueraEFT.push({id:Date.now(), nombre, codigo, descripcion:$('meft-descripcion')?.value||'', activo:true});
+    supaSync('motivosFueraEFT', DB.motivosFueraEFT[DB.motivosFueraEFT.length-1]);
     toast('✅ Motivo agregado');
   }
-  supaSync('motivosFueraEFT', DB.motivosFueraEFT[DB.motivosFueraEFT.length-1]); cerrarModal('modal-motivo-eft');
+  cerrarModal('modal-motivo-eft');
   renderMotivosEFT();
   poblarSelectMotivoEFT();
 }
@@ -4123,7 +4148,7 @@ function getCategoriasPorTipo(catActual){
 // ═══════════════════════════════════════════════════════════
 // CATEGORÍA ALTERNATIVA — solicitar / aprobar / rechazar
 // ═══════════════════════════════════════════════════════════
-if(!DB.catAltPendientes) DB.catAltPendientes = [];
+if(!DB.catAltPendientesLiq) DB.catAltPendientesLiq = [];
 if(!DB.catAltHistorial)  DB.catAltHistorial  = [];
 
 function solicitarCatAlt(grillaId, asocIdx, catNueva){
@@ -4138,7 +4163,7 @@ function solicitarCatAlt(grillaId, asocIdx, catNueva){
   asoc.catAltFecha = new Date().toLocaleDateString('es-AR');
   asoc.catAltPor = currentUser?.nombre||'Supervisor';
   // Registrar en pendientes globales
-  DB.catAltPendientes.push({
+  const pendCat={
     id: Date.now(),
     grillaId, asocIdx,
     asociado: asoc.nombre,
@@ -4149,7 +4174,10 @@ function solicitarCatAlt(grillaId, asocIdx, catNueva){
     propuestoPor: asoc.catAltPor,
     fecha: asoc.catAltFecha,
     estado: 'Pendiente',
-  });
+  };
+  DB.catAltPendientesLiq.push(pendCat);
+  supaSync('catAltPendientesLiq', {...pendCat, grillaId:idLocalTrunc(pendCat.grillaId)});
+  supaSync('grillasLiq', grilla);
   construirMenu();
   renderGrillasLiq();
   toast(`⏳ Categoría "${catNueva}" propuesta — pendiente de aprobación`);
@@ -4187,11 +4215,12 @@ function resolverCatAlt(grillaId, asocIdx, decision){
   const grilla = DB.grillasLiq.find(g=>g.id===grillaId);
   const asoc = grilla?.asociados[asocIdx];
   if(!asoc) return;
-  const pend = DB.catAltPendientes.find(p=>p.grillaId===grillaId&&p.asocIdx===asocIdx&&p.estado==='Pendiente');
+  const pend = DB.catAltPendientesLiq.find(p=>p.grillaId===grillaId&&p.asocIdx===asocIdx&&p.estado==='Pendiente');
   if(pend){
     pend.estado = decision;
     pend.resueltoPor = currentUser?.nombre||'Operaciones';
     pend.fechaResolucion = new Date().toLocaleDateString('es-AR');
+    supaSync('catAltPendientesLiq', {...pend, grillaId:idLocalTrunc(pend.grillaId)});
   }
   // Pasar al historial
   DB.catAltHistorial.push({
@@ -4214,6 +4243,7 @@ function resolverCatAlt(grillaId, asocIdx, decision){
   delete asoc.catAltEstado;
   delete asoc.catAltFecha;
   delete asoc.catAltPor;
+  supaSync('grillasLiq', grilla);
   cerrarModal('modal-cat-alt');
   construirMenu();
   renderGrillasLiq();
@@ -4224,7 +4254,7 @@ function resolverCatAlt(grillaId, asocIdx, decision){
 function renderCatPendientes(){
   const tbody = $('tbody-cat-pendientes');
   if(!tbody) return;
-  const pendientes = DB.catAltPendientes.filter(p=>p.estado==='Pendiente');
+  const pendientes = DB.catAltPendientesLiq.filter(p=>p.estado==='Pendiente');
   const esOps = ['Administrador total','Operaciones'].includes(currentUser?.perfil);
   if(!pendientes.length){
     tbody.innerHTML = `<tr><td colspan="8"><div class="empty-state"><div class="icon">✅</div><p>Sin categorías pendientes</p></div></td></tr>`;
@@ -4421,6 +4451,8 @@ function confirmarAgregarAsoc(){
     toast(`✅ ${nombre} agregado a la grilla`);
   }
 
+  if(nro) validarValorHoraAsociado(nro, grilla.objCodigo);
+  supaSync('grillasLiq', grilla);
   _magPendiente=null;
   cerrarModal('modal-agregar-asoc-grilla');
   renderGrillasLiq();
@@ -4574,7 +4606,7 @@ function renderResumenMes(){
 }
 
 // CATEGORÍAS PENDIENTES
-if(!DB.catAltPendientes) DB.catAltPendientes=[];
+if(!DB.catAltPendientesLiq) DB.catAltPendientesLiq=[];
 if(!DB.catAltHistorial)  DB.catAltHistorial=[];
 // Manejo de teclado en el buscador de asociados de la grilla
 
@@ -5263,34 +5295,12 @@ DB.enfermos = [{id:1,asociado:'Rodriguez Maria Elena',nroSocio:113,tipo:'Enferme
 // ── DATOS OPERATIVOS ──
 
 // Grillas de liquidación activas (mes actual)
+// (Seed viejo con esquema items[]/horasNorm/horasExtra eliminado — v040, Parte B.
+// Convivía con el esquema nuevo asociados[]/horas{fechaISO} que arma crearGrillaDesdeObj
+// en el mismo array DB.grillasLiq, mezclando ambos esquemas en runtime. Ahora que
+// grillasLiq persiste de verdad (v040), supaInit() puebla el array con datos reales
+// antes de que este guard corra.)
 if(!DB.grillasLiq) DB.grillasLiq = [];
-if(DB.grillasLiq.length===0){
-  DB.grillasLiq = [
-    {id:1,periodo:'2026-03',supervisor:'Alvaro Uballes',servicio:'HIT.LIBERTADOR.CEL',estado:'Borrador',fechaCreacion:'01/04/2026',
-     items:[
-       {nombre:'Benitez Marcos Ruben',nroSocio:104,horasNorm:192,horasExtra:24,horasNocturnas:0,feriados:0,categoria:'Operario A',obs:''},
-       {nombre:'Quiroga Daniela Paz',nroSocio:105,horasNorm:184,horasExtra:0,horasNocturnas:0,feriados:8,categoria:'Operario B',obs:''},
-     ]},
-    {id:2,periodo:'2026-03',supervisor:'Claudia Cazenave',servicio:'HOSPITAL.CAMPANA',estado:'Enviada',fechaCreacion:'01/04/2026',fechaEnvio:'02/04/2026',
-     items:[
-       {nombre:'Ramirez Claudia Beatriz',nroSocio:101,horasNorm:160,horasExtra:32,horasNocturnas:64,feriados:0,categoria:'Operario B',obs:''},
-       {nombre:'Villalba Sergio Fabian',nroSocio:102,horasNorm:160,horasExtra:16,horasNocturnas:64,feriados:0,categoria:'Operario B',obs:''},
-       {nombre:'Torres Ana Beatriz',nroSocio:103,horasNorm:0,horasExtra:0,horasNocturnas:0,feriados:0,categoria:'Referente',obs:'De baja médica todo el mes'},
-     ]},
-    {id:3,periodo:'2026-03',supervisor:'Marcelo Moure',servicio:'CENARD',estado:'Borrador',fechaCreacion:'02/04/2026',
-     items:[
-       {nombre:'Rodriguez Maria Elena',nroSocio:113,horasNorm:0,horasExtra:0,horasNocturnas:0,feriados:0,categoria:'Operario A',obs:'Baja médica'},
-       {nombre:'Ibañez Carlos Javier',nroSocio:114,horasNorm:192,horasExtra:8,horasNocturnas:0,feriados:0,categoria:'Operario B',obs:''},
-       {nombre:'Paz Florencia Belen',nroSocio:115,horasNorm:180,horasExtra:0,horasNocturnas:0,feriados:0,categoria:'Operario B',obs:''},
-     ]},
-    {id:4,periodo:'2026-03',supervisor:'Santiago Ayala',servicio:'ANAC',estado:'Aprobada',fechaCreacion:'30/03/2026',fechaEnvio:'31/03/2026',fechaAprobacion:'02/04/2026',
-     items:[
-       {nombre:'Soria Jorge Luis',nroSocio:116,horasNorm:192,horasExtra:0,horasNocturnas:0,feriados:0,categoria:'Encargado A',obs:''},
-       {nombre:'Molina Estela Maris',nroSocio:117,horasNorm:192,horasExtra:16,horasNocturnas:0,feriados:0,categoria:'Operario A',obs:''},
-       {nombre:'Herrera Nicolas Damian',nroSocio:118,horasNorm:176,horasExtra:0,horasNocturnas:0,feriados:0,categoria:'Operario B',obs:'Llegó tarde 2 días'},
-     ]},
-  ];
-}
 
 // Retenes activos
 if(!DB.retenes) DB.retenes = [];
@@ -8322,7 +8332,9 @@ function expandirTodasGrillas(){
 function crearGrillaDesdeObj(objCodigo, mes){
   const obj=DB.objetivos.find(o=>o.codigo===objCodigo); if(!obj) return;
   const calc=calcularHorasMes(mes,objCodigo);
-  const asocAsignados=(DB.legajos||[]).filter(l=>l.servicio===obj.codigo&&l.estado==='Activo').map(l=>({
+  const legajosAsignados=(DB.legajos||[]).filter(l=>l.servicio===obj.codigo&&l.estado==='Activo');
+  legajosAsignados.forEach(l=>validarValorHoraAsociado(l.nro, objCodigo));
+  const asocAsignados=legajosAsignados.map(l=>({
     id:l.nro, nombre:l.nombre, categoria:l.funcion||'Operario/a limpieza',
     horas:generarHorasPrecargas(mes,obj.codigo), facturable:{}, motivoNoFact:{}, infoEFT:{}, tipoHora:'facturable', motivoTipo:'', esExtra:false, esEnfermedad:false,
   }));
@@ -8337,6 +8349,7 @@ function crearGrillaDesdeObj(objCodigo, mes){
   };
   DB.grillasLiq.push(nueva);
   _grillasExpandidas.add(objCodigo);
+  supaSync('grillasLiq', nueva);
   renderGrillasLiq();
   toast(`✓ Grilla "${obj.nombre}" creada con ${asocAsignados.length} asociado${asocAsignados.length!==1?'s':''}`);
 }
@@ -8345,6 +8358,7 @@ function quitarAsociadoGrilla(grillaId, asocIdx){
   const g=DB.grillasLiq.find(x=>x.id===grillaId); if(!g) return;
   const nombre=g.asociados[asocIdx]?.nombre;
   g.asociados.splice(asocIdx,1);
+  supaSync('grillasLiq', g);
   renderGrillasLiq();
   toast(`${nombre} quitado de la grilla`);
 }
@@ -8364,6 +8378,7 @@ function setHoraGrilla(gId,aIdx,fechaISO,valor){
     asoc.horas[fechaISO]=valStr;
     if(!asoc.estadoDia)asoc.estadoDia={};
     asoc.estadoDia[fechaISO]=valStr;
+    supaSync('grillasLiq', g);
     renderGrillasLiq();
     return;
   }
@@ -8417,13 +8432,15 @@ function setHoraGrilla(gId,aIdx,fechaISO,valor){
       p.grillaId===g.id&&p.asocIdx===aIdx&&p.estado==='Pendiente'&&p.tipo==='no_facturable');
     if(!yaReg){
       if(!DB.pendientesAuth)DB.pendientesAuth=[];
-      DB.pendientesAuth.push({
+      const pendNF={
         id:Date.now()+Math.random(), tipo:'no_facturable',
         grillaId:g.id, asocIdx:aIdx,
         detalle:asoc.nombre+' — edición manual — '+fechaISO.split('-').reverse().join('/')+(asoc.motivoTipo?' ('+asoc.motivoTipo+')':''),
         solicitadoPor:currentUser?.nombre||'Supervisor',
         fecha:new Date().toLocaleDateString('es-AR'), estado:'Pendiente',
-      });
+      };
+      DB.pendientesAuth.push(pendNF);
+      supaSync('pendientesAuthLiq', {...pendNF, grillaId:idLocalTrunc(pendNF.grillaId)});
       toast('⚠️ Horas no facturables cargadas — pendientes de aprobación por Operaciones.');
     }
   }
@@ -8438,19 +8455,22 @@ function setHoraGrilla(gId,aIdx,fechaISO,valor){
         p.grillaId===g.id&&p.asocIdx===aIdx&&p.estado==='Pendiente'&&p.tipo==='fuera_eft');
       if(!yaReg){
         if(!DB.pendientesAuth)DB.pendientesAuth=[];
-        DB.pendientesAuth.push({
+        const pendEFT={
           id:Date.now()+Math.random(), tipo:'fuera_eft',
           grillaId:g.id, asocIdx:aIdx,
           detalle:asoc.nombre+' — edición manual — +'+exceso+'hs sobre el EFT del servicio',
           solicitadoPor:currentUser?.nombre||'Supervisor',
           fecha:new Date().toLocaleDateString('es-AR'), estado:'Pendiente',
-        });
+        };
+        DB.pendientesAuth.push(pendEFT);
+        supaSync('pendientesAuthLiq', {...pendEFT, grillaId:idLocalTrunc(pendEFT.grillaId)});
         toast('⚠️ El servicio supera el EFT en +'+exceso+'hs. Las horas quedan pendientes de aprobación.');
       }
     }
   }
 
   verificarEFTGrilla(g);
+  supaSync('grillasLiq', g);
   renderGrillasLiq();
 }
 function setTipoHoraAsoc(gId,aIdx,tipo){
@@ -8482,16 +8502,19 @@ function setTipoHoraAsoc(gId,aIdx,tipo){
     if(!DB.pendientesAuth)DB.pendientesAuth=[];
     const yaReg=(DB.pendientesAuth||[]).some(p=>p.grillaId===g.id&&p.asocIdx===aIdx&&p.estado==='Pendiente'&&p.tipo==='no_facturable');
     if(!yaReg){
-      DB.pendientesAuth.push({
+      const pendA42={
         id:Date.now()+Math.random(),tipo:'no_facturable',
         grillaId:g.id,asocIdx:aIdx,
         detalle:asoc.nombre+' — Art.42 — '+diasConHoras+' día(s)',
         solicitadoPor:currentUser?.nombre||'Supervisor',
         fecha:new Date().toLocaleDateString('es-AR'),estado:'Pendiente',
-      });
+      };
+      DB.pendientesAuth.push(pendA42);
+      supaSync('pendientesAuthLiq', {...pendA42, grillaId:idLocalTrunc(pendA42.grillaId)});
       toast('🏥 Art.42 registrado — pendiente de aprobación por Operaciones');
     }
   }
+  supaSync('grillasLiq', g);
   renderGrillasLiq();
 }
 
@@ -8519,14 +8542,17 @@ function confirmarMotivoTipo(){
   if(!DB.pendientesAuth)DB.pendientesAuth=[];
   const yaReg=(DB.pendientesAuth||[]).some(p=>p.grillaId===_motipoGId&&p.asocIdx===_motipoAIdx&&p.estado==='Pendiente');
   if(!yaReg){
-    DB.pendientesAuth.push({
+    const pendMT={
       id:Date.now()+Math.random(),tipo:'no_facturable',
       grillaId:_motipoGId,asocIdx:_motipoAIdx,
       detalle:asoc.nombre+' — '+motivo,
       solicitadoPor:currentUser?.nombre||'Supervisor',
       fecha:new Date().toLocaleDateString('es-AR'),estado:'Pendiente',
-    });
+    };
+    DB.pendientesAuth.push(pendMT);
+    supaSync('pendientesAuthLiq', {...pendMT, grillaId:idLocalTrunc(pendMT.grillaId)});
   }
+  supaSync('grillasLiq', g);
   cerrarModal('modal-motivo-tipo');
   toast('✅ Horas marcadas como no facturables — pendiente de aprobación');
   renderGrillasLiq();
@@ -8643,7 +8669,7 @@ function renderArt42(){
   });
 
   const fmt = iso => iso ? iso.split('-').reverse().join('/') : '—';
-  if(!filasConsolidadas.length){
+  if(!filas.length){
     tbody.innerHTML=`<tr><td colspan="10"><div class="empty-state">
       <div class="icon">🏥</div>
       <p>Sin asociados con horas Art. 42 (≤ 3 días) en las grillas</p>
@@ -8651,9 +8677,7 @@ function renderArt42(){
     </div></td></tr>`;
     return;
   }
-  tbody.innerHTML = filasConsolidadas.map(f=>{
-    const pagoInfo  = DB.lqsPagos?.[mes]?.[f.nombre];
-    const listoInfo  = DB.lqsListos?.[mes]?.[f.nombre];
+  tbody.innerHTML = filas.map(f=>{
     return `<tr>
     <td style="font-weight:500;">${f.asociado}</td>
     <td style="font-family:'DM Mono',monospace;font-size:12px;">${f.nroSocio}</td>
@@ -8670,9 +8694,11 @@ function renderArt42(){
 function abrirModalArt42(){poblarSelectsLiquidacion();if($('a42-periodo'))$('a42-periodo').value=new Date().toISOString().slice(0,7);abrirModal('modal-art42');}
 function guardarArt42(){
   const asoc=$('a42-asoc')?.value.trim();const dias=parseInt($('a42-dias')?.value)||0;
-  if(!asoc||dias<4){supaSync('legajos', DB.legajos[DB.legajos.length-1]); toast('Ingresá asociado y al menos 4 días para Art. 42');return;}
+  if(!asoc||dias<4){toast('Ingresá asociado y al menos 4 días para Art. 42');return;}
   const leg=(DB.legajos||[]).find(l=>asoc.includes(String(l.nro)));
-  DB.art42.push({id:Date.now(),asociado:asoc.split('(')[0].trim(),nroSocio:leg?.nro||'—',servicio:leg?.servicio||'—',supervisor:leg?.supervisor||'—',periodo:$('a42-periodo')?.value||'',fechaInicio:$('a42-inicio')?.value?new Date($('a42-inicio').value).toLocaleDateString('es-AR'):'',dias,horasPorDia:8,categoria:$('a42-categoria')?.value||'Operario/a limpieza',obs:$('a42-obs')?.value||'',estado:'Abierto'});
+  const casoA42={id:Date.now(),asociado:asoc.split('(')[0].trim(),nroSocio:leg?.nro||'—',servicio:leg?.servicio||'—',supervisor:leg?.supervisor||'—',periodo:$('a42-periodo')?.value||'',fechaInicio:$('a42-inicio')?.value?new Date($('a42-inicio').value).toLocaleDateString('es-AR'):'',dias,horasPorDia:8,categoria:$('a42-categoria')?.value||'Operario/a limpieza',obs:$('a42-obs')?.value||'',estado:'Abierto'};
+  DB.art42.push(casoA42);
+  supaSync('art42', casoA42);
   cerrarModal('modal-art42');renderArt42();toast(`✓ Caso Art. 42: ${asoc} — ${dias} días`);
 }
 // Tarjetas de resumen Selección + Ingreso del dashboard de Inicio.
