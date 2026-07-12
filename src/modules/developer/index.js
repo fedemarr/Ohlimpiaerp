@@ -6,6 +6,7 @@ export {
   renderDevProyeccion, toggleRoadmapItem,
   renderDevSeguridad, toggleChecklistItem,
   sincronizarSugerenciasComoTickets,
+  iniciarRealtimeDev, detenerRealtimeDev,
 } from './developer.js';
 
 // ========== SCREEN CONFIG ==========

@@ -9566,94 +9566,7 @@ function confirmarSolicitudAsociado(){
 
 
 
-(function(){
-  var btn=document.createElement('button');
-  btn.id='btn-reporte-flotante'; btn.innerHTML='💬'; btn.title='Reportar problema o sugerencia';
-  btn.setAttribute('onclick','abrirModalSugerencia()');
-  btn.style.cssText='position:fixed!important;bottom:24px!important;right:24px!important;z-index:99999!important;width:52px!important;height:52px!important;border-radius:50%!important;border:none!important;cursor:pointer!important;background:#1e3a8a!important;color:white!important;font-size:22px!important;box-shadow:0 4px 12px rgba(0,0,0,0.3)!important;display:flex!important;align-items:center!important;justify-content:center!important;';
-  document.body.appendChild(btn);
-})();
-
-function abrirModalSugerencia() {
-  let overlay = $('modal-sugerencia');
-  if (!overlay) {
-    overlay = document.createElement('div');
-    overlay.id = 'modal-sugerencia';
-    overlay.className = 'modal-overlay';
-    overlay.innerHTML = `
-      <div class="modal" style="max-width:520px;">
-        <div class="modal-header">
-          <h3>💬 Reportar problema o sugerencia</h3>
-          <button class="btn-close" onclick="cerrarModal('modal-sugerencia')">×</button>
-        </div>
-        <div class="modal-body">
-          <div style="margin-bottom:12px;">
-            <label style="font-weight:600;font-size:13px;">Tipo</label>
-            <select id="sugerencia-tipo" style="width:100%;padding:8px;border:1px solid #d1d5db;border-radius:6px;margin-top:4px;">
-              <option value="problema">🐛 Problema / Bug</option>
-              <option value="sugerencia">💡 Sugerencia</option>
-              <option value="mejora">✨ Mejora</option>
-              <option value="otro">📝 Otro</option>
-            </select>
-          </div>
-          <div style="margin-bottom:12px;">
-            <label style="font-weight:600;font-size:13px;">Descripción</label>
-            <textarea id="sugerencia-desc" rows="5" placeholder="Describí el problema o tu sugerencia..." style="width:100%;padding:8px;border:1px solid #d1d5db;border-radius:6px;margin-top:4px;resize:vertical;"></textarea>
-          </div>
-        </div>
-        <div class="modal-footer">
-          <button class="btn btn-secondary" onclick="cerrarModal('modal-sugerencia')">Cancelar</button>
-          <button class="btn btn-primary" onclick="enviarSugerencia()">Enviar</button>
-        </div>
-      </div>`;
-    overlay.addEventListener('click', e => { if (e.target === overlay) cerrarModal('modal-sugerencia'); });
-    document.body.appendChild(overlay);
-  }
-  const desc = $('sugerencia-desc');
-  if (desc) desc.value = '';
-  abrirModal('modal-sugerencia');
-}
-
-function enviarSugerencia() {
-  const tipo = $('sugerencia-tipo')?.value || '';
-  const desc = $('sugerencia-desc')?.value?.trim() || '';
-  if (!desc) { toast('Escribí una descripción'); return; }
-  const registro = {
-    id: Date.now(),
-    fecha: new Date().toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' }),
-    usuario: currentUser?.nombre || 'Desconocido',
-    tipo,
-    descripcion: desc,
-    estado: 'Pendiente',
-  };
-  DB.sugerencias.push(registro);
-  supaSync('sugerencias', registro);
-  cerrarModal('modal-sugerencia');
-  toast('✅ Gracias por tu feedback. Lo vamos a revisar.');
-  renderSugerencias();
-}
-
-function renderSugerencias() {
-  const lista = DB.sugerencias || [];
-  const tipoLabel = { problema: '🐛 Problema', sugerencia: '💡 Sugerencia', mejora: '✨ Mejora', otro: '📝 Otro' };
-  const tbody = $('tbody-sugerencias');
-  if (tbody) {
-    tbody.innerHTML = lista.length === 0
-      ? '<tr><td colspan="5" style="text-align:center;padding:32px;opacity:.5;">No hay reportes ni sugerencias registradas</td></tr>'
-      : lista.slice().reverse().map(s => `<tr>
-          <td>${s.fecha}</td>
-          <td>${s.usuario}</td>
-          <td>${tipoLabel[s.tipo] || s.tipo}</td>
-          <td style="max-width:400px;white-space:pre-wrap;">${s.descripcion}</td>
-          <td><span class="badge badge-acento">${s.estado}</span></td>
-        </tr>`).join('');
-  }
-  const total = lista.length;
-  const t = $('st-sug-total'); if (t) t.textContent = total;
-  const sg = $('st-sug-sugerencias'); if (sg) sg.textContent = lista.filter(s => s.tipo === 'sugerencia').length;
-  const pr = $('st-sug-problemas'); if (pr) pr.textContent = lista.filter(s => s.tipo === 'problema').length;
-  const mj = $('st-sug-mejoras'); if (mj) mj.textContent = lista.filter(s => s.tipo === 'mejora').length;
-}
+// (Reportes y Sugerencias migrado a src/modules/sugerencias/ — v041)
 
 
 
@@ -9702,9 +9615,6 @@ window.abrirModalNuevoSuplemento = abrirModalNuevoSuplemento;
 window.abrirModalParitaria = abrirModalParitaria;
 window.abrirModalPropuestaPrecio = abrirModalPropuestaPrecio;
 window.abrirModalSolicitarAsociado = abrirModalSolicitarAsociado;
-window.abrirModalSugerencia = abrirModalSugerencia;
-window.enviarSugerencia = enviarSugerencia;
-window.renderSugerencias = renderSugerencias;
 window.accionLiqAdmin = accionLiqAdmin;
 window.activarAgente = activarAgente;
 window.actualizarEscalaModal = actualizarEscalaModal;

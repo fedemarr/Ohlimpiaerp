@@ -4210,10 +4210,16 @@
     <div class="stat-card rojo"><div class="stat-label">Problemas</div><div class="stat-valor" id="st-sug-problemas">0</div><div class="stat-sub">Bugs reportados</div></div>
     <div class="stat-card acento"><div class="stat-label">Mejoras</div><div class="stat-valor" id="st-sug-mejoras">0</div><div class="stat-sub">Solicitudes de mejora</div></div>
   </div>
+  <div class="filtros-bar" style="margin-bottom:10px;">
+    <select id="sug-filtro-estado" onchange="filtrarSugerencias()">
+      <option value="">Todos los estados</option>
+      <option>Pendiente</option><option>En revisión</option><option>Resuelto</option><option>Cerrado</option>
+    </select>
+  </div>
   <div class="tabla-container">
     <table>
       <thead><tr>
-        <th>Fecha</th><th>Usuario</th><th>Tipo</th><th>Descripción</th><th>Estado</th>
+        <th>Fecha</th><th>Usuario</th><th>Tipo</th><th>Descripción</th><th>Estado</th><th>Respuesta</th>
       </tr></thead>
       <tbody id="tbody-sugerencias"></tbody>
     </table>

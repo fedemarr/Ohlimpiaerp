@@ -10,6 +10,8 @@ import { DB } from '@shared/state.js';
 import { $ } from '@shared/helpers.js';
 import { toast, abrirModal, cerrarModal } from '@shared/ui.js';
 import { supaSync, SUPA } from '@shared/supabase.js';
+import { currentScreen } from '@shared/nav.js';
+import { suscribirseAInserts, desuscribirse } from '@shared/realtime.js';
 
 // ========== HELPERS ==========
 
@@ -21,6 +23,9 @@ const ESTADO_LABEL = { abierto: 'Abierto', en_progreso: 'En progreso', resuelto:
 const ESTADO_BADGE = { abierto: 'badge-rojo', en_progreso: 'badge-acento', resuelto: 'badge-verde', cerrado: 'badge-gris' };
 const PRIORIDAD_ICONO = { alta: '🔴', media: '🟡', baja: '🔵' };
 const TIPO_LABEL = { bug: '🐛 Bug', sugerencia: '💡 Sugerencia', consulta: '❓ Consulta', otro: '📝 Otro' };
+// Mapeo de estado del ticket -> estado de la sugerencia origen (loop de
+// vuelta v041, para que quien reportó vea el progreso sin preguntar).
+const ESTADO_SUGERENCIA = { abierto: 'Pendiente', en_progreso: 'En revisión', resuelto: 'Resuelto', cerrado: 'Cerrado' };
 
 // ========== SINCRONIZACIÓN SUGERENCIAS → TICKETS ==========
 
@@ -55,6 +60,35 @@ export async function sincronizarSugerenciasComoTickets() {
     creados++;
   }
   if (creados > 0) console.log('🎫', creados, 'ticket(s) creados desde sugerencias');
+}
+
+// ========== TIEMPO REAL (v041) ==========
+// Se suscribe a los INSERT de `sugerencias` — el ticket aparece al
+// instante en vez de esperar el próximo ciclo de chequearTicketsNuevosDev
+// (25s, que se mantiene como red de seguridad ante cortes de websocket).
+let _channelRealtimeDev = null;
+
+async function manejarSugerenciaEnVivo(sugerenciaNueva) {
+  if (!DB.sugerencias) DB.sugerencias = [];
+  const yaExiste = DB.sugerencias.some(s => String(s.id) === String(sugerenciaNueva.id));
+  if (!yaExiste) DB.sugerencias.push(sugerenciaNueva);
+  const antes = (DB.tickets || []).length;
+  await sincronizarSugerenciasComoTickets();
+  const nuevos = (DB.tickets || []).length - antes;
+  if (nuevos === 0) return;
+  toast('🎫 Nuevo reporte en vivo: ' + (sugerenciaNueva.descripcion || '').slice(0, 60));
+  if (currentScreen === 'dev_inicio') renderDevInicio();
+  if (currentScreen === 'dev_tickets') renderDevTickets();
+}
+
+export function iniciarRealtimeDev() {
+  if (_channelRealtimeDev) return;
+  _channelRealtimeDev = suscribirseAInserts('sugerencias', manejarSugerenciaEnVivo);
+}
+
+export function detenerRealtimeDev() {
+  desuscribirse(_channelRealtimeDev);
+  _channelRealtimeDev = null;
 }
 
 // ========== INICIO DEV ==========
@@ -190,7 +224,7 @@ export function abrirTicketPorId(id) {
   abrirModal('modal-dev-ticket');
 }
 
-export function guardarRespuestaTicket() {
+export async function guardarRespuestaTicket() {
   const id = $('dt-id').value;
   const t = getTicketById(id);
   if (!t) return;
@@ -201,7 +235,14 @@ export function guardarRespuestaTicket() {
   t.resueltoAt = (nuevoEstado === 'resuelto' || nuevoEstado === 'cerrado')
     ? (t.resueltoAt || new Date().toISOString())
     : null;
-  supaSync('tickets', t);
+  await supaSync('tickets', t);
+  // Reflejar el cambio en la sugerencia origen — loop de vuelta v041.
+  const sug = (DB.sugerencias || []).find(s => String(s.id) === String(t.sugerenciaId));
+  if (sug) {
+    sug.estado = ESTADO_SUGERENCIA[nuevoEstado] || sug.estado;
+    sug.respuestaDev = t.respuestaDev;
+    await supaSync('sugerencias', sug);
+  }
   cerrarModal('modal-dev-ticket');
   renderDevTickets();
   renderDevInicio();

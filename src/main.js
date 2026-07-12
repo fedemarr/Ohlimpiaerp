@@ -24,7 +24,7 @@ import { capacitacionesScreenConfig, filtrarCapacitaciones } from './modules/cap
 import { uniformesScreenConfig } from './modules/uniformes/index.js';
 import { retencionesScreenConfig, filtrarRetenciones } from './modules/retenciones/index.js';
 import { competenciaScreenConfig } from './modules/competencia/index.js';
-import { developerScreenConfig, sincronizarSugerenciasComoTickets, renderDevInicio, renderDevTickets } from './modules/developer/index.js';
+import { developerScreenConfig, sincronizarSugerenciasComoTickets, renderDevInicio, renderDevTickets, iniciarRealtimeDev, detenerRealtimeDev } from './modules/developer/index.js';
 import { vacacionesScreenConfig } from './modules/vacaciones/index.js';
 import { descansosScreenConfig } from './modules/descansos/index.js';
 import { sancionesScreenConfig } from './modules/sanciones/index.js';
@@ -33,6 +33,7 @@ import { situacionesLegalesScreenConfig } from './modules/situaciones_legales/in
 import { enfermosAccidentesScreenConfig } from './modules/enfermos_accidentes/index.js';
 import { pedidosAdelantosScreenConfig } from './modules/pedidos_adelantos/index.js';
 import { gestionAdelantosScreenConfig } from './modules/gestion_adelantos/index.js';
+import { sugerenciasScreenConfig, mostrarBotonReporte, ocultarBotonReporte } from './modules/sugerencias/index.js';
 import { renderCampanaNotificaciones, fetchNotificacionesPendientes, toggleCampanaDropdown, marcarNotifLeidaYRefrescar } from '@shared/notificaciones.js';
 import './modules/personal_rrhh/index.js';
 
@@ -78,6 +79,7 @@ registerScreens(situacionesLegalesScreenConfig);
 registerScreens(enfermosAccidentesScreenConfig);
 registerScreens(pedidosAdelantosScreenConfig);
 registerScreens(gestionAdelantosScreenConfig);
+registerScreens(sugerenciasScreenConfig);
 
 // ========== REGISTRAR FILTROS DE BÚSQUEDA GLOBAL ==========
 
@@ -130,7 +132,6 @@ async function loadLegacy() {
       monotributos: { title: 'Monotributos', btn: '+ Nuevo monotributista', fn: () => { if (window.abrirModalNuevoMonotributo) window.abrirModalNuevoMonotributo(); }, render: () => { if (window.renderMonotributos) window.renderMonotributos(); } },
       paritarias: { title: 'Paritarias', btn: '', fn: null, render: () => { if (window.renderParitarias) window.renderParitarias(); } },
       liquidaciones: { title: 'Liquidaciones', btn: '', fn: null, render: () => { if (window.renderLiquidaciones) window.renderLiquidaciones(); } },
-      sugerencias: { title: 'Reportes y sugerencias', btn: '+ Nueva sugerencia', fn: () => window.abrirModalSugerencia(), render: () => { if (window.renderSugerencias) window.renderSugerencias(); } },
     });
 
     console.log('Legacy cargado correctamente');
@@ -228,7 +229,13 @@ function detenerPollingCampana() {
 }
 
 registerAuthCallbacks({
-  construirMenu,
+  construirMenu() {
+    construirMenu();
+    // Botón flotante de reportes/sugerencias — visible para cualquier
+    // perfil logueado (incluido Asociado). Antes se inyectaba siempre
+    // visible, incluso antes de loguearse.
+    mostrarBotonReporte();
+  },
   poblarSelects() {
     poblarSelects();
     poblarSelectsAltas();
@@ -255,7 +262,12 @@ registerAuthCallbacks({
   iniciarPolling() {
     // DEVELOPER no tiene pantalla de candidatos — en vez de chequear
     // postulaciones nuevas, chequea sugerencias nuevas como tickets.
-    if (currentUser?.perfil === 'DEVELOPER') iniciarPollingTickets();
+    if (currentUser?.perfil === 'DEVELOPER') {
+      iniciarPollingTickets();
+      // Tiempo real (v041): el ticket aparece al instante por websocket;
+      // el polling de arriba queda como red de seguridad ante cortes.
+      iniciarRealtimeDev();
+    }
     else iniciarPolling();
     iniciarPollingCampana();
   },
@@ -263,6 +275,8 @@ registerAuthCallbacks({
     detenerPolling();
     detenerPollingTickets();
     detenerPollingCampana();
+    detenerRealtimeDev();
+    ocultarBotonReporte();
   },
 });
 

@@ -589,10 +589,14 @@ export function _toCamel(obj) {
   return r;
 }
 
-// Guardar un registro en Supabase (upsert por id_local)
+// Guardar un registro en Supabase (upsert por id_local). Devuelve
+// true/false — la mayoría de los llamadores lo ignoran (fire-and-forget,
+// patrón histórico del proyecto), pero los que necesitan saber si
+// realmente persistió (ej. enviarSugerencia) pueden hacer
+// `if (!(await supaSync(...))) { ... avisar del fallo ... }`.
 export async function supaSync(dbKey, obj) {
   const tabla = _SM[dbKey];
-  if (!tabla || !obj) return;
+  if (!tabla || !obj) return false;
   try {
     const rawId = obj.nro || obj.id || Date.now();
     const idLocal = String(rawId).slice(-9);
@@ -604,15 +608,17 @@ export async function supaSync(dbKey, obj) {
     const { data: existe } = await SUPA.from(tabla).select('id').eq('id_local', idLocal).maybeSingle();
     if (existe) {
       const { error } = await SUPA.from(tabla).update(d).eq('id_local', idLocal);
-      if (error) console.warn('supaSync update error:', tabla, error.message);
-      else console.log('✅ Actualizado en Supabase:', tabla, idLocal);
+      if (error) { console.warn('supaSync update error:', tabla, error.message); return false; }
+      console.log('✅ Actualizado en Supabase:', tabla, idLocal);
     } else {
       const { error } = await SUPA.from(tabla).insert(d);
-      if (error) console.warn('supaSync insert error:', tabla, error.message);
-      else console.log('✅ Guardado en Supabase:', tabla, idLocal);
+      if (error) { console.warn('supaSync insert error:', tabla, error.message); return false; }
+      console.log('✅ Guardado en Supabase:', tabla, idLocal);
     }
+    return true;
   } catch (e) {
     console.warn('supaSync error:', tabla, e.message);
+    return false;
   }
 }
 
