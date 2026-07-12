@@ -168,8 +168,8 @@ export function renderPendientesUniformes() {
 
 export function poblarSelectsUniformesTab() {
   const fS = (id, items) => { const el = $(id); if (el) el.innerHTML = '<option value="">Todos</option>' + items.map(s => `<option>${s}</option>`).join(''); };
-  fS('uni-pend-servicio', DB.servicios || []);
-  fS('uni-hist-servicio', DB.servicios || []);
+  fS('uni-pend-servicio', window.obtenerServiciosActivos ? window.obtenerServiciosActivos() : (DB.servicios || []));
+  fS('uni-hist-servicio', window.obtenerServiciosActivos ? window.obtenerServiciosActivos() : (DB.servicios || []));
   fS('uni-pend-estado', ESTADOS_UNIFORMES);
   fS('uni-hist-estado', ESTADOS_UNIFORMES);
 }

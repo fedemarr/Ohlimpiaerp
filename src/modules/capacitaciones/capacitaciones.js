@@ -168,7 +168,7 @@ export function poblarSelectsCapacitaciones() {
   fS('cap-instructor', DB.instructores);
   fS('cf-cap-inst', DB.instructores);
   fS('cf-cap-metodo', DB.metodosEval);
-  fDL('dl-serv-cap', DB.servicios);
+  fDL('dl-serv-cap', window.obtenerServiciosActivos ? window.obtenerServiciosActivos() : DB.servicios);
   fDL('dl-asoc-cap', (DB.legajos || []).filter(l => l.estado === 'Activo').map(l => `${l.nombre} (N°${l.nro})`));
 }
 

@@ -64,7 +64,7 @@ function barra(label, num, den, chico) {
 export function poblarFiltrosStats() {
   const fS = (id, items) => { const el = $(id); if (!el) return; const ph = el.options[0]?.outerHTML || ''; el.innerHTML = ph + [...new Set(items)].filter(Boolean).map(i => `<option>${i}</option>`).join(''); };
   fS('cf-stats-tipo', DB.tiposCapacitacion);
-  fS('cf-stats-serv', DB.servicios);
+  fS('cf-stats-serv', window.obtenerServiciosActivos ? window.obtenerServiciosActivos() : DB.servicios);
   fS('cf-stats-sup', DB.supervisores);
 }
 

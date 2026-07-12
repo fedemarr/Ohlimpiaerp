@@ -143,7 +143,7 @@ export function seleccionarAsociadoLegal() {
 export function abrirNuevoCasoLegal() {
   ensureModalNuevoCaso();
   $('dl-asoc-leg').innerHTML = (DB.legajos || []).map(l => `<option value="${l.nombre} (N°${l.nro})">`).join('');
-  fillDL('dl-serv-legal', DB.servicios || []);
+  fillDL('dl-serv-legal', window.obtenerServiciosActivos ? window.obtenerServiciosActivos() : (DB.servicios || []));
   $('leg-estado').innerHTML = (DB.estadosLegales || []).filter(e => e !== 'Cerrado').map(e => `<option>${e}</option>`).join('');
   $('leg-asociado').value = '';
   $('leg-info-asociado').innerHTML = '';

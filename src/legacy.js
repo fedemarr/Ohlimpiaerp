@@ -6,6 +6,7 @@ import { DB, PERFILES, MENU, BADGE_MAP, AREAS, LOCALIDADES_BA, currentUser, MODU
 import { $, initials, avatarEl, badge, formatPeriodo, hoyStr, esFeriado, esFinde, getDiasDelMes, calcularDiasEntre, toTitleCase, cleanText, applyTitleCase, validarCampos, fillSelect, fillDL } from '@shared/helpers.js';
 import { toast, abrirModal, cerrarModal, activarOrdenamiento } from '@shared/ui.js';
 import { supaSync, supaDel, supaInit } from '@shared/supabase.js';
+import { crearNotificacion } from '@shared/notificaciones.js';
 
 // ========== ESTADO ==========
 
@@ -33,7 +34,7 @@ export function poblarSelects(){
   fillSelect('c-medio',DB.medios);fillSelect('c-zona',DB.zonas);fillSelect('c-rrhh',nicksRRHH);
   fillDL('dl-loc',DB.localidades);fillDL('dl-loc2',DB.localidades);
   fillSelect('p-supervisor',DB.supervisores,['— Seleccionar —']);fillSelect('p-zona',DB.zonas);fillSelect('p-puesto',DB.categorias);
-  fillDL('dl-serv',DB.servicios);fillDL('dl-serv2',DB.servicios);fillDL('dl-serv3',DB.servicios);
+  fillDL('dl-serv',obtenerServiciosActivos());fillDL('dl-serv2',obtenerServiciosActivos());fillDL('dl-serv3',obtenerServiciosActivos());
   fillSelect('ps-zona',DB.zonas);fillSelect('ps-rrhh',nicksRRHH);
   fillSelect('alta-zona',DB.zonas);fillSelect('alta-funcion',DB.categorias,['— Seleccionar —']);fillSelect('alta-categoria',DB.categorias,['— Seleccionar —']);
   fillDL('dl-sup2',DB.supervisores);fillDL('dl-sup3',DB.supervisores);
@@ -93,7 +94,7 @@ function renderConfiguracion(){
   if (window.renderConfigMotivosReas) window.renderConfigMotivosReas();
   if (window.renderConfigAprobadoresReas) window.renderConfigAprobadoresReas();
   renderConfigLista('movimientos','lista-movimientos');
-  renderConfigVentas();
+  renderConfigComercial();
   if (window.renderPersonalRrhh) window.renderPersonalRrhh();
   cfgTab('personal', document.querySelector('#screen-configuracion .tab-btn'));
 }
@@ -596,7 +597,7 @@ function poblarSelectsCapacitaciones(){
   fS('cap-tipo',DB.tiposCapacitacion);fS('cf-cap-tipo',DB.tiposCapacitacion);fS('cf-cap-tipo2',DB.tiposCapacitacion);
   fS('cap-instructor',DB.instructores);fS('cf-cap-inst',DB.instructores);fS('cf-cap-metodo',DB.metodosEval);
   const fDL=(id,items)=>{const el=$(id);if(el)el.innerHTML=items.map(i=>`<option value="${i}">`).join('');};
-  fDL('dl-serv-cap',DB.servicios);
+  fDL('dl-serv-cap',obtenerServiciosActivos());
 }
 
 function buscarAsocCapacitacion(){
@@ -804,7 +805,7 @@ function poblarSelectsVacaciones(){
   const fDL=(id,items)=>{const el=$(id);if(el)el.innerHTML=items.map(i=>`<option value="${i}">`).join('');};
   fDL('dl-asoc-va2',DB.legajos.map(l=>`${l.nombre} (N°${l.nro})`));
   fDL('dl-asoc-vo2',DB.legajos.map(l=>`${l.nombre} (N°${l.nro})`));
-  fDL('dl-serv-vo',DB.servicios);
+  fDL('dl-serv-vo',obtenerServiciosActivos());
 }
 
 function buscarAsocVac(prefix){
@@ -1202,20 +1203,69 @@ function poblarSelectsMateriales(){
 // ========== MÓDULO REASIGNACIONES ==========
 // Migrado a src/modules/reasignaciones/ (2026-06-30)
 
-// ========== MÓDULO VENTAS ==========
+// ========== MÓDULO COMERCIAL — Clientes y Objetivos/Servicios v1.1 ==========
+// (v039, Etapas 1-3 del delta) — nombres reales de los Gerentes del handoff
+// Comercial -> Operaciones (mismo patrón que MOCK_GERENTE_RRHH en
+// descansos/permisos.js, acá ya no son placeholder: el propio documento de
+// diseño los da).
+const GERENTE_COMERCIAL = 'Jorgelina Bianchi';
+const GERENTE_OPERACIONES = 'Ricardo Elicabe';
+const GERENTE_RRHH_COMERCIAL = 'Gabriela Lucero'; // ídem descansos/permisos.js
+function esGerenteOperaciones(){ return currentUser?.nombre===GERENTE_OPERACIONES || currentUser?.perfil==='Administrador total'; }
+function esGerenteComercial(){ return currentUser?.nombre===GERENTE_COMERCIAL || currentUser?.perfil==='Administrador total'; }
+function idLocalTrunc(id){ return String(id).slice(-9); }
+function getClienteByIdLocal(idLocal){ return DB.clientes.find(c=>idLocalTrunc(c.id)===String(idLocal)); }
+function getObjetivoByIdLocal(idLocal){ return DB.objetivos.find(o=>idLocalTrunc(o.id)===String(idLocal)); }
+
+// Auditoría de transiciones de estado del objetivo (objetivo_eventos, v039).
+function registrarEventoObjetivo(o,estadoDesde,estadoHasta,observaciones){
+  if(!DB.objetivoEventos) DB.objetivoEventos=[];
+  const ev={id:Date.now()+Math.floor(Math.random()*1000),objetivoIdLocal:idLocalTrunc(o.id),estadoDesde,estadoHasta,ejecutadoPor:currentUser?.nombre||'',ejecutadoRol:currentUser?.perfil||'',ejecutadoEn:new Date().toISOString(),observaciones:observaciones||''};
+  DB.objetivoEventos.push(ev);
+  supaSync('objetivoEventos', ev);
+}
+
+// Persistencia relacional de responsables/adjuntos (objetivo_responsables,
+// objetivo_adjuntos v039) — desagrupados de los arrays embebidos del
+// objetivo, que ya no viajan como columnas de la tabla objetivos.
+function persistirRelacionadosObjetivo(o){
+  const oidl=idLocalTrunc(o.id);
+  (o.responsables||[]).forEach(r=>{
+    if(!r.id) r.id=Date.now()+Math.floor(Math.random()*10000);
+    supaSync('objetivoResponsables', {...r, objetivoIdLocal:oidl});
+  });
+  (o.adjuntos||[]).forEach(a=>{
+    if(!a.id) a.id=Date.now()+Math.floor(Math.random()*10000);
+    supaSync('objetivoAdjuntos', {...a, objetivoIdLocal:oidl});
+  });
+}
+
+// Fuente + fallback de códigos de servicio (Cambio 4). Reemplaza DB.servicios
+// (deprecado, ver state.js) como fuente de datalists en los 9 módulos que lo
+// consumían — la unión evita que legajos/datalists existentes queden
+// huérfanos mientras Comercial carga objetivos reales.
+function obtenerServiciosActivos(){
+  const deObjetivos=DB.objetivos.filter(o=>o.estado==='Operativo'&&!o.anulado).map(o=>o.codigo);
+  const legacySinObjetivo=(DB.servicios||[]).filter(s=>!DB.objetivos.some(o=>o.codigo===s&&!o.anulado));
+  return [...new Set([...deObjetivos,...legacySinObjetivo])];
+}
+window.obtenerServiciosActivos=obtenerServiciosActivos;
 
 DB.clientes = [
-  {id:1,razon:'Walmart Argentina S.A.',nombre:'Chango Mas',tipo:'Cadena supermercados',cuit:'30-71546571-4',iva:'Responsable inscripto',arca:'Gran contribuyente',condPago:'30 días',formaPago:'Transferencia',codigoTango:'CLI-0001',estado:'Activo',ciudad:'CABA',direccion:'Maipú 255, CABA',logo:'',docReq:{seguros:true,monotributo:true,antecedentes:true,ddjjIva:false,pagoIva:false,remitoServicio:true,planillaHoras:true,oc:true},factPor:'Objetivo individual',periodoFact:'Del 1 al último del mes',productosEnFactura:'Factura separada',reqOC:'Sí — siempre',notasFact:'Indicar N° de OC en la factura.',contactos:[{nombre:'Héctor González',rol:'Gerente General de Operaciones',tel:'11-4567-8901',mail:'hgonzalez@walmart.com',aSatisfacer:true},{nombre:'Laura Pérez',rol:'Contacto de cobros',tel:'11-4567-8902',mail:'lperez@walmart.com',aSatisfacer:false}],obs:''},
-  {id:2,razon:'Hospital Alemán',nombre:'Hospital Alemán',tipo:'Hospital',cuit:'30-64530892-1',iva:'Exento',arca:'Gran contribuyente',condPago:'60 días',formaPago:'Transferencia',codigoTango:'CLI-0002',estado:'Activo',ciudad:'CABA',direccion:'Av. Pueyrredón 1640, CABA',logo:'',docReq:{seguros:true,monotributo:true,antecedentes:true,ddjjIva:false,pagoIva:false,remitoServicio:false,planillaHoras:false,oc:false},factPor:'Objetivo individual',periodoFact:'Del 1 al último del mes',productosEnFactura:'Incluidos en el servicio',reqOC:'No',notasFact:'',contactos:[{nombre:'Carlos Rodríguez',rol:'Jefe de Servicios Generales',tel:'11-5678-9012',mail:'carlos.rodriguez@hospitalaleman.com',aSatisfacer:true}],obs:''},
+  {id:1,razon:'Walmart Argentina S.A.',nombre:'Chango Mas',tipo:'Cadena supermercados',cuit:'30-71546571-4',iva:'Responsable inscripto',arca:'Gran contribuyente',condPago:'30 días',formaPago:'Transferencia',codigoTango:'CLI-0001',estado:'Activo',ciudad:'CABA',direccion:'Maipú 255, CABA',logo:'',ingresosBrutos:'',jurisdiccionIibb:'',docReq:{seguros:true,monotributo:true,antecedentes:true,ddjjIva:false,pagoIva:false,remitoServicio:true,planillaHoras:true,oc:true},factPor:'Objetivo individual',periodoFact:'Del 1 al último del mes',productosEnFactura:'Factura separada',reqOC:'Sí — siempre',notasFact:'Indicar N° de OC en la factura.',contactos:[{nombre:'Héctor González',rol:'Gerente General de Operaciones',tel:'11-4567-8901',mail:'hgonzalez@walmart.com',aSatisfacer:true},{nombre:'Laura Pérez',rol:'Contacto de cobros',tel:'11-4567-8902',mail:'lperez@walmart.com',aSatisfacer:false}],obs:''},
+  {id:2,razon:'Hospital Alemán',nombre:'Hospital Alemán',tipo:'Hospital',cuit:'30-64530892-1',iva:'Exento',arca:'Gran contribuyente',condPago:'60 días',formaPago:'Transferencia',codigoTango:'CLI-0002',estado:'Activo',ciudad:'CABA',direccion:'Av. Pueyrredón 1640, CABA',logo:'',ingresosBrutos:'',jurisdiccionIibb:'',docReq:{seguros:true,monotributo:true,antecedentes:true,ddjjIva:false,pagoIva:false,remitoServicio:false,planillaHoras:false,oc:false},factPor:'Objetivo individual',periodoFact:'Del 1 al último del mes',productosEnFactura:'Incluidos en el servicio',reqOC:'No',notasFact:'',contactos:[{nombre:'Carlos Rodríguez',rol:'Jefe de Servicios Generales',tel:'11-5678-9012',mail:'carlos.rodriguez@hospitalaleman.com',aSatisfacer:true}],obs:''},
 ];
 DB.tiposServicio = ['Limpieza','Mantenimiento','Final de obra','Evento','Obra','Otro'];
 DB.objetivos = [
-  {id:1,clienteId:1,codigo:'CHANGO.BROWN',nombre:'Chango Mas Brown',tipo:'Limpieza',dir:'Av. Brown 4563, Lanús',ciudad:'Lanús',supervisor:'Matias Maidana',modeloPrecio:'Por EFTs (FT = 200hs/mes)',valor:850000,valorHora:7083,efts:3,valorEft:283333,fechaInicio:'01/03/2023',fechaFin:'',contrato:'Contrato firmado',productos:'Factura separada',periodoFact:'Del 1 al último del mes',reqOC:'Sí — siempre',textoFactura:'Servicio de limpieza — Chango Mas Brown',estado:'Activo',clausulaActualizacion:'Paritarias',responsables:[{nombre:'Roberto Silva',rol:'Encargado de seguridad',tel:'11-3456-7890',aSatisfacer:true}],historialPrecios:[{fecha:'01/03/2023',valor:600000,valorHora:5000,motivo:'Precio inicial',aprobadoPor:'Gerente de Ventas',estado:'Vigente'},{fecha:'01/09/2023',valor:720000,valorHora:6000,motivo:'Ajuste paritarias 20%',aprobadoPor:'Gerente de Ventas',estado:'Histórico'},{fecha:'01/03/2024',valor:850000,valorHora:7083,motivo:'Ajuste paritarias 18%',aprobadoPor:'Gerente de Ventas',estado:'Vigente'}],adjuntos:[],notas:''},
-  {id:2,clienteId:1,codigo:'CHANGO.CASEROS',nombre:'Chango Mas Caseros',tipo:'Limpieza',dir:'Av. San Martín 2341, Caseros',ciudad:'Caseros',supervisor:'Lorena Unzain',modeloPrecio:'Por EFTs (FT = 200hs/mes)',valor:620000,valorHora:5167,efts:2,valorEft:310000,fechaInicio:'15/06/2023',fechaFin:'',contrato:'Contrato firmado',productos:'Factura separada',periodoFact:'Del 1 al último del mes',reqOC:'Sí — siempre',textoFactura:'Servicio de limpieza — Chango Mas Caseros',estado:'Activo',clausulaActualizacion:'Inflación mensual',responsables:[{nombre:'Ana Torres',rol:'Encargado de seguridad',tel:'11-2345-6789',aSatisfacer:true}],historialPrecios:[{fecha:'15/06/2023',valor:620000,valorHora:5167,motivo:'Precio inicial',aprobadoPor:'Gerente de Ventas',estado:'Vigente'}],adjuntos:[],notas:''},
-  {id:3,clienteId:2,codigo:'HTAL.ALEMAN.LIMP',nombre:'Hospital Alemán — Limpieza general',tipo:'Limpieza',dir:'Av. Pueyrredón 1640, CABA',ciudad:'CABA',supervisor:'Claudia Cazenave',modeloPrecio:'Abono mensual fijo',valor:1200000,valorHora:0,efts:0,valorEft:0,fechaInicio:'01/01/2024',fechaFin:'',contrato:'Contrato firmado',productos:'Incluidos en el servicio',periodoFact:'Del 1 al último del mes',reqOC:'No',textoFactura:'Servicio de limpieza y mantenimiento — Hospital Alemán',estado:'Activo',clausulaActualizacion:'Índice trimestral',responsables:[{nombre:'Dr. Carlos Rodríguez',rol:'Jefe de Servicios Generales',tel:'11-5678-9012',aSatisfacer:true}],historialPrecios:[{fecha:'01/01/2024',valor:1200000,valorHora:0,motivo:'Precio inicial',aprobadoPor:'Gerente de Ventas',estado:'Vigente'}],adjuntos:[],notas:''},
+  {id:1,clienteId:1,clienteIdLocal:idLocalTrunc(1),codigo:'CHANGO.BROWN',nombre:'Chango Mas Brown',tipo:'Limpieza',dir:'Av. Brown 4563, Lanús',ciudad:'Lanús',supervisorAsignado:'Matias Maidana',supervisor:'Matias Maidana',supervisorAsignadoPor:GERENTE_OPERACIONES,fechaAsignacionSupervisor:'01/03/2023',modeloPrecio:'Por EFTs (FT = 200hs/mes)',valor:850000,valorHora:7083,efts:3,valorEft:283333,fechaInicio:'01/03/2023',fechaFin:'',contrato:'Contrato firmado',productos:'Factura separada',periodoFact:'Del 1 al último del mes',reqOC:'Sí — siempre',textoFactura:'Servicio de limpieza — Chango Mas Brown',estado:'Operativo',clausulaActualizacion:'Paritarias',responsables:[{nombre:'Roberto Silva',rol:'Encargado de seguridad',tel:'11-3456-7890',aSatisfacer:true}],historialPrecios:[{fecha:'01/03/2023',valor:600000,valorHora:5000,motivo:'Precio inicial',aprobadoPor:'Gerente Comercial',estado:'Vigente'},{fecha:'01/09/2023',valor:720000,valorHora:6000,motivo:'Ajuste paritarias 20%',aprobadoPor:'Gerente Comercial',estado:'Histórico'},{fecha:'01/03/2024',valor:850000,valorHora:7083,motivo:'Ajuste paritarias 18%',aprobadoPor:'Gerente Comercial',estado:'Vigente'}],adjuntos:[],notas:'',cargadoPor:'Jorgelina Bianchi',fechaCarga:'01/03/2023'},
+  {id:2,clienteId:1,clienteIdLocal:idLocalTrunc(1),codigo:'CHANGO.CASEROS',nombre:'Chango Mas Caseros',tipo:'Limpieza',dir:'Av. San Martín 2341, Caseros',ciudad:'Caseros',supervisorAsignado:'Lorena Unzain',supervisor:'Lorena Unzain',supervisorAsignadoPor:GERENTE_OPERACIONES,fechaAsignacionSupervisor:'15/06/2023',modeloPrecio:'Por EFTs (FT = 200hs/mes)',valor:620000,valorHora:5167,efts:2,valorEft:310000,fechaInicio:'15/06/2023',fechaFin:'',contrato:'Contrato firmado',productos:'Factura separada',periodoFact:'Del 1 al último del mes',reqOC:'Sí — siempre',textoFactura:'Servicio de limpieza — Chango Mas Caseros',estado:'Operativo',clausulaActualizacion:'Inflación mensual',responsables:[{nombre:'Ana Torres',rol:'Encargado de seguridad',tel:'11-2345-6789',aSatisfacer:true}],historialPrecios:[{fecha:'15/06/2023',valor:620000,valorHora:5167,motivo:'Precio inicial',aprobadoPor:'Gerente Comercial',estado:'Vigente'}],adjuntos:[],notas:'',cargadoPor:'Jorgelina Bianchi',fechaCarga:'15/06/2023'},
+  {id:3,clienteId:2,clienteIdLocal:idLocalTrunc(2),codigo:'HTAL.ALEMAN.LIMP',nombre:'Hospital Alemán — Limpieza general',tipo:'Limpieza',dir:'Av. Pueyrredón 1640, CABA',ciudad:'CABA',supervisorAsignado:'Claudia Cazenave',supervisor:'Claudia Cazenave',supervisorAsignadoPor:GERENTE_OPERACIONES,fechaAsignacionSupervisor:'01/01/2024',modeloPrecio:'Abono mensual fijo',valor:1200000,valorHora:0,efts:0,valorEft:0,fechaInicio:'01/01/2024',fechaFin:'',contrato:'Contrato firmado',productos:'Incluidos en el servicio',periodoFact:'Del 1 al último del mes',reqOC:'No',textoFactura:'Servicio de limpieza y mantenimiento — Hospital Alemán',estado:'Operativo',clausulaActualizacion:'Índice trimestral',responsables:[{nombre:'Dr. Carlos Rodríguez',rol:'Jefe de Servicios Generales',tel:'11-5678-9012',aSatisfacer:true}],historialPrecios:[{fecha:'01/01/2024',valor:1200000,valorHora:0,motivo:'Precio inicial',aprobadoPor:'Gerente Comercial',estado:'Vigente'}],adjuntos:[],notas:'',cargadoPor:'Jorgelina Bianchi',fechaCarga:'01/01/2024'},
 ];
+if(!DB.objetivoSupervisoresHistorial) DB.objetivoSupervisoresHistorial=[];
+if(!DB.objetivoEventos) DB.objetivoEventos=[];
 
 // Propuestas de modificación de precio — pendientes de aprobación del Gerente
+// (módulo Precios, fuera de alcance de esta migración — se deja intacto)
 DB.propuestasPrecios = [
   {id:1,objetivoCod:'CHANGO.BROWN',clienteNombre:'Chango Mas',objetivoNombre:'Chango Mas Brown',valorActual:850000,valorHoraActual:7083,valorPropuesto:1003000,valorHoraPropuesto:8358,pctAumento:18,clausula:'Paritarias',motivoCliente:'Aumento de paritarias UTEDYC Mar 2026',fechaPropuesta:'01/04/2026',fechaVigencia:'01/05/2026',aprobadoCliente:true,fechaAprobCliente:'28/03/2026',estado:'Pendiente aprobación gerente',aprobadoPor:'',proyeccionMeses:3},
   {id:2,objetivoCod:'HTAL.ALEMAN.LIMP',clienteNombre:'Hospital Alemán',objetivoNombre:'Hospital Alemán — Limpieza',valorActual:1200000,valorHoraActual:0,valorPropuesto:1380000,valorHoraPropuesto:0,pctAumento:15,clausula:'Índice trimestral',motivoCliente:'Ajuste IPC Q1 2026',fechaPropuesta:'02/04/2026',fechaVigencia:'01/05/2026',aprobadoCliente:true,fechaAprobCliente:'01/04/2026',estado:'Pendiente aprobación gerente',aprobadoPor:'',proyeccionMeses:3},
@@ -1260,15 +1310,17 @@ DB.historialImportaciones = [];
 
 // ========== RENDER CLIENTES ==========
 function renderClientes(lista){
-  const rows=lista||DB.clientes;
-  const activos=DB.clientes.filter(c=>c.estado==='Activo').length;
-  const objActivos=DB.objetivos.filter(o=>o.estado==='Activo').length;
+  reconciliarClienteIdObjetivos();
+  const base=(lista||DB.clientes).filter(c=>!c.anulado);
+  const activos=DB.clientes.filter(c=>c.estado==='Activo'&&!c.anulado).length;
+  const objActivos=DB.objetivos.filter(o=>o.estado==='Operativo'&&!o.anulado).length;
   $('st-cli-activos').textContent=activos;
   $('st-cli-obj').textContent=objActivos;
-  $('st-cli-contratos').textContent=DB.objetivos.filter(o=>o.contrato==='Contrato firmado'&&o.estado==='Activo').length;
+  $('st-cli-contratos').textContent=DB.objetivos.filter(o=>o.contrato==='Contrato firmado'&&o.estado==='Operativo'&&!o.anulado).length;
   $('st-cli-reclamos').textContent=DB.reclamos.filter(r=>r.estado==='Abierto'||r.estado==='En tratamiento').length;
-  $('tbody-clientes').innerHTML=rows.map((c,i)=>{
-    const objCount=DB.objetivos.filter(o=>o.clienteId===c.id).length;
+  $('tbody-clientes').innerHTML=base.map((c)=>{
+    const objCount=DB.objetivos.filter(o=>o.clienteId===c.id&&!o.anulado).length;
+    const idl=idLocalTrunc(c.id);
     return `<tr>
       <td>
         <div style="display:flex;align-items:center;gap:10px;">
@@ -1285,9 +1337,11 @@ function renderClientes(lista){
       <td style="font-family:'DM Mono',monospace;font-size:11px;color:var(--texto-suave);">${c.codigoTango}</td>
       <td>${badge(c.estado==='Activo'?'Activo':c.estado==='Inactivo'?'Baja':'Pendiente')}</td>
       <td>
-        <div style="display:flex;gap:4px;">
-          <button class="btn btn-secondary btn-xs" onclick="verCliente(${i})">Ver</button>
+        <div style="display:flex;gap:4px;flex-wrap:wrap;">
+          <button class="btn btn-secondary btn-xs" onclick="verCliente('${idl}')">Ver</button>
+          <button class="btn btn-secondary btn-xs" onclick="abrirModalCliente('${idl}')">✏️</button>
           <button class="btn btn-primary btn-xs" onclick="nuevoObjetivoDesde(${c.id})">+ Objetivo</button>
+          ${c.estado!=='Inactivo'?`<button class="btn btn-danger btn-xs" onclick="abrirBajaCliente('${idl}')">🚫</button>`:''}
         </div>
       </td>
     </tr>`;
@@ -1305,9 +1359,10 @@ function filtrarClientes(){
     (!bg||c.nombre.toLowerCase().includes(bg)||c.razon.toLowerCase().includes(bg))
   ));
 }
-function verCliente(idx){
-  const c=DB.clientes[idx];
-  const objDelCliente=DB.objetivos.filter(o=>o.clienteId===c.id);
+function verCliente(idLocal){
+  const c=getClienteByIdLocal(idLocal);
+  if(!c) return;
+  const objDelCliente=DB.objetivos.filter(o=>o.clienteId===c.id&&!o.anulado);
   const recDelCliente=DB.reclamos.filter(r=>r.clienteId===c.id);
   let html=`<div style="display:flex;gap:14px;align-items:flex-start;margin-bottom:18px;">
     <div style="width:48px;height:48px;border-radius:10px;background:var(--azul-claro);display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:700;color:var(--azul);">${c.nombre[0]}</div>
@@ -1321,16 +1376,26 @@ function verCliente(idx){
       <div class="info-item"><div class="key">Forma de pago</div><div class="val">${c.formaPago}</div></div>
       <div class="info-item"><div class="key">Código Tango</div><div class="val" style="font-family:'DM Mono',monospace;">${c.codigoTango}</div></div>
       <div class="info-item"><div class="key">Período facturación</div><div class="val">${c.periodoFact}</div></div>
+      <div class="info-item"><div class="key">Ingresos brutos</div><div class="val">${c.ingresosBrutos||'—'}</div></div>
+      <div class="info-item"><div class="key">Jurisdicción IIBB</div><div class="val">${c.jurisdiccionIibb||'—'}</div></div>
     </div>
     <div>
       <div style="font-size:11px;font-weight:700;text-transform:uppercase;color:var(--texto-suave);margin-bottom:8px;">Contactos clave</div>
       ${(c.contactos||[]).map(ct=>`<div style="padding:8px;background:var(--fondo);border-radius:var(--radio);margin-bottom:5px;border:1px solid var(--borde);">
-      </div>`).join('')}
+        <div style="display:flex;justify-content:space-between;align-items:center;">
+          <div><div style="font-weight:600;font-size:12px;">${ct.nombre}</div><div style="font-size:11px;color:var(--texto-suave);">${ct.rol||'—'}</div></div>
+          ${ct.aSatisfacer?'<span class="badge badge-acento" style="font-size:10px;">⭐ A satisfacer</span>':''}
+        </div>
+        <div style="font-size:11px;margin-top:4px;display:flex;gap:10px;">
+          ${ct.tel?`<a href="tel:${ct.tel}" style="color:var(--azul);">📞 ${ct.tel}</a>`:''}
+          ${ct.mail?`<a href="mailto:${ct.mail}" style="color:var(--azul);">✉️ ${ct.mail}</a>`:''}
+        </div>
+      </div>`).join('')||'<p class="text-muted" style="font-size:12px;">Sin contactos cargados</p>'}
     </div>
   </div>
-  <div style="font-size:11px;font-weight:700;text-transform:uppercase;color:var(--texto-suave);margin-bottom:8px;">Objetivos activos (${objDelCliente.length})</div>
+  <div style="font-size:11px;font-weight:700;text-transform:uppercase;color:var(--texto-suave);margin-bottom:8px;">Objetivos (${objDelCliente.length})</div>
   <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px;">
-    ${objDelCliente.map(o=>`<span class="chip" style="font-size:11px;">📍 ${o.nombre} — $${o.valor.toLocaleString('es-AR')}</span>`).join('')||'<span class="text-muted">Sin objetivos</span>'}
+    ${objDelCliente.map(o=>`<span class="chip" style="font-size:11px;">📍 ${o.nombre} — $${(o.valor||0).toLocaleString('es-AR')} — ${o.estado}</span>`).join('')||'<span class="text-muted">Sin objetivos</span>'}
   </div>
   ${recDelCliente.length?`<div class="alerta alerta-danger" style="font-size:12px;"><strong>⚠️ ${recDelCliente.filter(r=>r.estado!=='Cerrado').length} reclamo(s) abierto(s)</strong></div>`:''}`;
   $('pedido-title').textContent=`🏢 ${c.nombre}`;
@@ -1338,18 +1403,56 @@ function verCliente(idx){
   abrirModal('modal-ver-pedido');
 }
 function nuevoObjetivoDesde(clienteId){
-  poblarSelectsVentas();
+  abrirModalObjetivo();
   const sel=$('obj-cliente');
   if(sel){for(let i=0;i<sel.options.length;i++){if(sel.options[i].value==clienteId){sel.selectedIndex=i;break;}}}
-  cerrarModal('modal-ver-pedido');
-  abrirModal('modal-objetivo');
 }
 
 let contactosClienteTemp=[];
-function abrirModalCliente(){
-  contactosClienteTemp=[];
+let clienteEditIdLocal=null;
+const CLI_CAMPOS_TEXTO=['cli-razon','cli-nombre','cli-tipo','cli-cuit','cli-iva','cli-arca','cli-cond-pago','cli-forma-pago','cli-codigo-tango','cli-ciudad','cli-direccion','cli-logo','cli-obs','cli-fact-por','cli-periodo-fact','cli-productos-fact','cli-req-oc','cli-notas-fact','cli-ib','cli-jur'];
+const CLI_CAMPOS_DOC=['doc-seguros','doc-monotributo','doc-antecedentes','doc-ddjj-iva','doc-pago-iva','doc-remito-servicio','doc-planilla-horas','doc-oc'];
+function abrirModalCliente(idLocal){
+  poblarSelectsComercial();
+  clienteEditIdLocal=idLocal||null;
+  const c=idLocal?getClienteByIdLocal(idLocal):null;
+  if($('cli-modal-title')) $('cli-modal-title').textContent=c?'🏢 Editar cliente':'🏢 Nuevo cliente';
+  if(c){
+    contactosClienteTemp=(c.contactos||[]).map(ct=>({...ct}));
+    $('cli-razon').value=c.razon||'';$('cli-nombre').value=c.nombre||'';
+    if($('cli-tipo')) $('cli-tipo').value=c.tipo||'';
+    $('cli-cuit').value=c.cuit||'';
+    if($('cli-iva')) $('cli-iva').value=c.iva||'';
+    if($('cli-arca')) $('cli-arca').value=c.arca||'';
+    if($('cli-cond-pago')) $('cli-cond-pago').value=c.condPago||'';
+    if($('cli-forma-pago')) $('cli-forma-pago').value=c.formaPago||'';
+    $('cli-codigo-tango').value=c.codigoTango||'';
+    if($('cli-estado')) $('cli-estado').value=c.estado||'Activo';
+    $('cli-ciudad').value=c.ciudad||'';$('cli-direccion').value=c.direccion||'';
+    $('cli-logo').value=c.logo||'';$('cli-obs').value=c.obs||'';
+    if($('cli-fact-por')) $('cli-fact-por').value=c.factPor||'';
+    if($('cli-periodo-fact')) $('cli-periodo-fact').value=c.periodoFact||'';
+    if($('cli-productos-fact')) $('cli-productos-fact').value=c.productosEnFactura||'';
+    if($('cli-req-oc')) $('cli-req-oc').value=c.reqOC||'';
+    $('cli-notas-fact').value=c.notasFact||'';
+    if($('cli-ib')) $('cli-ib').value=c.ingresosBrutos||'';
+    if($('cli-jur')) $('cli-jur').value=c.jurisdiccionIibb||'';
+    const dr=c.docReq||{};
+    if($('doc-seguros')) $('doc-seguros').checked=!!dr.seguros;
+    if($('doc-monotributo')) $('doc-monotributo').checked=!!dr.monotributo;
+    if($('doc-antecedentes')) $('doc-antecedentes').checked=!!dr.antecedentes;
+    if($('doc-ddjj-iva')) $('doc-ddjj-iva').checked=!!dr.ddjjIva;
+    if($('doc-pago-iva')) $('doc-pago-iva').checked=!!dr.pagoIva;
+    if($('doc-remito-servicio')) $('doc-remito-servicio').checked=!!dr.remitoServicio;
+    if($('doc-planilla-horas')) $('doc-planilla-horas').checked=!!dr.planillaHoras;
+    if($('doc-oc')) $('doc-oc').checked=!!dr.oc;
+  } else {
+    contactosClienteTemp=[];
+    CLI_CAMPOS_TEXTO.forEach(id=>{const el=$(id);if(el)el.value='';});
+    CLI_CAMPOS_DOC.forEach(id=>{const el=$(id);if(el)el.checked=false;});
+    if($('cli-estado')) $('cli-estado').value='Activo';
+  }
   renderContactosClienteTemp();
-  poblarSelectsVentas();
   abrirModal('modal-cliente');
 }
 function agregarContactoCliente(){
@@ -1378,8 +1481,8 @@ const inputStyle='padding:6px 10px;border:1px solid var(--borde-fuerte);border-r
 function guardarCliente(){
   const razon=$('cli-razon')?.value.trim();
   if(!razon){toast('Ingresá la razón social');return;}
-  const nuevo={
-    id:Date.now(),
+  const existente=clienteEditIdLocal?getClienteByIdLocal(clienteEditIdLocal):null;
+  const datos={
     razon,nombre:$('cli-nombre')?.value||razon,
     tipo:$('cli-tipo')?.value,cuit:$('cli-cuit')?.value,
     iva:$('cli-iva')?.value,arca:$('cli-arca')?.value,
@@ -1387,96 +1490,160 @@ function guardarCliente(){
     codigoTango:$('cli-codigo-tango')?.value,estado:$('cli-estado')?.value,
     ciudad:$('cli-ciudad')?.value,direccion:$('cli-direccion')?.value,
     logo:$('cli-logo')?.value,obs:$('cli-obs')?.value,
+    ingresosBrutos:$('cli-ib')?.value||'',jurisdiccionIibb:$('cli-jur')?.value||'',
     docReq:{seguros:$('doc-seguros')?.checked,monotributo:$('doc-monotributo')?.checked,antecedentes:$('doc-antecedentes')?.checked,ddjjIva:$('doc-ddjj-iva')?.checked,pagoIva:$('doc-pago-iva')?.checked,remitoServicio:$('doc-remito-servicio')?.checked,planillaHoras:$('doc-planilla-horas')?.checked,oc:$('doc-oc')?.checked},
     factPor:$('cli-fact-por')?.value,periodoFact:$('cli-periodo-fact')?.value,
     productosEnFactura:$('cli-productos-fact')?.value,reqOC:$('cli-req-oc')?.value,
     notasFact:$('cli-notas-fact')?.value,
     contactos:[...contactosClienteTemp],
   };
-  DB.clientes.push(nuevo);
-  cerrarModal('modal-cliente');renderClientes();poblarSelectsVentas();
-  supaSync('clientes', DB.clientes[DB.clientes.length-1]); toast('✓ Cliente guardado');
+  let cliente;
+  if(existente){
+    Object.assign(existente,datos);
+    cliente=existente;
+  } else {
+    cliente={id:Date.now(),...datos};
+    DB.clientes.push(cliente);
+  }
+  cerrarModal('modal-cliente');renderClientes();poblarSelectsComercial();
+  supaSync('clientes', cliente); toast(existente?'✓ Cliente actualizado':'✓ Cliente guardado');
 }
 function tabCliModal(idx,btn){
   document.querySelectorAll('#modal-cliente .tab-btn').forEach(b=>b.classList.remove('active'));
   document.querySelectorAll('#modal-cliente .tab-content').forEach(t=>t.classList.remove('active'));
   btn.classList.add('active');$('cli-tab-'+idx).classList.add('active');
 }
+function abrirBajaCliente(idLocal){
+  const c=getClienteByIdLocal(idLocal);if(!c)return;
+  const objActivos=DB.objetivos.filter(o=>o.clienteId===c.id&&!o.anulado&&o.estado!=='Baja');
+  const aviso=objActivos.length?`Este cliente tiene ${objActivos.length} objetivo(s) activo(s). Dar de baja también dará de baja los objetivos. `:'';
+  const motivo=prompt(aviso+'Motivo de la baja del cliente:');
+  if(motivo===null) return;
+  if(!motivo.trim()){toast('La baja requiere un motivo');return;}
+  c.estado='Inactivo';
+  supaSync('clientes', c);
+  objActivos.forEach(o=>{
+    const desde=o.estado;
+    o.estado='Baja';o.fechaBaja=hoyStr();o.dadoDeBajaPor=currentUser?.nombre||'';o.motivoBaja='Baja de cliente: '+motivo.trim();
+    supaSync('objetivos', objetivoParaGuardar(o));
+    registrarEventoObjetivo(o,desde,'Baja','Baja de cliente: '+motivo.trim());
+  });
+  renderClientes();if(document.getElementById('screen-objetivos')?.classList.contains('active')) filtrarObjetivos();
+  toast('✓ Cliente dado de baja');
+}
 
 // ========== RENDER OBJETIVOS ==========
+let objTabActual='operativos';
+const OBJ_TABS={presupuestados:'Presupuestado',pendientes:'Pendiente asignación operativa',operativos:'Operativo',baja:'Baja'};
+function tabObjetivos(tab,btn){
+  objTabActual=tab;
+  document.querySelectorAll('#screen-objetivos .tab-btn[data-obj-tab]').forEach(b=>b.classList.remove('active'));
+  if(btn) btn.classList.add('active');
+  filtrarObjetivos();
+}
+function badgeEstadoObjetivo(estado){
+  const map={'Presupuestado':'badge-gris','Pendiente asignación operativa':'badge-naranja','Operativo':'badge-verde','Baja':'badge-rojo'};
+  return `<span class="badge ${map[estado]||'badge-gris'}" style="font-size:10px;">${estado}</span>`;
+}
+function diasDesde(fechaISOoDDMMYYYY){
+  if(!fechaISOoDDMMYYYY) return 0;
+  let f;
+  if(fechaISOoDDMMYYYY.includes('/')){const[dd,mm,yy]=fechaISOoDDMMYYYY.split('/');f=new Date(`${yy}-${mm}-${dd}`);}
+  else f=new Date(fechaISOoDDMMYYYY);
+  return Math.floor((Date.now()-f.getTime())/86400000);
+}
 function renderObjetivos(lista){
-  const rows=lista||DB.objetivos;
-  const activos=rows.filter(o=>o.estado==='Activo');
-  const eftsTotal=activos.reduce((s,o)=>s+(o.efts||0),0);
-  const factTotal=activos.reduce((s,o)=>s+(o.valor||0),0);
+  reconciliarClienteIdObjetivos();
+  const estadoTab=OBJ_TABS[objTabActual];
+  const rows=(lista||DB.objetivos).filter(o=>!o.anulado&&(!estadoTab||o.estado===estadoTab));
+  const todosActivos=DB.objetivos.filter(o=>o.estado==='Operativo'&&!o.anulado);
+  const eftsTotal=todosActivos.reduce((s,o)=>s+(o.efts||0),0);
+  const factTotal=todosActivos.reduce((s,o)=>s+(o.valor||0),0);
   const hoy=new Date();
-  const vencen=activos.filter(o=>{
+  const vencen=todosActivos.filter(o=>{
     if(!o.fechaFin) return false;
     const[dd,mm,yy]=o.fechaFin.split('/');
     const f=new Date(`${yy}-${mm}-${dd}`);
     return f.getFullYear()===hoy.getFullYear()&&f.getMonth()===hoy.getMonth();
   }).length;
-  $('st-obj-activos').textContent=activos.length;
-  $('st-obj-efts').textContent=eftsTotal.toFixed(1);
-  $('st-obj-fact').textContent='$'+Math.round(factTotal/1000)+'k';
-  $('st-obj-vencen').textContent=vencen;
+  if($('st-obj-activos')) $('st-obj-activos').textContent=todosActivos.length;
+  if($('st-obj-efts')) $('st-obj-efts').textContent=eftsTotal.toFixed(1);
+  if($('st-obj-fact')) $('st-obj-fact').textContent='$'+Math.round(factTotal/1000)+'k';
+  if($('st-obj-vencen')) $('st-obj-vencen').textContent=vencen;
   const getCliente=id=>DB.clientes.find(c=>c.id===id);
-  $('tbody-objetivos').innerHTML=rows.map((o,i)=>{
+  $('tbody-objetivos').innerHTML=rows.map((o)=>{
     const cli=getCliente(o.clienteId);
+    const idl=idLocalTrunc(o.id);
     const modColor={'Abono mensual fijo':'badge-azul','Por EFTs (FT = 200hs/mes)':'badge-verde','Por horas variables':'badge-acento','Presupuesto cerrado':'badge-naranja'};
+    const esperando7=o.estado==='Pendiente asignación operativa'&&diasDesde(o.fechaCarga)>=7;
     return `<tr>
       <td style="font-family:'DM Mono',monospace;font-size:11px;color:var(--azul);">${o.codigo}</td>
-      <td style="font-weight:500;">${o.nombre}</td>
+      <td style="font-weight:500;">${o.nombre}${esperando7?' <span title="7+ días esperando asignación">🟠</span>':''}</td>
       <td style="font-size:12px;">${cli?cli.nombre:'—'}</td>
       <td><span class="chip" style="font-size:11px;">${o.tipo}</span></td>
-      <td style="font-size:11px;color:var(--texto-suave);max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${o.dir}</td>
       <td><span class="badge ${modColor[o.modeloPrecio]||'badge-gris'}" style="font-size:10px;">${(o.modeloPrecio||'').split('(')[0].trim()}</span></td>
       <td style="font-weight:700;color:var(--azul);">$${(o.valor||0).toLocaleString('es-AR')}</td>
-      <td style="font-size:12px;color:var(--texto-suave);">${o.valorHora?'$'+o.valorHora.toLocaleString('es-AR')+'/h':'—'}</td>
-      <td style="text-align:center;">${o.efts?o.efts+' EFTs':'—'}</td>
-      <td style="font-size:11px;">${o.periodoFact}</td>
-      <td style="font-size:11px;color:${o.fechaFin?'var(--naranja)':'var(--texto-muy-suave)'};">${o.fechaFin||'—'}</td>
-      <td style="font-size:12px;">${o.supervisor}</td>
-      <td>${badge(o.estado==='Activo'?'Activo':o.estado==='Inactivo'?'Baja':'Pendiente')}</td>
-      <td><button class="btn btn-secondary btn-xs" onclick="verObjetivo(${i})">Ver</button></td>
+      <td style="font-size:12px;">${o.supervisorAsignado||'—'}</td>
+      <td>${badgeEstadoObjetivo(o.estado)}</td>
+      <td>
+        <div style="display:flex;gap:4px;flex-wrap:wrap;">
+          <button class="btn btn-secondary btn-xs" onclick="verObjetivo('${idl}')">Ver</button>
+          <button class="btn btn-secondary btn-xs" onclick="abrirModalObjetivo('${idl}')">✏️</button>
+          ${o.estado==='Pendiente asignación operativa'&&esGerenteOperaciones()?`<button class="btn btn-primary btn-xs" onclick="abrirAsignarSupervisor('${idl}')">Asignar supervisor</button>`:''}
+          ${o.estado==='Operativo'&&esGerenteOperaciones()?`<button class="btn btn-secondary btn-xs" onclick="abrirCambiarSupervisor('${idl}')">🔄</button>`:''}
+          ${o.estado!=='Baja'&&esGerenteComercial()?`<button class="btn btn-danger btn-xs" onclick="abrirBajaObjetivo('${idl}')">🚫</button>`:''}
+        </div>
+      </td>
     </tr>`;
-  }).join('')||`<tr><td colspan="14"><div class="empty-state"><div class="icon">📍</div><p>Sin objetivos cargados</p></div></td></tr>`;
+  }).join('')||`<tr><td colspan="9"><div class="empty-state"><div class="icon">📍</div><p>Sin objetivos en este estado</p></div></td></tr>`;
 }
 function filtrarObjetivos(){
   const cod=($('cf-on-cod')||{value:''}).value.toLowerCase();
   const nom=($('cf-on-nombre')||{value:''}).value.toLowerCase();
   const cli=($('cf-obj-cliente')||{value:''}).value;
   const tipo=($('cf-obj-tipo')||{value:''}).value;
-  const est=($('cf-obj-estado')||{value:''}).value;
   const bg=($('buscar-objetivo')||{value:''}).value.toLowerCase();
   const cliId=cli?DB.clientes.find(c=>c.nombre===cli)?.id:null;
   renderObjetivos(DB.objetivos.filter(o=>
     (!cod||o.codigo.toLowerCase().includes(cod))&&
     (!nom||o.nombre.toLowerCase().includes(nom))&&
-    (!cliId||o.clienteId===cliId)&&(!tipo||o.tipo===tipo)&&(!est||o.estado===est)&&
+    (!cliId||o.clienteId===cliId)&&(!tipo||o.tipo===tipo)&&
     (!bg||o.nombre.toLowerCase().includes(bg)||o.codigo.toLowerCase().includes(bg))
   ));
 }
-function verObjetivo(idx){
-  const o=DB.objetivos[idx];
+function verObjetivo(idLocal){
+  const o=getObjetivoByIdLocal(idLocal);
+  if(!o) return;
   const cli=DB.clientes.find(c=>c.id===o.clienteId);
+  const idl=idLocalTrunc(o.id);
+  const historial=(DB.objetivoSupervisoresHistorial||[]).filter(h=>h.objetivoIdLocal===idl&&!h.anulado).sort((a,b)=>(b.vigenciaDesde||'').localeCompare(a.vigenciaDesde||''));
   const html=`<div class="info-grid">
     <div class="info-item"><div class="key">Código</div><div class="val" style="font-family:'DM Mono',monospace;">${o.codigo}</div></div>
     <div class="info-item"><div class="key">Cliente</div><div class="val">${cli?.nombre||'—'}</div></div>
     <div class="info-item"><div class="key">Tipo servicio</div><div class="val">${o.tipo}</div></div>
-    <div class="info-item"><div class="key">Dirección</div><div class="val">${o.dir}</div></div>
+    <div class="info-item"><div class="key">Dirección</div><div class="val">${o.dir||'—'}</div></div>
+    <div class="info-item"><div class="key">Estado</div><div class="val">${badgeEstadoObjetivo(o.estado)}</div></div>
+    <div class="info-item"><div class="key">Supervisor asignado</div><div class="val">${o.supervisorAsignado||'— (pendiente Operaciones)'}</div></div>
     <div class="info-item"><div class="key">Modelo precio</div><div class="val">${o.modeloPrecio}</div></div>
     <div class="info-item"><div class="key">Valor mensual</div><div class="val" style="font-weight:700;color:var(--azul);">$${(o.valor||0).toLocaleString('es-AR')}</div></div>
     ${o.efts?`<div class="info-item"><div class="key">EFTs</div><div class="val">${o.efts} EFTs (${o.efts*200}hs/mes)</div></div>`:''}
     <div class="info-item"><div class="key">Contrato</div><div class="val">${o.contrato}</div></div>
+    <div class="info-item"><div class="key">Cláusula actualización</div><div class="val">${o.clausulaActualizacion||'—'}</div></div>
     <div class="info-item"><div class="key">Período facturación</div><div class="val">${o.periodoFact}</div></div>
     <div class="info-item"><div class="key">Requiere OC</div><div class="val">${o.reqOC}</div></div>
   </div>
   <div style="margin-top:14px;font-size:11px;font-weight:700;text-transform:uppercase;color:var(--texto-suave);margin-bottom:8px;">Responsables del cliente</div>
   ${(o.responsables||[]).map(r=>`<div style="padding:8px;background:var(--fondo);border-radius:var(--radio);margin-bottom:5px;border:1px solid var(--borde);display:flex;justify-content:space-between;align-items:center;">
+    <div><div style="font-weight:600;font-size:12px;">${r.nombre}</div><div style="font-size:11px;color:var(--texto-suave);">${r.rol||'—'}${r.tel?` · <a href="tel:${r.tel}" style="color:var(--azul);">📞 ${r.tel}</a>`:''}</div></div>
     ${r.aSatisfacer?'<span class="badge badge-acento" style="font-size:10px;">⭐ A satisfacer</span>':''}
   </div>`).join('')||'<p class="text-muted" style="font-size:12px;">Sin responsables cargados</p>'}
-  ${o.textoFactura?`<div class="alerta alerta-info" style="margin-top:12px;font-size:12px;"><strong>Texto en factura:</strong> ${o.textoFactura}</div>`:''}`;
+  ${o.notas?`<div class="alerta alerta-info" style="margin-top:12px;font-size:12px;"><strong>Notas:</strong> ${o.notas}</div>`:''}
+  ${o.textoFactura?`<div class="alerta alerta-info" style="margin-top:12px;font-size:12px;"><strong>Texto en factura:</strong> ${o.textoFactura}</div>`:''}
+  ${o.estado==='Baja'?`<div class="alerta alerta-danger" style="margin-top:12px;font-size:12px;"><strong>🚫 Dado de baja</strong> el ${o.fechaBaja} por ${o.dadoDeBajaPor}. Motivo: ${o.motivoBaja||'—'}</div>`:''}
+  <div style="margin-top:14px;font-size:11px;font-weight:700;text-transform:uppercase;color:var(--texto-suave);margin-bottom:8px;">Historial de supervisores</div>
+  ${historial.length?historial.map(h=>`<div style="padding:6px 10px;background:var(--fondo);border-radius:var(--radio);margin-bottom:4px;font-size:12px;border:1px solid var(--borde);">
+    <strong>${h.supervisorNombre}</strong> — ${h.vigenciaDesde} a ${h.vigenciaHasta||'hoy'} <span style="color:var(--texto-suave);">(asignado por ${h.asignadoPor})</span>
+  </div>`).join(''):'<p class="text-muted" style="font-size:12px;">Sin historial todavía</p>'}`;
   $('pedido-title').textContent=`📍 ${o.nombre}`;
   $('pedido-body').innerHTML=html;
   abrirModal('modal-ver-pedido');
@@ -1487,14 +1654,61 @@ function agregarRespObjetivo(){
   respObjetivoTemp.push({nombre:'',rol:'',tel:'',aSatisfacer:false});
   renderRespObjetivoTemp();
 }
+// Payload seguro para la tabla objetivos: sin los arrays que ahora viven en
+// tablas relacionales propias (objetivo_responsables/objetivo_adjuntos) ni
+// historialPrecios (Etapa 4, diferida) — enviarlos generaría un error
+// silencioso de PostgREST por columna inexistente (mismo bug que se
+// encontró y corrigió en guardarCliente()).
+function objetivoParaGuardar(o){
+  const {responsables,adjuntos,historialPrecios,supervisor,...resto}=o;
+  return resto;
+}
+let objetivoEditIdLocal=null;
+function abrirModalObjetivo(idLocal){
+  poblarSelectsComercial();
+  objetivoEditIdLocal=idLocal||null;
+  const o=idLocal?getObjetivoByIdLocal(idLocal):null;
+  respObjetivoTemp=o?(o.responsables||[]).map(r=>({...r})):[];
+  adjuntosObjTemp=o?(o.adjuntos||[]).map(a=>({...a})):[];
+  const titulo=$('modal-objetivo')?.querySelector('.modal-header h3');
+  if(titulo) titulo.textContent=o?'📍 Editar objetivo / servicio':'📍 Nuevo objetivo / servicio';
+  if(o){
+    $('obj-cliente').value=o.clienteId;$('obj-codigo').value=o.codigo;
+    $('obj-nombre').value=o.nombre;if($('obj-tipo'))$('obj-tipo').value=o.tipo||'';
+    $('obj-dir').value=o.dir||'';
+    if($('obj-fecha-inicio')&&o.fechaInicio){const[dd,mm,yy]=o.fechaInicio.split('/');$('obj-fecha-inicio').value=`${yy}-${mm}-${dd}`;}
+    if($('obj-modelo-precio')) $('obj-modelo-precio').value=o.modeloPrecio||'';
+    $('obj-valor').value=o.valor||'';$('obj-efts').value=o.efts||'';
+    $('obj-valor-eft').value=o.valorEft||'';$('obj-valor-hora').value=o.valorHora||'';
+    if($('obj-fecha-fin')&&o.fechaFin){const[dd,mm,yy]=o.fechaFin.split('/');$('obj-fecha-fin').value=`${yy}-${mm}-${dd}`;} else if($('obj-fecha-fin')) $('obj-fecha-fin').value='';
+    if($('obj-contrato')) $('obj-contrato').value=o.contrato||'';
+    if($('obj-productos')) $('obj-productos').value=o.productos||'';
+    if($('obj-clausula-actualizacion')) $('obj-clausula-actualizacion').value=o.clausulaActualizacion||'';
+    if($('obj-periodo-fact')) $('obj-periodo-fact').value=o.periodoFact||'';
+    if($('obj-req-oc')) $('obj-req-oc').value=o.reqOC||'';
+    $('obj-texto-factura').value=o.textoFactura||'';
+    $('obj-notas-precio').value=o.notas||'';
+  } else {
+    ['obj-cliente','obj-codigo','obj-nombre','obj-dir','obj-fecha-inicio','obj-valor','obj-efts','obj-valor-eft','obj-valor-hora','obj-fecha-fin','obj-texto-factura','obj-notas-precio'].forEach(id=>{const el=$(id);if(el)el.value='';});
+  }
+  renderRespObjetivoTemp();renderAdjuntosObj();toggleModeloPrecio();
+  abrirModal('modal-objetivo');
+}
 // ========== GUARDAR OBJETIVO ==========
 function guardarObjetivo(){
   const cod=$('obj-codigo')?.value.trim(), nom=$('obj-nombre')?.value.trim();
   if(!cod||!nom){toast('Completá código y nombre del objetivo');return;}
-  const nuevo={
-    id:Date.now(),clienteId:parseInt($('obj-cliente')?.value)||0,
+  const existente=objetivoEditIdLocal?getObjetivoByIdLocal(objetivoEditIdLocal):null;
+  if(!existente){
+    const dup=DB.objetivos.find(o=>o.codigo===cod&&!o.anulado);
+    if(dup){toast('Ya existe un objetivo con ese código');return;}
+  }
+  const clienteId=parseInt($('obj-cliente')?.value)||0;
+  const contrato=$('obj-contrato')?.value;
+  const datos={
+    clienteId,clienteIdLocal:idLocalTrunc(clienteId),
     codigo:cod,nombre:nom,tipo:$('obj-tipo')?.value,
-    dir:$('obj-dir')?.value,ciudad:'',supervisor:$('obj-supervisor')?.value,
+    dir:$('obj-dir')?.value,
     modeloPrecio:$('obj-modelo-precio')?.value,
     valor:parseFloat($('obj-valor')?.value)||0,
     efts:parseFloat($('obj-efts')?.value)||0,
@@ -1502,16 +1716,36 @@ function guardarObjetivo(){
     valorHora:parseFloat($('obj-valor-hora')?.value)||0,
     fechaInicio:$('obj-fecha-inicio')?.value?new Date($('obj-fecha-inicio').value).toLocaleDateString('es-AR'):'',
     fechaFin:$('obj-fecha-fin')?.value?new Date($('obj-fecha-fin').value).toLocaleDateString('es-AR'):'',
-    contrato:$('obj-contrato')?.value,productos:$('obj-productos')?.value,
+    contrato,productos:$('obj-productos')?.value,
+    clausulaActualizacion:$('obj-clausula-actualizacion')?.value||'',
     periodoFact:$('obj-periodo-fact')?.value,reqOC:$('obj-req-oc')?.value,
-    textoFactura:$('obj-texto-factura')?.value,estado:$('obj-estado')?.value,
+    textoFactura:$('obj-texto-factura')?.value,
+    notas:$('obj-notas-precio')?.value||'',
     responsables:[...respObjetivoTemp],
     adjuntos:[...adjuntosObjTemp],
-    notas:'',
   };
-  DB.objetivos.push(nuevo);
-  cerrarModal('modal-objetivo');renderObjetivos();poblarSelectsVentas();
-  supaSync('objetivos', DB.objetivos[DB.objetivos.length-1]); supaSync('objetivos', DB.objetivos[DB.objetivos.length-1]); toast('✓ Objetivo guardado');
+  let objetivo;
+  if(existente){
+    // Comercial no puede reasignar supervisor ni estado desde este modal —
+    // eso es del flujo de Operaciones (Cambio 5/11/12) o de Baja (Cambio 14).
+    Object.assign(existente,datos);
+    existente.modificadoPor=currentUser?.nombre||'';existente.modificadoEn=new Date().toISOString();
+    objetivo=existente;
+  } else {
+    const estadoInicial=contrato==='Contrato firmado'?'Pendiente asignación operativa':'Presupuestado';
+    objetivo={id:Date.now(),estado:estadoInicial,historialPrecios:[],cargadoPor:currentUser?.nombre||'',fechaCarga:hoyStr(),...datos};
+    DB.objetivos.push(objetivo);
+    if(estadoInicial==='Pendiente asignación operativa'){
+      registrarEventoObjetivo(objetivo,null,estadoInicial,'Alta de objetivo con contrato firmado');
+      crearNotificacion({tipo:'objetivo_pendiente_asignacion',entidadTipo:'objetivo',entidadIdLocal:idLocalTrunc(objetivo.id),destinatarioNombre:GERENTE_OPERACIONES,mensaje:`Nuevo objetivo esperando asignación de supervisor: ${objetivo.nombre} (${objetivo.codigo}).`});
+    } else {
+      registrarEventoObjetivo(objetivo,null,estadoInicial,'Alta de objetivo — presupuestado');
+    }
+  }
+  cerrarModal('modal-objetivo');renderObjetivos();poblarSelectsComercial();
+  supaSync('objetivos', objetivoParaGuardar(objetivo));
+  persistirRelacionadosObjetivo(objetivo);
+  toast(existente?'✓ Objetivo actualizado':'✓ Objetivo guardado');
 }
 function tabObjModal(idx,btn){
   document.querySelectorAll('#modal-objetivo .tab-btn').forEach(b=>b.classList.remove('active'));
@@ -1567,6 +1801,70 @@ function renderRespObjetivoTemp(){
     </div>`).join('')||'<p class="text-muted" style="font-size:12px;">Sin responsables — hacé click en "+ Agregar"</p>';
 }
 
+// ========== HANDOFF COMERCIAL → OPERACIONES (Cambios 5, 11, 12, 14) ==========
+function abrirAsignarSupervisor(idLocal){
+  const o=getObjetivoByIdLocal(idLocal);if(!o)return;
+  if(!esGerenteOperaciones()){toast('Solo el Gerente de Operaciones puede asignar supervisor');return;}
+  const supervisor=prompt('Supervisor a asignar a "'+o.nombre+'":\n\n'+DB.supervisores.join(', '));
+  if(supervisor===null) return;
+  if(!supervisor.trim()){toast('Elegí un supervisor');return;}
+  const estadoDesde=o.estado;
+  o.supervisorAsignado=supervisor.trim();o.supervisor=o.supervisorAsignado;o.supervisorAsignadoPor=currentUser?.nombre||GERENTE_OPERACIONES;
+  o.fechaAsignacionSupervisor=hoyStr();o.estado='Operativo';
+  supaSync('objetivos', objetivoParaGuardar(o));
+  const hist={id:Date.now(),objetivoIdLocal:idLocalTrunc(o.id),supervisorNombre:o.supervisorAsignado,vigenciaDesde:hoyStr(),vigenciaHasta:null,asignadoPor:currentUser?.nombre||GERENTE_OPERACIONES,motivoCambio:'Asignación inicial'};
+  DB.objetivoSupervisoresHistorial.push(hist);supaSync('objetivoSupervisoresHistorial', hist);
+  registrarEventoObjetivo(o,estadoDesde,'Operativo','Supervisor asignado: '+o.supervisorAsignado);
+  crearNotificacion({tipo:'objetivo_supervisor_asignado',entidadTipo:'objetivo',entidadIdLocal:idLocalTrunc(o.id),destinatarioNombre:o.cargadoPor,mensaje:`Se asignó supervisor (${o.supervisorAsignado}) al objetivo ${o.nombre}.`});
+  crearNotificacion({tipo:'objetivo_supervisor_asignado',entidadTipo:'objetivo',entidadIdLocal:idLocalTrunc(o.id),destinatarioNombre:o.supervisorAsignado,mensaje:`Te asignaron el objetivo ${o.nombre} (${o.codigo}).`});
+  filtrarObjetivos();toast('✓ Supervisor asignado — objetivo Operativo');
+}
+function abrirCambiarSupervisor(idLocal){
+  const o=getObjetivoByIdLocal(idLocal);if(!o)return;
+  if(!esGerenteOperaciones()){toast('Solo el Gerente de Operaciones puede cambiar el supervisor');return;}
+  const nuevo=prompt('Nuevo supervisor para "'+o.nombre+'" (actual: '+(o.supervisorAsignado||'—')+'):\n\n'+DB.supervisores.join(', '));
+  if(nuevo===null) return;
+  if(!nuevo.trim()){toast('Elegí un supervisor');return;}
+  const anterior=o.supervisorAsignado;
+  const abierto=(DB.objetivoSupervisoresHistorial||[]).find(h=>h.objetivoIdLocal===idLocalTrunc(o.id)&&!h.vigenciaHasta&&!h.anulado);
+  if(abierto){abierto.vigenciaHasta=hoyStr();supaSync('objetivoSupervisoresHistorial', abierto);}
+  const hist={id:Date.now(),objetivoIdLocal:idLocalTrunc(o.id),supervisorNombre:nuevo.trim(),vigenciaDesde:hoyStr(),vigenciaHasta:null,asignadoPor:currentUser?.nombre||GERENTE_OPERACIONES,motivoCambio:'Cambio de supervisor'};
+  DB.objetivoSupervisoresHistorial.push(hist);supaSync('objetivoSupervisoresHistorial', hist);
+  o.supervisorAsignado=nuevo.trim();o.supervisor=o.supervisorAsignado;o.supervisorAsignadoPor=currentUser?.nombre||GERENTE_OPERACIONES;o.fechaAsignacionSupervisor=hoyStr();
+  supaSync('objetivos', objetivoParaGuardar(o));
+  crearNotificacion({tipo:'objetivo_supervisor_cambiado',entidadTipo:'objetivo',entidadIdLocal:idLocalTrunc(o.id),destinatarioNombre:anterior,mensaje:`Dejaste de ser supervisor del objetivo ${o.nombre}.`});
+  crearNotificacion({tipo:'objetivo_supervisor_cambiado',entidadTipo:'objetivo',entidadIdLocal:idLocalTrunc(o.id),destinatarioNombre:o.supervisorAsignado,mensaje:`Ahora sos supervisor del objetivo ${o.nombre} (${o.codigo}).`});
+  crearNotificacion({tipo:'objetivo_supervisor_cambiado',entidadTipo:'objetivo',entidadIdLocal:idLocalTrunc(o.id),destinatarioNombre:o.cargadoPor,mensaje:`Cambio de supervisor en ${o.nombre}: ${anterior} → ${o.supervisorAsignado}.`});
+  filtrarObjetivos();toast('✓ Supervisor actualizado');
+}
+function abrirBajaObjetivo(idLocal){
+  const o=getObjetivoByIdLocal(idLocal);if(!o)return;
+  if(!esGerenteComercial()){toast('Solo Comercial puede dar de baja un objetivo');return;}
+  const motivo=prompt('Motivo de la baja de "'+o.nombre+'":');
+  if(motivo===null) return;
+  if(!motivo.trim()){toast('La baja requiere un motivo');return;}
+  const estadoDesde=o.estado;
+  o.estado='Baja';o.fechaBaja=hoyStr();o.dadoDeBajaPor=currentUser?.nombre||'';o.motivoBaja=motivo.trim();
+  supaSync('objetivos', objetivoParaGuardar(o));
+  registrarEventoObjetivo(o,estadoDesde,'Baja',motivo.trim());
+  const asocAsignados=(DB.legajos||[]).filter(l=>l.servicio===o.codigo&&l.estado==='Activo').map(l=>l.nombre);
+  const detalle=asocAsignados.length?` Asociados asignados al servicio: ${asocAsignados.join(', ')}. Sugerencia: reasignar vía Reasignaciones.`:'';
+  crearNotificacion({tipo:'objetivo_dado_de_baja',entidadTipo:'objetivo',entidadIdLocal:idLocalTrunc(o.id),destinatarioNombre:GERENTE_OPERACIONES,mensaje:`Se dio de baja el objetivo ${o.nombre} (${o.codigo}). Motivo: ${motivo.trim()}.${detalle}`});
+  crearNotificacion({tipo:'objetivo_dado_de_baja',entidadTipo:'objetivo',entidadIdLocal:idLocalTrunc(o.id),destinatarioNombre:GERENTE_RRHH_COMERCIAL,mensaje:`Se dio de baja el objetivo ${o.nombre} (${o.codigo}). Motivo: ${motivo.trim()}.${detalle}`});
+  filtrarObjetivos();toast('✓ Objetivo dado de baja');
+}
+// Alerta de objetivos con 7+ días esperando asignación — se chequea al
+// entrar al módulo (mismo criterio de "chequear al render" ya usado en
+// otros módulos de esta sesión, ej. chequearPlazo24hs de Enfermos).
+function chequearObjetivosDemorados(){
+  const pendientes=DB.objetivos.filter(o=>o.estado==='Pendiente asignación operativa'&&!o.anulado&&diasDesde(o.fechaCarga)>=7);
+  pendientes.forEach(o=>{
+    const yaNotificado=(DB.notificacionesSistema||[]).some(n=>n.tipo==='objetivo_asignacion_demorada'&&n.entidadIdLocal===idLocalTrunc(o.id));
+    if(yaNotificado) return;
+    crearNotificacion({tipo:'objetivo_asignacion_demorada',entidadTipo:'objetivo',entidadIdLocal:idLocalTrunc(o.id),destinatarioNombre:GERENTE_OPERACIONES,mensaje:`El objetivo ${o.nombre} (${o.codigo}) lleva ${diasDesde(o.fechaCarga)} días esperando asignación de supervisor.`});
+    crearNotificacion({tipo:'objetivo_asignacion_demorada',entidadTipo:'objetivo',entidadIdLocal:idLocalTrunc(o.id),destinatarioNombre:GERENTE_COMERCIAL,mensaje:`El objetivo ${o.nombre} (${o.codigo}) lleva ${diasDesde(o.fechaCarga)} días esperando asignación de supervisor.`});
+  });
+}
 // ========== CRM ==========
 function tabCrm(tab,btn){
   document.querySelectorAll('#screen-crm .tab-content').forEach(t=>t.classList.remove('active'));
@@ -1897,29 +2195,29 @@ DB.rolesResponsables=['Gerente general','Gerente de operaciones','Gerente de suc
 DB.tiposAccionCRM=['Llamada','Reunión','Email','Visita','Propuesta','Seguimiento','Demo','Prueba piloto'];
 DB.tiposAccionCobro=['Llamada','Email','WhatsApp','Visita presencial','Nota de deuda','Carta documento','Negociación de plan'];
 
-function renderCfgVentasLista(dbKey,elId){
+function renderCfgComercialLista(dbKey,elId){
   const el=$(elId);if(!el)return;
   const items=DB[dbKey]||[];
   el.innerHTML=items.map((item,i)=>`<div class="config-item">
     <span style="font-size:13px;">${item}</span>
-    <button class="btn btn-danger btn-xs" onclick="eliminarCfgVentas('${dbKey}',${i},'${elId}')">Eliminar</button>
+    <button class="btn btn-danger btn-xs" onclick="eliminarCfgComercial('${dbKey}',${i},'${elId}')">Eliminar</button>
   </div>`).join('')||'<p class="text-muted" style="font-size:12px;">Sin ítems cargados</p>';
 }
-function agregarCfgVentas(dbKey,inputId,elId){
+function agregarCfgComercial(dbKey,inputId,elId){
   const val=$(inputId)?.value.trim();
   if(!val){toast('Ingresá el valor');return;}
   if(!DB[dbKey]) DB[dbKey]=[];
   if(DB[dbKey].includes(val)){toast('Ya existe');return;}
   DB[dbKey].push(val);
   $(inputId).value='';
-  renderCfgVentasLista(dbKey,elId);
-  poblarSelectsVentas();
+  renderCfgComercialLista(dbKey,elId);
+  poblarSelectsComercial();
   toast(`✓ "${val}" agregado`);
 }
-function eliminarCfgVentas(dbKey,idx,elId){
+function eliminarCfgComercial(dbKey,idx,elId){
   DB[dbKey].splice(idx,1);
-  renderCfgVentasLista(dbKey,elId);
-  poblarSelectsVentas();
+  renderCfgComercialLista(dbKey,elId);
+  poblarSelectsComercial();
 }
 function agregarEtapaCRM(){
   const nombre=$('nueva-etapa-crm')?.value.trim();
@@ -1933,7 +2231,7 @@ function agregarEtapaCRM(){
   DB.colorEtapasCRM[nombre]=color;
   $('nueva-etapa-crm').value='';
   renderCfgEtapasCRM();
-  poblarSelectsVentas();
+  poblarSelectsComercial();
   toast(`✓ Etapa "${nombre}" agregada`);
 }
 function renderCfgEtapasCRM(){
@@ -1951,24 +2249,40 @@ function eliminarEtapaCRM(idx){
   if(DB.leads.some(l=>l.etapa===etapa)){toast(`⚠️ No se puede eliminar — hay leads en "${etapa}"`);return;}
   delete DB.colorEtapasCRM[etapa];
   DB.etapasCRM.splice(idx,1);
-  renderCfgEtapasCRM();poblarSelectsVentas();renderCRM();
+  renderCfgEtapasCRM();poblarSelectsComercial();renderCRM();
   toast(`Etapa "${etapa}" eliminada`);
 }
-function renderConfigVentas(){
-  renderCfgVentasLista('tiposServicio','lista-tipos-servicio');
-  renderCfgVentasLista('condicionesIVA','lista-cond-iva');
-  renderCfgVentasLista('condicionesPago','lista-cond-pago');
-  renderCfgVentasLista('formasPago','lista-formas-pago');
-  renderCfgVentasLista('modelosPrecio','lista-modelos-precio');
-  renderCfgVentasLista('periodosFacturacion','lista-periodos-fact');
-  renderCfgVentasLista('rolesResponsables','lista-roles-resp');
+function renderConfigComercial(){
+  renderCfgComercialLista('tiposServicio','lista-tipos-servicio');
+  renderCfgComercialLista('condicionesIVA','lista-cond-iva');
+  renderCfgComercialLista('condicionesPago','lista-cond-pago');
+  renderCfgComercialLista('formasPago','lista-formas-pago');
+  renderCfgComercialLista('modelosPrecio','lista-modelos-precio');
+  renderCfgComercialLista('periodosFacturacion','lista-periodos-fact');
+  renderCfgComercialLista('rolesResponsables','lista-roles-resp');
   renderCfgEtapasCRM();
-  renderCfgVentasLista('tiposAccionCRM','lista-acciones-crm');
-  renderCfgVentasLista('tiposReclamo','lista-tipos-reclamo-cfg');
+  renderCfgComercialLista('tiposAccionCRM','lista-acciones-crm');
+  renderCfgComercialLista('tiposReclamo','lista-tipos-reclamo-cfg');
 }
 
 // ========== POBLAR SELECTS VENTAS (actualizado) ==========
-function poblarSelectsVentas(){
+function reconciliarClienteIdObjetivos(){
+  // Reconciliación post-reload (v039): objetivos.clienteId NO se persiste
+  // (solo clienteIdLocal — este proyecto nunca usa el bigint identity como
+  // clave de relación, ver nota en sql/v039). Al recargar desde Supabase,
+  // objetivos.clienteId llega undefined; se lo restaura acá resolviendo
+  // por clienteIdLocal, así el resto del código legacy que sigue leyendo
+  // o.clienteId (Precios, CRM, Liquidación de horas) no se rompe.
+  DB.objetivos.forEach(o=>{
+    if(o.clienteId==null && o.clienteIdLocal){
+      const cli=DB.clientes.find(c=>idLocalTrunc(c.id)===String(o.clienteIdLocal));
+      if(cli) o.clienteId=cli.id;
+    }
+  });
+}
+function poblarSelectsComercial(){
+  reconciliarClienteIdObjetivos();
+
   const fS=(id,items)=>{const el=$(id);if(!el)return;const ph=el.options[0]?.outerHTML||'';el.innerHTML=ph+[...new Set(items)].filter(Boolean).map(i=>`<option value="${i}">${i}</option>`).join('');};
   const fSId=(id,items)=>{const el=$(id);if(!el)return;const ph=el.options[0]?.outerHTML||'';el.innerHTML=ph+items.map(i=>`<option value="${i.id}">${i.nombre}</option>`).join('');};
 
@@ -1978,7 +2292,7 @@ function poblarSelectsVentas(){
   fS('cf-obj-cliente',DB.clientes.map(c=>c.nombre));
   fS('cf-cob-cliente',DB.clientes.map(c=>c.nombre));
   fS('rec-objetivo',DB.objetivos.map(o=>o.codigo));
-  fS('obj-supervisor',DB.supervisores);
+  fS('obj-clausula-actualizacion',DB.clausulasActualizacion);
 
   // Desde DB (parametrizables)
   fS('cli-iva',DB.condicionesIVA);
@@ -2019,10 +2333,10 @@ function poblarSelectsVentas(){
   fS('cf-cobrado-cliente',DB.clientes.map(c=>c.nombre));
 
   // Config ventas si está visible
-  renderConfigVentas();
+  renderConfigComercial();
 }
 
-// ========== ACTUALIZAR renderConfiguracion para incluir ventas ==========
+// ========== ACTUALIZAR renderConfiguracion para incluir comercial ==========
 // ========== COBROS — con tabs, período prestación, importar Tango ==========
 function tabCobros(tab,btn){
   document.querySelectorAll('#screen-cobros .tab-content').forEach(t=>t.classList.remove('active'));
@@ -3033,7 +3347,7 @@ function renderParClientes(){
   if(!par){el.innerHTML='<p class="text-muted" style="padding:8px;">Seleccioná una paritaria.</p>';if(warn)warn.style.display='none';return;}
   if(warn) warn.style.display=par.homologada?'none':'flex';
 
-  const objetivosActivos=DB.objetivos.filter(o=>o.estado==='Activo');
+  const objetivosActivos=DB.objetivos.filter(o=>o.estado==='Operativo');
   el.innerHTML=`
     <div style="margin-bottom:16px;display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
       <span style="font-size:13px;color:var(--texto-suave);">Seleccioná los objetivos/clientes a los que querés proponer el aumento:</span>
@@ -3133,7 +3447,7 @@ function renderParProyeccion(){
   const el=$('par-proy-contenido'); if(!el) return;
   const par=DB.paritarias.find(p=>p.id===parId);
   if(!par){el.innerHTML='<p class="text-muted" style="padding:8px;">Seleccioná una paritaria.</p>';return;}
-  const objetivos=DB.objetivos.filter(o=>o.estado==='Activo');
+  const objetivos=DB.objetivos.filter(o=>o.estado==='Operativo');
   const totalActual=objetivos.reduce((s,o)=>s+(o.valor||0),0);
   const totalNuevo=objetivos.reduce((s,o)=>s+Math.round((o.valor||0)*(1+par.pctAumento/100)),0);
   const impacto=totalNuevo-totalActual;
@@ -4938,7 +5252,7 @@ if(!DB.solicitudesPrestamos) DB.solicitudesPrestamos = [];
 
 // ── DATOS DEMO CARGADOS ──
 DB.legajos = [{nro:101,nombre:'Ramirez Claudia Beatriz',dni:'28441302',funcion:'Operario B',servicio:'HOSPITAL.CAMPANA',supervisor:'Claudia Cazenave',ingreso:'03/06/2019',estado:'Activo',estadoLegal:'',estadoMedico:'',fechaBaja:'',fechaReincorp:'',seguro:'Completo',localidad:'Campana',tel:'2264501234',mail:'',cuit:'27284413026',estadoCivil:'Casada',nac:'Argentina',banco:'Banco Nación',calzado:38,ambo:'M',periodoPrueba:6,fechaIngresoPrueba:'2019-06-03',adjuntosLegal:[],adjuntosMedico:[]},{nro:102,nombre:'Villalba Sergio Fabian',dni:'31782045',funcion:'Operario B',servicio:'HOSPITAL.CAMPANA',supervisor:'Claudia Cazenave',ingreso:'15/08/2020',estado:'Activo',estadoLegal:'',estadoMedico:'',fechaBaja:'',fechaReincorp:'',seguro:'Completo',localidad:'Campana',tel:'2264598765',mail:'',cuit:'20317820451',estadoCivil:'Soltero',nac:'Argentina',banco:'',calzado:42,ambo:'L',periodoPrueba:6,fechaIngresoPrueba:'2020-08-15',adjuntosLegal:[],adjuntosMedico:[]},{nro:103,nombre:'Torres Ana Beatriz',dni:'35219804',funcion:'Referente',servicio:'HOSPITAL.CAMPANA',supervisor:'Claudia Cazenave',ingreso:'01/03/2021',estado:'Activo',estadoLegal:'',estadoMedico:'En tratamiento',fechaBaja:'',fechaReincorp:'',seguro:'Completo',localidad:'Campana',tel:'2264512300',mail:'',cuit:'27352198047',estadoCivil:'Casada',nac:'Argentina',banco:'Galicia',calzado:37,ambo:'S',periodoPrueba:6,fechaIngresoPrueba:'2021-03-01',adjuntosLegal:[],adjuntosMedico:['certif_medico.pdf']},{nro:104,nombre:'Benitez Marcos Ruben',dni:'29854103',funcion:'Operario A',servicio:'HIT.LIBERTADOR.CEL',supervisor:'Alvaro Uballes',ingreso:'10/01/2018',estado:'Activo',estadoLegal:'',estadoMedico:'',fechaBaja:'',fechaReincorp:'',seguro:'Completo',localidad:'Palermo',tel:'1145239801',mail:'marcos.benitez@gmail.com',cuit:'20298541039',estadoCivil:'Casado',nac:'Argentina',banco:'Banco Nación',calzado:43,ambo:'XL',periodoPrueba:6,fechaIngresoPrueba:'2018-01-10',adjuntosLegal:[],adjuntosMedico:[]},{nro:105,nombre:'Quiroga Daniela Paz',dni:'38021567',funcion:'Operario B',servicio:'HIT.LIBERTADOR.CEL',supervisor:'Alvaro Uballes',ingreso:'05/05/2022',estado:'Activo',estadoLegal:'',estadoMedico:'',fechaBaja:'',fechaReincorp:'',seguro:'Completo',localidad:'Belgrano',tel:'1167438920',mail:'',cuit:'27380215672',estadoCivil:'Soltera',nac:'Argentina',banco:'',calzado:38,ambo:'S',periodoPrueba:6,fechaIngresoPrueba:'2022-05-05',adjuntosLegal:[],adjuntosMedico:[]},{nro:106,nombre:'Suarez Leonardo Pablo',dni:'33198745',funcion:'Encargado B',servicio:'HIT.LIBERTADOR.8614',supervisor:'Alvaro Uballes',ingreso:'20/07/2017',estado:'Activo',estadoLegal:'',estadoMedico:'',fechaBaja:'',fechaReincorp:'',seguro:'Completo',localidad:'Palermo',tel:'1154320987',mail:'lsuarez@gmail.com',cuit:'20331987458',estadoCivil:'Casado',nac:'Argentina',banco:'Santander',calzado:42,ambo:'L',periodoPrueba:6,fechaIngresoPrueba:'2017-07-20',adjuntosLegal:[],adjuntosMedico:[]},{nro:107,nombre:'Morales Yanina Soledad',dni:'36540921',funcion:'Operario B',servicio:'HIT.LIBERTADOR.8614',supervisor:'Alvaro Uballes',ingreso:'12/03/2023',estado:'Activo',estadoLegal:'',estadoMedico:'',fechaBaja:'',fechaReincorp:'',seguro:'Pendiente',localidad:'Recoleta',tel:'1178231045',mail:'',cuit:'27365409218',estadoCivil:'Soltera',nac:'Argentina',banco:'',calzado:37,ambo:'S',periodoPrueba:6,fechaIngresoPrueba:'2023-03-12',adjuntosLegal:[],adjuntosMedico:[]},{nro:108,nombre:'Fernandez Hugo Oscar',dni:'24789032',funcion:'Encargado A',servicio:'HACOAJ.TIGRE',supervisor:'Fabio Benvenuto',ingreso:'08/09/2014',estado:'Activo',estadoLegal:'',estadoMedico:'',fechaBaja:'',fechaReincorp:'',seguro:'Completo',localidad:'Tigre',tel:'1169854321',mail:'hfernandez@hotmail.com',cuit:'20247890327',estadoCivil:'Casado',nac:'Argentina',banco:'Banco Nación',calzado:43,ambo:'XL',periodoPrueba:6,fechaIngresoPrueba:'2014-09-08',adjuntosLegal:[],adjuntosMedico:[]},{nro:109,nombre:'Acosta Maria Gabriela',dni:'31045789',funcion:'Operario B',servicio:'HACOAJ.TIGRE',supervisor:'Fabio Benvenuto',ingreso:'14/02/2021',estado:'Activo',estadoLegal:'',estadoMedico:'',fechaBaja:'',fechaReincorp:'',seguro:'Completo',localidad:'San Fernando',tel:'1143219870',mail:'',cuit:'27310457896',estadoCivil:'Casada',nac:'Argentina',banco:'',calzado:38,ambo:'M',periodoPrueba:6,fechaIngresoPrueba:'2021-02-14',adjuntosLegal:[],adjuntosMedico:[]},{nro:110,nombre:'Lopez Sebastian Ariel',dni:'37654023',funcion:'Operario A',servicio:'HACOAJ.TIGRE',supervisor:'Fabio Benvenuto',ingreso:'22/10/2022',estado:'Activo',estadoLegal:'',estadoMedico:'',fechaBaja:'',fechaReincorp:'',seguro:'Completo',localidad:'Tigre',tel:'1156781234',mail:'',cuit:'20376540231',estadoCivil:'Soltero',nac:'Argentina',banco:'',calzado:41,ambo:'M',periodoPrueba:6,fechaIngresoPrueba:'2022-10-22',adjuntosLegal:[],adjuntosMedico:[]},{nro:111,nombre:'Castro Rosa Elena',dni:'22981034',funcion:'Encargado C',servicio:'LOS.PINOS',supervisor:'Matias Maidana',ingreso:'03/04/2013',estado:'Activo',estadoLegal:'',estadoMedico:'',fechaBaja:'',fechaReincorp:'',seguro:'Completo',localidad:'Lomas de Zamora',tel:'1134509876',mail:'rcastro@gmail.com',cuit:'27229810347',estadoCivil:'Casada',nac:'Argentina',banco:'ICBC',calzado:37,ambo:'M',periodoPrueba:6,fechaIngresoPrueba:'2013-04-03',adjuntosLegal:[],adjuntosMedico:[]},{nro:112,nombre:'Gimenez Pablo Ariel',dni:'34102897',funcion:'Operario B',servicio:'LOS.PINOS',supervisor:'Matias Maidana',ingreso:'19/06/2021',estado:'Activo',estadoLegal:'',estadoMedico:'',fechaBaja:'',fechaReincorp:'',seguro:'Completo',localidad:'Lomas de Zamora',tel:'1167890123',mail:'',cuit:'20341028978',estadoCivil:'Soltero',nac:'Argentina',banco:'',calzado:42,ambo:'L',periodoPrueba:6,fechaIngresoPrueba:'2021-06-19',adjuntosLegal:[],adjuntosMedico:[]},{nro:113,nombre:'Rodriguez Maria Elena',dni:'29340178',funcion:'Operario A',servicio:'CENARD',supervisor:'Marcelo Moure',ingreso:'11/11/2016',estado:'Activo',estadoLegal:'',estadoMedico:'Activo — sin trabajar',fechaBaja:'',fechaReincorp:'',seguro:'Completo',localidad:'Palermo',tel:'1145670123',mail:'',cuit:'27293401786',estadoCivil:'Casada',nac:'Argentina',banco:'Galicia',calzado:38,ambo:'M',periodoPrueba:6,fechaIngresoPrueba:'2016-11-11',adjuntosLegal:[],adjuntosMedico:['certif_medico.pdf','orden_medica.pdf']},{nro:114,nombre:'Ibañez Carlos Javier',dni:'32890145',funcion:'Operario B',servicio:'CENARD',supervisor:'Marcelo Moure',ingreso:'27/03/2020',estado:'Activo',estadoLegal:'',estadoMedico:'',fechaBaja:'',fechaReincorp:'',seguro:'Completo',localidad:'Belgrano',tel:'1123457890',mail:'',cuit:'20328901456',estadoCivil:'Soltero',nac:'Argentina',banco:'',calzado:44,ambo:'XL',periodoPrueba:6,fechaIngresoPrueba:'2020-03-27',adjuntosLegal:[],adjuntosMedico:[]},{nro:115,nombre:'Paz Florencia Belen',dni:'40123089',funcion:'Operario B',servicio:'CENARD',supervisor:'Marcelo Moure',ingreso:'08/09/2023',estado:'Activo',estadoLegal:'',estadoMedico:'',fechaBaja:'',fechaReincorp:'',seguro:'Pendiente',localidad:'Villa del Parque',tel:'1189012345',mail:'',cuit:'27401230897',estadoCivil:'Soltera',nac:'Argentina',banco:'',calzado:37,ambo:'S',periodoPrueba:6,fechaIngresoPrueba:'2023-09-08',adjuntosLegal:[],adjuntosMedico:[]},{nro:116,nombre:'Soria Jorge Luis',dni:'27654089',funcion:'Encargado A',servicio:'ANAC',supervisor:'Santiago Ayala',ingreso:'15/05/2015',estado:'Activo',estadoLegal:'',estadoMedico:'',fechaBaja:'',fechaReincorp:'',seguro:'Completo',localidad:'San Justo',tel:'1156234789',mail:'jsoria@hotmail.com',cuit:'20276540897',estadoCivil:'Casado',nac:'Argentina',banco:'Banco Nación',calzado:42,ambo:'L',periodoPrueba:6,fechaIngresoPrueba:'2015-05-15',adjuntosLegal:[],adjuntosMedico:[]},{nro:117,nombre:'Molina Estela Maris',dni:'23781092',funcion:'Operario A',servicio:'ANAC',supervisor:'Santiago Ayala',ingreso:'02/02/2012',estado:'Activo',estadoLegal:'',estadoMedico:'',fechaBaja:'',fechaReincorp:'',seguro:'Completo',localidad:'Caballito',tel:'1134987654',mail:'emolina@gmail.com',cuit:'27237810925',estadoCivil:'Casada',nac:'Argentina',banco:'Galicia',calzado:38,ambo:'M',periodoPrueba:6,fechaIngresoPrueba:'2012-02-02',adjuntosLegal:[],adjuntosMedico:[]},{nro:118,nombre:'Herrera Nicolas Damian',dni:'38901234',funcion:'Operario B',servicio:'ANAC',supervisor:'Santiago Ayala',ingreso:'30/01/2024',estado:'Activo',estadoLegal:'',estadoMedico:'',fechaBaja:'',fechaReincorp:'',seguro:'Pendiente',localidad:'Floresta',tel:'1190123456',mail:'',cuit:'20389012348',estadoCivil:'Soltero',nac:'Argentina',banco:'',calzado:41,ambo:'M',periodoPrueba:6,fechaIngresoPrueba:'2024-01-30',adjuntosLegal:[],adjuntosMedico:[]},{nro:119,nombre:'Vazquez Lorena Anabel',dni:'33012876',funcion:'Operario B',servicio:'NEWSAN.CAMPANA',supervisor:'Claudia Cazenave',ingreso:'06/07/2020',estado:'Activo',estadoLegal:'',estadoMedico:'',fechaBaja:'',fechaReincorp:'',seguro:'Completo',localidad:'Campana',tel:'2264523456',mail:'',cuit:'27330128762',estadoCivil:'Soltera',nac:'Argentina',banco:'',calzado:38,ambo:'M',periodoPrueba:6,fechaIngresoPrueba:'2020-07-06',adjuntosLegal:[],adjuntosMedico:[]},{nro:120,nombre:'Gutierrez Ramon Eduardo',dni:'26543109',funcion:'Referente',servicio:'NEWSAN.CAMPANA',supervisor:'Claudia Cazenave',ingreso:'18/04/2016',estado:'Activo',estadoLegal:'',estadoMedico:'',fechaBaja:'',fechaReincorp:'',seguro:'Completo',localidad:'Campana',tel:'2264534567',mail:'rgutierrez@hotmail.com',cuit:'20265431098',estadoCivil:'Casado',nac:'Argentina',banco:'Banco Nación',calzado:42,ambo:'L',periodoPrueba:6,fechaIngresoPrueba:'2016-04-18',adjuntosLegal:[],adjuntosMedico:[]},{nro:121,nombre:'Medina Oscar Reinaldo',dni:'28120934',funcion:'Operario A',servicio:'SULFOQUIMICA',supervisor:'Alejandro Cacciato',ingreso:'09/03/2017',estado:'Activo',estadoLegal:'',estadoMedico:'',fechaBaja:'',fechaReincorp:'',seguro:'Completo',localidad:'Campana',tel:'2264545678',mail:'omedina@gmail.com',cuit:'20281209347',estadoCivil:'Casado',nac:'Argentina',banco:'Santander',calzado:43,ambo:'L',periodoPrueba:6,fechaIngresoPrueba:'2017-03-09',adjuntosLegal:[],adjuntosMedico:[]},{nro:122,nombre:'Campos Sandra Noemi',dni:'31289043',funcion:'Operario B',servicio:'SULFOQUIMICA',supervisor:'Alejandro Cacciato',ingreso:'23/08/2021',estado:'Activo',estadoLegal:'',estadoMedico:'',fechaBaja:'',fechaReincorp:'',seguro:'Completo',localidad:'Campana',tel:'2264556789',mail:'',cuit:'27312890435',estadoCivil:'Casada',nac:'Argentina',banco:'',calzado:38,ambo:'S',periodoPrueba:6,fechaIngresoPrueba:'2021-08-23',adjuntosLegal:[],adjuntosMedico:[]},{nro:123,nombre:'Rios Jorge Alberto',dni:'25432891',funcion:'Encargado B',servicio:'COTO.GARIN',supervisor:'Richard Recalde',ingreso:'14/10/2014',estado:'Activo',estadoLegal:'',estadoMedico:'',fechaBaja:'',fechaReincorp:'',seguro:'Completo',localidad:'Garín',tel:'3327501234',mail:'jrios@hotmail.com',cuit:'20254328918',estadoCivil:'Casado',nac:'Argentina',banco:'Banco Nación',calzado:43,ambo:'XL',periodoPrueba:6,fechaIngresoPrueba:'2014-10-14',adjuntosLegal:[],adjuntosMedico:[]},{nro:124,nombre:'Alvarez Cecilia Paola',dni:'36781023',funcion:'Operario B',servicio:'COTO.GARIN',supervisor:'Richard Recalde',ingreso:'05/11/2022',estado:'Activo',estadoLegal:'',estadoMedico:'',fechaBaja:'',fechaReincorp:'',seguro:'Completo',localidad:'Garín',tel:'3327512345',mail:'',cuit:'27367810237',estadoCivil:'Soltera',nac:'Argentina',banco:'',calzado:38,ambo:'M',periodoPrueba:6,fechaIngresoPrueba:'2022-11-05',adjuntosLegal:[],adjuntosMedico:[]},{nro:32,nombre:'Tolaba Maximiliano Ezequiel',dni:'32343528',funcion:'Referente',servicio:'MIGUELETES.2423',supervisor:'Alvaro Uballes',ingreso:'15/03/2018',estado:'Activo',estadoLegal:'',estadoMedico:'',fechaBaja:'',fechaReincorp:'',seguro:'Completo',localidad:'Lomas de Zamora',tel:'1123456789',mail:'',cuit:'20323435287',estadoCivil:'Soltero',nac:'Argentina',banco:'',calzado:41,ambo:'M',periodoPrueba:6,fechaIngresoPrueba:'2018-03-15',adjuntosLegal:[],adjuntosMedico:[]},{nro:125,nombre:'Paredes Karina Soledad',dni:'35902134',funcion:'Operario B',servicio:'MIGUELETES.2423',supervisor:'Alvaro Uballes',ingreso:'17/04/2022',estado:'Activo',estadoLegal:'',estadoMedico:'',fechaBaja:'',fechaReincorp:'',seguro:'Completo',localidad:'Barracas',tel:'1156789012',mail:'',cuit:'27359021347',estadoCivil:'Soltera',nac:'Argentina',banco:'',calzado:37,ambo:'S',periodoPrueba:6,fechaIngresoPrueba:'2022-04-17',adjuntosLegal:[],adjuntosMedico:[]},{nro:126,nombre:'Romero Gustavo Daniel',dni:'30891234',funcion:'Operario A',servicio:'TEKNOPOLIS',supervisor:'Lorena Unzain',ingreso:'01/12/2019',estado:'Activo',estadoLegal:'',estadoMedico:'',fechaBaja:'',fechaReincorp:'',seguro:'Completo',localidad:'San Martín',tel:'1167891234',mail:'gromero@gmail.com',cuit:'20308912349',estadoCivil:'Casado',nac:'Argentina',banco:'Galicia',calzado:42,ambo:'L',periodoPrueba:6,fechaIngresoPrueba:'2019-12-01',adjuntosLegal:[],adjuntosMedico:[]},{nro:127,nombre:'Ojeda Natalia Fernanda',dni:'38234091',funcion:'Operario B',servicio:'TEKNOPOLIS',supervisor:'Lorena Unzain',ingreso:'28/02/2023',estado:'Activo',estadoLegal:'',estadoMedico:'',fechaBaja:'',fechaReincorp:'',seguro:'Pendiente',localidad:'Villa del Parque',tel:'1178901234',mail:'',cuit:'27382340917',estadoCivil:'Soltera',nac:'Argentina',banco:'',calzado:38,ambo:'S',periodoPrueba:6,fechaIngresoPrueba:'2023-02-28',adjuntosLegal:[],adjuntosMedico:[]},{nro:128,nombre:'Luna Hector Raul',dni:'27109823',funcion:'Encargado C',servicio:'TEKNOPOLIS',supervisor:'Lorena Unzain',ingreso:'10/06/2015',estado:'Activo',estadoLegal:'',estadoMedico:'',fechaBaja:'',fechaReincorp:'',seguro:'Completo',localidad:'San Martín',tel:'1189012347',mail:'hluna@hotmail.com',cuit:'20271098237',estadoCivil:'Casado',nac:'Argentina',banco:'Banco Nación',calzado:43,ambo:'L',periodoPrueba:6,fechaIngresoPrueba:'2015-06-10',adjuntosLegal:[],adjuntosMedico:[]},{nro:71,nombre:'Gomez Diego Alejandro',dni:'26148208',funcion:'Retén',servicio:'RETEN.GENERAL',supervisor:'Santiago Ayala',ingreso:'27/05/2022',estado:'Activo',estadoLegal:'',estadoMedico:'Activo — sin trabajar',fechaBaja:'',fechaReincorp:'',seguro:'Completo',localidad:'Tres de Febrero',tel:'1156072183',mail:'',cuit:'20261482089',estadoCivil:'Casado',nac:'Argentina',banco:'',calzado:43,ambo:'L',periodoPrueba:6,fechaIngresoPrueba:'2022-05-27',adjuntosLegal:[],adjuntosMedico:['certif_medico.pdf']},{nro:129,nombre:'Peralta Walter Ezequiel',dni:'34567890',funcion:'Retén',servicio:'RETEN.GENERAL',supervisor:'Santiago Ayala',ingreso:'20/09/2021',estado:'Activo',estadoLegal:'',estadoMedico:'',fechaBaja:'',fechaReincorp:'',seguro:'Completo',localidad:'Caseros',tel:'1190123478',mail:'',cuit:'20345678901',estadoCivil:'Soltero',nac:'Argentina',banco:'',calzado:42,ambo:'M',periodoPrueba:6,fechaIngresoPrueba:'2021-09-20',adjuntosLegal:[],adjuntosMedico:[]},{nro:130,nombre:'Fleita Graciela Ines',dni:'25678901',funcion:'Retén',servicio:'RETEN.GENERAL',supervisor:'Dario Lage',ingreso:'14/03/2016',estado:'Activo',estadoLegal:'',estadoMedico:'',fechaBaja:'',fechaReincorp:'',seguro:'Completo',localidad:'Isidro Casanova',tel:'1101234567',mail:'',cuit:'27256789015',estadoCivil:'Casada',nac:'Argentina',banco:'Galicia',calzado:37,ambo:'S',periodoPrueba:6,fechaIngresoPrueba:'2016-03-14',adjuntosLegal:[],adjuntosMedico:[]},{nro:131,nombre:'Juarez Diego Martin',dni:'40891234',funcion:'Retén',servicio:'RETEN.GENERAL',supervisor:'Dario Lage',ingreso:'07/07/2024',estado:'Activo',estadoLegal:'',estadoMedico:'',fechaBaja:'',fechaReincorp:'',seguro:'Pendiente',localidad:'Laferrere',tel:'1112345678',mail:'',cuit:'20408912341',estadoCivil:'Soltero',nac:'Argentina',banco:'',calzado:42,ambo:'M',periodoPrueba:6,fechaIngresoPrueba:'2024-07-07',adjuntosLegal:[],adjuntosMedico:[]},{nro:132,nombre:'Cardozo Miriam Patricia',dni:'28903124',funcion:'Operario A',servicio:'GYM.RECOLETA',supervisor:'Alfredo Arispe',ingreso:'22/01/2018',estado:'Activo',estadoLegal:'',estadoMedico:'',fechaBaja:'',fechaReincorp:'',seguro:'Completo',localidad:'Recoleta',tel:'1123456780',mail:'mcardozo@gmail.com',cuit:'27289031248',estadoCivil:'Casada',nac:'Argentina',banco:'Santander',calzado:38,ambo:'M',periodoPrueba:6,fechaIngresoPrueba:'2018-01-22',adjuntosLegal:[],adjuntosMedico:[]},{nro:133,nombre:'Gonzalez Fabian Horacio',dni:'31234567',funcion:'Operario B',servicio:'GYM.RECOLETA',supervisor:'Alfredo Arispe',ingreso:'13/09/2020',estado:'Activo',estadoLegal:'',estadoMedico:'',fechaBaja:'',fechaReincorp:'',seguro:'Completo',localidad:'Palermo',tel:'1134567890',mail:'',cuit:'20312345679',estadoCivil:'Casado',nac:'Argentina',banco:'',calzado:42,ambo:'L',periodoPrueba:6,fechaIngresoPrueba:'2020-09-13',adjuntosLegal:[],adjuntosMedico:[]},{nro:2,nombre:'Peretti Juan Carlos',dni:'6263572',funcion:'Coordinador de área',servicio:'ADMINISTRATIVO',supervisor:'ADMINISTRATIVO',ingreso:'01/02/2011',estado:'Activo',estadoLegal:'',estadoMedico:'',fechaBaja:'',fechaReincorp:'',seguro:'Completo',localidad:'Belgrano',tel:'1131543167',mail:'juanperetti_46@hotmail.com',cuit:'20062635720',estadoCivil:'Casado',nac:'Argentina',banco:'Banco Nación',calzado:43,ambo:'XL',periodoPrueba:6,fechaIngresoPrueba:'2011-02-01',adjuntosLegal:[],adjuntosMedico:[]},{nro:43,nombre:'Arispe Alfredo Julian',dni:'18348699',funcion:'Supervisor',servicio:'ADMINISTRATIVO',supervisor:'ADMINISTRATIVO',ingreso:'11/03/2011',estado:'Activo',estadoLegal:'',estadoMedico:'',fechaBaja:'',fechaReincorp:'',seguro:'Completo',localidad:'Pompeya',tel:'1122751445',mail:'alfredoarispe@hotmail.com',cuit:'20183486994',estadoCivil:'Soltero',nac:'Argentina',banco:'',calzado:42,ambo:'L',periodoPrueba:6,fechaIngresoPrueba:'2011-03-11',adjuntosLegal:[],adjuntosMedico:[]},{nro:134,nombre:'Cabrera Silvia Adriana',dni:'24891034',funcion:'Auxiliar administrativo',servicio:'ADMINISTRATIVO',supervisor:'ADMINISTRATIVO',ingreso:'05/08/2013',estado:'Activo',estadoLegal:'',estadoMedico:'',fechaBaja:'',fechaReincorp:'',seguro:'Completo',localidad:'Flores',tel:'1145678901',mail:'scabrera@ohlimpia.coop',cuit:'27248910347',estadoCivil:'Casada',nac:'Argentina',banco:'Galicia',calzado:37,ambo:'S',periodoPrueba:6,fechaIngresoPrueba:'2013-08-05',adjuntosLegal:[],adjuntosMedico:[]},{nro:135,nombre:'Sandez Patricia Liliana',dni:'22109834',funcion:'Auxiliar administrativo',servicio:'ADMINISTRATIVO',supervisor:'ADMINISTRATIVO',ingreso:'12/06/2012',estado:'Activo',estadoLegal:'',estadoMedico:'',fechaBaja:'',fechaReincorp:'',seguro:'Completo',localidad:'Caballito',tel:'1156789013',mail:'psandez@ohlimpia.coop',cuit:'27221098344',estadoCivil:'Casada',nac:'Argentina',banco:'Banco Nación',calzado:37,ambo:'M',periodoPrueba:6,fechaIngresoPrueba:'2012-06-12',adjuntosLegal:[],adjuntosMedico:[]},{nro:136,nombre:'Ponce Fernando Leandro',dni:'35892013',funcion:'Auxiliar administrativo',servicio:'ADMINISTRATIVO',supervisor:'ADMINISTRATIVO',ingreso:'20/03/2022',estado:'Activo',estadoLegal:'',estadoMedico:'',fechaBaja:'',fechaReincorp:'',seguro:'Completo',localidad:'Villa del Parque',tel:'1167890124',mail:'fponce@ohlimpia.coop',cuit:'20358920139',estadoCivil:'Soltero',nac:'Argentina',banco:'',calzado:42,ambo:'L',periodoPrueba:6,fechaIngresoPrueba:'2022-03-20',adjuntosLegal:[],adjuntosMedico:[]},{nro:137,nombre:'Ibarra Monica Beatriz',dni:'26781034',funcion:'Coordinador de área',servicio:'ADMINISTRATIVO',supervisor:'ADMINISTRATIVO',ingreso:'07/11/2014',estado:'Activo',estadoLegal:'',estadoMedico:'',fechaBaja:'',fechaReincorp:'',seguro:'Completo',localidad:'Flores',tel:'1178901235',mail:'mibarra@ohlimpia.coop',cuit:'27267810346',estadoCivil:'Casada',nac:'Argentina',banco:'Santander',calzado:38,ambo:'M',periodoPrueba:6,fechaIngresoPrueba:'2014-11-07',adjuntosLegal:[],adjuntosMedico:[]},{nro:138,nombre:'Vera Diego Ezequiel',dni:'39012345',funcion:'Auxiliar administrativo',servicio:'ADMINISTRATIVO',supervisor:'ADMINISTRATIVO',ingreso:'15/01/2024',estado:'Activo',estadoLegal:'',estadoMedico:'',fechaBaja:'',fechaReincorp:'',seguro:'Pendiente',localidad:'San Telmo',tel:'1189012346',mail:'dvera@ohlimpia.coop',cuit:'20390123456',estadoCivil:'Soltero',nac:'Argentina',banco:'',calzado:41,ambo:'M',periodoPrueba:6,fechaIngresoPrueba:'2024-01-15',adjuntosLegal:[],adjuntosMedico:[]},{nro:139,nombre:'Lemos Jimena Antonella',dni:'34201890',funcion:'Coordinador de área',servicio:'ADMINISTRATIVO',supervisor:'ADMINISTRATIVO',ingreso:'10/04/2019',estado:'Activo',estadoLegal:'',estadoMedico:'',fechaBaja:'',fechaReincorp:'',seguro:'Completo',localidad:'Belgrano',tel:'1190123457',mail:'jlemos@ohlimpia.coop',cuit:'27342018906',estadoCivil:'Soltera',nac:'Argentina',banco:'Galicia',calzado:37,ambo:'S',periodoPrueba:6,fechaIngresoPrueba:'2019-04-10',adjuntosLegal:[],adjuntosMedico:[]},{nro:140,nombre:'Naara Pizarro Valentina',dni:'37890123',funcion:'Auxiliar administrativo',servicio:'ADMINISTRATIVO',supervisor:'ADMINISTRATIVO',ingreso:'03/08/2021',estado:'Activo',estadoLegal:'',estadoMedico:'',fechaBaja:'',fechaReincorp:'',seguro:'Completo',localidad:'Palermo',tel:'1101234568',mail:'npizarro@ohlimpia.coop',cuit:'27378901237',estadoCivil:'Soltera',nac:'Argentina',banco:'',calzado:37,ambo:'S',periodoPrueba:6,fechaIngresoPrueba:'2021-08-03',adjuntosLegal:[],adjuntosMedico:[]},{nro:141,nombre:'Uballes Alvaro Sebastian',dni:'28012834',funcion:'Supervisor',servicio:'ADMINISTRATIVO',supervisor:'ADMINISTRATIVO',ingreso:'14/02/2012',estado:'Activo',estadoLegal:'',estadoMedico:'',fechaBaja:'',fechaReincorp:'',seguro:'Completo',localidad:'Floresta',tel:'1112345679',mail:'auballes@ohlimpia.coop',cuit:'20280128347',estadoCivil:'Casado',nac:'Argentina',banco:'Banco Nación',calzado:43,ambo:'XL',periodoPrueba:6,fechaIngresoPrueba:'2012-02-14',adjuntosLegal:[],adjuntosMedico:[]},{nro:142,nombre:'Cacciato Alejandro Pablo',dni:'25678123',funcion:'Supervisor',servicio:'ADMINISTRATIVO',supervisor:'ADMINISTRATIVO',ingreso:'22/05/2013',estado:'Activo',estadoLegal:'',estadoMedico:'',fechaBaja:'',fechaReincorp:'',seguro:'Completo',localidad:'Caballito',tel:'1123456791',mail:'acacciato@ohlimpia.coop',cuit:'20256781238',estadoCivil:'Casado',nac:'Argentina',banco:'Galicia',calzado:42,ambo:'L',periodoPrueba:6,fechaIngresoPrueba:'2013-05-22',adjuntosLegal:[],adjuntosMedico:[]},{nro:143,nombre:'Gomez Valeria Ines',dni:'30123456',funcion:'Coordinador de área',servicio:'ADMINISTRATIVO',supervisor:'ADMINISTRATIVO',ingreso:'09/07/2016',estado:'Activo',estadoLegal:'',estadoMedico:'',fechaBaja:'',fechaReincorp:'',seguro:'Completo',localidad:'Barracas',tel:'1134567891',mail:'vgomez@ohlimpia.coop',cuit:'27301234567',estadoCivil:'Casada',nac:'Argentina',banco:'Santander',calzado:37,ambo:'M',periodoPrueba:6,fechaIngresoPrueba:'2016-07-09',adjuntosLegal:[],adjuntosMedico:[]},{nro:144,nombre:'Herrera Gustavo Andres',dni:'33456789',funcion:'Auxiliar administrativo',servicio:'ADMINISTRATIVO',supervisor:'ADMINISTRATIVO',ingreso:'18/02/2020',estado:'Activo',estadoLegal:'',estadoMedico:'',fechaBaja:'',fechaReincorp:'',seguro:'Completo',localidad:'Retiro',tel:'1145678902',mail:'gherrera@ohlimpia.coop',cuit:'20334567893',estadoCivil:'Soltero',nac:'Argentina',banco:'',calzado:43,ambo:'L',periodoPrueba:6,fechaIngresoPrueba:'2020-02-18',adjuntosLegal:[],adjuntosMedico:[]},{nro:22,nombre:'Godoy Alicia Alejandra',dni:'25189767',funcion:'Operario',servicio:'—',supervisor:'—',ingreso:'28/08/2015',estado:'Baja',estadoLegal:'Estado judicial',estadoMedico:'',fechaBaja:'15/03/2024',fechaReincorp:'',seguro:'—',localidad:'Avellaneda',tel:'',mail:'',cuit:'',estadoCivil:'',nac:'',banco:'',calzado:38,ambo:'S',periodoPrueba:6,fechaIngresoPrueba:'2015-08-28',adjuntosLegal:['carta_doc_1.pdf','escrito_judicial.pdf'],adjuntosMedico:[]},{nro:46,nombre:'Camacho Solis Katherine',dni:'93991411',funcion:'Operario',servicio:'CIBRA',supervisor:'Alejandro Cacciato',ingreso:'25/04/2014',estado:'Activo',estadoLegal:'Carta documento recibida',estadoMedico:'',fechaBaja:'',fechaReincorp:'',seguro:'Pendiente',localidad:'Tigre',tel:'1150581888',mail:'',cuit:'27939914116',estadoCivil:'Soltera',nac:'Peruana',banco:'',calzado:38,ambo:'S',periodoPrueba:6,fechaIngresoPrueba:'2014-04-25',adjuntosLegal:['carta_doc_1.pdf'],adjuntosMedico:[]},{nro:97,nombre:'Sanchez Ocas Segundo',dni:'94243288',funcion:'Operario',servicio:'LOS.PINOS',supervisor:'Alvaro Uballes',ingreso:'12/02/2016',estado:'Activo',estadoLegal:'',estadoMedico:'',fechaBaja:'05/06/2018',fechaReincorp:'14/01/2020',seguro:'Completo',localidad:'CABA',tel:'',mail:'',cuit:'20942432888',estadoCivil:'',nac:'',banco:'',calzado:42,ambo:'L',periodoPrueba:6,fechaIngresoPrueba:'2020-01-14',adjuntosLegal:[],adjuntosMedico:[]}];
-DB.clientes = [{id:1,nombre:'Hospital Ángel de la Guarda',razon:'Hospital Ángel de la Guarda S.A.',cuit:'30712345678',direccion:'Av. San Martín 1200, Campana',contacto:'Lic. Fernanda Ríos',tel:'2264-401200',mail:'administracion@hospitalguarda.com.ar',zona:'Buenos Aires',supervisor:'Claudia Cazenave',servicio:'HOSPITAL.CAMPANA',estado:'Activo',desde:'2013-06-01',obs:'Contrato anual. Renovación en junio.'},{id:2,nombre:'HIT Training Center — Libertador',razon:'HIT Fitness S.R.L.',cuit:'30698765432',direccion:'Av. del Libertador 4500, CABA',contacto:'Lic. Marcelo Vega',tel:'11-4789-5600',mail:'operaciones@hitfitness.com.ar',zona:'CABA',supervisor:'Alvaro Uballes',servicio:'HIT.LIBERTADOR.CEL',estado:'Activo',desde:'2017-01-10',obs:'Dos sucursales: CEL y 8614.'},{id:3,nombre:'HIT Training Center — 8614',razon:'HIT Fitness S.R.L.',cuit:'30698765432',direccion:'Av. del Libertador 8614, CABA',contacto:'Lic. Marcelo Vega',tel:'11-4789-5601',mail:'operaciones@hitfitness.com.ar',zona:'CABA',supervisor:'Alvaro Uballes',servicio:'HIT.LIBERTADOR.8614',estado:'Activo',desde:'2017-03-15',obs:''},{id:4,nombre:'HACOAJ Club Náutico',razon:'HACOAJ Asociación Civil',cuit:'30567890123',direccion:'Av. Tigre 400, Tigre',contacto:'Sr. Roberto Altmann',tel:'11-4749-2200',mail:'secretaria@hacoaj.org.ar',zona:'Buenos Aires',supervisor:'Fabio Benvenuto',servicio:'HACOAJ.TIGRE',estado:'Activo',desde:'2014-09-01',obs:'Club con alta ocupación en temporada estival.'},{id:5,nombre:'Los Pinos Country Club',razon:'Los Pinos S.A.',cuit:'30523456789',direccion:'Ruta 4 Km 12, Lomas de Zamora',contacto:'Ing. Paula Medina',tel:'11-4292-4500',mail:'gerencia@lospinos.com.ar',zona:'Buenos Aires',supervisor:'Matias Maidana',servicio:'LOS.PINOS',estado:'Activo',desde:'2013-04-01',obs:''},{id:6,nombre:'CENARD',razon:'Centro Nacional de Alto Rendimiento Deportivo',cuit:'34567891234',direccion:'Av. Lugones 3701, CABA',contacto:'Lic. Horacio Giménez',tel:'11-4703-0900',mail:'licitaciones@cenard.gob.ar',zona:'CABA',supervisor:'Marcelo Moure',servicio:'CENARD',estado:'Activo',desde:'2016-10-01',obs:'Licitación pública. Próxima renovación oct-2026.'},{id:7,nombre:'ANAC',razon:'Administración Nacional de Aviación Civil',cuit:'34123456789',direccion:'Av. Paseo Colón 1088, CABA',contacto:'Dr. Ernesto Salinas',tel:'11-5555-2000',mail:'proveedores@anac.gob.ar',zona:'CABA',supervisor:'Santiago Ayala',servicio:'ANAC',estado:'Activo',desde:'2012-02-01',obs:'Organismo nacional. Requiere habilitaciones especiales.'},{id:8,nombre:'Newsan S.A. — Planta Campana',razon:'Newsan S.A.',cuit:'30789012345',direccion:'Ruta 12 Km 53, Campana',contacto:'Sr. Pablo Arroyo',tel:'2264-499800',mail:'servicios@newsan.com.ar',zona:'Buenos Aires',supervisor:'Claudia Cazenave',servicio:'NEWSAN.CAMPANA',estado:'Activo',desde:'2016-04-01',obs:'Planta industrial. Turno noche incluido.'},{id:9,nombre:'Sulfoquímica S.A.',razon:'Sulfoquímica S.A.',cuit:'30901234567',direccion:'Ruta Provincial 6 Km 8, Campana',contacto:'Ing. Victor Russo',tel:'2264-455000',mail:'logistica@sulfoquimica.com.ar',zona:'Buenos Aires',supervisor:'Alejandro Cacciato',servicio:'SULFOQUIMICA',estado:'Activo',desde:'2017-03-01',obs:'Zona industrial. Requiere ropa de seguridad específica.'},{id:10,nombre:'Coto Supermercados — Garín',razon:'Coto CICSA',cuit:'30234567890',direccion:'Acceso Norte Km 38, Garín',contacto:'Lic. Graciela Ferreira',tel:'3327-501800',mail:'seguridad@coto.com.ar',zona:'Buenos Aires',supervisor:'Richard Recalde',servicio:'COTO.GARIN',estado:'Activo',desde:'2014-10-01',obs:''},{id:11,nombre:'Migueletes 2423 — Edificio Torres',razon:'Consorcio Torres Migueletes',cuit:'30345678901',direccion:'Migueletes 2423, CABA',contacto:'Adm. Carlos Villanueva',tel:'11-4780-3300',mail:'administracion@torresmigueletes.com.ar',zona:'CABA',supervisor:'Alvaro Uballes',servicio:'MIGUELETES.2423',estado:'Activo',desde:'2018-03-01',obs:'Complejo de 4 torres. Guardia permanente.'},{id:12,nombre:'Parque Tecnópolis',razon:'Ministerio de Ciencia y Tecnología',cuit:'34890123456',direccion:'Av. del Bicentenario s/n, Villa Martelli',contacto:'Lic. Susana Pérez',tel:'11-5239-0700',mail:'tecnopolis@mct.gob.ar',zona:'Buenos Aires',supervisor:'Lorena Unzain',servicio:'TEKNOPOLIS',estado:'Activo',desde:'2019-11-01',obs:'Parque nacional. Temporadas de apertura variables.'},{id:13,nombre:'Gym Recoleta Fitness',razon:'GYM Fitness S.R.L.',cuit:'30456789012',direccion:'Av. Santa Fe 2100, CABA',contacto:'Sr. Maximiliano Torres',tel:'11-4823-5500',mail:'info@gymrecoleta.com.ar',zona:'CABA',supervisor:'Alfredo Arispe',servicio:'GYM.RECOLETA',estado:'Activo',desde:'2018-01-01',obs:''},{id:14,nombre:'Clínica Santa Rosa',razon:'Clínica Santa Rosa S.A.',cuit:'30512345679',direccion:'Av. Rivadavia 9800, Liniers',contacto:'Dra. Beatriz Mondragón',tel:'11-4641-7200',mail:'administracion@clinicasantarosa.com.ar',zona:'CABA',supervisor:'Dario Lage',servicio:'ADMINISTRATIVO',estado:'Propuesta enviada',desde:'',obs:'Requiere propuesta de precio para 3 operarios nocturnos.'},{id:15,nombre:'Supermercado Día — Avellaneda',razon:'Distribuidora Día S.A.',cuit:'30623456781',direccion:'Av. Mitre 1500, Avellaneda',contacto:'Lic. Pablo Ruiz',tel:'11-4222-5000',mail:'seguridad@dia.com.ar',zona:'Buenos Aires',supervisor:'Matias Maidana',servicio:'ADMINISTRATIVO',estado:'Activo',desde:'2020-06-01',obs:''},{id:16,nombre:'Edificio Corporativo Nordelta',razon:'IRSA S.A.',cuit:'30734567892',direccion:'Av. del Puerto 200, Tigre',contacto:'Ing. Roberto Sosa',tel:'11-4890-1200',mail:'facilities@irsa.com.ar',zona:'Buenos Aires',supervisor:'Fabio Benvenuto',servicio:'ADMINISTRATIVO',estado:'Negociación',desde:'',obs:'Posible contrato de 8 operarios. Visita técnica pendiente.'},{id:17,nombre:'Municipalidad de Campana',razon:'Municipalidad de Campana',cuit:'34845678903',direccion:'Italia 50, Campana',contacto:'Sr. Gustavo Ferreyra',tel:'2264-420100',mail:'compras@campana.gov.ar',zona:'Buenos Aires',supervisor:'Claudia Cazenave',servicio:'ADMINISTRATIVO',estado:'Activo',desde:'2015-01-01',obs:'Contrato municipal. Renovación anual enero.'},{id:18,nombre:'Centro Comercial Palermo',razon:'Palermo Shopping S.A.',cuit:'30956789014',direccion:'Av. Bullrich 345, CABA',contacto:'Lic. Vanesa Ortiz',tel:'11-5777-6000',mail:'operaciones@palermoshopping.com.ar',zona:'CABA',supervisor:'Santiago Ayala',servicio:'ADMINISTRATIVO',estado:'Activo',desde:'2021-03-01',obs:''},{id:19,nombre:'Hipódromo Argentino',razon:'HAPSA S.A.',cuit:'30067890125',direccion:'Av. del Libertador 4101, CABA',contacto:'Dr. Lucas Navarro',tel:'11-4778-2800',mail:'rrhh@hipodromo.com.ar',zona:'CABA',supervisor:'Marcelo Moure',servicio:'ADMINISTRATIVO',estado:'Activo',desde:'2019-07-01',obs:'Operativos los fines de semana. Refuerzo en fechas especiales.'},{id:20,nombre:'Banco Provincia — Casa Central',razon:'Banco de la Provincia de Buenos Aires',cuit:'34178901236',direccion:'Av. San Martín 137, La Plata',contacto:'Lic. Carolina Ibáñez',tel:'0221-429-4000',mail:'compras@bapro.com.ar',zona:'Buenos Aires',supervisor:'Lorena Unzain',servicio:'ADMINISTRATIVO',estado:'Activo',desde:'2020-01-01',obs:'Licitación vigente hasta dic-2026.'},{id:21,nombre:'Colegio Don Bosco',razon:'Instituto Don Bosco',cuit:'30289012347',direccion:'Av. General Paz 1200, San Justo',contacto:'Hno. Marcelo Segura',tel:'11-4441-3000',mail:'administracion@donbosco.edu.ar',zona:'Buenos Aires',supervisor:'Richard Recalde',servicio:'ADMINISTRATIVO',estado:'Activo',desde:'2022-03-01',obs:''},{id:22,nombre:'Universidad de La Matanza',razon:'Universidad Nacional de La Matanza',cuit:'34390123458',direccion:'Florencio Varela 1903, San Justo',contacto:'Lic. Diego Salazar',tel:'11-4480-8900',mail:'servicios@unlam.edu.ar',zona:'Buenos Aires',supervisor:'Richard Recalde',servicio:'ADMINISTRATIVO',estado:'Activo',desde:'2018-08-01',obs:''},{id:23,nombre:'Puerto Madero Towers',razon:'LCSA S.A.',cuit:'30401234569',direccion:'Alicia Moreau de Justo 800, CABA',contacto:'Arq. Fabiana Rios',tel:'11-4311-4000',mail:'facilities@puertomadero.com.ar',zona:'CABA',supervisor:'Alfredo Arispe',servicio:'ADMINISTRATIVO',estado:'Activo',desde:'2017-05-01',obs:'4 torres. Guardia 24hs.'},{id:24,nombre:'Estación de Trenes Constitución',razon:'Trenes Argentinos',cuit:'34512345670',direccion:'Brasil 1, CABA',contacto:'Ing. Hernán Castillo',tel:'11-4300-3000',mail:'mantenimiento@trenes.gob.ar',zona:'CABA',supervisor:'Santiago Ayala',servicio:'ADMINISTRATIVO',estado:'Activo',desde:'2021-01-01',obs:'Alta rotación de personas. Refuerzo lunes y viernes.'},{id:25,nombre:'Laboratorio Bagó',razon:'Laboratorio Bagó S.A.',cuit:'30623456782',direccion:'Av. Vélez Sársfield 150, CABA',contacto:'Sr. Luis Pereyra',tel:'11-5278-9000',mail:'compras@bago.com.ar',zona:'CABA',supervisor:'Marcelo Moure',servicio:'ADMINISTRATIVO',estado:'Activo',desde:'2016-06-01',obs:''},{id:26,nombre:'Hipermercado Carrefour — Quilmes',razon:'Carrefour Argentina S.A.',cuit:'30734567893',direccion:'Av. Calchaquí 3950, Quilmes',contacto:'Lic. Martina Juárez',tel:'11-4224-8000',mail:'seguridad.quilmes@carrefour.com.ar',zona:'Buenos Aires',supervisor:'Matias Maidana',servicio:'ADMINISTRATIVO',estado:'Activo',desde:'2019-09-01',obs:''},{id:27,nombre:'Aeropuerto Internacional Ezeiza',razon:'Aeropuertos Argentina 2000',cuit:'30845678904',direccion:'Ruta 205 Km 33, Ezeiza',contacto:'Ing. Claudio Fernández',tel:'11-5480-6111',mail:'contrataciones@aa2000.com.ar',zona:'Buenos Aires',supervisor:'Dario Lage',servicio:'ADMINISTRATIVO',estado:'Propuesta enviada',desde:'',obs:'Licitación grande. Requiere 15+ operarios con habilitación.'},{id:28,nombre:'Sanatorio Méndez',razon:'Sanatorio Méndez S.A.',cuit:'30956789015',direccion:'Lacarra 1010, CABA',contacto:'Dr. Pablo Méndez',tel:'11-4638-6666',mail:'administracion@sanatorioméndez.com.ar',zona:'CABA',supervisor:'Dario Lage',servicio:'ADMINISTRATIVO',estado:'Activo',desde:'2020-11-01',obs:'Limpieza de quirófanos. Personal capacitado requerido.'},{id:29,nombre:'Parque Industrial Pilar',razon:'Parque Industrial Pilar S.A.',cuit:'30067890126',direccion:'Ruta 8 Km 60, Pilar',contacto:'Ing. Roberto Mazza',tel:'2322-480100',mail:'servicios@pipsa.com.ar',zona:'Buenos Aires',supervisor:'Alejandro Cacciato',servicio:'ADMINISTRATIVO',estado:'Activo',desde:'2018-01-01',obs:'Múltiples empresas dentro del parque.'},{id:30,nombre:'Municipalidad de Tigre',razon:'Municipalidad de Tigre',cuit:'34178901237',direccion:'Av. Cazón 1514, Tigre',contacto:'Sr. Marcos Álvarez',tel:'11-4512-4000',mail:'compras@tigre.gov.ar',zona:'Buenos Aires',supervisor:'Fabio Benvenuto',servicio:'ADMINISTRATIVO',estado:'Activo',desde:'2016-09-01',obs:''},{id:31,nombre:'Hotel Hilton Buenos Aires',razon:'Hilton International Co.',cuit:'30289012348',direccion:'Macacha Güemes 351, CABA',contacto:'Lic. Andrea Costello',tel:'11-4891-0000',mail:'operaciones.ba@hilton.com',zona:'CABA',supervisor:'Alfredo Arispe',servicio:'ADMINISTRATIVO',estado:'Activo',desde:'2021-06-01',obs:'Servicio de limpieza habitual de pasillos.'},{id:32,nombre:'Cablevisión — Call Center',razon:'Cablevisión S.A.',cuit:'30401234570',direccion:'Av. del Libertador 1003, CABA',contacto:'Lic. Gabriela Ferro',tel:'11-4309-7000',mail:'servicios@cablevision.com.ar',zona:'CABA',supervisor:'Santiago Ayala',servicio:'ADMINISTRATIVO',estado:'Activo',desde:'2022-04-01',obs:''},{id:33,nombre:'Disco Supermercados — Palermo',razon:'Disco S.A.',cuit:'30512345680',direccion:'Av. Santa Fe 3560, CABA',contacto:'Lic. Silvia Gómez',tel:'11-4831-3700',mail:'seguridad@disco.com.ar',zona:'CABA',supervisor:'Marcelo Moure',servicio:'ADMINISTRATIVO',estado:'Activo',desde:'2020-02-01',obs:''},{id:34,nombre:'Consorcio Barrio Cerrado El Paraíso',razon:'Administración El Paraíso SH',cuit:'30623456783',direccion:'Ruta 25 Km 4, Pilar',contacto:'Sr. Eduardo Blanco',tel:'2322-461200',mail:'admin@elparaiso.com.ar',zona:'Buenos Aires',supervisor:'Alejandro Cacciato',servicio:'ADMINISTRATIVO',estado:'Activo',desde:'2019-03-01',obs:''},{id:35,nombre:'Instituto Cardiovascular de Buenos Aires',razon:'ICBA S.A.',cuit:'30734567894',direccion:'Blanco Encalada 1543, CABA',contacto:'Dr. Sergio Kovalski',tel:'11-4827-7000',mail:'administracion@icba.com.ar',zona:'CABA',supervisor:'Lorena Unzain',servicio:'ADMINISTRATIVO',estado:'Activo',desde:'2017-11-01',obs:'Área de alta complejidad. Personal entrenado.'},{id:36,nombre:'Fábrica Bimbo Argentina',razon:'Bimbo de Argentina S.A.',cuit:'30845678905',direccion:'Panamericana Km 24, Garín',contacto:'Ing. Néstor Godoy',tel:'3327-480700',mail:'produccion@bimbo.com.ar',zona:'Buenos Aires',supervisor:'Richard Recalde',servicio:'ADMINISTRATIVO',estado:'Activo',desde:'2021-07-01',obs:'Turno noche incluido. Área de producción alimentaria.'},{id:37,nombre:'Teatro Gran Rex',razon:'Teatro Gran Rex S.A.',cuit:'30956789016',direccion:'Av. Corrientes 857, CABA',contacto:'Lic. Patricia Landi',tel:'11-4322-8000',mail:'administracion@granrex.com.ar',zona:'CABA',supervisor:'Dario Lage',servicio:'ADMINISTRATIVO',estado:'Activo',desde:'2023-01-01',obs:'Refuerzo en funciones de fin de semana.'},{id:38,nombre:'Shopping Unicenter',razon:'Cencosud S.A.',cuit:'30067890127',direccion:'Paraná 3745, Martínez',contacto:'Lic. Laura Soto',tel:'11-4733-2000',mail:'seguridad@unicenter.com.ar',zona:'Buenos Aires',supervisor:'Alfredo Arispe',servicio:'ADMINISTRATIVO',estado:'Activo',desde:'2018-10-01',obs:''},{id:39,nombre:'Banco Galicia — Sucursal Flores',razon:'Banco de Galicia y Buenos Aires S.A.',cuit:'30178901238',direccion:'Rivadavia 7200, CABA',contacto:'Sr. Osvaldo Paez',tel:'11-6329-0000',mail:'compras@bancogalicia.com.ar',zona:'CABA',supervisor:'Santiago Ayala',servicio:'ADMINISTRATIVO',estado:'Activo',desde:'2022-08-01',obs:''},{id:40,nombre:'Bodega Trapiche — Depósito GBA',razon:'Peñaflor S.A.',cuit:'30289012349',direccion:'Av. Roca 1000, Avellaneda',contacto:'Sr. Martín Álvarez',tel:'11-4228-3000',mail:'deposito@trapiche.com.ar',zona:'Buenos Aires',supervisor:'Matias Maidana',servicio:'ADMINISTRATIVO',estado:'Activo',desde:'2020-05-01',obs:''},{id:41,nombre:'La Rural — Predio Ferial',razon:'Sociedad Rural Argentina',cuit:'30401234571',direccion:'Av. Sarmiento 2704, CABA',contacto:'Ing. Federico Duarte',tel:'11-4777-5500',mail:'operaciones@larural.com.ar',zona:'CABA',supervisor:'Marcelo Moure',servicio:'ADMINISTRATIVO',estado:'Propuesta enviada',desde:'',obs:'Solo para ferias y eventos. Servicio eventual.'},{id:42,nombre:'Clínica San Camilo',razon:'Clínica San Camilo S.A.',cuit:'30512345681',direccion:'Av. Juan B. Justo 3002, CABA',contacto:'Dra. Marta Beltrán',tel:'11-4636-8888',mail:'administracion@sancamilo.com.ar',zona:'CABA',supervisor:'Dario Lage',servicio:'ADMINISTRATIVO',estado:'Activo',desde:'2023-05-01',obs:''},{id:43,nombre:'Municipalidad de San Martín',razon:'Municipalidad de Gral. San Martín',cuit:'34623456784',direccion:'Av. San Martín 1861, San Martín',contacto:'Lic. Claudia Torres',tel:'11-4753-0200',mail:'compras@sanmartin.gov.ar',zona:'Buenos Aires',supervisor:'Lorena Unzain',servicio:'ADMINISTRATIVO',estado:'Activo',desde:'2017-04-01',obs:''},{id:44,nombre:'YPF — Planta Ensenada',razon:'YPF S.A.',cuit:'30546689979',direccion:'Av. del Petróleo s/n, Ensenada',contacto:'Ing. Ramón Soto',tel:'0221-469-4000',mail:'servicios@ypf.com',zona:'Buenos Aires',supervisor:'Alejandro Cacciato',servicio:'ADMINISTRATIVO',estado:'Negociación',desde:'',obs:'Gran contrato potencial. Requiere análisis de costos.'},{id:45,nombre:'Centro Cultural Kirchner',razon:'Ministerio de Cultura de la Nación',cuit:'34734567895',direccion:'Sarmiento 151, CABA',contacto:'Lic. Valentina Ruiz',tel:'11-4510-0400',mail:'servicios@cck.gob.ar',zona:'CABA',supervisor:'Santiago Ayala',servicio:'ADMINISTRATIVO',estado:'Activo',desde:'2021-09-01',obs:''},{id:46,nombre:'Hard Rock Café Buenos Aires',razon:'Grupo Arcos S.A.',cuit:'30845678906',direccion:'Av. del Libertador 930, CABA',contacto:'Sr. Brian Cruz',tel:'11-5352-1000',mail:'operaciones.bsas@hardrock.com',zona:'CABA',supervisor:'Alfredo Arispe',servicio:'ADMINISTRATIVO',estado:'Activo',desde:'2022-11-01',obs:''},{id:47,nombre:'Supermercado Jumbo — Pilar',razon:'Cencosud S.A.',cuit:'30067890128',direccion:'Panamericana Km 46, Pilar',contacto:'Lic. Luciana Mora',tel:'2322-492000',mail:'seguridad.pilar@jumbo.com.ar',zona:'Buenos Aires',supervisor:'Fabio Benvenuto',servicio:'ADMINISTRATIVO',estado:'Activo',desde:'2019-06-01',obs:''},{id:48,nombre:'Sanatorio Las Lomas',razon:'Sanatorio Las Lomas S.A.',cuit:'30178901239',direccion:'Av. del Libertador 14500, San Isidro',contacto:'Dr. Gonzalo Urquiza',tel:'11-4732-9200',mail:'administracion@laslomas.com.ar',zona:'Buenos Aires',supervisor:'Richard Recalde',servicio:'ADMINISTRATIVO',estado:'Activo',desde:'2018-07-01',obs:''},{id:49,nombre:'Correo Argentino — Centro de Distribución',razon:'Correo Oficial de la República Argentina',cuit:'34878901240',direccion:'Av. Pedro de Mendoza 2000, CABA',contacto:'Lic. Carlos Sánchez',tel:'11-5003-1000',mail:'contrataciones@correoargentino.com.ar',zona:'CABA',supervisor:'Marcelo Moure',servicio:'ADMINISTRATIVO',estado:'Activo',desde:'2020-08-01',obs:'Turno madrugada incluido.'},{id:50,nombre:'Club Atlético San Lorenzo',razon:'Club Atlético San Lorenzo de Almagro',cuit:'30289012350',direccion:'Av. La Plata 1700, CABA',contacto:'Lic. Miguel Leguizamón',tel:'11-4922-2520',mail:'administracion@sanlorenzo.com.ar',zona:'CABA',supervisor:'Dario Lage',servicio:'ADMINISTRATIVO',estado:'Activo',desde:'2023-08-01',obs:'Limpieza del estadio y predios. Refuerzo días de partido.'}];
+// (Set B duplicado de DB.clientes eliminado — v039, Cambio 2. Ganaba en runtime sobre el esquema rico de la línea 1207 al ejecutarse después, sin guard, dejando la UI de Clientes con datos incompletos.)
 DB.candidatos = [];
 DB.pedidos = [{id:1,fecha:'09/10/2023',supervisor:'Claudia Cazenave',servicio:'HOSPITAL.CAMPANA',zona:'Buenos Aires',puesto:'Operario',horario:'22hs a 06hs nocturno 6×1',urgencia:'Alto',estado:'Cubierto',candidato:'Lima Romina',obs:''},{id:2,fecha:'27/11/2023',supervisor:'Alvaro Uballes',servicio:'HIT.LIBERTADOR.CEL',zona:'CABA',puesto:'Retén',horario:'Rotativos full time 6×1',urgencia:'Medio',estado:'Pendiente',candidato:'',obs:''},{id:3,fecha:'02/04/2026',supervisor:'Alejandro Cacciato',servicio:'SULFOQUIMICA',zona:'Buenos Aires',puesto:'Operario',horario:'L-V 14/22hs',urgencia:'Alto',estado:'Pendiente',candidato:'',obs:''},{id:4,fecha:'01/04/2026',supervisor:'Marcelo Moure',servicio:'CENARD',zona:'CABA',puesto:'Operario B',horario:'L-V 06/14hs',urgencia:'Medio',estado:'En proceso',candidato:'Sandoval Hugo',obs:''},{id:5,fecha:'03/04/2026',supervisor:'Fabio Benvenuto',servicio:'HACOAJ.TIGRE',zona:'Buenos Aires',puesto:'Encargado',horario:'Sábados y domingos 08/16hs',urgencia:'Alto',estado:'Pendiente',candidato:'',obs:'Temporada alta próxima'},{id:6,fecha:'28/03/2026',supervisor:'Lorena Unzain',servicio:'TEKNOPOLIS',zona:'Buenos Aires',puesto:'Operario B',horario:'L-V 14/22hs',urgencia:'Bajo',estado:'Pendiente',candidato:'',obs:''}];
 DB.psicos = [];
@@ -7672,7 +7986,7 @@ function renderGrillasLiq(){
   const esSupervisor=currentUser?.perfil==='Supervisor';
 
   // Obtener todas las grillas del mes + objetivos sin grilla (como filas vacías)
-  let objetivosVisibles=DB.objetivos.filter(o=>o.estado==='Activo');
+  let objetivosVisibles=DB.objetivos.filter(o=>o.estado==='Operativo');
   if(esSupervisor){
     // Supervisor solo ve sus servicios
     objetivosVisibles=objetivosVisibles.filter(o=>o.supervisor===currentUser.funcion||o.supervisor===currentUser.nombre||DB.legajos.some(l=>l.servicio===o.codigo&&l.supervisor===currentUser.nombre));
@@ -7999,7 +8313,7 @@ function expandirTodasGrillas(){
     _grillasExpandidas.clear();
     if(btn) btn.textContent='↕ Expandir todo';
   } else {
-    DB.objetivos.filter(o=>o.estado==='Activo').forEach(o=>_grillasExpandidas.add(o.codigo));
+    DB.objetivos.filter(o=>o.estado==='Operativo').forEach(o=>_grillasExpandidas.add(o.codigo));
     if(btn) btn.textContent='↕ Comprimir todo';
   }
   renderGrillasLiq();
@@ -8606,7 +8920,7 @@ function renderPrecios(){
   const fS=(id,items)=>{const el=$(id);if(!el)return;const ph=el.options[0]?.outerHTML||'';el.innerHTML=ph+items.map(i=>`<option>${i}</option>`).join('');};
   fS('cf-hist-obj',DB.objetivos.map(o=>o.nombre));
   fS('cf-hist-cli',DB.clientes.map(c=>c.nombre));
-  fS('proy-objetivo',DB.objetivos.filter(o=>o.estado==='Activo').map(o=>o.nombre));
+  fS('proy-objetivo',DB.objetivos.filter(o=>o.estado==='Operativo').map(o=>o.nombre));
   const ppObj=$('pp-objetivo');
   if(ppObj){const ph=ppObj.options[0]?.outerHTML||'';ppObj.innerHTML=ph+DB.objetivos.map(o=>`<option value="${o.id}">${o.nombre}</option>`).join('');}
   fS('pp-clausula',DB.clausulasActualizacion||[]);
@@ -8720,7 +9034,7 @@ function actualizarProyeccion(){
   const incluirPend=($('proy-incluir-pend')?.value)==='1';
   const pctExtra=parseFloat($('proy-pct-extra')?.value)||0;
   const filtObj=($('proy-objetivo')?.value)||'';
-  let objs=DB.objetivos.filter(o=>o.estado==='Activo');
+  let objs=DB.objetivos.filter(o=>o.estado==='Operativo');
   if(filtObj) objs=objs.filter(o=>o.nombre===filtObj);
   const hoy=new Date();
   // Calcular valor por mes para cada objetivo
@@ -9339,6 +9653,11 @@ window.abrirEditarVacAdmin = abrirEditarVacAdmin;
 window.abrirModalArt42 = abrirModalArt42;
 window.abrirModalCategoriaSind = abrirModalCategoriaSind;
 window.abrirModalCliente = abrirModalCliente;
+window.abrirModalObjetivo = abrirModalObjetivo;
+window.abrirBajaCliente = abrirBajaCliente;
+window.abrirBajaObjetivo = abrirBajaObjetivo;
+window.abrirAsignarSupervisor = abrirAsignarSupervisor;
+window.abrirCambiarSupervisor = abrirCambiarSupervisor;
 window.abrirModalConcepto = abrirModalConcepto;
 window.abrirModalDescuento = abrirModalDescuento;
 window.abrirModalFeriado = abrirModalFeriado;
@@ -9378,7 +9697,7 @@ window.agregarAccionCobro = agregarAccionCobro;
 window.agregarAdjuntoObj = agregarAdjuntoObj;
 window.agregarAsocDesdeSearch = agregarAsocDesdeSearch;
 window.agregarAsociadoGrilla = agregarAsociadoGrilla;
-window.agregarCfgVentas = agregarCfgVentas;
+window.agregarCfgComercial = agregarCfgComercial;
 window.agregarContactoCliente = agregarContactoCliente;
 window.agregarEtapaCRM = agregarEtapaCRM;
 window.agregarFuncionUsuario = agregarFuncionUsuario;
@@ -9437,7 +9756,7 @@ window.editarMotivoEFT = editarMotivoEFT;
 window.editarMotivoNF = editarMotivoNF;
 window.editarRetencion = editarRetencion;
 window.eliminarCategoriaSind = eliminarCategoriaSind;
-window.eliminarCfgVentas = eliminarCfgVentas;
+window.eliminarCfgComercial = eliminarCfgComercial;
 window.eliminarConceptoLiq = eliminarConceptoLiq;
 window.eliminarDescuentoLiq = eliminarDescuentoLiq;
 window.eliminarEtapaCRM = eliminarEtapaCRM;
@@ -9519,7 +9838,7 @@ window.poblarSelectMotivoNF = poblarSelectMotivoNF;
 window.poblarSelects = poblarSelects;
 window.poblarSelectsLiquidacion = poblarSelectsLiquidacion;
 window.poblarSelectsVacaciones = poblarSelectsVacaciones;
-window.poblarSelectsVentas = poblarSelectsVentas;
+window.poblarSelectsComercial = poblarSelectsComercial;
 window.precargarDatosGrilla = precargarDatosGrilla;
 window.previsualizarImportacion = previsualizarImportacion;
 window.proponerRecategorizacion = proponerRecategorizacion;
@@ -9552,13 +9871,13 @@ window.renderCalendarioPlan = renderCalendarioPlan;
 window.renderCatPendientes = renderCatPendientes;
 window.renderCategoriasSind = renderCategoriasSind;
 window.renderCfgEtapasCRM = renderCfgEtapasCRM;
-window.renderCfgVentasLista = renderCfgVentasLista;
+window.renderCfgComercialLista = renderCfgComercialLista;
 window.renderClientes = renderClientes;
 window.renderCobrados = renderCobrados;
 window.renderCobros = renderCobros;
 window.renderConceptosLiq = renderConceptosLiq;
 window.renderConfigLista = renderConfigLista;
-window.renderConfigVentas = renderConfigVentas;
+window.renderConfigComercial = renderConfigComercial;
 window.renderConfiguracion = renderConfiguracion;
 window.renderContactosClienteTemp = renderContactosClienteTemp;
 window.renderDescuentosLiq = renderDescuentosLiq;
@@ -9637,6 +9956,8 @@ window.setValoresPeriodo = setValoresPeriodo;
 window.simularRegistroPublico = simularRegistroPublico;
 window.solicitarCatAlt = solicitarCatAlt;
 window.tabCliModal = tabCliModal;
+window.tabObjetivos = tabObjetivos;
+window.chequearObjetivosDemorados = chequearObjetivosDemorados;
 window.tabCobros = tabCobros;
 window.tabCrm = tabCrm;
 window.tabLiqAdmin = tabLiqAdmin;

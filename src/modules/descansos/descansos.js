@@ -140,9 +140,9 @@ export function renderPendientes() {
 
 export function poblarSelectsDescansosTab() {
   const fS = (id, items) => { const el = $(id); if (el) el.innerHTML = '<option value="">Todos</option>' + items.map(s => `<option>${s}</option>`).join(''); };
-  fS('desc-pend-servicio', DB.servicios || []);
+  fS('desc-pend-servicio', window.obtenerServiciosActivos ? window.obtenerServiciosActivos() : (DB.servicios || []));
   fS('desc-pend-supervisor', DB.supervisores || []);
-  fS('desc-hist-servicio', DB.servicios || []);
+  fS('desc-hist-servicio', window.obtenerServiciosActivos ? window.obtenerServiciosActivos() : (DB.servicios || []));
   fS('desc-hist-supervisor', DB.supervisores || []);
 }
 

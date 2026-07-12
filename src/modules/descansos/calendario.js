@@ -24,7 +24,7 @@ export function mesSiguienteDesc() {
 
 export function poblarSelectsCalendarioDescansos() {
   const fS = (id, items) => { const el = $(id); if (el) el.innerHTML = '<option value="">Todos</option>' + items.map(s => `<option>${s}</option>`).join(''); };
-  fS('desc-cal-servicio', DB.servicios || []);
+  fS('desc-cal-servicio', window.obtenerServiciosActivos ? window.obtenerServiciosActivos() : (DB.servicios || []));
   fS('desc-cal-supervisor', DB.supervisores || []);
 }
 

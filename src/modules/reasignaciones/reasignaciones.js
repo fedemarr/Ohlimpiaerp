@@ -410,7 +410,7 @@ export function poblarSelectsReas() {
   }
 
   fDL('dl-asoc-reas', (DB.legajos || []).filter(l => l.estado === 'Activo').map(l => `${l.nombre} (N°${l.nro})`));
-  fDL('dl-serv-reas', DB.servicios);
+  fDL('dl-serv-reas', window.obtenerServiciosActivos ? window.obtenerServiciosActivos() : DB.servicios);
 
   renderConfigMotivosReas();
   renderConfigAprobadoresReas();

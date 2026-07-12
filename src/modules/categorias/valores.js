@@ -17,7 +17,7 @@ function categoriasActivas() {
 }
 
 function serviciosDisponibles() {
-  return DB.servicios || [];
+  return window.obtenerServiciosActivos ? window.obtenerServiciosActivos() : (DB.servicios || []);
 }
 
 // ========== TAB 2 — MATRIZ ==========

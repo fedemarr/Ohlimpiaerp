@@ -3,6 +3,11 @@
 export const DB = {
   rrhh: ['Jimena', 'Naara', 'Gabi'],
   supervisores: ['Alvaro Uballes', 'Alejandro Cacciato', 'Claudia Cazenave', 'Claudio Gonzalez', 'Fabio Benvenuto', 'Matias Maidana', 'Marcelo Moure', 'Santiago Ayala', 'Richard Recalde', 'Alfredo Arispe', 'Lorena Unzain', 'Dario Lage'],
+  // Deprecado (Clientes y Objetivos v1.1, v039) — no usar como fuente
+  // directa. Usar window.obtenerServiciosActivos() (legacy.js), que
+  // devuelve DB.objetivos.codigo (Operativos) + los códigos de esta lista
+  // que todavía no tengan un objetivo creado (fallback, para no romper
+  // legajos/datalists existentes mientras Comercial carga objetivos reales).
   servicios: ['HOSPITAL.CAMPANA', 'GYM.RECOLETA', 'HIT.LIBERTADOR.CEL', 'HIT.LIBERTADOR.8614', 'HACOAJ.TIGRE', 'LOS.PINOS', 'CENARD', 'ANAC', 'NEWSAN.CAMPANA', 'SULFOQUIMICA', 'COTO.GARIN', 'MIGUELETES.2423', 'TEKNOPOLIS', 'RETEN.GENERAL', 'ADMINISTRATIVO'],
   zonas: ['CABA', 'Buenos Aires'],
   medios: ['WhatsApp', 'Formulario web', 'Referido', 'Instagram', 'Búsqueda activa'],
@@ -129,7 +134,7 @@ export const PERFILES = {
   'Operaciones': { color: 'badge-verde', modulos: ['inicio', 'pedidos', 'legajos', 'reasignaciones', 'capacitaciones', 'vacaciones', 'descansos', 'competencia', 'clientes', 'objetivos', 'precios', 'paritarias', 'crm', 'reclamos', 'cobros', 'liquidacion', 'retenes', 'mantenimiento', 'feriados', 'uniformes', 'sanciones', 'pedidos_adelantos', 'sugerencias'], desc: 'Operaciones y ventas.' },
   'Finanzas': { color: 'badge-acento', modulos: ['inicio', 'legajos', 'smvm', 'cobros', 'paritarias', 'liquidacion', 'liq_admin', 'liquidaciones', 'retenes', 'mantenimiento', 'monotributos', 'retenciones', 'adelantos', 'gestion_adelantos', 'sugerencias'], desc: 'Finanzas y liquidación.' },
   'Supervisor': { color: 'badge-gris', modulos: ['inicio', 'pedidos', 'legajos', 'descansos', 'competencia', 'liquidacion', 'liquidaciones', 'adelantos', 'pedidos_adelantos', 'uniformes', 'sanciones', 'sugerencias'], desc: 'Pedidos, legajos, descansos, competencia y liquidación de horas.' },
-  'Ventas': { color: 'badge-naranja', modulos: ['inicio', 'clientes', 'objetivos', 'crm', 'reclamos', 'sugerencias'], desc: 'Clientes, objetivos, CRM y reclamos.' },
+  'Comercial': { color: 'badge-naranja', modulos: ['inicio', 'clientes', 'objetivos', 'crm', 'reclamos', 'sugerencias'], desc: 'Clientes, objetivos, CRM y reclamos.' },
   'Logística': { color: 'badge-gris', modulos: ['inicio', 'legajos', 'uniformes', 'sugerencias'], desc: 'Consulta de legajos y gestión de pedidos de uniformes.' },
   'Asociado': { color: 'badge-verde', modulos: ['mis_adelantos'], desc: 'Portal del asociado — pedidos de adelanto y préstamo.' },
   'DEVELOPER': { color: 'badge-azul', modulos: ['dev_inicio', 'dev_tickets', 'dev_proyeccion', 'dev_seguridad'], desc: 'Panel de desarrollo — tickets, roadmap y seguridad.' },
@@ -139,7 +144,7 @@ export const PERFILES = {
 
 export const MENU = [
   { section: '', items: [
-    { key: 'inicio', icon: '🏠', label: 'Inicio', perfiles: ['Administrador total', 'RRHH', 'Operaciones', 'Finanzas', 'Supervisor', 'Ventas', 'Logística'] },
+    { key: 'inicio', icon: '🏠', label: 'Inicio', perfiles: ['Administrador total', 'RRHH', 'Operaciones', 'Finanzas', 'Supervisor', 'Comercial', 'Logística'] },
   ]},
   { section: 'Selección', items: [
     { key: 'candidatos', icon: '👥', label: 'Candidatos', perfiles: ['Administrador total', 'RRHH'] },
@@ -150,7 +155,7 @@ export const MENU = [
   ]},
   { section: 'Ingreso', items: [
     { key: 'altas', icon: '✅', label: 'Altas de asociados', perfiles: ['Administrador total', 'RRHH'] },
-    { key: 'legajos', icon: '📁', label: 'Legajos', perfiles: ['Administrador total', 'RRHH', 'Operaciones', 'Finanzas', 'Supervisor', 'Ventas', 'Logística'] },
+    { key: 'legajos', icon: '📁', label: 'Legajos', perfiles: ['Administrador total', 'RRHH', 'Operaciones', 'Finanzas', 'Supervisor', 'Comercial', 'Logística'] },
     { key: 'reasignaciones', icon: '🔄', label: 'Reasignaciones', badge: 'reas', perfiles: ['Administrador total', 'RRHH', 'Operaciones'] },
     { key: 'monotributos', icon: '💸', label: 'Monotributos', perfiles: ['Administrador total', 'RRHH', 'Finanzas'] },
     { key: 'uniformes', icon: '👕', label: 'Uniformes', perfiles: ['Administrador total', 'RRHH', 'Operaciones', 'Supervisor', 'Logística'] },
@@ -165,12 +170,12 @@ export const MENU = [
     { key: 'pedidos_adelantos', icon: '💵', label: 'Pedidos de adelantos', perfiles: ['Administrador total', 'RRHH', 'Operaciones', 'Supervisor'] },
     { key: 'feriados', icon: '📅', label: 'Feriados', perfiles: ['Administrador total', 'RRHH', 'Operaciones'] },
   ]},
-  { section: 'Ventas', items: [
-    { key: 'clientes', icon: '🏢', label: 'Clientes', perfiles: ['Administrador total', 'Operaciones', 'Ventas'] },
-    { key: 'objetivos', icon: '📍', label: 'Objetivos / Servicios', perfiles: ['Administrador total', 'Operaciones', 'Ventas'] },
-    { key: 'precios', icon: '💲', label: 'Gestión de precios', badge: 'prec', perfiles: ['Administrador total', 'Operaciones', 'Ventas'] },
-    { key: 'crm', icon: '📊', label: 'CRM Comercial', badge: 'crm', perfiles: ['Administrador total', 'Operaciones', 'Ventas'] },
-    { key: 'reclamos', icon: '📣', label: 'Reclamos y NC', badge: 'rec', perfiles: ['Administrador total', 'RRHH', 'Operaciones', 'Ventas'] },
+  { section: 'Comercial', items: [
+    { key: 'clientes', icon: '🏢', label: 'Clientes', perfiles: ['Administrador total', 'Operaciones', 'Comercial'] },
+    { key: 'objetivos', icon: '📍', label: 'Objetivos / Servicios', perfiles: ['Administrador total', 'Operaciones', 'Comercial'] },
+    { key: 'precios', icon: '💲', label: 'Gestión de precios', badge: 'prec', perfiles: ['Administrador total', 'Operaciones', 'Comercial'] },
+    { key: 'crm', icon: '📊', label: 'CRM Comercial', badge: 'crm', perfiles: ['Administrador total', 'Operaciones', 'Comercial'] },
+    { key: 'reclamos', icon: '📣', label: 'Reclamos y NC', badge: 'rec', perfiles: ['Administrador total', 'RRHH', 'Operaciones', 'Comercial'] },
     { key: 'cobros', icon: '💳', label: 'Gestión de cobros', perfiles: ['Administrador total', 'Finanzas', 'Operaciones'] },
   ]},
   { section: 'Seguimiento', items: [
@@ -194,7 +199,7 @@ export const MENU = [
     { key: 'gestion_adelantos', icon: '🏦', label: 'Gestión de adelantos', perfiles: ['Administrador total', 'Finanzas', 'RRHH'] },
   ]},
   { section: '', items: [
-    { key: 'sugerencias', icon: '💬', label: 'Reportes y sugerencias', perfiles: ['Administrador total', 'RRHH', 'Operaciones', 'Finanzas', 'Supervisor', 'Ventas', 'Logística'] },
+    { key: 'sugerencias', icon: '💬', label: 'Reportes y sugerencias', perfiles: ['Administrador total', 'RRHH', 'Operaciones', 'Finanzas', 'Supervisor', 'Comercial', 'Logística'] },
   ]},
   { section: 'Próximamente', items: [
     { key: 'stock', icon: '📦', label: 'Stock', disabled: true, perfiles: [] },

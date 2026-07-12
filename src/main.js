@@ -114,8 +114,8 @@ async function loadLegacy() {
     // (capacitaciones/uniformes/retenciones se sacan de acá — ahora los
     // registran los módulos migrados, más abajo)
     registerScreens({
-      clientes: { title: 'Clientes', btn: '+ Nuevo cliente', fn: () => abrirModal('modal-cliente'), render: () => { if (window.renderClientes) window.renderClientes(); } },
-      objetivos: { title: 'Objetivos / Servicios', btn: '+ Nuevo objetivo', fn: () => abrirModal('modal-objetivo'), render: () => { if (window.renderObjetivos) window.renderObjetivos(); } },
+      clientes: { title: 'Clientes', btn: '+ Nuevo cliente', fn: () => { if (window.abrirModalCliente) window.abrirModalCliente(); }, render: () => { if (window.renderClientes) window.renderClientes(); } },
+      objetivos: { title: 'Objetivos / Servicios', btn: '+ Nuevo objetivo', fn: () => { if (window.abrirModalObjetivo) window.abrirModalObjetivo(); }, render: () => { if (window.chequearObjetivosDemorados) window.chequearObjetivosDemorados(); if (window.renderObjetivos) window.renderObjetivos(); } },
       configuracion: { title: 'Configuración', btn: '', fn: null, render: () => { if (window.renderConfiguracion) window.renderConfiguracion(); } },
       smvm: { title: 'SMVM histórico', btn: '', fn: null, render: () => { if (window.renderSMVM) window.renderSMVM(); } },
       feriados: { title: 'Feriados', btn: '+ Agregar feriado', fn: () => abrirModal('modal-feriado'), render: () => { if (window.renderFeriados) window.renderFeriados(); } },

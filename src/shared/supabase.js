@@ -84,6 +84,11 @@ export const _SM = {
   preciosUniformes: 'precios_uniformes',
   descuentosUniformePendientes: 'descuentos_uniforme_pendientes',
   devolucionesPorBaja: 'devoluciones_por_baja',
+  objetivos: 'objetivos',
+  objetivoResponsables: 'objetivo_responsables',
+  objetivoAdjuntos: 'objetivo_adjuntos',
+  objetivoSupervisoresHistorial: 'objetivo_supervisores_historial',
+  objetivoEventos: 'objetivo_eventos',
 };
 
 // camelCase → snake_case para guardar en Supabase
@@ -298,6 +303,19 @@ export function _toSnake(obj) {
     diasDelCasoEnMes: 'dias_del_caso_en_mes', horasCalculadas: 'horas_calculadas',
     horasAjustadas: 'horas_ajustadas', fechaAplicacion: 'fecha_aplicacion', aplicadoPor: 'aplicado_por',
     enTratamiento: 'en_tratamiento',
+    // Clientes y Objetivos v1.1 (v039) — mapeos nuevos + campos de
+    // clientes que ya se guardaban sin mapeo explícito (bug latente:
+    // guardarCliente() fallaba en silencio, ver hallazgo de la migración).
+    condPago: 'cond_pago', codigoTango: 'codigo_tango', factPor: 'fact_por',
+    productosEnFactura: 'productos_en_factura', notasFact: 'notas_fact', docReq: 'doc_req',
+    ingresosBrutos: 'ingresos_brutos', jurisdiccionIibb: 'jurisdiccion_iibb',
+    clienteIdLocal: 'cliente_id_local', objetivoIdLocal: 'objetivo_id_local',
+    supervisorAsignado: 'supervisor_asignado', supervisorAsignadoPor: 'supervisor_asignado_por',
+    fechaAsignacionSupervisor: 'fecha_asignacion_supervisor',
+    clausulaActualizacion: 'clausula_actualizacion', modeloPrecio: 'modelo_precio',
+    valorEft: 'valor_eft', textoFactura: 'texto_factura', periodoFact: 'periodo_fact', reqOC: 'req_oc',
+    dadoDeBajaPor: 'dado_de_baja_por', motivoBaja: 'motivo_baja', motivoCambio: 'motivo_cambio',
+    aSatisfacer: 'a_satisfacer',
   };
   const r = {};
   for (const [k, v] of Object.entries(obj)) {
@@ -528,6 +546,17 @@ export function _toCamel(obj) {
     dias_del_caso_en_mes: 'diasDelCasoEnMes', horas_calculadas: 'horasCalculadas',
     horas_ajustadas: 'horasAjustadas', fecha_aplicacion: 'fechaAplicacion', aplicado_por: 'aplicadoPor',
     en_tratamiento: 'enTratamiento',
+    // Clientes y Objetivos v1.1 (v039)
+    cond_pago: 'condPago', codigo_tango: 'codigoTango', fact_por: 'factPor',
+    productos_en_factura: 'productosEnFactura', notas_fact: 'notasFact', doc_req: 'docReq',
+    ingresos_brutos: 'ingresosBrutos', jurisdiccion_iibb: 'jurisdiccionIibb',
+    cliente_id_local: 'clienteIdLocal', objetivo_id_local: 'objetivoIdLocal',
+    supervisor_asignado: 'supervisorAsignado', supervisor_asignado_por: 'supervisorAsignadoPor',
+    fecha_asignacion_supervisor: 'fechaAsignacionSupervisor',
+    clausula_actualizacion: 'clausulaActualizacion', modelo_precio: 'modeloPrecio',
+    valor_eft: 'valorEft', texto_factura: 'textoFactura', periodo_fact: 'periodoFact', req_oc: 'reqOC',
+    dado_de_baja_por: 'dadoDeBajaPor', motivo_baja: 'motivoBaja', motivo_cambio: 'motivoCambio',
+    a_satisfacer: 'aSatisfacer',
   };
   const r = {};
   for (const [k, v] of Object.entries(obj)) {
