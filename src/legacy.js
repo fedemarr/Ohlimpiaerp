@@ -8984,7 +8984,7 @@ function aprobarPrecioPorGerente(idx){
     DB.aprobadoresReas?.some(a=>a.toLowerCase().includes('operaciones')&&(currentUser.perfil||'').toLowerCase().includes('operacion'))||
     currentUser.funcion==='Gerente'||currentUser.funcion==='Gerente General'||currentUser.funcion==='Coordinador/a');
   if(!puedaAprobar&&currentUser?.perfil!=='Administrador total'){
-    toast('⛔ Solo el Gerente de Ventas puede aprobar modificaciones de precio');return;
+    toast('⛔ Solo el Gerente Comercial puede aprobar modificaciones de precio');return;
   }
   const p=DB.propuestasPrecios[idx];if(!p)return;
   // Actualizar objetivo

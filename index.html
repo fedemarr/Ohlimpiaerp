@@ -675,7 +675,7 @@
     <button class="tab-btn" onclick="cfgTab('geografia',this)" style="padding:12px 18px;">📍 Geografía</button>
     <button class="tab-btn" onclick="cfgTab('puestos',this)" style="padding:12px 18px;">📊 Puestos</button>
     <button class="tab-btn" onclick="cfgTab('reas-cfg',this)" style="padding:12px 18px;">🔄 Reasignaciones</button>
-    <button class="tab-btn" onclick="cfgTab('ventas-cfg',this)" style="padding:12px 18px;">🏢 Ventas</button>
+    <button class="tab-btn" onclick="cfgTab('ventas-cfg',this)" style="padding:12px 18px;">🏢 Comercial</button>
     <button class="tab-btn" onclick="cfgTab('legal-cfg',this)" style="padding:12px 18px;">⚖️ Situaciones legales</button>
     <button class="tab-btn" onclick="cfgTab('medico-cfg',this)" style="padding:12px 18px;">🏥 Médico</button>
     <button class="tab-btn" onclick="cfgTab('servicios-cfg',this)" style="padding:12px 18px;">🏢 Servicios</button>
@@ -1020,9 +1020,9 @@
   <!-- TAB: SERVICIOS -->
   <div id="cfg-tab-servicios-cfg" class="tab-content">
     <div class="card">
-      <div class="card-header"><h3>🏢 Servicios / Clientes</h3><span class="badge badge-gris">Vendrá del módulo de Ventas</span></div>
+      <div class="card-header"><h3>🏢 Servicios / Clientes</h3><span class="badge badge-gris">Complementa a Objetivos</span></div>
       <div class="card-body">
-        <div class="alerta alerta-info" style="margin-bottom:10px;">Cuando el módulo de Ventas esté activo, la lista de clientes y servicios se importará automáticamente desde ahí.</div>
+        <div class="alerta alerta-info" style="margin-bottom:10px;">Los códigos de servicio reales ahora se cargan como Objetivos (Comercial → Objetivos/Servicios). Esta lista es solo un respaldo temporal para códigos legacy que todavía no tienen un objetivo creado.</div>
         <div class="config-add"><input type="text" id="nuevo-serv" placeholder="Código temporal (ej: HOSPITAL.CAMPANA)"><button class="btn btn-secondary btn-sm" onclick="agregarItem('servicios','nuevo-serv','lista-servicios-tmp')">Agregar temporal</button></div>
         <div class="config-list" id="lista-servicios-tmp" style="margin-top:8px;"></div>
       </div>
@@ -2015,7 +2015,7 @@
         <button class="btn btn-primary btn-sm" onclick="abrirModalPropuestaPrecio()">+ Nueva propuesta</button>
       </div>
       <div class="alerta alerta-info" style="margin:0 0 0;">
-        <strong>🔒 Flujo de convalidación:</strong> El cliente aprueba el nuevo valor → Se carga la propuesta → El Gerente de Ventas aprueba en el sistema → El nuevo precio impacta en la facturación a partir de la fecha de vigencia.
+        <strong>🔒 Flujo de convalidación:</strong> El cliente aprueba el nuevo valor → Se carga la propuesta → El Gerente Comercial aprueba en el sistema → El nuevo precio impacta en la facturación a partir de la fecha de vigencia.
       </div>
       <div class="tabla-wrap"><table>
         <thead><tr>
@@ -4760,7 +4760,7 @@
             <select id="u-perfil" onchange="actualizarPermisosPreview()">
               <option value="">— Seleccionar perfil —</option>
               <option>Administrador total</option><option>RRHH</option><option>Operaciones</option>
-              <option>Finanzas</option><option>Supervisor</option><option>Ventas</option><option>Logística</option>
+              <option>Finanzas</option><option>Supervisor</option><option>Comercial</option><option>Logística</option>
             </select>
           </div>
         </div>
