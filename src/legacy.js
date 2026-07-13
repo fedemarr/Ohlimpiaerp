@@ -9581,10 +9581,8 @@ function confirmarSolicitudAsociado(){
 // ========== BIND TO WINDOW ==========
 window._barraProgresoAdelantos = _barraProgresoAdelantos;
 window._calcEstadoAsociado = _calcEstadoAsociado;
-window._getDB = _getDB;
 window._getFilasConsolidadas = _getFilasConsolidadas;
 window._getPrimerRechazo = _getPrimerRechazo;
-window._pasarAFinanzas = _pasarAFinanzas;
 window.abrirAgenteIA = abrirAgenteIA;
 window.abrirCargaRapidaMant = abrirCargaRapidaMant;
 window.abrirCargaRapidaReten = abrirCargaRapidaReten;
@@ -9901,7 +9899,6 @@ window.tabLiquidacion = tabLiquidacion;
 window.tabMantenimiento = tabMantenimiento;
 window.tabMonotributos = tabMonotributos;
 window.tabObjModal = tabObjModal;
-window.tabParitarias = tabParitarias;
 window.tabPrecios = tabPrecios;
 window.tabReclamos = tabReclamos;
 window.tabRetenes = tabRetenes;
