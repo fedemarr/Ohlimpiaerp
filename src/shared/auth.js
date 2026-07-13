@@ -1,4 +1,4 @@
-import { DB, setCurrentUser } from '@shared/state.js';
+import { DB, PERFILES, setCurrentUser } from '@shared/state.js';
 import { $, initials } from '@shared/helpers.js';
 import { activarOrdenamiento } from '@shared/ui.js';
 import { SUPA } from '@shared/supabase.js';
@@ -45,7 +45,12 @@ async function loginConCredenciales(email, password) {
   const { data, error } = await SUPA.auth.signInWithPassword({ email, password });
   if (error || !data?.user) { $('login-error').style.display = 'block'; return; }
   const usr = await perfilDesdeSesion(data.user);
-  if (!usr || !usr.perfil || !usr.activo) {
+  // Además de existir y estar activo, el perfil tiene que ser una key
+  // real de PERFILES — si no, construirMenu() deja el menú entero sin
+  // onclick (perfil viejo/renombrado que quedó guardado en `usuarios`,
+  // ej. 'Ventas' tras el rename a 'Comercial') y el usuario queda
+  // logueado pero sin poder tocar nada, sin ningún error visible.
+  if (!usr || !usr.perfil || !usr.activo || !PERFILES[usr.perfil]) {
     await SUPA.auth.signOut();
     $('login-error').style.display = 'block';
     return;
@@ -67,7 +72,7 @@ export async function restaurarSesion() {
   const authUser = data?.session?.user;
   if (!authUser) return false;
   const usr = await perfilDesdeSesion(authUser);
-  if (!usr || !usr.perfil || !usr.activo) { await SUPA.auth.signOut(); return false; }
+  if (!usr || !usr.perfil || !usr.activo || !PERFILES[usr.perfil]) { await SUPA.auth.signOut(); return false; }
   await iniciarSesion(usr);
   return true;
 }
