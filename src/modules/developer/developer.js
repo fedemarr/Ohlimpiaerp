@@ -30,9 +30,10 @@ const ESTADO_SUGERENCIA = { abierto: 'Pendiente', en_progreso: 'En revisión', r
 // ========== SINCRONIZACIÓN SUGERENCIAS → TICKETS ==========
 
 // Las sugerencias ya las carga cualquier perfil desde el módulo existente
-// (tabla `sugerencias`, campos {id, fecha, usuario, tipo, descripcion,
-// estado}). Acá se convierten en tickets del perfil DEVELOPER la primera
-// vez que aparecen — nunca se duplican (se matchea por sugerenciaId).
+// (tabla `sugerencias`, campos {id, fecha, usuario, tipo, modulo, titulo,
+// descripcion, estado}). Acá se convierten en tickets del perfil DEVELOPER
+// la primera vez que aparecen — nunca se duplican (se matchea por
+// sugerenciaId).
 export async function sincronizarSugerenciasComoTickets() {
   const sugerencias = DB.sugerencias || [];
   if (!DB.tickets) DB.tickets = [];
@@ -44,12 +45,12 @@ export async function sincronizarSugerenciasComoTickets() {
     const ticket = {
       id: sug.id,
       sugerenciaId: sug.id,
-      titulo: (sug.descripcion || '').trim().slice(0, 60) || 'Sin título',
+      titulo: sug.titulo || (sug.descripcion || '').trim().slice(0, 60) || 'Sin título',
       descripcion: sug.descripcion || '',
       tipo: tipoMap[sug.tipo] || 'otro',
       estado: 'abierto',
       prioridad: 'media',
-      modulo: '',
+      modulo: sug.moduloLabel || sug.modulo || '',
       autor: sug.usuario || 'Desconocido',
       fecha: sug.fecha || new Date().toLocaleDateString('es-AR'),
       respuestaDev: '',

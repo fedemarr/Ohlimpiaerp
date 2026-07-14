@@ -327,6 +327,7 @@ export function _toSnake(obj) {
     grillaId: 'grilla_id_local', asocIdx: 'asoc_idx', resueltoPor: 'resuelto_por',
     fechaResolucion: 'fecha_resolucion', nroSocio: 'nro_socio', horasPorDia: 'horas_por_dia',
     catActual: 'cat_actual', catPropuesta: 'cat_propuesta', propuestoPor: 'propuesto_por',
+    moduloLabel: 'modulo_label',
   };
   const r = {};
   for (const [k, v] of Object.entries(obj)) {
@@ -575,6 +576,7 @@ export function _toCamel(obj) {
     grilla_id_local: 'grillaId', asoc_idx: 'asocIdx', resuelto_por: 'resueltoPor',
     fecha_resolucion: 'fechaResolucion', nro_socio: 'nroSocio', horas_por_dia: 'horasPorDia',
     cat_actual: 'catActual', cat_propuesta: 'catPropuesta', propuesto_por: 'propuestoPor',
+    modulo_label: 'moduloLabel',
   };
   const r = {};
   for (const [k, v] of Object.entries(obj)) {
