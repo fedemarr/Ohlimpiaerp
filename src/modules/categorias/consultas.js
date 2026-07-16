@@ -26,14 +26,29 @@ export function getPlusById(plusIdLocal) {
   return (DB.plusAdicionales || []).find(p => !p.anulado && idLocalTrunc(p.id) === idLocalTrunc(plusIdLocal)) || null;
 }
 
+// Valores horas v1.1 — la paritaria dejó de negociar por servicio, solo
+// por categoría (feedback Gabi 2026-07). Los registros nuevos se cargan
+// con servicioNombre=null ("aplica a toda la categoría"). Se acepta
+// `servicioNombre` null en la consulta para pedir explícitamente el
+// valor general de la categoría (usado por la matriz nueva). Cuando se
+// pasa un servicio puntual (ej. Enfermos y Accidentes, que congela por
+// legajo.servicio), un valor histórico específico de ESE servicio le
+// gana a uno general si ambos están vigentes — así los datos viejos
+// por servicio y los casos médicos ya congelados no se ven afectados
+// por la migración al modelo por categoría.
 export function obtenerValorHoraVigente(categoriaIdLocal, servicioNombre, fechaISO) {
   const candidatas = (DB.valoresHoraCategoria || []).filter(v =>
     !v.anulado &&
     String(v.categoriaIdLocal) === idLocalTrunc(categoriaIdLocal) &&
-    v.servicioNombre === servicioNombre &&
+    (v.servicioNombre == null || v.servicioNombre === servicioNombre) &&
     v.vigenciaDesde <= fechaISO && (!v.vigenciaHasta || v.vigenciaHasta >= fechaISO)
   );
-  return candidatas.sort((a, b) => b.vigenciaDesde.localeCompare(a.vigenciaDesde))[0] || null;
+  candidatas.sort((a, b) => {
+    const aEspecifico = a.servicioNombre != null, bEspecifico = b.servicioNombre != null;
+    if (aEspecifico !== bEspecifico) return aEspecifico ? -1 : 1;
+    return b.vigenciaDesde.localeCompare(a.vigenciaDesde);
+  });
+  return candidatas[0] || null;
 }
 
 export function obtenerValorPlusVigente(plusIdLocal, fechaISO) {

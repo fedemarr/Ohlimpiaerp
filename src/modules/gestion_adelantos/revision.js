@@ -92,7 +92,6 @@ export function abrirRevisionRRHH(tipo, id) {
     <div class="info-grid" style="margin-bottom:14px;">
       <div class="info-item"><div class="key">Tipo</div><div class="val">${tipo}</div></div>
       <div class="info-item"><div class="key">Monto ${tipo === 'Préstamo' ? 'solicitado' : ''}</div><div class="val">$${Number(p.monto ?? p.montoSolicitado ?? 0).toLocaleString('es-AR')}</div></div>
-      ${tipo === 'Préstamo' ? `<div class="info-item"><div class="key">Cuotas solicitadas</div><div class="val">${p.cuotasSolicitadas ?? p.cuotas ?? '—'}</div></div>` : ''}
       <div class="info-item"><div class="key">Origen</div><div class="val">${p.origen || 'Formal'}</div></div>
       <div class="info-item"><div class="key">Supervisor</div><div class="val">${p.supervisorNombre}</div></div>
       <div class="info-item"><div class="key">Fecha</div><div class="val">${p.fechaPedido}</div></div>
@@ -136,6 +135,8 @@ export async function aprobarRevisionRRHH() {
   if (tipo === 'Préstamo') {
     extra.montoAprobado = $('gr-monto-aprobado')?.value;
     extra.cuotasAprobadas = $('gr-cuotas-aprobadas')?.value;
+    if (!extra.montoAprobado || Number(extra.montoAprobado) <= 0) { toast('⚠️ Ingresá el monto a aprobar'); return; }
+    if (!extra.cuotasAprobadas || parseInt(extra.cuotasAprobadas, 10) <= 0) { toast('⚠️ Definí la cantidad de cuotas antes de aprobar'); return; }
   }
   const p = tipo === 'Préstamo' ? getPrestamoById(id) : getPedidoById(id);
   const r = p?.estado === 'Rechazada Finanzas'

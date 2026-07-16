@@ -1,33 +1,43 @@
-// Categorías v1 — Tab 2: matriz de valores hora por categoría ×
-// servicio, con vigencia temporal (patrón "Corregir vs. Nueva
-// vigencia" calcado de competencia/reglas.js) y carga masiva para
-// paritarias.
+// Categorías v1.1 — Tab 2: matriz de valores hora por categoría × mes.
+// Rediseño (feedback de Gabi, 2026-07): la paritaria dejó de negociar
+// valores por servicio — ahora es un único valor por categoría. Se
+// mantiene la MISMA tabla `valoresHoraCategoria` (con `servicioNombre`
+// ahora nullable) para no romper al único consumidor real que existía
+// del modelo viejo: `enfermos_accidentes/categoria_helper.js` (congela
+// el valor hora vigente al abrir un caso, buscando por categoría+
+// servicio). Los registros nuevos se cargan con `servicioNombre: null`
+// ("aplica a toda la categoría, sin importar servicio") — ver el
+// matching actualizado en `consultas.js` (obtenerValorHoraVigente):
+// un valor específico de servicio (dato histórico) sigue ganándole a
+// uno general si ambos están vigentes, así que los casos médicos ya
+// congelados y cualquier vigencia vieja por servicio no se alteran.
 
 import { DB, currentUser } from '@shared/state.js';
-import { $, fillDL } from '@shared/helpers.js';
+import { $ } from '@shared/helpers.js';
 import { toast, abrirModal, cerrarModal } from '@shared/ui.js';
 import { supaSync } from '@shared/supabase.js';
 import { getCategoriaById, obtenerValorHoraVigente, idLocalTrunc } from './consultas.js';
 
 function hoyISO() { return new Date().toISOString().slice(0, 10); }
 
+const MESES = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+
 function categoriasActivas() {
   return (DB.categoriasBase || []).filter(c => !c.anulado && c.activa)
     .sort((a, b) => (a.orden || 0) - (b.orden || 0));
 }
 
-function serviciosDisponibles() {
-  return window.obtenerServiciosActivos ? window.obtenerServiciosActivos() : (DB.servicios || []);
-}
-
-// ========== TAB 2 — MATRIZ ==========
+// ========== TAB 2 — MATRIZ CATEGORÍA × MES ==========
 
 export function poblarFiltrosMatrizValores() {
   const selCat = $('val-filtro-categoria');
-  const selServ = $('val-filtro-servicio');
   if (selCat) selCat.innerHTML = categoriasActivas().map(c => `<option value="${c.id}">${c.nombre}</option>`).join('');
-  if (selServ) selServ.innerHTML = serviciosDisponibles().map(s => `<option value="${s}">${s}</option>`).join('');
-  fillDL('dl-cat-servicio', serviciosDisponibles());
+  const selAnio = $('val-filtro-anio');
+  if (selAnio) {
+    const anioActual = new Date().getFullYear();
+    const anios = [anioActual - 1, anioActual, anioActual + 1];
+    selAnio.innerHTML = anios.map(a => `<option value="${a}" ${a === anioActual ? 'selected' : ''}>${a}</option>`).join('');
+  }
 }
 
 function seleccionMultiple(id) {
@@ -41,32 +51,33 @@ export function renderMatrizValores() {
   if (!wrap) return;
 
   const catsFiltro = seleccionMultiple('val-filtro-categoria');
-  const servFiltro = seleccionMultiple('val-filtro-servicio');
   const categorias = categoriasActivas().filter(c => catsFiltro.length === 0 || catsFiltro.includes(String(c.id)));
-  const servicios = serviciosDisponibles().filter(s => servFiltro.length === 0 || servFiltro.includes(s));
+  const anio = parseInt(($('val-filtro-anio') || {}).value) || new Date().getFullYear();
 
-  if (categorias.length === 0 || servicios.length === 0) {
-    wrap.innerHTML = '<p style="opacity:.5;padding:24px;text-align:center;">Sin categorías o servicios para mostrar con este filtro</p>';
+  if (categorias.length === 0) {
+    wrap.innerHTML = '<p style="opacity:.5;padding:24px;text-align:center;">Sin categorías para mostrar con este filtro</p>';
     return;
   }
 
   const hoy = hoyISO();
   let html = '<table><thead><tr><th style="position:sticky;left:0;background:#374151;color:white;z-index:1;">Categoría</th>';
-  html += servicios.map(s => `<th style="font-size:11px;white-space:nowrap;">${s}</th>`).join('');
-  html += '</tr></thead><tbody>';
+  html += MESES.map(m => `<th style="font-size:11px;">${m}</th>`).join('');
+  html += '<th style="white-space:nowrap;">Acciones</th></tr></thead><tbody>';
   html += categorias.map(c => {
     let fila = `<tr><td style="position:sticky;left:0;background:white;font-weight:600;white-space:nowrap;">${c.nombre}</td>`;
-    fila += servicios.map(s => {
-      const v = obtenerValorHoraVigente(c.id, s, hoy);
-      if (v) {
-        return `<td style="text-align:center;">
-          <button class="btn btn-xs" style="background:var(--verde-claro,#dcfce7);color:#065f46;" onclick="abrirCorregirValor('${c.id}','${encodeURIComponent(s)}')" title="Corregir">$${Number(v.valorHora).toLocaleString('es-AR')}</button>
-          <button class="btn btn-xs btn-secondary" onclick="abrirNuevaVigenciaValor('${c.id}','${encodeURIComponent(s)}')" title="Nueva vigencia">📅</button>
-          <button class="btn btn-xs btn-secondary" onclick="abrirHistorialValor('${c.id}','${encodeURIComponent(s)}')" title="Historial">🕐</button>
-        </td>`;
-      }
-      return `<td style="text-align:center;"><button class="btn btn-xs btn-secondary" onclick="abrirCargarValor('${c.id}','${encodeURIComponent(s)}')">sin cargar</button></td>`;
+    fila += MESES.map((_, i) => {
+      const fechaMes = `${anio}-${String(i + 1).padStart(2, '0')}-01`;
+      const v = obtenerValorHoraVigente(c.id, null, fechaMes);
+      return `<td style="text-align:center;font-size:12.5px;">${v ? '$' + Number(v.valorHora).toLocaleString('es-AR') : '—'}</td>`;
     }).join('');
+    const vigente = obtenerValorHoraVigente(c.id, null, hoy);
+    fila += `<td style="white-space:nowrap;">
+      ${vigente
+        ? `<button class="btn btn-xs" style="background:var(--verde-claro,#dcfce7);color:#065f46;" onclick="abrirCorregirValor('${c.id}')" title="Corregir valor vigente">✏️</button>
+           <button class="btn btn-xs btn-secondary" onclick="abrirNuevaVigenciaValor('${c.id}')" title="Nueva vigencia">📅</button>`
+        : `<button class="btn btn-xs btn-secondary" onclick="abrirCargarValor('${c.id}')">Cargar</button>`}
+      <button class="btn btn-xs btn-secondary" onclick="abrirHistorialValor('${c.id}')" title="Historial">🕐</button>
+    </td>`;
     fila += '</tr>';
     return fila;
   }).join('');
@@ -80,7 +91,6 @@ export function filtrarMatrizValores() { renderMatrizValores(); }
 
 let _valorModo = 'cargar'; // 'cargar' | 'corregir' | 'vigencia'
 let _valorCategoriaId = null;
-let _valorServicio = null;
 let _valorEditandoId = null;
 
 function ensureModalValor() {
@@ -93,7 +103,6 @@ function ensureModalValor() {
       <div class="modal-header"><h3 id="cv-titulo">Cargar valor</h3><button class="btn-close" onclick="cerrarModal('modal-cat-valor')">×</button></div>
       <div class="modal-body">
         <div class="form-group"><label>Categoría</label><input type="text" id="cv-categoria" readonly></div>
-        <div class="form-group"><label>Servicio *</label><input type="text" id="cv-servicio" list="dl-cat-servicio"></div>
         <div class="form-group"><label>Valor hora *</label><input type="number" id="cv-valor" min="0" step="0.01"></div>
         <div class="form-group" id="cv-grupo-vigencia" style="display:none;"><label>Vigente desde *</label><input type="date" id="cv-vigencia-desde"></div>
         <div class="form-group"><label>Motivo *</label><textarea id="cv-motivo" rows="2"></textarea></div>
@@ -106,15 +115,13 @@ function ensureModalValor() {
   document.body.appendChild(m);
 }
 
-export function abrirCargarValor(categoriaIdLocal, servicioEnc) {
+export function abrirCargarValor(categoriaIdLocal) {
   const c = getCategoriaById(categoriaIdLocal);
   if (!c) return;
-  const servicio = decodeURIComponent(servicioEnc);
-  _valorModo = 'cargar'; _valorCategoriaId = categoriaIdLocal; _valorServicio = servicio; _valorEditandoId = null;
+  _valorModo = 'cargar'; _valorCategoriaId = categoriaIdLocal; _valorEditandoId = null;
   ensureModalValor();
-  $('cv-titulo').textContent = `Cargar valor — ${c.nombre} / ${servicio}`;
+  $('cv-titulo').textContent = `Cargar valor — ${c.nombre}`;
   $('cv-categoria').value = c.nombre;
-  $('cv-servicio').value = servicio;
   $('cv-valor').value = '';
   $('cv-grupo-vigencia').style.display = 'block';
   $('cv-vigencia-desde').value = hoyISO();
@@ -122,33 +129,29 @@ export function abrirCargarValor(categoriaIdLocal, servicioEnc) {
   abrirModal('modal-cat-valor');
 }
 
-export function abrirCorregirValor(categoriaIdLocal, servicioEnc) {
+export function abrirCorregirValor(categoriaIdLocal) {
   const c = getCategoriaById(categoriaIdLocal);
   if (!c) return;
-  const servicio = decodeURIComponent(servicioEnc);
-  const version = obtenerValorHoraVigente(categoriaIdLocal, servicio, hoyISO());
+  const version = obtenerValorHoraVigente(categoriaIdLocal, null, hoyISO());
   if (!version) { toast('⚠️ No hay una versión vigente para corregir'); return; }
-  _valorModo = 'corregir'; _valorCategoriaId = categoriaIdLocal; _valorServicio = servicio; _valorEditandoId = version.id;
+  _valorModo = 'corregir'; _valorCategoriaId = categoriaIdLocal; _valorEditandoId = version.id;
   ensureModalValor();
-  $('cv-titulo').textContent = `Corregir — ${c.nombre} / ${servicio}`;
+  $('cv-titulo').textContent = `Corregir — ${c.nombre}`;
   $('cv-categoria').value = c.nombre;
-  $('cv-servicio').value = servicio;
   $('cv-valor').value = version.valorHora;
   $('cv-grupo-vigencia').style.display = 'none';
   $('cv-motivo').value = '';
   abrirModal('modal-cat-valor');
 }
 
-export function abrirNuevaVigenciaValor(categoriaIdLocal, servicioEnc) {
+export function abrirNuevaVigenciaValor(categoriaIdLocal) {
   const c = getCategoriaById(categoriaIdLocal);
   if (!c) return;
-  const servicio = decodeURIComponent(servicioEnc);
-  const version = obtenerValorHoraVigente(categoriaIdLocal, servicio, hoyISO());
-  _valorModo = 'vigencia'; _valorCategoriaId = categoriaIdLocal; _valorServicio = servicio; _valorEditandoId = null;
+  const version = obtenerValorHoraVigente(categoriaIdLocal, null, hoyISO());
+  _valorModo = 'vigencia'; _valorCategoriaId = categoriaIdLocal; _valorEditandoId = null;
   ensureModalValor();
-  $('cv-titulo').textContent = `Nueva vigencia — ${c.nombre} / ${servicio}`;
+  $('cv-titulo').textContent = `Nueva vigencia — ${c.nombre}`;
   $('cv-categoria').value = c.nombre;
-  $('cv-servicio').value = servicio;
   $('cv-valor').value = version ? version.valorHora : '';
   $('cv-grupo-vigencia').style.display = 'block';
   $('cv-vigencia-desde').value = hoyISO();
@@ -157,10 +160,8 @@ export function abrirNuevaVigenciaValor(categoriaIdLocal, servicioEnc) {
 }
 
 export async function guardarValorDesdeModal() {
-  const servicio = ($('cv-servicio').value || '').trim();
   const valorHora = parseFloat($('cv-valor').value);
   const motivo = ($('cv-motivo').value || '').trim();
-  if (!servicio) { toast('⚠️ Ingresá el servicio'); return; }
   if (isNaN(valorHora) || valorHora < 0) { toast('⚠️ Ingresá un valor hora válido'); return; }
   if (!motivo) { toast('⚠️ El motivo es obligatorio'); return; }
 
@@ -178,7 +179,9 @@ export async function guardarValorDesdeModal() {
     if (new Date(vigenciaDesde + 'T00:00:00') < new Date(hoyISO() + 'T00:00:00')) {
       if (!confirm(`⚠️ Este valor aplica retroactivamente desde ${vigenciaDesde}. Los cálculos anteriores NO se recalculan. ¿Continuar?`)) return;
     }
-    const anterior = obtenerValorHoraVigente(_valorCategoriaId, _valorServicio, vigenciaDesde);
+    // Solo cierra una vigencia general anterior (servicioNombre null) —
+    // obtenerValorHoraVigente con servicio=null solo matchea ese subconjunto.
+    const anterior = obtenerValorHoraVigente(_valorCategoriaId, null, vigenciaDesde);
     if (anterior) {
       const cierre = new Date(vigenciaDesde + 'T00:00:00');
       cierre.setDate(cierre.getDate() - 1);
@@ -188,7 +191,7 @@ export async function guardarValorDesdeModal() {
     const nueva = {
       id: Date.now(),
       categoriaIdLocal: idLocalTrunc(_valorCategoriaId),
-      servicioNombre: _valorServicio,
+      servicioNombre: null,
       valorHora, vigenciaDesde, vigenciaHasta: null,
       cargadaPor: currentUser?.nombre || '', motivoCarga: motivo,
     };
@@ -201,7 +204,7 @@ export async function guardarValorDesdeModal() {
   renderMatrizValores();
 }
 
-// ========== MODAL — HISTORIAL DE UNA COMBINACIÓN ==========
+// ========== MODAL — HISTORIAL DE UNA CATEGORÍA ==========
 
 function ensureModalHistorialValor() {
   if ($('modal-cat-valor-historial')) return;
@@ -217,14 +220,13 @@ function ensureModalHistorialValor() {
   document.body.appendChild(m);
 }
 
-export function abrirHistorialValor(categoriaIdLocal, servicioEnc) {
+export function abrirHistorialValor(categoriaIdLocal) {
   const c = getCategoriaById(categoriaIdLocal);
   if (!c) return;
-  const servicio = decodeURIComponent(servicioEnc);
   ensureModalHistorialValor();
-  $('cvh-titulo').textContent = `Historial — ${c.nombre} / ${servicio}`;
+  $('cvh-titulo').textContent = `Historial — ${c.nombre}`;
   const versiones = (DB.valoresHoraCategoria || [])
-    .filter(v => !v.anulado && String(v.categoriaIdLocal) === idLocalTrunc(categoriaIdLocal) && v.servicioNombre === servicio)
+    .filter(v => !v.anulado && v.servicioNombre == null && String(v.categoriaIdLocal) === idLocalTrunc(categoriaIdLocal))
     .sort((a, b) => b.vigenciaDesde.localeCompare(a.vigenciaDesde));
   $('cvh-cuerpo').innerHTML = versiones.map(v => `<div class="info-item">
       <div class="key">${v.vigenciaDesde} ${v.vigenciaHasta ? 'al ' + v.vigenciaHasta : '(vigente)'}</div>
@@ -241,12 +243,12 @@ function ensureModalCargaMasiva() {
   m.className = 'modal-overlay';
   m.id = 'modal-cat-masiva';
   m.innerHTML = `
-    <div class="modal" style="max-width:720px;">
+    <div class="modal" style="max-width:600px;">
       <div class="modal-header"><h3>+ Carga masiva de valores</h3><button class="btn-close" onclick="cerrarModal('modal-cat-masiva')">×</button></div>
       <div class="modal-body">
-        <p style="font-size:12.5px;color:var(--texto-suave);margin-top:0;">Dejá en blanco las filas que no cambian. Se crea una nueva versión solo para las que tengan un valor nuevo cargado.</p>
+        <p style="font-size:12.5px;color:var(--texto-suave);margin-top:0;">Dejá en blanco las categorías que no cambian. Se crea una nueva versión solo para las que tengan un valor nuevo cargado.</p>
         <div class="tabla-wrap" style="max-height:360px;overflow-y:auto;"><table>
-          <thead><tr><th>Categoría</th><th>Servicio</th><th>Valor vigente</th><th>Valor nuevo</th></tr></thead>
+          <thead><tr><th>Categoría</th><th>Valor vigente</th><th>Valor nuevo</th></tr></thead>
           <tbody id="cm-tbody"></tbody>
         </table></div>
         <div class="form-group" style="margin-top:12px;"><label>Vigente desde (aplica a todas las filas cargadas) *</label><input type="date" id="cm-vigencia-desde"></div>
@@ -263,24 +265,17 @@ function ensureModalCargaMasiva() {
 export function abrirCargaMasiva() {
   ensureModalCargaMasiva();
   const hoy = hoyISO();
-  const filas = (DB.valoresHoraCategoria || [])
-    .filter(v => !v.anulado && v.vigenciaDesde <= hoy && (!v.vigenciaHasta || v.vigenciaHasta >= hoy))
-    .map(v => ({ v, c: getCategoriaById(v.categoriaIdLocal) }))
-    .filter(({ c }) => c && c.activa)
-    .sort((a, b) => (a.c.orden || 0) - (b.c.orden || 0) || a.v.servicioNombre.localeCompare(b.v.servicioNombre));
+  const cats = categoriasActivas();
+  if (cats.length === 0) { toast('⚠️ No hay categorías activas'); return; }
 
-  if (filas.length === 0) {
-    toast('⚠️ No hay valores vigentes cargados todavía para actualizar en masa — cargalos primero desde la matriz');
-    return;
-  }
-
-  $('cm-tbody').innerHTML = filas.map(({ v, c }, i) => `
-    <tr data-cm-idx="${i}" data-cm-cat="${v.categoriaIdLocal}" data-cm-serv="${encodeURIComponent(v.servicioNombre)}">
+  $('cm-tbody').innerHTML = cats.map(c => {
+    const v = obtenerValorHoraVigente(c.id, null, hoy);
+    return `<tr data-cm-cat="${c.id}">
       <td>${c.nombre}</td>
-      <td style="font-size:12px;">${v.servicioNombre}</td>
-      <td style="text-align:right;">$${Number(v.valorHora).toLocaleString('es-AR')}</td>
+      <td style="text-align:right;">${v ? '$' + Number(v.valorHora).toLocaleString('es-AR') : 'sin cargar'}</td>
       <td><input type="number" min="0" step="0.01" class="cm-input-nuevo" style="width:110px;" placeholder="—"></td>
-    </tr>`).join('');
+    </tr>`;
+  }).join('');
   $('cm-vigencia-desde').value = hoy;
   $('cm-motivo').value = '';
   abrirModal('modal-cat-masiva');
@@ -295,7 +290,6 @@ export async function confirmarCargaMasiva() {
   const filas = Array.from(document.querySelectorAll('#cm-tbody tr'));
   const cambios = filas.map(tr => ({
     categoriaIdLocal: tr.getAttribute('data-cm-cat'),
-    servicioNombre: decodeURIComponent(tr.getAttribute('data-cm-serv')),
     nuevoValor: parseFloat(tr.querySelector('.cm-input-nuevo').value),
   })).filter(f => !isNaN(f.nuevoValor) && f.nuevoValor >= 0);
 
@@ -304,7 +298,7 @@ export async function confirmarCargaMasiva() {
 
   let i = 0;
   for (const cambio of cambios) {
-    const anterior = obtenerValorHoraVigente(cambio.categoriaIdLocal, cambio.servicioNombre, vigenciaDesde);
+    const anterior = obtenerValorHoraVigente(cambio.categoriaIdLocal, null, vigenciaDesde);
     if (anterior) {
       const cierre = new Date(vigenciaDesde + 'T00:00:00');
       cierre.setDate(cierre.getDate() - 1);
@@ -314,7 +308,7 @@ export async function confirmarCargaMasiva() {
     const nueva = {
       id: Date.now() + (i++),
       categoriaIdLocal: idLocalTrunc(cambio.categoriaIdLocal),
-      servicioNombre: cambio.servicioNombre,
+      servicioNombre: null,
       valorHora: cambio.nuevoValor, vigenciaDesde, vigenciaHasta: null,
       cargadaPor: currentUser?.nombre || '', motivoCarga: motivo,
     };

@@ -137,6 +137,7 @@ function crearHTMLModalAlta() {
             '<div class="form-group" style="grid-column:1/-1;"><label>Nombre completo *</label><input type="text" id="alt-nombre" onblur="applyTitleCase(\'alt-nombre\')"></div>',
             '<div class="form-group"><label>DNI *</label><input type="text" id="alt-dni"></div>',
             '<div class="form-group"><label>CUIT *</label><input type="text" id="alt-cuit" placeholder="XX-XXXXXXXX-X"></div>',
+            '<div class="form-group"><label>Clave fiscal (AFIP)</label><input type="text" id="alt-clave-fiscal" placeholder="Opcional"></div>',
             '<div class="form-group"><label>Fecha de nacimiento</label><input type="date" id="alt-fecnac"></div>',
             '<div class="form-group"><label>Nacionalidad</label><select id="alt-nac" style="width:100%;padding:8px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;"><option>Argentina</option><option>Boliviana</option><option>Paraguaya</option><option>Peruana</option><option>Uruguaya</option><option>Chilena</option><option>Brasileña</option><option>Venezolana</option><option>Otra</option></select></div>',
             '<div class="form-group"><label>Estado civil</label><select id="alt-estado-civil" style="width:100%;padding:8px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;"><option>Soltero/a</option><option>Casado/a</option><option>Divorciado/a</option><option>Viudo/a</option><option>Conviviente</option></select></div>',
@@ -185,6 +186,7 @@ function crearHTMLModalAlta() {
           '<div class="form-grid form-grid-2">',
             '<div class="form-group"><label>Integración inicial ($) *</label><input type="number" id="alt-integracion" min="0"></div>',
             '<div class="form-group"><label>Forma de pago</label><select id="alt-forma-pago" style="width:100%;padding:8px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;"><option>Efectivo</option><option>Transferencia</option><option>Descuento de haberes</option></select></div>',
+            '<div class="form-group"><label>N° INAES</label><input type="text" id="alt-inaes" placeholder="Opcional"></div>',
           '</div>',
         '</div>',
         // Tab 5 — Seguros
@@ -227,9 +229,9 @@ export function abrirModalAlta(psicoIdx, altaId) {
   const src = altaReg || p;
 
   // Limpiar todos los campos
-  ['alt-nombre', 'alt-dni', 'alt-cuit', 'alt-fecnac', 'alt-tel', 'alt-mail',
+  ['alt-nombre', 'alt-dni', 'alt-cuit', 'alt-clave-fiscal', 'alt-fecnac', 'alt-tel', 'alt-mail',
    'alt-fec-ingreso', 'alt-reingresante-dni', 'alt-direccion', 'alt-banco', 'alt-cbu',
-   'alt-calzado', 'alt-integracion', 'alt-art', 'alt-obra-social', 'alt-supervisor'].forEach(id => {
+   'alt-calzado', 'alt-integracion', 'alt-inaes', 'alt-art', 'alt-obra-social', 'alt-supervisor'].forEach(id => {
     const el = $(id); if (el) el.value = '';
   });
   const nacEl = $('alt-nac'); if (nacEl) nacEl.value = 'Argentina';
@@ -433,6 +435,28 @@ export function confirmarAlta() {
   const formaPago = ($('alt-forma-pago') || {}).value || '';
   const integracion = parseInt(($('alt-integracion') || {}).value) || 0;
   const categoria = ($('alt-categoria') || {}).value || '';
+  const claveFiscal = cleanText(($('alt-clave-fiscal') || {}).value || '');
+  const inaes = cleanText(($('alt-inaes') || {}).value || '');
+
+  // Guard de DNI duplicado (CLAUDE.md conocidos: no existía ninguna
+  // validación acá, a diferencia de guardarEdicionLegajo). Un legajo
+  // Activo con el mismo DNI siempre bloquea. Uno de baja solo bloquea si
+  // no se vinculó como reingreso (checkbox + búsqueda por DNI arriba) —
+  // el flujo de reingresante sigue creando un legajo nuevo a propósito,
+  // así que ese caso puntual queda permitido.
+  const legajosConMismoDni = (DB.legajos || []).filter(l => l.dni === dni);
+  const activoConMismoDni = legajosConMismoDni.find(l => l.estado === 'Activo');
+  if (activoConMismoDni) {
+    toast(`⚠️ Ya existe un legajo activo (N° ${activoConMismoDni.nro} — ${activoConMismoDni.nombre}) con ese DNI`);
+    tabAlta(0);
+    return;
+  }
+  const bajaSinVincular = legajosConMismoDni.find(l => l.estado !== 'Activo' && (!_legajoAnteriorEncontrado || l.nro !== _legajoAnteriorEncontrado.nro));
+  if (bajaSinVincular) {
+    toast(`⚠️ Ya existe un legajo de baja (N° ${bajaSinVincular.nro} — ${bajaSinVincular.nombre}) con ese DNI. Si es un reingreso, tildá "¿Es reingresante?" y buscalo por DNI antes de confirmar.`);
+    tabAlta(0);
+    return;
+  }
 
   // Generar número de socio (max + 1)
   const maxNro = (DB.legajos || []).reduce((m, l) => Math.max(m, l.nro || 0), 0);
@@ -463,6 +487,8 @@ export function confirmarAlta() {
     tel,
     mail,
     cuit,
+    claveFiscal,
+    inaes,
     estadoCivil,
     nac,
     genero,

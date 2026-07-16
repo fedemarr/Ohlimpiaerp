@@ -6,6 +6,7 @@ import { $ } from '@shared/helpers.js';
 export {
   tabComp, renderCompetencia, renderTablaIndividual, renderTablaEquipos, renderTablaSupervisores,
   poblarFiltrosCompetencia, poblarAniosCompetencia, filtrarCompInd, filtrarCompEq, verRankingPublico,
+  abrirDetalleNoParticipanSupervisor,
 } from './competencia.js';
 
 export {
@@ -67,6 +68,7 @@ export const competenciaScreenConfig = {
 import {
   renderCompetencia, renderTablaIndividual, renderTablaEquipos, renderTablaSupervisores,
   poblarFiltrosCompetencia, filtrarCompInd, filtrarCompEq, verRankingPublico,
+  abrirDetalleNoParticipanSupervisor,
 } from './competencia.js';
 import {
   renderReglas, activarDesactivarReglaPorId, anularReglaPorId,
@@ -99,6 +101,7 @@ window.poblarAniosCompetencia = poblarAniosCompetencia;
 window.filtrarCompInd = filtrarCompInd;
 window.filtrarCompEq = filtrarCompEq;
 window.verRankingPublico = verRankingPublico;
+window.abrirDetalleNoParticipanSupervisor = abrirDetalleNoParticipanSupervisor;
 
 window.renderReglas = renderReglas;
 window.activarDesactivarReglaPorId = activarDesactivarReglaPorId;

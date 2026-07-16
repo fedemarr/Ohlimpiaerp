@@ -3376,10 +3376,10 @@
   <div id="cat-tab-valores" class="tab-content">
     <div class="card" style="border-radius:0 var(--radio-lg) var(--radio-lg) var(--radio-lg);">
       <div class="card-header">
-        <h3>Valores hora por categoría × servicio</h3>
+        <h3>Valores hora por categoría</h3>
         <div class="filtros-bar">
           <select id="val-filtro-categoria" multiple size="4" onchange="filtrarMatrizValores()" style="min-width:180px;"></select>
-          <select id="val-filtro-servicio" multiple size="4" onchange="filtrarMatrizValores()" style="min-width:180px;"></select>
+          <select id="val-filtro-anio" onchange="filtrarMatrizValores()" style="min-width:100px;"></select>
           <button class="btn btn-secondary btn-sm" onclick="abrirCargaMasiva()">+ Carga masiva (paritaria)</button>
         </div>
       </div>
@@ -3427,7 +3427,6 @@
   </div>
 </div>
 
-<datalist id="dl-cat-servicio"></datalist>
 
 <!-- LIQUIDACIÓN ADMINISTRACIÓN -->
 <div class="screen" id="screen-liq_admin">
@@ -4696,6 +4695,10 @@
         <div class="form-grid form-grid-2">
           <div class="form-group"><label>Mail</label><input type="email" id="edit-mail"></div>
           <div class="form-group"><label>Banco</label><input type="text" id="edit-banco"></div>
+        </div>
+        <div class="form-grid form-grid-2">
+          <div class="form-group"><label>Clave fiscal (AFIP)</label><input type="text" id="edit-clave-fiscal"></div>
+          <div class="form-group"><label>N° INAES</label><input type="text" id="edit-inaes"></div>
         </div>
         <div class="form-grid form-grid-2">
           <div class="form-group"><label>Localidad</label><input type="text" id="edit-localidad"></div>

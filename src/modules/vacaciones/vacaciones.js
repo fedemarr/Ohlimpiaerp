@@ -215,6 +215,32 @@ export function renderHistorial() {
 // ========== MODAL — NUEVA SOLICITUD / EDITAR BORRADOR ==========
 
 let _solicitudEditandoId = null;
+// Legajo activo dentro del modal de solicitud: normalmente el del usuario
+// logueado, pero RRHH/Administrador total pueden elegir otro asociado
+// (no tienen legajo propio con sector, así que el flujo de autoservicio
+// puro los deja afuera — ver abrirNuevaSolicitud).
+let _legajoModal = null;
+
+function poblarSelectorAsociadoAdmin() {
+  const dl = $('dl-vs-admin-asociado');
+  if (!dl) return;
+  dl.innerHTML = (DB.legajos || [])
+    .filter(l => l.estado === 'Activo')
+    .map(l => `<option value="${l.nombre} (N°${l.nro})">`).join('');
+}
+
+export function seleccionarAsociadoVacacionAdmin() {
+  const texto = ($('vs-admin-asociado') || { value: '' }).value;
+  const match = texto.match(/\(N°(\d+)\)\s*$/);
+  const legajo = match ? (DB.legajos || []).find(l => String(l.nro) === match[1]) : null;
+  if (!legajo) { _legajoModal = null; $('vs-info-solicitante').innerHTML = '<div style="opacity:.6;">Elegí un asociado de la lista.</div>'; return; }
+  if (!legajo.sector) { toast('⚠️ Ese legajo no tiene sector cargado — completalo antes de cargar el pedido'); _legajoModal = null; return; }
+  _legajoModal = legajo;
+  pintarSolicitanteEnModal(legajo);
+  poblarReemplazantes(legajo);
+  pintarAprobadores(legajo);
+  recalcularSolicitud();
+}
 
 function ensureModalSolicitud() {
   if ($('modal-vac-solicitud')) return;
@@ -226,6 +252,11 @@ function ensureModalSolicitud() {
       <div class="modal-header"><h3>🏖️ Nueva solicitud de vacaciones</h3><button class="btn-close" onclick="cerrarModal('modal-vac-solicitud')">×</button></div>
       <div class="modal-body">
         <div class="form-section">Solicitante</div>
+        <div class="form-group" id="vs-selector-admin-wrap" style="display:none;margin-bottom:10px;">
+          <label>Solicitar en nombre de (RRHH / Administrador) *</label>
+          <input type="text" id="vs-admin-asociado" list="dl-vs-admin-asociado" oninput="seleccionarAsociadoVacacionAdmin()" placeholder="Buscar por nombre o N° de socio...">
+          <datalist id="dl-vs-admin-asociado"></datalist>
+        </div>
         <div id="vs-info-solicitante" style="display:flex;flex-direction:column;gap:6px;font-size:13px;background:var(--fondo);border-radius:var(--radio);padding:12px;margin-bottom:12px;"></div>
         <div class="form-section">Fechas del pedido</div>
         <div class="form-grid form-grid-2">
@@ -257,12 +288,14 @@ function ensureModalSolicitud() {
 }
 
 export function abrirNuevaSolicitud() {
-  const legajo = legajoDelUsuarioActual();
-  if (!legajo) { toast('⚠️ No encontramos tu legajo — contactá a RRHH'); return; }
-  if (!legajo.sector) { toast('⚠️ Tu legajo no tiene sector cargado — contactá a RRHH para completarlo'); return; }
+  const esAdmin = ['RRHH', 'Administrador total'].includes(currentUser?.perfil);
+  const legajoPropio = legajoDelUsuarioActual();
+  if (!esAdmin) {
+    if (!legajoPropio) { toast('⚠️ No encontramos tu legajo — contactá a RRHH'); return; }
+    if (!legajoPropio.sector) { toast('⚠️ Tu legajo no tiene sector cargado — contactá a RRHH para completarlo'); return; }
+  }
   _solicitudEditandoId = null;
   ensureModalSolicitud();
-  pintarSolicitanteEnModal(legajo);
   $('vs-desde').value = '';
   $('vs-hasta').value = '';
   $('vs-dias').value = '';
@@ -270,8 +303,22 @@ export function abrirNuevaSolicitud() {
   $('vs-reemplazante').value = '';
   $('vs-desc-reemplazo').value = '';
   $('vs-obs').value = '';
-  poblarReemplazantes(legajo);
-  pintarAprobadores(legajo);
+  const wrap = $('vs-selector-admin-wrap');
+  if (esAdmin) {
+    if (wrap) wrap.style.display = '';
+    poblarSelectorAsociadoAdmin();
+    $('vs-admin-asociado').value = '';
+    _legajoModal = null;
+    $('vs-info-solicitante').innerHTML = '<div style="opacity:.6;">Elegí un asociado arriba para continuar.</div>';
+    $('dl-vs-reemplazante').innerHTML = '';
+    $('vs-aprobadores').innerHTML = '';
+  } else {
+    if (wrap) wrap.style.display = 'none';
+    _legajoModal = legajoPropio;
+    pintarSolicitanteEnModal(legajoPropio);
+    poblarReemplazantes(legajoPropio);
+    pintarAprobadores(legajoPropio);
+  }
   abrirModal('modal-vac-solicitud');
 }
 
@@ -281,7 +328,10 @@ export function abrirEditarSolicitud(idLocal) {
   const legajo = (DB.legajos || []).find(l => String(l.nro) === String(v.legajoIdLocal));
   if (!legajo) return;
   _solicitudEditandoId = v.id;
+  _legajoModal = legajo;
   ensureModalSolicitud();
+  const wrap = $('vs-selector-admin-wrap');
+  if (wrap) wrap.style.display = 'none';
   pintarSolicitanteEnModal(legajo);
   $('vs-desde').value = v.fechaDesde;
   $('vs-hasta').value = v.fechaHasta;
@@ -345,7 +395,7 @@ export function recalcularSolicitud() {
       if (!esDomingo(hasta)) avisos.push('❌ Las vacaciones deben terminar un día domingo (semana completa).');
       const anticipacion = diasDeAnticipacion(desde);
       if (anticipacion < 15) avisos.push(`⚠️ Este pedido tiene ${anticipacion} día(s) de anticipación — la política exige mínimo 15. Se puede guardar como borrador, pero para elevarlo RRHH tiene que autorizar la excepción.`);
-      const legajo = legajoDelUsuarioActual();
+      const legajo = _legajoModal;
       if (legajo) {
         const disponibles = diasDisponibles(legajo, d.getFullYear());
         if (dias > disponibles) avisos.push(`⚠️ Este pedido excede tu saldo disponible en ${dias - disponibles} día(s). Podés elevarlo si el gerente aprueba en excepción.`);
@@ -399,8 +449,9 @@ function validarSolicitud(legajo) {
 }
 
 export async function guardarBorradorSolicitud() {
-  const legajo = legajoDelUsuarioActual();
-  if (!legajo || !validarSolicitud(legajo)) return;
+  const legajo = _legajoModal;
+  if (!legajo) { toast('⚠️ Elegí el asociado para el que estás cargando el pedido'); return; }
+  if (!validarSolicitud(legajo)) return;
   const v = armarObjetoSolicitud(legajo, 'Borrador');
   if (_solicitudEditandoId) {
     const existente = getVacacionById(_solicitudEditandoId);
@@ -417,9 +468,10 @@ export async function guardarBorradorSolicitud() {
 }
 
 export async function elevarSolicitudDesdeModal() {
-  const legajo = legajoDelUsuarioActual();
-  if (!legajo || !validarSolicitud(legajo)) return;
-  if (!calcularDiasAsignadosPorAntiguedad(legajo)) { toast('⚠️ No se pudieron calcular tus días asignados — no se puede elevar. Contactá a RRHH.'); return; }
+  const legajo = _legajoModal;
+  if (!legajo) { toast('⚠️ Elegí el asociado para el que estás cargando el pedido'); return; }
+  if (!validarSolicitud(legajo)) return;
+  if (!calcularDiasAsignadosPorAntiguedad(legajo)) { toast('⚠️ No se pudieron calcular los días asignados — no se puede elevar. Contactá a RRHH.'); return; }
 
   // Vacaciones v1.1 — Cambio 1: mínimo 15 días de anticipación para
   // elevar. Con menos, queda guardado como Borrador marcado para que

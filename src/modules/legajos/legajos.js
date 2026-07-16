@@ -145,6 +145,9 @@ export function verLegajo(nro) {
       .sort((a, b) => new Date(b.id) - new Date(a.id))
     : [];
 
+  const descUniDelAsoc = (DB.descuentosUniformePendientes || []).filter(d => !d.anulado && String(d.legajoIdLocal) === String(l.nro))
+    .sort((a, b) => new Date(b.fechaGenerado) - new Date(a.fechaGenerado));
+
   $('legajo-body').innerHTML = `
     <div style="display:flex;align-items:center;gap:14px;margin-bottom:18px;">
       ${avatarEl(l.nombre, 56)}
@@ -167,6 +170,8 @@ export function verLegajo(nro) {
     <div id="leg-tab-0" class="tab-content active"><div class="info-grid">
       <div class="info-item"><div class="key">DNI</div><div class="val">${l.dni}</div></div>
       <div class="info-item"><div class="key">CUIT</div><div class="val">${l.cuit || '—'}</div></div>
+      <div class="info-item"><div class="key">Clave fiscal (AFIP)</div><div class="val">${l.claveFiscal || '—'}</div></div>
+      <div class="info-item"><div class="key">N° INAES</div><div class="val">${l.inaes || '—'}</div></div>
       <div class="info-item"><div class="key">Estado civil</div><div class="val">${l.estadoCivil || '—'}</div></div>
       <div class="info-item"><div class="key">Nacionalidad</div><div class="val">${l.nac || '—'}</div></div>
       <div class="info-item"><div class="key">Localidad</div><div class="val">${l.localidad || '—'}</div></div>
@@ -183,7 +188,22 @@ export function verLegajo(nro) {
       <div class="info-item"><div class="key">Fecha baja</div><div class="val">${l.fechaBaja || '—'}</div></div>
       <div class="info-item"><div class="key">Estado legal</div><div class="val">${l.estadoLegal ? badge(l.estadoLegal) : 'Sin situación legal'}</div></div>
       <div class="info-item"><div class="key">Seguro</div><div class="val">${badge(l.seguro === 'Completo' ? 'Completo' : 'Pendiente')}</div></div>
-    </div></div>
+    </div>
+    <div style="margin-top:16px;">
+      <div class="form-section">💸 Descuentos por uniforme</div>
+      ${descUniDelAsoc.length === 0 ? '<p style="opacity:.6;font-size:12.5px;">Sin descuentos pendientes ni aplicados</p>' : `
+        <div style="display:flex;flex-direction:column;gap:6px;">
+          ${descUniDelAsoc.map(d => `
+            <div style="display:flex;justify-content:space-between;align-items:center;background:var(--fondo);border:1px solid var(--borde);border-radius:var(--radio);padding:8px 12px;font-size:12.5px;">
+              <div>
+                <div>${d.motivoGeneracion || '—'}</div>
+                <div style="color:var(--texto-suave);font-size:11px;">${(d.fechaGenerado || '').slice(0, 10)} · $${(d.montoTotal || 0).toLocaleString('es-AR')} en ${d.cuotasTotales} cuota(s), ${d.cuotasCobradas}/${d.cuotasTotales} cobradas</div>
+              </div>
+              <span class="badge ${d.estado === 'Terminado' ? 'badge-verde' : d.estado === 'Cancelado' ? 'badge-gris' : 'badge-acento'}">${d.estado}</span>
+            </div>`).join('')}
+        </div>`}
+    </div>
+    </div>
     <div id="leg-tab-2" class="tab-content">
       ${reasDelAsoc.length === 0 ? `
         <div class="empty-state"><div class="icon">🔄</div><p>Sin movimientos registrados</p></div>` : `
@@ -364,6 +384,8 @@ export function editarLegajoActual() {
   $('edit-nombre').value = p.slice(1).join(' ') || '';
   $('edit-dni').value = l.dni;
   $('edit-cuit').value = l.cuit || '';
+  if ($('edit-clave-fiscal')) $('edit-clave-fiscal').value = l.claveFiscal || '';
+  if ($('edit-inaes')) $('edit-inaes').value = l.inaes || '';
   $('edit-tel').value = l.tel || '';
   $('edit-mail').value = l.mail || '';
   $('edit-banco').value = l.banco || '';
@@ -416,6 +438,8 @@ export function guardarEdicionLegajo() {
   l.nombre = `${a} ${n}`;
   l.dni = dni;
   l.cuit = $('edit-cuit').value;
+  l.claveFiscal = ($('edit-clave-fiscal') || { value: l.claveFiscal || '' }).value;
+  l.inaes = ($('edit-inaes') || { value: l.inaes || '' }).value;
   l.tel = $('edit-tel').value;
   l.mail = $('edit-mail').value;
   l.banco = $('edit-banco').value;

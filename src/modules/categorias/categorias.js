@@ -48,6 +48,7 @@ export function renderCatalogoCategorias() {
 export async function activarDesactivarCategoriaPorId(categoriaIdLocal) {
   const c = getCategoriaById(categoriaIdLocal);
   if (!c) return;
+  if (c.activa && !confirm(`¿Desactivar la categoría "${c.nombre}"? No se podrá elegir en cargas nuevas.`)) return;
   c.activa = !c.activa;
   await supaSync('categoriasBase', c);
   renderCatalogoCategorias();

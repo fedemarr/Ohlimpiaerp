@@ -6,7 +6,7 @@
 
 import { DB } from '@shared/state.js';
 import { $, avatarEl } from '@shared/helpers.js';
-import { abrirModal } from '@shared/ui.js';
+import { abrirModal, cerrarModal } from '@shared/ui.js';
 import { calcularRankingIndividual, calcularRankingServicios, calcularRankingSupervisores } from './rankings.js';
 import { renderReglas } from './reglas.js';
 import { renderTablaNoParticipan } from './no_participan.js';
@@ -119,17 +119,14 @@ export function renderTablaEquipos(servicios) {
   }).join('') || '<tr><td colspan="9" style="text-align:center;padding:32px;opacity:.5;">Sin movimientos registrados este año</td></tr>';
 }
 
+let _supervisoresCache = [];
+
 export function renderTablaSupervisores(supervisores) {
+  _supervisoresCache = supervisores;
   const tbody = $('tbody-comp-sup'); if (!tbody) return;
   tbody.innerHTML = supervisores.map(s => {
     const pos = s.puesto;
     const medalla = pos <= 3 ? MEDALLAS[pos - 1] : `${pos}°`;
-    const nopList = s.noParticipan.map(p => `
-      <div style="display:flex;align-items:center;gap:6px;padding:3px 0;border-bottom:1px solid var(--borde);">
-        <span style="font-size:11px;flex:1;">${p.nombre}</span>
-        <span style="font-size:10px;color:var(--texto-muy-suave);">${p.servicio}</span>
-        <button class="btn btn-xs" style="background:var(--azul-claro);color:var(--azul);border:1px solid var(--azul);font-size:9px;padding:2px 6px;" onclick="abrirNotificarAsociado('${p.nro}')">📱</button>
-      </div>`).join('');
     return `<tr style="${pos <= 3 ? 'background:' + (['#fffbea', '#f8f8f8', '#fff8f4'][pos - 1]) : ''}">
       <td style="text-align:center;font-size:${pos <= 3 ? '20' : '13'}px;font-weight:700;color:${posColor(pos)};">${medalla}</td>
       <td>
@@ -145,14 +142,48 @@ export function renderTablaSupervisores(supervisores) {
       <td style="text-align:center;">
         <span style="font-weight:600;color:${s.participacion >= 70 ? 'var(--verde)' : s.participacion >= 40 ? 'var(--naranja)' : 'var(--rojo)'};">${s.participacion}%</span>
       </td>
-      <td style="min-width:220px;">
+      <td style="text-align:center;">
         ${s.noParticipan.length === 0
           ? `<span style="color:var(--verde);font-size:12px;">✅ Toda su gente participa</span>`
-          : `<div style="max-height:100px;overflow-y:auto;">${nopList}</div>
-             <button class="btn btn-xs" style="margin-top:4px;background:var(--azul-claro);color:var(--azul);border:1px solid var(--azul);font-size:10px;" onclick="abrirNotificarGrupoSupervisor('${s.supervisor}')">📱 Avisar a ${s.supervisor} (${s.noParticipan.length})</button>`}
+          : `<button class="btn btn-xs" style="background:#fee2e2;color:#991b1b;font-size:11px;" onclick="abrirDetalleNoParticipanSupervisor('${s.supervisor}')">⚠️ ${s.noParticipan.length} no participan</button>`}
       </td>
     </tr>`;
   }).join('') || '<tr><td colspan="8" style="text-align:center;padding:32px;opacity:.5;">Sin movimientos registrados este año</td></tr>';
+}
+
+// ========== MODAL — DETALLE "NO PARTICIPAN" POR SUPERVISOR ==========
+
+function ensureModalNoParticipanSupervisor() {
+  if ($('modal-comp-nop-sup')) return;
+  const m = document.createElement('div');
+  m.className = 'modal-overlay';
+  m.id = 'modal-comp-nop-sup';
+  m.innerHTML = `
+    <div class="modal" style="max-width:460px;">
+      <div class="modal-header"><h3 id="cns-titulo">No participan</h3><button class="btn-close" onclick="cerrarModal('modal-comp-nop-sup')">×</button></div>
+      <div class="modal-body" id="cns-cuerpo"></div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="cerrarModal('modal-comp-nop-sup')">Cerrar</button>
+        <button class="btn" id="cns-btn-avisar" style="background:var(--azul-claro);color:var(--azul);border:1px solid var(--azul);">📱 Avisar a todos</button>
+      </div>
+    </div>`;
+  document.body.appendChild(m);
+}
+
+export function abrirDetalleNoParticipanSupervisor(nombreSupervisor) {
+  const s = _supervisoresCache.find(x => x.supervisor === nombreSupervisor);
+  if (!s) return;
+  ensureModalNoParticipanSupervisor();
+  $('cns-titulo').textContent = `No participan — ${nombreSupervisor}`;
+  $('cns-cuerpo').innerHTML = s.noParticipan.map(p => `
+    <div style="display:flex;align-items:center;gap:6px;padding:6px 0;border-bottom:1px solid var(--borde);">
+      <span style="font-size:13px;flex:1;">${p.nombre}</span>
+      <span style="font-size:11px;color:var(--texto-muy-suave);">${p.servicio}</span>
+      <button class="btn btn-xs" style="background:var(--azul-claro);color:var(--azul);border:1px solid var(--azul);font-size:10px;" onclick="abrirNotificarAsociado('${p.nro}')">📱</button>
+    </div>`).join('') || '<p style="opacity:.6;">Sin datos</p>';
+  const btnAvisar = $('cns-btn-avisar');
+  if (btnAvisar) btnAvisar.setAttribute('onclick', `abrirNotificarGrupoSupervisor('${nombreSupervisor}')`);
+  abrirModal('modal-comp-nop-sup');
 }
 
 // ========== FILTROS ==========

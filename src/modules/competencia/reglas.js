@@ -66,6 +66,7 @@ export function renderReglas() {
 export async function activarDesactivarReglaPorId(reglaIdLocal) {
   const regla = getReglaById(reglaIdLocal);
   if (!regla) return;
+  if (regla.activa && !confirm(`¿Desactivar la regla "${regla.nombre}"? Deja de generar puntos nuevos a partir de ahora.`)) return;
   regla.activa = !regla.activa;
   await supaSync('reglasCompetencia', regla);
   renderReglas();

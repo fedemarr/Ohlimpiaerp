@@ -47,8 +47,8 @@ export function renderHistorialMovimientos() {
       <td><span class="badge ${m.origen === 'Manual' ? 'badge-acento' : 'badge-azul'}">${m.origen}${m.moduloOrigen ? ' · ' + m.moduloOrigen : ''}</span></td>
       <td style="font-size:11.5px;">${m.revertido ? ('Revertido por ' + m.revertidoPor) : 'Vigente'}</td>
       <td style="white-space:nowrap;">
-        ${!m.revertido ? `<button class="btn btn-xs" style="background:#fee2e2;color:#991b1b;" onclick="abrirRevertirMovimiento('${m.id}')">↩️</button>` : ''}
-        <button class="btn btn-xs btn-secondary" onclick="abrirDetalleEvento('${m.eventoIdLocal}')">👁</button>
+        ${!m.revertido ? `<button class="btn btn-xs" style="background:#fee2e2;color:#991b1b;" title="Revertir solo este movimiento" onclick="abrirRevertirMovimiento('${m.id}')">↩️ Este movimiento</button>` : ''}
+        <button class="btn btn-xs btn-secondary" title="Ver detalle del evento y, si hace falta, revertirlo completo" onclick="abrirDetalleEvento('${m.eventoIdLocal}')">🔎 Detalle</button>
       </td>
     </tr>`).join('');
 }

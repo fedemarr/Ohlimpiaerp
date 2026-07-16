@@ -87,14 +87,19 @@ export async function crearPedidoAdelanto({ legajo, monto, origen, fechaPedido, 
 
 export async function crearPedidoPrestamo({ legajo, montoSolicitado, cuotasSolicitadas, origen, fechaPedido, observaciones, supervisorNombre }) {
   const fecha = fechaPedido || hoyISO();
+  // Cuotas v1.1 — el supervisor ya no las elige: solo pide un monto.
+  // RRHH define la cantidad de cuotas al revisar el pedido (ver
+  // aprobarRRHH). cuotasSolicitadas queda null salvo que se pase
+  // explícitamente (compatibilidad con llamadores viejos, si quedara alguno).
+  const cuotasNum = cuotasSolicitadas != null ? parseInt(cuotasSolicitadas, 10) : null;
   const nuevo = {
     id: Date.now(),
     nombre: legajo.nombre, nroSocio: String(legajo.nro), legajoIdLocal: String(legajo.nro),
     servicio: legajo.servicio || '',
     supervisorNombre: supervisorNombre || currentUser?.nombre || 'Supervisor',
     origen: origen || 'Formal',
-    montoSolicitado: Number(montoSolicitado), cuotasSolicitadas: parseInt(cuotasSolicitadas, 10),
-    montoCuotaSolicitado: Math.round(Number(montoSolicitado) / parseInt(cuotasSolicitadas, 10)),
+    montoSolicitado: Number(montoSolicitado), cuotasSolicitadas: cuotasNum,
+    montoCuotaSolicitado: cuotasNum ? Math.round(Number(montoSolicitado) / cuotasNum) : null,
     monto: null, cuotas: null, montoCuota: null, fechaOtorgamiento: null,
     periodo: fecha.slice(0, 7),
     fechaPedido: fecha,

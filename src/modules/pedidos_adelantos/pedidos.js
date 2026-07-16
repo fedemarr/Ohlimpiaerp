@@ -10,7 +10,7 @@ import {
   getPedidoById, getPrestamoById, crearPedidoAdelanto, crearPedidoPrestamo,
   cancelarPedido, elevarPedido, eventosDePedido,
 } from '../adelantos_prestamos_shared/flujo.js';
-import { obtenerTopeVigente, obtenerMaxCuotas } from '../adelantos_prestamos_shared/config.js';
+import { obtenerTopeVigente } from '../adelantos_prestamos_shared/config.js';
 import { esSupervisor, esCentralOperaciones } from '../adelantos_prestamos_shared/permisos.js';
 
 const ESTADO_BADGE = {
@@ -96,6 +96,7 @@ export function filtrarHistorialEquipo() { renderHistorialEquipo(); }
 // ========== MODAL — NUEVO PEDIDO ==========
 
 let _legajoSeleccionadoNuevo = null;
+let _universoAsociadosNuevo = []; // acota la búsqueda por N° de socio al mismo universo del datalist de nombres (equipo del supervisor, o todos si es Central de Operaciones)
 
 function ensureModalNuevoPedido() {
   if ($('modal-padl-nuevo')) return;
@@ -110,7 +111,10 @@ function ensureModalNuevoPedido() {
           <label><input type="radio" name="npa-tipo" value="Adelanto" checked onchange="cambiarTipoPedidoModal()"> 💵 Adelanto</label>
           <label style="margin-left:16px;"><input type="radio" name="npa-tipo" value="Préstamo" onchange="cambiarTipoPedidoModal()"> 🏦 Préstamo</label>
         </div>
-        <div class="form-group"><label>Asociado *</label><input type="text" id="npa-asociado" list="dl-asoc-padl" oninput="seleccionarAsociadoPedido()"><datalist id="dl-asoc-padl"></datalist></div>
+        <div class="form-grid form-grid-2">
+          <div class="form-group"><label>Asociado * (por nombre)</label><input type="text" id="npa-asociado" list="dl-asoc-padl" oninput="seleccionarAsociadoPedido()"><datalist id="dl-asoc-padl"></datalist></div>
+          <div class="form-group"><label>...o por N° de socio</label><input type="text" id="npa-asociado-nro" inputmode="numeric" placeholder="Ej: 1234" oninput="buscarAsociadoPedidoPorNro()"></div>
+        </div>
         <div id="npa-info-asociado" style="font-size:12.5px;color:var(--texto-suave);margin-bottom:8px;"></div>
 
         <div id="npa-seccion-adelanto">
@@ -118,10 +122,8 @@ function ensureModalNuevoPedido() {
           <div id="npa-aviso-tope" class="alerta alerta-warn" style="display:none;font-size:12px;"></div>
         </div>
         <div id="npa-seccion-prestamo" style="display:none;">
-          <div class="form-grid form-grid-2">
-            <div class="form-group"><label>Monto solicitado *</label><input type="number" id="npa-monto-prestamo" min="0" step="100"></div>
-            <div class="form-group"><label>Cuotas solicitadas *</label><input type="number" id="npa-cuotas" min="1"></div>
-          </div>
+          <div class="form-group"><label>Monto solicitado *</label><input type="number" id="npa-monto-prestamo" min="0" step="100"></div>
+          <p style="font-size:12px;color:var(--texto-suave);margin-top:-6px;">La cantidad de cuotas la define RRHH al revisar el pedido.</p>
         </div>
 
         <div class="form-group"><label>Fecha del pedido</label><input type="date" id="npa-fecha"></div>
@@ -151,7 +153,23 @@ function legajoPorMatch(texto) {
 export function seleccionarAsociadoPedido() {
   const legajo = legajoPorMatch($('npa-asociado').value);
   _legajoSeleccionadoNuevo = legajo;
+  if ($('npa-asociado-nro')) $('npa-asociado-nro').value = '';
   if (!legajo) { $('npa-info-asociado').innerHTML = ''; return; }
+  $('npa-info-asociado').innerHTML = `N° ${legajo.nro} — ${legajo.servicio || '—'} · Supervisor: ${legajo.supervisor || '—'}`;
+  chequearTopeModal();
+}
+
+export function buscarAsociadoPedidoPorNro() {
+  const nro = ($('npa-asociado-nro') || { value: '' }).value.trim();
+  if (!nro) { _legajoSeleccionadoNuevo = null; $('npa-info-asociado').innerHTML = ''; return; }
+  const legajo = _universoAsociadosNuevo.find(l => String(l.nro) === nro);
+  if (!legajo) {
+    _legajoSeleccionadoNuevo = null;
+    $('npa-info-asociado').innerHTML = '<span style="color:var(--rojo);">No se encontró un asociado activo con ese número en tu equipo</span>';
+    return;
+  }
+  _legajoSeleccionadoNuevo = legajo;
+  $('npa-asociado').value = `${legajo.nombre} (N°${legajo.nro})`;
   $('npa-info-asociado').innerHTML = `N° ${legajo.nro} — ${legajo.servicio || '—'} · Supervisor: ${legajo.supervisor || '—'}`;
   chequearTopeModal();
 }
@@ -176,14 +194,15 @@ export function abrirNuevoPedidoAdelanto() {
   ensureModalNuevoPedido();
   _legajoSeleccionadoNuevo = null;
   const universo = esCentralOperaciones() ? (DB.legajos || []) : (DB.legajos || []).filter(l => l.supervisor === currentUser?.nombre);
-  $('dl-asoc-padl').innerHTML = universo.filter(l => l.estado === 'Activo').map(l => `<option value="${l.nombre} (N°${l.nro})">`).join('');
+  _universoAsociadosNuevo = universo.filter(l => l.estado === 'Activo');
+  $('dl-asoc-padl').innerHTML = _universoAsociadosNuevo.map(l => `<option value="${l.nombre} (N°${l.nro})">`).join('');
   document.querySelector('input[name="npa-tipo"][value="Adelanto"]').checked = true;
   cambiarTipoPedidoModal();
   $('npa-asociado').value = '';
+  $('npa-asociado-nro').value = '';
   $('npa-info-asociado').innerHTML = '';
   $('npa-monto').value = '';
   $('npa-monto-prestamo').value = '';
-  $('npa-cuotas').value = '';
   $('npa-aviso-tope').style.display = 'none';
   $('npa-fecha').value = new Date().toISOString().slice(0, 10);
   $('npa-obs').value = '';
@@ -205,12 +224,8 @@ export async function confirmarNuevoPedido(elevarAlGuardar) {
     pedido = await crearPedidoAdelanto({ legajo, monto, fechaPedido, observaciones });
   } else {
     const monto = parseFloat($('npa-monto-prestamo').value);
-    const cuotas = parseInt($('npa-cuotas').value, 10);
     if (!monto || monto <= 0) { toast('⚠️ Ingresá un monto válido'); return; }
-    if (!cuotas || cuotas <= 0) { toast('⚠️ Ingresá la cantidad de cuotas'); return; }
-    const maxCuotas = obtenerMaxCuotas();
-    if (cuotas > maxCuotas && !confirm(`⚠️ ${cuotas} cuotas supera el máximo sugerido de ${maxCuotas}. RRHH lo evaluará igual. ¿Confirmás?`)) return;
-    pedido = await crearPedidoPrestamo({ legajo, montoSolicitado: monto, cuotasSolicitadas: cuotas, fechaPedido, observaciones });
+    pedido = await crearPedidoPrestamo({ legajo, montoSolicitado: monto, fechaPedido, observaciones });
   }
 
   if (elevarAlGuardar) {
