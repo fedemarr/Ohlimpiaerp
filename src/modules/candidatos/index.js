@@ -18,11 +18,14 @@ export {
   poblarSelectResponsable,
 } from './calendario.js';
 
+export { renderLinkPublico, copiarLinkPostulacion } from './linkPublico.js';
+
 // ========== TAB PRINCIPAL (Base / Calendario / Link) ==========
 
 import { $ } from '@shared/helpers.js';
 import { tabCandidatos } from './candidatos.js';
 import { renderCalendario } from './calendario.js';
+import { renderLinkPublico } from './linkPublico.js';
 
 let _candPrincipalTab = 'base';
 
@@ -43,6 +46,7 @@ export function tabCandPrincipal(tab) {
   });
   if (tab === 'base') tabCandidatos('activos');
   if (tab === 'calendario') { poblarSelectResponsable(); renderCalendario(); }
+  if (tab === 'link') renderLinkPublico();
 }
 
 // ========== SCREEN CONFIG ==========
@@ -78,6 +82,8 @@ import {
   poblarSelectResponsable,
 } from './calendario.js';
 
+import { copiarLinkPostulacion } from './linkPublico.js';
+
 // Tab principal
 window.tabCandPrincipal = tabCandPrincipal;
 
@@ -106,3 +112,6 @@ window.cambiarSemana = cambiarSemana;
 window.irHoy = irHoy;
 window.actualizarConfigAgente = actualizarConfigAgente;
 window.agendarTurno = agendarTurno;
+
+// Link público de postulación
+window.copiarLinkPostulacion = copiarLinkPostulacion;
