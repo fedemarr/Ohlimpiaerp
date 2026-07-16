@@ -170,7 +170,7 @@ export function verLegajo(nro) {
     <div id="leg-tab-0" class="tab-content active"><div class="info-grid">
       <div class="info-item"><div class="key">DNI</div><div class="val">${l.dni}</div></div>
       <div class="info-item"><div class="key">CUIT</div><div class="val">${l.cuit || '—'}</div></div>
-      <div class="info-item"><div class="key">Clave fiscal (AFIP)</div><div class="val">${l.claveFiscal || '—'}</div></div>
+      <div class="info-item"><div class="key">Clave fiscal (ARCA)</div><div class="val">${l.claveFiscal || '—'}</div></div>
       <div class="info-item"><div class="key">N° INAES</div><div class="val">${l.inaes || '—'}</div></div>
       <div class="info-item"><div class="key">Estado civil</div><div class="val">${l.estadoCivil || '—'}</div></div>
       <div class="info-item"><div class="key">Nacionalidad</div><div class="val">${l.nac || '—'}</div></div>

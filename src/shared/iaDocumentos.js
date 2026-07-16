@@ -16,7 +16,17 @@ export async function analizarDocumentoPDF({ tipo, path }) {
   });
 
   const body = await resp.json().catch(() => ({}));
-  if (!resp.ok) throw new Error(body.error || 'Error al analizar el documento');
+  if (!resp.ok) {
+    const crudo = body.error || '';
+    // Defensa extra: si por algún motivo se cuela el error crudo del SDK de
+    // Anthropic (ej. "529 {\"type\":\"overloaded_error\"...}") en vez del
+    // mensaje ya traducido por el backend, lo detectamos acá también en
+    // vez de mostrar JSON en pantalla.
+    if (resp.status === 503 || /overloaded|"type":"error"|status.*529/i.test(crudo)) {
+      throw new Error('El servicio de IA está saturado en este momento. Esperá unos segundos y volvé a intentar.');
+    }
+    throw new Error(crudo || 'Error al analizar el documento');
+  }
   return body;
 }
 

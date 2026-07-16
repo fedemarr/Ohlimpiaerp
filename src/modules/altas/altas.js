@@ -65,12 +65,18 @@ export function poblarFiltrosColumnasAltas() {
 export function poblarSelectsAltas() {
   fillSelect('alt-funcion', DB.categorias, ['— Seleccionar —']);
   fillSelect('alt-categoria', DB.categorias, ['— Seleccionar —']);
-  // Poblar servicios desde objetivos activos
+  // Poblar servicios — mismo helper que usa el resto de los módulos
+  // migrados (window.obtenerServiciosActivos, definido en src/legacy.js:
+  // objetivos con estado 'Operativo' + fallback legacy DB.servicios).
+  // Antes filtraba acá mismo por estado==='Activo', un valor que ningún
+  // objetivo tiene nunca (el estado real del ciclo de vida es
+  // 'Presupuestado' → 'Pendiente asignación operativa' → 'Operativo' →
+  // 'Baja'), así que el select quedaba siempre vacío.
   const servEl = $('alt-servicio');
   if (servEl) {
-    const objetivos = (DB.objetivos || []).filter(o => o.estado === 'Activo');
+    const codigos = window.obtenerServiciosActivos ? window.obtenerServiciosActivos() : [];
     servEl.innerHTML = '<option value="">— Sin asignar —</option>'
-      + objetivos.map(o => '<option value="' + o.codigo + '">' + o.codigo + '</option>').join('');
+      + codigos.map(c => '<option value="' + c + '">' + c + '</option>').join('');
   }
 }
 
@@ -79,7 +85,7 @@ export function onChangeServicioAlta() {
   const supEl = $('alt-supervisor');
   if (!supEl) return;
   if (!codigo) { supEl.value = ''; return; }
-  const obj = (DB.objetivos || []).find(o => o.codigo === codigo && o.estado === 'Activo');
+  const obj = (DB.objetivos || []).find(o => o.codigo === codigo && o.estado === 'Operativo' && !o.anulado);
   supEl.value = obj ? obj.supervisor : '';
 }
 
@@ -137,7 +143,7 @@ function crearHTMLModalAlta() {
             '<div class="form-group" style="grid-column:1/-1;"><label>Nombre completo *</label><input type="text" id="alt-nombre" onblur="applyTitleCase(\'alt-nombre\')"></div>',
             '<div class="form-group"><label>DNI *</label><input type="text" id="alt-dni"></div>',
             '<div class="form-group"><label>CUIT *</label><input type="text" id="alt-cuit" placeholder="XX-XXXXXXXX-X"></div>',
-            '<div class="form-group"><label>Clave fiscal (AFIP)</label><input type="text" id="alt-clave-fiscal" placeholder="Opcional"></div>',
+            '<div class="form-group"><label>Clave fiscal (ARCA)</label><input type="text" id="alt-clave-fiscal" placeholder="Opcional"></div>',
             '<div class="form-group"><label>Fecha de nacimiento</label><input type="date" id="alt-fecnac"></div>',
             '<div class="form-group"><label>Nacionalidad</label><select id="alt-nac" style="width:100%;padding:8px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;"><option>Argentina</option><option>Boliviana</option><option>Paraguaya</option><option>Peruana</option><option>Uruguaya</option><option>Chilena</option><option>Brasileña</option><option>Venezolana</option><option>Otra</option></select></div>',
             '<div class="form-group"><label>Estado civil</label><select id="alt-estado-civil" style="width:100%;padding:8px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;"><option>Soltero/a</option><option>Casado/a</option><option>Divorciado/a</option><option>Viudo/a</option><option>Conviviente</option></select></div>',
@@ -256,9 +262,15 @@ export function abrirModalAlta(psicoIdx, altaId) {
     if (altaId) $('modal-alta-nuevo').dataset.altaId = altaId;
     $('alta-nombre-display').textContent = src.nombre;
 
-    // Rastrear candidato original para recuperar datos extra
-    const cand = src.candidatoId
-      ? (DB.candidatos || []).find(c => c.id == src.candidatoId)
+    // Rastrear candidato original para recuperar datos extra — se matchea
+    // por DNI, no por candidatoId (mismo criterio ya usado en psico/
+    // preocup/docum, ver CLAUDE.md "Conciliación entre etapas por
+    // candidatoId truncado"): id_local trunca a 9 dígitos al persistir en
+    // Supabase, mientras que candidatoId quedó guardado con el Date.now()
+    // completo de 13 dígitos en catAltPendientes — tras un reload dejan de
+    // matchear y la precarga se salteaba en silencio.
+    const cand = src.dni
+      ? (DB.candidatos || []).find(c => c.dni === src.dni)
       : null;
 
     // Tab 0 — Identificación

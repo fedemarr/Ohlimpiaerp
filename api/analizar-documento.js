@@ -123,18 +123,35 @@ export default async function handler(req, res) {
     const { default: Anthropic } = await import('@anthropic-ai/sdk');
     const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
-    const message = await anthropic.messages.create({
-      model: 'claude-opus-4-8',
-      max_tokens: 1024,
-      output_config: { format: { type: 'json_schema', schema: SCHEMAS[tipo] } },
-      messages: [{
-        role: 'user',
-        content: [
-          { type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: base64Pdf } },
-          { type: 'text', text: PROMPTS[tipo] },
-        ],
-      }],
-    });
+    // El servicio de IA devuelve 529 (overloaded) o 429 (rate limit) de vez
+    // en cuando — son transitorios, no un error real del documento. Un
+    // reintento con una pequeña espera resuelve la mayoría sin que el
+    // usuario tenga que volver a apretar el botón.
+    const esTransitorio = e => e?.status === 529 || e?.status === 429;
+    let message;
+    for (let intento = 0; ; intento++) {
+      try {
+        message = await anthropic.messages.create({
+          model: 'claude-opus-4-8',
+          max_tokens: 1024,
+          output_config: { format: { type: 'json_schema', schema: SCHEMAS[tipo] } },
+          messages: [{
+            role: 'user',
+            content: [
+              { type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: base64Pdf } },
+              { type: 'text', text: PROMPTS[tipo] },
+            ],
+          }],
+        });
+        break;
+      } catch (e) {
+        if (esTransitorio(e) && intento === 0) {
+          await new Promise(r => setTimeout(r, 1500));
+          continue;
+        }
+        throw e;
+      }
+    }
 
     if (message.stop_reason === 'refusal') {
       res.status(422).json({ error: 'El análisis fue rechazado por los filtros de seguridad del modelo' });
@@ -151,6 +168,9 @@ export default async function handler(req, res) {
     res.status(200).json(resultado);
   } catch (e) {
     console.error('analizar-documento error:', e);
-    res.status(500).json({ error: e.message || 'Error interno al analizar el documento' });
+    const mensaje = (e?.status === 529 || e?.status === 429)
+      ? 'El servicio de IA está saturado en este momento. Esperá unos segundos y volvé a intentar.'
+      : (e.message || 'Error interno al analizar el documento');
+    res.status(e?.status === 529 || e?.status === 429 ? 503 : 500).json({ error: mensaje });
   }
 }

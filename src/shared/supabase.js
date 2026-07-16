@@ -637,15 +637,47 @@ export async function supaDel(dbKey, idLocal) {
 
 // Cargar todos los datos al iniciar
 // Recibe DB (estado global) y toast (notificación) para no depender de globales
+//
+// v1.1 — antes esto disparaba las ~79 tablas de _SM en un solo
+// Promise.all (79 requests simultáneos). Con esa concurrencia, el pool
+// de conexiones de Supabase rechazaba/reseteaba una parte de los
+// pedidos, y el navegador reportaba eso como error de CORS (Chrome
+// muestra "blocked by CORS policy" ante una conexión cortada/reseteada,
+// aunque la causa real no tenga nada que ver con CORS — confirmado acá
+// porque las mismas tablas respondían 200 OK vía curl directo). Ahora
+// se piden en lotes acotados, y las que fallan en el primer intento
+// tienen una segunda oportunidad (da margen si fue saturación
+// transitoria, no un error real de esquema/permisos).
+const SUPA_INIT_LOTE = 10;
+
+async function _pedirTabla(k, t) {
+  try {
+    const r = await SUPA.from(t).select('*').order('created_at', { ascending: true });
+    return { k, t, data: r.data, error: r.error };
+  } catch (e) {
+    return { k, t, data: null, error: e };
+  }
+}
+
 export async function supaInit(DB, toast) {
   try {
+    const entradas = Object.entries(_SM);
+    const resultados = [];
+    for (let i = 0; i < entradas.length; i += SUPA_INIT_LOTE) {
+      const lote = entradas.slice(i, i + SUPA_INIT_LOTE);
+      resultados.push(...await Promise.all(lote.map(([k, t]) => _pedirTabla(k, t))));
+    }
+
+    const fallidas = resultados.filter(r => r.error);
+    if (fallidas.length > 0) {
+      const reintentos = await Promise.all(fallidas.map(({ k, t }) => _pedirTabla(k, t)));
+      for (const r of reintentos) {
+        const idx = resultados.findIndex(x => x.k === r.k);
+        if (idx !== -1) resultados[idx] = r;
+      }
+    }
+
     let cargados = 0;
-    const pedidos = Object.entries(_SM).map(([k, t]) =>
-      SUPA.from(t).select('*').order('created_at', { ascending: true })
-        .then(r => ({ k, t, data: r.data, error: r.error }))
-        .catch(e => ({ k, t, data: null, error: e }))
-    );
-    const resultados = await Promise.all(pedidos);
     for (const { k, t, data, error } of resultados) {
       if (error) { console.warn('supaInit error tabla:', t, error.message); continue; }
       if (data && data.length > 0) {
