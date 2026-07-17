@@ -264,3 +264,25 @@ export async function reAprobarTrasRechazoFinanzas(tipo, id, cambios = {}) {
   });
   return { pedido: p };
 }
+
+// RRHH devuelve al supervisor un pedido que Finanzas rechazó, en vez de
+// ajustarlo y reenviarlo (alternativa a reAprobarTrasRechazoFinanzas,
+// misma transición terminal que rechazarRRHH: el supervisor ve el
+// motivo en su historial y arma un pedido nuevo, no se reedita este).
+export async function devolverASupervisorTrasRechazoFinanzas(tipo, id, motivo) {
+  const p = _getById(tipo, id);
+  if (!p) return { error: 'No se encontró el pedido' };
+  if (p.estado !== 'Rechazada Finanzas') return { error: 'Este pedido no fue devuelto por Finanzas' };
+  if (!motivo) return { error: 'El motivo es obligatorio' };
+  const estadoDesde = p.estado;
+  p.estado = 'Rechazada RRHH';
+  p.motivoRechazoRrhh = motivo;
+  await _guardar(tipo, p);
+  await _registrarEvento(tipo, p, estadoDesde, p.estado, motivo);
+  await crearNotificacion({
+    tipo: 'adelantos_rechazado_rrhh', entidadTipo: 'pedido_adelanto', entidadIdLocal: p.id,
+    destinatarioNombre: p.supervisorNombre,
+    mensaje: `↩️ RRHH devolvió el ${tipo.toLowerCase()} de ${tipo === 'Préstamo' ? p.nombre : p.nombreAsociado} (rechazado antes por Finanzas). Motivo: ${motivo}`,
+  });
+  return { pedido: p };
+}

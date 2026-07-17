@@ -19,7 +19,18 @@ const ESTADO_BADGE = {
   'Cancelada': 'badge-gris',
 };
 
-function badge(estado) { return `<span class="badge ${ESTADO_BADGE[estado] || 'badge-gris'}">${estado}</span>`; }
+// El texto interno del estado (usado en flujo.js/revision.js/deposito.js
+// como fuente de verdad) no siempre es el más claro para el supervisor
+// — "Aprobada" a secas se confundía con "Aprobada RRHH" y nunca se veía
+// la palabra "Pagado", aunque Finanzas ya hubiera pagado (feedback QA).
+// Este mapa es solo de presentación, no toca el valor real de p.estado.
+const ESTADO_LABEL = {
+  'Borrador': 'Borrador', 'Enviada': 'Enviado', 'Aprobada RRHH': 'Pendiente de pago',
+  'Aprobada': 'Pagado', 'Rechazada RRHH': 'Rechazado', 'Rechazada Finanzas': 'Rechazado por Finanzas',
+  'Cancelada': 'Cancelado',
+};
+
+function badge(estado) { return `<span class="badge ${ESTADO_BADGE[estado] || 'badge-gris'}">${ESTADO_LABEL[estado] || estado}</span>`; }
 
 function equipoDelSupervisor() {
   if (esCentralOperaciones()) return null; // null = sin filtro, ve todo

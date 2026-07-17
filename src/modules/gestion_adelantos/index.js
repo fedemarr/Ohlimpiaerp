@@ -8,7 +8,7 @@ import { $ } from '@shared/helpers.js';
 import { esRRHHoAdmin, esFinanzasOAdmin } from '../adelantos_prestamos_shared/permisos.js';
 
 export {
-  renderRevisionRRHH, abrirRevisionRRHH, aprobarRevisionRRHH, rechazarRevisionRRHH,
+  renderRevisionRRHH, abrirRevisionRRHH, aprobarRevisionRRHH, rechazarRevisionRRHH, devolverPedidoASupervisor,
 } from './revision.js';
 
 export {
@@ -71,7 +71,7 @@ export const gestionAdelantosScreenConfig = {
 
 // ========== WINDOW BINDINGS ==========
 
-import { abrirRevisionRRHH, aprobarRevisionRRHH, rechazarRevisionRRHH } from './revision.js';
+import { abrirRevisionRRHH, aprobarRevisionRRHH, rechazarRevisionRRHH, devolverPedidoASupervisor } from './revision.js';
 import { pagarIndividual, pagarSeleccionadosDeposito, abrirRechazarDeposito, confirmarRechazoDeposito } from './deposito.js';
 import { filtrarHistorialGestion, exportarHistorialGestionExcel } from './historico.js';
 import {
@@ -83,6 +83,7 @@ window.tabGestAdl = tabGestAdl;
 window.abrirRevisionRRHH = abrirRevisionRRHH;
 window.aprobarRevisionRRHH = aprobarRevisionRRHH;
 window.rechazarRevisionRRHH = rechazarRevisionRRHH;
+window.devolverPedidoASupervisor = devolverPedidoASupervisor;
 
 window.pagarIndividual = pagarIndividual;
 window.pagarSeleccionadosDeposito = pagarSeleccionadosDeposito;

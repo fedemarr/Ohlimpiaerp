@@ -5,7 +5,7 @@
 import { DB } from '@shared/state.js';
 import { $ } from '@shared/helpers.js';
 import { toast, abrirModal, cerrarModal } from '@shared/ui.js';
-import { getPedidoById, getPrestamoById, aprobarRRHH, rechazarRRHH, reAprobarTrasRechazoFinanzas } from '../adelantos_prestamos_shared/flujo.js';
+import { getPedidoById, getPrestamoById, aprobarRRHH, rechazarRRHH, reAprobarTrasRechazoFinanzas, devolverASupervisorTrasRechazoFinanzas } from '../adelantos_prestamos_shared/flujo.js';
 import { obtenerTopeVigente, obtenerUmbralAlertaPedidos } from '../adelantos_prestamos_shared/config.js';
 import { construirContextoAsociado } from '../adelantos_prestamos_shared/contexto.js';
 
@@ -118,13 +118,14 @@ export function abrirRevisionRRHH(tipo, id) {
         <div class="form-group"><label>Cuotas a aprobar</label><input type="number" id="gr-cuotas-aprobadas" min="1" value="${p.cuotasSolicitadas ?? p.cuotas ?? ''}"></div>
       </div>
     ` : ''}
-    <div class="form-group"><label>Motivo (obligatorio si rechaza)</label><textarea id="gr-motivo" rows="2"></textarea></div>
+    <div class="form-group"><label>Motivo ${devuelto ? '(obligatorio para devolver al supervisor)' : '(obligatorio si rechaza)'}</label><textarea id="gr-motivo" rows="2" placeholder="${devuelto ? 'Ej: Monto muy elevado, solicitar menos / El asociado ya solicitó demasiados adelantos este mes' : ''}"></textarea></div>
   `;
 
   $('gr-acciones').innerHTML = `
     <button class="btn btn-secondary" onclick="cerrarModal('modal-gadl-revision')">Cerrar</button>
     ${!devuelto ? `<button class="btn" style="background:#fee2e2;color:#991b1b;" onclick="rechazarRevisionRRHH()">❌ Rechazar</button>` : ''}
-    <button class="btn btn-primary" onclick="aprobarRevisionRRHH()">✅ ${devuelto ? 'Reenviar a Finanzas' : 'Aprobar'}</button>
+    ${devuelto ? `<button class="btn" style="background:#fee2e2;color:#991b1b;" onclick="devolverPedidoASupervisor()">↩️ Devolver al supervisor</button>` : ''}
+    <button class="btn btn-primary" onclick="aprobarRevisionRRHH()">✅ ${devuelto ? 'Ajustar y reenviar a Finanzas' : 'Aprobar'}</button>
   `;
   abrirModal('modal-gadl-revision');
 }
@@ -146,6 +147,17 @@ export async function aprobarRevisionRRHH() {
   cerrarModal('modal-gadl-revision');
   renderRevisionRRHH();
   toast('✅ Pedido aprobado — pasa a Finanzas');
+}
+
+export async function devolverPedidoASupervisor() {
+  const { tipo, id } = _revisando;
+  const motivo = ($('gr-motivo')?.value || '').trim();
+  if (!motivo) { toast('⚠️ El motivo es obligatorio para devolver el pedido'); return; }
+  const r = await devolverASupervisorTrasRechazoFinanzas(tipo, id, motivo);
+  if (r.error) { toast('⚠️ ' + r.error); return; }
+  cerrarModal('modal-gadl-revision');
+  renderRevisionRRHH();
+  toast('↩️ Pedido devuelto al supervisor');
 }
 
 export async function rechazarRevisionRRHH() {
