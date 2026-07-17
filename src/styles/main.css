@@ -189,7 +189,7 @@ tbody tr{cursor:pointer;transition:background .1s;}
 .btn-close:hover{background:var(--fondo);}
 
 /* TABS */
-.tabs{display:flex;border-bottom:1px solid var(--borde);margin-bottom:18px;}
+.tabs{display:flex;flex-wrap:wrap;border-bottom:1px solid var(--borde);margin-bottom:18px;}
 .tab-btn{padding:9px 16px;font-size:13px;font-weight:500;color:var(--texto-suave);border:none;background:none;cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px;transition:all .15s;font-family:inherit;}
 .tab-btn:hover{color:var(--texto);}
 .tab-btn.active{color:var(--azul);border-bottom-color:var(--azul);}
