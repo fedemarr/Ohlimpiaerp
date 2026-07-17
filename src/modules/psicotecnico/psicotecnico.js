@@ -160,6 +160,15 @@ export function abrirGestionPsico(id) {
   if (moEl) moEl.value = p.motivoRechazo || '';
   $('pg-aviso').style.display = 'none';
 
+  // Resetear el panel de análisis de IA — si no, queda mostrando el
+  // resultado del último candidato analizado en esta sesión del
+  // navegador (el panel es un único elemento reutilizado para todos).
+  _iaPsicoResultado = null;
+  const iaPanel = $('pg-ia-resultado');
+  if (iaPanel) { iaPanel.style.display = 'none'; iaPanel.innerHTML = ''; }
+  const btnIa = $('btn-ia-psico');
+  if (btnIa) { btnIa.disabled = false; btnIa.textContent = '🤖 Analizar con IA'; }
+
   actualizarBotonesAprobacion();
   $('modal-psico-gestion').classList.add('open');
   cargarAdjuntoPsico(p.dni);

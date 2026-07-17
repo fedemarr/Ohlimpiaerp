@@ -176,6 +176,16 @@ export function abrirGestionPreocup(id) {
   const moEl = $('pr-motivo');
   if (moEl) moEl.value = p.motivo || '';
   actualizarMotivoPreocup();
+
+  // Resetear el panel de análisis de IA — si no, queda mostrando el
+  // resultado del último candidato analizado en esta sesión del
+  // navegador (el panel es un único elemento reutilizado para todos).
+  _iaAptoResultado = null;
+  const iaPanel = $('pr-ia-resultado');
+  if (iaPanel) { iaPanel.style.display = 'none'; iaPanel.innerHTML = ''; }
+  const btnIa = $('btn-ia-apto');
+  if (btnIa) { btnIa.disabled = false; btnIa.textContent = '🤖 Analizar con IA'; }
+
   $('modal-preocup-gestion').classList.add('open');
   cargarAdjuntoPreocup(p.dni);
 }

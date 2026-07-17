@@ -234,6 +234,26 @@ export function abrirNuevoCandidato() {
   abrirModal('modal-candidato');
 }
 
+// Si se corrige el DNI de un candidato después de que ya avanzó a
+// psicotécnico/preocupacional/documentación/alta pendiente, esos
+// registros son snapshots (no referencias vivas) y quedan con el DNI
+// viejo — el matching por DNI usado en toda esa cadena (ver CLAUDE.md
+// "Conciliación entre etapas por candidatoId truncado", y el fix de
+// precarga de Altas de esta sesión) deja de encontrar al candidato
+// real. Se actualiza el DNI en cascada en las 4 colecciones que lo
+// copian del candidato original.
+function propagarCambioDniCandidato(dniAnterior, dniNuevo) {
+  const colecciones = ['psicos', 'preocupacionales', 'documentacionIngreso', 'catAltPendientes'];
+  for (const key of colecciones) {
+    for (const x of (DB[key] || [])) {
+      if (x.dni === dniAnterior) {
+        x.dni = dniNuevo;
+        supaSync(key, x);
+      }
+    }
+  }
+}
+
 export function guardarCandidato() {
   if (!validarCampos([
     { id: 'c-apellido', label: 'Apellido' },
@@ -299,6 +319,7 @@ export function guardarCandidato() {
   if (editId) {
     const c = getCandById(editId);
     if (!c) { toast('⚠️ Candidato no encontrado'); return; }
+    const dniAnterior = c.dni;
     Object.assign(c, {
       apellido, nombre, dni, cuit, fecNac, estadoCivil, genero, nacionalidad,
       tel, email, calle, piso, zona, localidad,
@@ -308,6 +329,7 @@ export function guardarCandidato() {
       horaCita: horaCita || c.horaCita || null,
     });
     supaSync('candidatos', c);
+    if (dniAnterior && dni !== dniAnterior) propagarCambioDniCandidato(dniAnterior, dni);
     delete modal.dataset.editId;
     toast('✓ Candidato actualizado');
   } else {

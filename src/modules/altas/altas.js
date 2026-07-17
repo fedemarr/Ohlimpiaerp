@@ -2,6 +2,7 @@ import { DB, LOCALIDADES_BA, BARRIOS_CABA } from '@shared/state.js';
 import { $, avatarEl, badge, cleanText, toTitleCase, validarCampos, fillSelect, applyTitleCase } from '@shared/helpers.js';
 import { toast, abrirModal, cerrarModal } from '@shared/ui.js';
 import { supaSync } from '@shared/supabase.js';
+import { SECTORES_ADMIN } from '@modules/legajos/index.js';
 
 // ========== ESTADO INTERNO ==========
 
@@ -75,16 +76,25 @@ export function poblarSelectsAltas() {
   const servEl = $('alt-servicio');
   if (servEl) {
     const codigos = window.obtenerServiciosActivos ? window.obtenerServiciosActivos() : [];
+    // "Administrativo" es un valor especial, no un objetivo de cliente —
+    // se ofrece a mano acá para poder marcar personal administrativo
+    // desde el alta (antes solo se podía tipear a mano en Editar legajo,
+    // un paso extra que además destrababa recién ahí el campo Sector,
+    // necesario para poder cargar vacaciones).
     servEl.innerHTML = '<option value="">— Sin asignar —</option>'
+      + '<option value="Administrativo">Administrativo</option>'
       + codigos.map(c => '<option value="' + c + '">' + c + '</option>').join('');
   }
+  fillSelect('alt-sector', SECTORES_ADMIN);
 }
 
 export function onChangeServicioAlta() {
   const codigo = ($('alt-servicio') || {}).value || '';
   const supEl = $('alt-supervisor');
+  const sectorRow = $('alt-sector-row');
+  if (sectorRow) sectorRow.style.display = codigo === 'Administrativo' ? 'block' : 'none';
   if (!supEl) return;
-  if (!codigo) { supEl.value = ''; return; }
+  if (!codigo || codigo === 'Administrativo') { supEl.value = ''; return; }
   const obj = (DB.objetivos || []).find(o => o.codigo === codigo && o.estado === 'Operativo' && !o.anulado);
   supEl.value = obj ? obj.supervisor : '';
 }
@@ -178,6 +188,7 @@ function crearHTMLModalAlta() {
             '<div class="form-group"><label>Servicio</label><select id="alt-servicio" onchange="onChangeServicioAlta()" style="width:100%;padding:8px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;"><option value="">— Sin asignar —</option></select></div>',
             '<div class="form-group"><label>Supervisor</label><input type="text" id="alt-supervisor" style="background:var(--fondo);" readonly placeholder="Se completa con el servicio"></div>',
             '<div class="form-group"><label>Período de prueba (meses)</label><input type="number" id="alt-periodo-prueba" value="6" min="1" max="12"></div>',
+            '<div class="form-group" id="alt-sector-row" style="display:none;"><label>Sector (Administrativo)</label><select id="alt-sector" style="width:100%;padding:8px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;"><option value="">Seleccionar...</option></select></div>',
           '</div>',
         '</div>',
         // Tab 3 — Uniforme
@@ -249,9 +260,10 @@ export function abrirModalAlta(psicoIdx, altaId) {
 
   // Resetear selects
   ['alt-estado-civil', 'alt-genero', 'alt-nac', 'alt-zona', 'alt-localidad', 'alt-funcion', 'alt-categoria',
-   'alt-servicio', 'alt-ambo', 'alt-forma-pago', 'alt-seguro'].forEach(id => {
+   'alt-servicio', 'alt-sector', 'alt-ambo', 'alt-forma-pago', 'alt-seguro'].forEach(id => {
     const el = $(id); if (el) el.selectedIndex = 0;
   });
+  const sectorRow = $('alt-sector-row'); if (sectorRow) sectorRow.style.display = 'none';
 
   // Poblar selects de función y categoría
   poblarSelectsAltas();
@@ -434,6 +446,11 @@ export function confirmarAlta() {
   const funcion = ($('alt-funcion') || {}).value || '';
   const servicio = ($('alt-servicio') || {}).value || '— Sin asignar';
   const supervisor = ($('alt-supervisor') || {}).value || '— Sin asignar';
+  // Sector — solo aplica cuando el servicio es "Administrativo" (el
+  // select lo oculta en cualquier otro caso, ver onChangeServicioAlta).
+  // Opcional: si queda sin elegir, se puede completar después desde
+  // Editar legajo, como ya funcionaba antes de este campo existir acá.
+  const sector = servicio === 'Administrativo' ? (($('alt-sector') || {}).value || '') : '';
   const periodoPrueba = parseInt(($('alt-periodo-prueba') || {}).value) || 6;
   const calzado = parseInt(($('alt-calzado') || {}).value) || 0;
   const ambo = ($('alt-ambo') || {}).value || '';
@@ -484,6 +501,7 @@ export function confirmarAlta() {
     funcion: funcion || 'Operario',
     servicio: servicio,
     supervisor: supervisor,
+    sector,
     ingreso: fIngreso,
     estado: 'Activo',
     estadoLegal: '',

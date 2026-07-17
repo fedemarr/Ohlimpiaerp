@@ -259,6 +259,16 @@ export function abrirGestionDocum(id) {
   toggleSeccionCurso();
   actualizarBotonesDocum();
   pintarBadgeVencModal();
+
+  // Resetear el panel de análisis de IA — si no, queda mostrando el
+  // resultado del último candidato analizado en esta sesión del
+  // navegador (el panel es un único elemento reutilizado para todos).
+  _iaAntecResultado = null;
+  const iaPanel = $('dc-antec-ia-resultado');
+  if (iaPanel) { iaPanel.style.display = 'none'; iaPanel.innerHTML = ''; }
+  const btnIa = $('btn-ia-antec');
+  if (btnIa) { btnIa.disabled = false; btnIa.textContent = '🤖 Analizar con IA'; }
+
   $('modal-docum-gestion').classList.add('open');
   cargarAdjuntoDocum(d.dni);
 }

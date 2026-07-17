@@ -12,8 +12,11 @@ export function esSupervisor() {
 
 // "Central de Operaciones" en el lenguaje del delta = perfil
 // Operaciones: ve pedidos de todos los operarios, no solo su equipo.
+// Administrador total también ve todo — sin esto quedaba atrapado
+// viendo solo "su" equipo (vacío, porque no es supervisor de nadie),
+// lo que en la práctica le bloqueaba probar el módulo (feedback QA).
 export function esCentralOperaciones() {
-  return currentUser?.perfil === 'Operaciones';
+  return ['Operaciones', 'Administrador total'].includes(currentUser?.perfil);
 }
 
 export function esRRHHoAdmin() {

@@ -46,7 +46,7 @@ export function renderHistorialGestion() {
   const supervisor = ($('gadlh-supervisor') || {}).value?.toLowerCase() || '';
   const desde = ($('gadlh-desde') || {}).value || '';
   const hasta = ($('gadlh-hasta') || {}).value || '';
-  if (q) filas = filas.filter(p => p.nombreMostrar.toLowerCase().includes(q));
+  if (q) filas = filas.filter(p => p.nombreMostrar.toLowerCase().includes(q) || String(p.nroSocio || '').includes(q));
   if (tipo) filas = filas.filter(p => p.tipo === tipo);
   if (estado) filas = filas.filter(p => p.estado === estado);
   if (supervisor) filas = filas.filter(p => (p.supervisorNombre || '').toLowerCase().includes(supervisor));
