@@ -299,8 +299,7 @@ function ensureModalSolicitud() {
         <div id="vs-avisos" style="display:flex;flex-direction:column;gap:6px;margin-bottom:8px;"></div>
         <div class="form-section">Cobertura</div>
         <div class="form-group"><label>Reemplazante * (mismo sector)</label>
-          <input type="text" id="vs-reemplazante" list="dl-vs-reemplazante" oninput="recalcularSolicitud()">
-          <datalist id="dl-vs-reemplazante"></datalist>
+          <select id="vs-reemplazante" onchange="recalcularSolicitud()"><option value="">Seleccionar...</option></select>
         </div>
         <div class="form-group"><label>Descripción del reemplazo</label><textarea id="vs-desc-reemplazo" rows="2"></textarea></div>
         <div class="form-group"><label>Observaciones</label><textarea id="vs-obs" rows="2"></textarea></div>
@@ -340,7 +339,7 @@ export function abrirNuevaSolicitud() {
     if ($('vs-admin-asociado-nro')) $('vs-admin-asociado-nro').value = '';
     _legajoModal = null;
     $('vs-info-solicitante').innerHTML = '<div style="opacity:.6;">Elegí un asociado arriba para continuar.</div>';
-    $('dl-vs-reemplazante').innerHTML = '';
+    $('vs-reemplazante').innerHTML = '<option value="">Seleccionar...</option>';
     $('vs-aprobadores').innerHTML = '';
   } else {
     if (wrap) wrap.style.display = 'none';
@@ -365,10 +364,14 @@ export function abrirEditarSolicitud(idLocal) {
   pintarSolicitanteEnModal(legajo);
   $('vs-desde').value = v.fechaDesde;
   $('vs-hasta').value = v.fechaHasta;
-  $('vs-reemplazante').value = v.reemplazanteNombre;
+  poblarReemplazantes(legajo);
+  // El <select> necesita las opciones ya cargadas (arriba) antes de poder
+  // asignarle un value — y el value tiene que ser el string completo
+  // "Nombre (N°xxx)" tal como está en las opciones, no solo el nombre
+  // (que es lo único que guarda reemplazanteNombre).
+  $('vs-reemplazante').value = v.reemplazanteLegajoIdLocal ? `${v.reemplazanteNombre} (N°${v.reemplazanteLegajoIdLocal})` : '';
   $('vs-desc-reemplazo').value = v.descripcionReemplazo || '';
   $('vs-obs').value = v.observaciones || '';
-  poblarReemplazantes(legajo);
   pintarAprobadores(legajo);
   recalcularSolicitud();
   abrirModal('modal-vac-solicitud');
@@ -390,11 +393,13 @@ function pintarSolicitanteEnModal(legajo) {
 }
 
 function poblarReemplazantes(legajo) {
-  const dl = $('dl-vs-reemplazante');
-  if (!dl) return;
-  dl.innerHTML = (DB.legajos || [])
+  const sel = $('vs-reemplazante');
+  if (!sel) return;
+  const opciones = (DB.legajos || [])
     .filter(l => l.estado === 'Activo' && l.sector === legajo.sector && l.nro !== legajo.nro)
-    .map(l => `<option value="${l.nombre} (N°${l.nro})">`).join('');
+    .map(l => `${l.nombre} (N°${l.nro})`);
+  sel.innerHTML = '<option value="">Seleccionar...</option>'
+    + opciones.map(o => `<option value="${o}">${o}</option>`).join('');
 }
 
 function pintarAprobadores(legajo) {
