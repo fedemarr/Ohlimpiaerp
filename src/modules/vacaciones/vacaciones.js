@@ -229,17 +229,43 @@ function poblarSelectorAsociadoAdmin() {
     .map(l => `<option value="${l.nombre} (N°${l.nro})">`).join('');
 }
 
-export function seleccionarAsociadoVacacionAdmin() {
-  const texto = ($('vs-admin-asociado') || { value: '' }).value;
-  const match = texto.match(/\(N°(\d+)\)\s*$/);
-  const legajo = match ? (DB.legajos || []).find(l => String(l.nro) === match[1]) : null;
-  if (!legajo) { _legajoModal = null; $('vs-info-solicitante').innerHTML = '<div style="opacity:.6;">Elegí un asociado de la lista.</div>'; return; }
+function aplicarLegajoSeleccionadoAdmin(legajo) {
   if (!legajo.sector) { toast('⚠️ Ese legajo no tiene sector cargado — completalo antes de cargar el pedido'); _legajoModal = null; return; }
   _legajoModal = legajo;
   pintarSolicitanteEnModal(legajo);
   poblarReemplazantes(legajo);
   pintarAprobadores(legajo);
   recalcularSolicitud();
+}
+
+export function seleccionarAsociadoVacacionAdmin() {
+  const texto = ($('vs-admin-asociado') || { value: '' }).value.trim();
+  const match = texto.match(/\(N°(\d+)\)\s*$/);
+  let legajo = match ? (DB.legajos || []).find(l => String(l.nro) === match[1]) : null;
+  // Tolerancia: si tipeó el nombre a mano sin clickear la sugerencia del
+  // autocompletar (el campo queda "completo" a la vista pero sin el
+  // sufijo "(N°xxx)"), probamos matchear por nombre exacto — antes esto
+  // fallaba en silencio y el botón de guardar decía "elegí un asociado"
+  // aunque el campo ya tuviera texto.
+  if (!legajo && texto) {
+    legajo = (DB.legajos || []).find(l => l.estado === 'Activo' && l.nombre.toLowerCase() === texto.toLowerCase());
+  }
+  if (!legajo) { _legajoModal = null; $('vs-info-solicitante').innerHTML = '<div style="opacity:.6;">Elegí un asociado de la lista o buscá por N° de socio.</div>'; return; }
+  if ($('vs-admin-asociado-nro')) $('vs-admin-asociado-nro').value = '';
+  aplicarLegajoSeleccionadoAdmin(legajo);
+}
+
+export function buscarAsociadoVacacionAdminPorNro() {
+  const nro = ($('vs-admin-asociado-nro') || { value: '' }).value.trim();
+  if (!nro) { _legajoModal = null; $('vs-info-solicitante').innerHTML = ''; return; }
+  const legajo = (DB.legajos || []).find(l => l.estado === 'Activo' && String(l.nro) === nro);
+  if (!legajo) {
+    _legajoModal = null;
+    $('vs-info-solicitante').innerHTML = '<span style="color:var(--rojo);">No se encontró un asociado activo con ese número</span>';
+    return;
+  }
+  $('vs-admin-asociado').value = `${legajo.nombre} (N°${legajo.nro})`;
+  aplicarLegajoSeleccionadoAdmin(legajo);
 }
 
 function ensureModalSolicitud() {
@@ -254,7 +280,10 @@ function ensureModalSolicitud() {
         <div class="form-section">Solicitante</div>
         <div class="form-group" id="vs-selector-admin-wrap" style="display:none;margin-bottom:10px;">
           <label>Solicitar en nombre de (RRHH / Administrador) *</label>
-          <input type="text" id="vs-admin-asociado" list="dl-vs-admin-asociado" oninput="seleccionarAsociadoVacacionAdmin()" placeholder="Buscar por nombre o N° de socio...">
+          <div class="form-grid form-grid-2">
+            <input type="text" id="vs-admin-asociado" list="dl-vs-admin-asociado" oninput="seleccionarAsociadoVacacionAdmin()" placeholder="Buscar por nombre...">
+            <input type="text" id="vs-admin-asociado-nro" inputmode="numeric" oninput="buscarAsociadoVacacionAdminPorNro()" placeholder="...o por N° de socio">
+          </div>
           <datalist id="dl-vs-admin-asociado"></datalist>
         </div>
         <div id="vs-info-solicitante" style="display:flex;flex-direction:column;gap:6px;font-size:13px;background:var(--fondo);border-radius:var(--radio);padding:12px;margin-bottom:12px;"></div>
@@ -308,6 +337,7 @@ export function abrirNuevaSolicitud() {
     if (wrap) wrap.style.display = '';
     poblarSelectorAsociadoAdmin();
     $('vs-admin-asociado').value = '';
+    if ($('vs-admin-asociado-nro')) $('vs-admin-asociado-nro').value = '';
     _legajoModal = null;
     $('vs-info-solicitante').innerHTML = '<div style="opacity:.6;">Elegí un asociado arriba para continuar.</div>';
     $('dl-vs-reemplazante').innerHTML = '';

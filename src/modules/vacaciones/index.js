@@ -10,7 +10,7 @@ export {
   aprobarComoGerentePorId, votarConsejoPorId, votarAnulacionPorId,
   abrirRechazoGerente, abrirRechazoConsejo,
   abrirAnularSolicitante, abrirAnularGerente, abrirSolicitarAnulacion,
-  abrirDetalleVacacion, autorizarPreavisoCorto, seleccionarAsociadoVacacionAdmin,
+  abrirDetalleVacacion, autorizarPreavisoCorto, seleccionarAsociadoVacacionAdmin, buscarAsociadoVacacionAdminPorNro,
 } from './vacaciones.js';
 
 export {
@@ -76,7 +76,7 @@ import {
   aprobarComoGerentePorId, votarConsejoPorId, votarAnulacionPorId,
   abrirRechazoGerente, abrirRechazoConsejo,
   abrirAnularSolicitante, abrirAnularGerente, abrirSolicitarAnulacion,
-  abrirDetalleVacacion, filtrarHistorial, autorizarPreavisoCorto, seleccionarAsociadoVacacionAdmin,
+  abrirDetalleVacacion, filtrarHistorial, autorizarPreavisoCorto, seleccionarAsociadoVacacionAdmin, buscarAsociadoVacacionAdminPorNro,
 } from './vacaciones.js';
 import { filtrarPanoramaSaldos, exportarSaldosExcel, comunicarSaldos } from './saldo.js';
 import { mesAnteriorVac, mesSiguienteVac, verHistorialDesdeCalendario } from './calendario.js';
@@ -110,4 +110,5 @@ window.renderCalendarioVacaciones = renderCalendarioVacaciones;
 window.verHistorialDesdeCalendario = verHistorialDesdeCalendario;
 window.autorizarPreavisoCorto = autorizarPreavisoCorto;
 window.seleccionarAsociadoVacacionAdmin = seleccionarAsociadoVacacionAdmin;
+window.buscarAsociadoVacacionAdminPorNro = buscarAsociadoVacacionAdminPorNro;
 window.comunicarSaldos = comunicarSaldos;
