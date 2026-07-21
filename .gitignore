@@ -1,5 +1,7 @@
 node_modules
 dist
+test-results
+playwright-report
 .claude/
 .netlify/
 backup_2026-05-28/

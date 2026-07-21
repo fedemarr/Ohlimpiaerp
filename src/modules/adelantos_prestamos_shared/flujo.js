@@ -165,14 +165,23 @@ export async function aprobarRRHH(tipo, id, extra = {}) {
   if (!p) return { error: 'No se encontró el pedido' };
   if (p.estado !== 'Enviada') return { error: 'Este pedido no está esperando aprobación de RRHH' };
   const estadoDesde = p.estado;
+  if (tipo === 'Préstamo') {
+    // Defensa en profundidad — la UI (revision.js) ya valida esto antes
+    // de llamar acá, pero cuotasSolicitadas puede ser null (el
+    // supervisor ya no la carga, ver crearPedidoPrestamo) y sin este
+    // guard el cálculo de más abajo da NaN en vez de fallar con un
+    // error claro. Encontrado escribiendo los tests de este módulo.
+    const cuotas = extra.cuotasAprobadas != null ? parseInt(extra.cuotasAprobadas, 10) : p.cuotasSolicitadas;
+    const monto = extra.montoAprobado != null ? Number(extra.montoAprobado) : p.montoSolicitado;
+    if (!cuotas || cuotas <= 0) return { error: 'Definí la cantidad de cuotas antes de aprobar' };
+    if (!monto || monto <= 0) return { error: 'Definí un monto válido antes de aprobar' };
+    p.cuotas = cuotas;
+    p.monto = monto;
+    p.montoCuota = Math.round(monto / cuotas);
+  }
   p.estado = 'Aprobada RRHH';
   p.aprobadoPorRrhh = currentUser?.nombre || '';
   p.fechaAprobacionRrhh = new Date().toISOString();
-  if (tipo === 'Préstamo') {
-    p.cuotas = extra.cuotasAprobadas != null ? parseInt(extra.cuotasAprobadas, 10) : p.cuotasSolicitadas;
-    p.monto = extra.montoAprobado != null ? Number(extra.montoAprobado) : p.montoSolicitado;
-    p.montoCuota = Math.round(p.monto / p.cuotas);
-  }
   await _guardar(tipo, p);
   await _registrarEvento(tipo, p, estadoDesde, p.estado, extra.observaciones || '');
   await crearNotificacion({

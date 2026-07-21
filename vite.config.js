@@ -23,4 +23,8 @@ export default defineConfig({
       '@styles': resolve(__dirname, 'src/styles'),
     },
   },
+  test: {
+    environment: 'node',
+    include: ['src/**/*.test.js'],
+  },
 });
