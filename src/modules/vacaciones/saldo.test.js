@@ -8,7 +8,7 @@ import { DB } from '@shared/state.js';
 import { resetDB } from '../../test/testUtils.js';
 import {
   diasTomadosEnAnio, diasEnProcesoEnAnio, diasDisponibles, calcularAntiguedad,
-  calcularDiasAsignadosPorAntiguedad, tieneSuperposicion,
+  calcularDiasAsignadosPorAntiguedad, tieneSuperposicion, filasSaldos,
 } from './saldo.js';
 
 beforeEach(() => {
@@ -77,6 +77,24 @@ describe('Conteo de días por año — riesgo de huso horario en el límite del 
       { legajoIdLocal: '1', estado: 'Pendiente aprobación Gerente', anulado: false, fechaDesde: '2027-06-01', fechaHasta: '2027-06-03', diasSolicitados: 3 },
     );
     expect(diasDisponibles(legajo, 2027)).toBe(21 - 5 - 3);
+  });
+});
+
+describe('filasSaldos (Panorama de saldos) — consistencia con diasDisponibles', () => {
+  it('el saldo del panorama también resta los días en trámite, igual que diasDisponibles', () => {
+    const hoy = new Date();
+    const anio = hoy.getFullYear();
+    DB.legajos.push({
+      nro: '9', nombre: 'Panorama Test', estado: 'Activo', servicio: 'ADMINISTRATIVO',
+      ingreso: '01/01/2015', diasVacacionesAnuales: 21,
+    });
+    DB.vacaciones.push({
+      legajoIdLocal: '9', estado: 'Pendiente aprobación Gerente', anulado: false,
+      fechaDesde: `${anio}-06-01`, fechaHasta: `${anio}-06-05`, diasSolicitados: 5,
+    });
+    const fila = filasSaldos().find(f => f.legajo.nro === '9');
+    expect(fila.disponibles).toBe(21 - 0 - 5);
+    expect(fila.disponibles).toBe(diasDisponibles(fila.legajo, anio));
   });
 });
 

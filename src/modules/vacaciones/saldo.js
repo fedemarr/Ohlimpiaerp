@@ -111,7 +111,7 @@ export function buscarSuperposicionesSector(vacacion, legajoSolicitante) {
 
 // ========== TAB 3 — PANORAMA DE SALDOS ==========
 
-function filasSaldos() {
+export function filasSaldos() {
   const anio = new Date().getFullYear();
   return (DB.legajos || [])
     .filter(l => l.estado === 'Activo' && l.servicio?.trim().toUpperCase() === 'ADMINISTRATIVO')
@@ -120,7 +120,11 @@ function filasSaldos() {
       const origen = l.diasVacacionesAnuales > 0 ? 'Manual' : 'Automático';
       const tomados = diasTomadosEnAnio(l.nro, anio);
       const enProceso = diasEnProcesoEnAnio(l.nro, anio);
-      const disponibles = asignados - tomados;
+      // Antes no restaba enProceso acá, a diferencia de diasDisponibles()
+      // (usada al validar un pedido nuevo) — el panorama podía mostrarle
+      // a RRHH más saldo del que la persona realmente tenía disponible
+      // si ya tenía algo pendiente de aprobación.
+      const disponibles = asignados - tomados - enProceso;
       const alertas = [];
       const mesActual = new Date().getMonth(); // 0-indexed: 9=oct,10=nov,11=dic
       if (mesActual >= 9 && disponibles > 10) alertas.push('⚠️ Saldo alto sin tomar');
