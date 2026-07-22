@@ -24,6 +24,7 @@
   "homepage": "https://github.com/SistemaOhl/ohlimpia#readme",
   "devDependencies": {
     "@playwright/test": "^1.61.1",
+    "happy-dom": "^20.11.0",
     "playwright": "^1.61.1",
     "vite": "^8.0.8",
     "vitest": "^4.1.10"

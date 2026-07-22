@@ -19,15 +19,22 @@ function vacacionesDelLegajo(legajoIdLocal) {
 // para no liberar días que en la práctica siguen tomados.
 export const ESTADOS_VIGENTES = ['Aprobada', 'Anulación rechazada por Consejo'];
 
+// "+'T00:00:00'" fuerza a que el string YYYY-MM-DD se interprete como
+// medianoche LOCAL en vez de UTC — sin esto, en Argentina (UTC-3) una
+// vacación que arranca el 1° de enero se lee como 31 de diciembre
+// 21:00 y .getFullYear() devuelve el año anterior (mismo bug que
+// vacaciones.js ya documenta y evita en esLunes/esDomingo). Encontrado
+// escribiendo los tests de este módulo — antes contaba mal los días
+// tomados/en proceso de cualquier pedido que arrancara un 1° de enero.
 export function diasTomadosEnAnio(legajoIdLocal, anio) {
   return vacacionesDelLegajo(legajoIdLocal)
-    .filter(v => ESTADOS_VIGENTES.includes(v.estado) && new Date(v.fechaDesde).getFullYear() === anio)
+    .filter(v => ESTADOS_VIGENTES.includes(v.estado) && new Date(v.fechaDesde + 'T00:00:00').getFullYear() === anio)
     .reduce((s, v) => s + (v.diasSolicitados || 0), 0);
 }
 
 export function diasEnProcesoEnAnio(legajoIdLocal, anio) {
   return vacacionesDelLegajo(legajoIdLocal)
-    .filter(v => ESTADOS_EN_PROCESO.includes(v.estado) && new Date(v.fechaDesde).getFullYear() === anio)
+    .filter(v => ESTADOS_EN_PROCESO.includes(v.estado) && new Date(v.fechaDesde + 'T00:00:00').getFullYear() === anio)
     .reduce((s, v) => s + (v.diasSolicitados || 0), 0);
 }
 
@@ -42,7 +49,7 @@ export function calcularAntiguedad(legajo) {
   if (!legajo?.ingreso) return '';
   const p = legajo.ingreso.split('/');
   if (p.length !== 3) return '';
-  const años = Math.floor((new Date() - new Date(`${p[2]}-${p[1]}-${p[0]}`)) / (365.25 * 24 * 3600 * 1000));
+  const años = Math.floor((new Date() - new Date(`${p[2]}-${p[1]}-${p[0]}T00:00:00`)) / (365.25 * 24 * 3600 * 1000));
   return años >= 0 ? `${años} año${años === 1 ? '' : 's'}` : '';
 }
 
@@ -58,7 +65,7 @@ export function calcularDiasAsignadosPorAntiguedad(legajo, fechaReferencia = new
   if (!legajo?.ingreso) return 0;
   const p = legajo.ingreso.split('/');
   if (p.length !== 3) return 0;
-  const fechaIngreso = new Date(`${p[2]}-${p[1]}-${p[0]}`);
+  const fechaIngreso = new Date(`${p[2]}-${p[1]}-${p[0]}T00:00:00`);
   const finDeAnio = new Date(fechaReferencia.getFullYear(), 11, 31);
   const añosCompletos = (finDeAnio - fechaIngreso) / (365.25 * 24 * 3600 * 1000);
 

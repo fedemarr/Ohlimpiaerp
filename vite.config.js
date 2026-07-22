@@ -24,7 +24,12 @@ export default defineConfig({
     },
   },
   test: {
-    environment: 'node',
+    // happy-dom (no 'node'): varios módulos hacen window.X = X a nivel
+    // superior de su index.js (patrón del proyecto para exponer
+    // funciones a los onclick inline) — sin un window global, con solo
+    // importar ese archivo alcanza para que el test explote antes de
+    // llegar a la lógica que se quiere probar.
+    environment: 'happy-dom',
     include: ['src/**/*.test.js'],
   },
 });
