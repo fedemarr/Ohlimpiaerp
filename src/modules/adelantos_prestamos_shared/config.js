@@ -6,7 +6,13 @@
 import { DB, currentUser } from '@shared/state.js';
 import { supaSync } from '@shared/supabase.js';
 
-function hoyISO() { return new Date().toISOString().slice(0, 10); }
+// Mismo fix de huso horario que flujo.js — toISOString() es UTC, acá
+// definía "hoy" mal para saber qué tope/config está vigente en este
+// momento después de las 21:00 en Argentina.
+function hoyISO() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
 
 export function obtenerTopeVigente(fechaISO = hoyISO()) {
   const candidatas = (DB.topesAdelantosVersiones || []).filter(v =>

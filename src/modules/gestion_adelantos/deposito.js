@@ -57,10 +57,20 @@ export async function pagarSeleccionadosDeposito() {
   if (!confirm(`¿Confirmás el pago de ${checks.length} pedido(s)?`)) return;
   const porTipo = { Adelanto: [], Préstamo: [] };
   checks.forEach(c => porTipo[c.dataset.tipo].push(c.dataset.id));
-  if (porTipo.Adelanto.length) await pagarFinanzasBulk('Adelanto', porTipo.Adelanto);
-  if (porTipo.Préstamo.length) await pagarFinanzasBulk('Préstamo', porTipo.Préstamo);
+  // pagarFinanzasBulk devuelve un resultado por id (puede traer error si,
+  // por ejemplo, alguien más ya pagó ese pedido mientras tanto) — antes
+  // se descartaba y siempre se mostraba éxito, aunque alguno hubiera
+  // fallado en silencio.
+  const resultados = [];
+  if (porTipo.Adelanto.length) resultados.push(...await pagarFinanzasBulk('Adelanto', porTipo.Adelanto));
+  if (porTipo.Préstamo.length) resultados.push(...await pagarFinanzasBulk('Préstamo', porTipo.Préstamo));
   renderDeposito();
-  toast(`✅ ${checks.length} pedido(s) pagado(s)`);
+  const fallidos = resultados.filter(r => r.error);
+  if (fallidos.length > 0) {
+    toast(`⚠️ ${resultados.length - fallidos.length} pagado(s) — ${fallidos.length} no se pudieron pagar (revisá si ya estaban procesados)`);
+  } else {
+    toast(`✅ ${resultados.length} pedido(s) pagado(s)`);
+  }
 }
 
 // ========== MODAL — RECHAZAR (vuelve a RRHH) ==========

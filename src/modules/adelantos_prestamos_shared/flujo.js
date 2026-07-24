@@ -20,7 +20,15 @@ import { generarCompromisosDescuento } from './descuentos.js';
 
 export const idLocalTrunc = (id) => String(id).slice(-9);
 
-function hoyISO() { return new Date().toISOString().slice(0, 10); }
+// toISOString() siempre da la fecha en UTC — en Argentina (UTC-3),
+// cualquier pedido creado entre las 21:00 y medianoche quedaba fechado
+// "mañana" en vez de hoy (mismo bug de huso horario que ya se encontró
+// y arregló en vacaciones/saldo.js, acá afectaba fechaPedido/
+// fechaOtorgamiento y qué tope/config se considera "vigente").
+function hoyISO() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
 
 function _arrayYClave(tipo) {
   return tipo === 'Préstamo' ? { arr: 'prestamos', dbKey: 'prestamos' } : { arr: 'pedidosAdelantos', dbKey: 'pedidosAdelantos' };

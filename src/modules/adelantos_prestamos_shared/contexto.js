@@ -21,9 +21,16 @@ function antiguedadAnios(fechaIngresoDDMMYYYY) {
   return Math.floor((Date.now() - ingreso.getTime()) / (1000 * 60 * 60 * 24 * 365.25));
 }
 
+// Mismo bug de huso horario que hoyISO() en flujo.js/config.js: extraer
+// el período con toISOString() (UTC) podía correrse un mes cerca del
+// fin de mes en Argentina — se arma el "YYYY-MM" en hora local.
+function periodoLocal(fecha) {
+  return `${fecha.getFullYear()}-${String(fecha.getMonth() + 1).padStart(2, '0')}`;
+}
+
 function historialPropio(legajoNro) {
   const hace6Meses = new Date(); hace6Meses.setMonth(hace6Meses.getMonth() - 6);
-  const desde = hace6Meses.toISOString().slice(0, 7);
+  const desde = periodoLocal(hace6Meses);
 
   const adelantos = (DB.pedidosAdelantos || []).filter(p => !p.anulado && String(p.legajoIdLocal) === String(legajoNro) && p.periodo >= desde);
   const prestamos = (DB.prestamos || []).filter(p => !p.anulado && String(p.legajoIdLocal) === String(legajoNro));
@@ -35,7 +42,7 @@ function historialPropio(legajoNro) {
   const prestamosActivos = prestamos.filter(p => p.estado === 'Aprobada' || p.estado === 'Activo');
   const totalMensualComprometido = prestamosActivos.reduce((s, p) => s + (Number(p.montoCuota) || 0), 0);
 
-  const hoy = new Date().toISOString().slice(0, 7);
+  const hoy = periodoLocal(new Date());
   const pedidosEsteMes = adelantos.filter(p => p.periodo === hoy && p.estado !== 'Cancelada').length
     + prestamos.filter(p => p.periodo === hoy && p.estado !== 'Cancelada').length;
 

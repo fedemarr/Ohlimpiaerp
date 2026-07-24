@@ -3,7 +3,7 @@
 // mockean para no pegarle a Supabase real; toda la lógica bajo test es
 // mutación de DB en memoria + las transiciones de estado.
 
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { DB } from '@shared/state.js';
 import { resetDB, setUsuarioDeTest } from '../../test/testUtils.js';
 
@@ -16,7 +16,7 @@ vi.mock('@shared/supabase.js', () => ({
 
 const {
   crearPedidoAdelanto, crearPedidoPrestamo, elevarPedido, aprobarRRHH, rechazarRRHH,
-  pagarFinanzas, rechazarFinanzas, reAprobarTrasRechazoFinanzas, devolverASupervisorTrasRechazoFinanzas,
+  pagarFinanzas, pagarFinanzasBulk, rechazarFinanzas, reAprobarTrasRechazoFinanzas, devolverASupervisorTrasRechazoFinanzas,
   cancelarPedido, getPedidoById, getPrestamoById,
 } = await import('./flujo.js');
 
@@ -25,6 +25,21 @@ const legajo = { nro: '145', nombre: 'Test Prueba', servicio: 'Objetivo Demo' };
 beforeEach(() => {
   resetDB(['pedidosAdelantos', 'prestamos', 'pedidosAdelantosEventos', 'topesAdelantosVersiones', 'descuentosAdelantosPendientes', 'notificacionesSistema']);
   setUsuarioDeTest();
+});
+
+describe('fechaPedido por defecto — riesgo de huso horario cerca de medianoche', () => {
+  afterEach(() => vi.useRealTimers());
+
+  it('BUG ENCONTRADO: un pedido creado a las 23:30 en Argentina quedaba fechado "mañana"', async () => {
+    // Esta hora del sistema corre con TZ del entorno (America/Argentina/
+    // Buenos_Aires en este proyecto) — 23:30 local es exactamente la
+    // franja (21:00 a medianoche) donde toISOString() ya muestra el día
+    // siguiente en UTC.
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date(2027, 2, 15, 23, 30, 0)); // 15/03/2027 23:30 hora local
+    const p = await crearPedidoAdelanto({ legajo, monto: 1000 }); // sin fechaPedido explícito
+    expect(p.fechaPedido).toBe('2027-03-15');
+  });
 });
 
 describe('Adelanto — ciclo de vida completo', () => {
@@ -84,6 +99,41 @@ describe('Adelanto — ciclo de vida completo', () => {
     await elevarPedido('Adelanto', p.id);
     const r = await cancelarPedido('Adelanto', p.id);
     expect(r.error).toBeTruthy();
+  });
+});
+
+describe('pagarFinanzasBulk — pago en lote, un resultado por pedido', () => {
+  it('devuelve un resultado exitoso por cada pedido pagable', async () => {
+    const p1 = await crearPedidoAdelanto({ legajo, monto: 1000, fechaPedido: '2026-07-01' });
+    const p2 = await crearPedidoAdelanto({ legajo, monto: 2000, fechaPedido: '2026-07-01' });
+    p2.id = p1.id + 1; // ver comentario en el test siguiente (colisión de Date.now())
+    for (const p of [p1, p2]) { await elevarPedido('Adelanto', p.id); await aprobarRRHH('Adelanto', p.id); }
+
+    const resultados = await pagarFinanzasBulk('Adelanto', [p1.id, p2.id]);
+    expect(resultados).toHaveLength(2);
+    expect(resultados.every(r => !r.error)).toBe(true);
+    expect(getPedidoById(p1.id).estado).toBe('Aprobada');
+    expect(getPedidoById(p2.id).estado).toBe('Aprobada');
+  });
+
+  it('BUG ENCONTRADO: si un pedido del lote ya no está pagable, su resultado trae error en vez de fallar en silencio', async () => {
+    const p1 = await crearPedidoAdelanto({ legajo, monto: 1000, fechaPedido: '2026-07-01' });
+    const p2 = await crearPedidoAdelanto({ legajo, monto: 2000, fechaPedido: '2026-07-01' });
+    p2.id = p1.id + 1; // crearPedidoAdelanto usa Date.now() como id — dos
+    // pedidos creados en el mismo milisegundo (como acá, sin awaits de
+    // por medio) pueden colisionar; se fuerza que sean distintos para
+    // no testear un artefacto del test en vez de la lógica real.
+    for (const p of [p1, p2]) { await elevarPedido('Adelanto', p.id); await aprobarRRHH('Adelanto', p.id); }
+    // Simula que otra persona de Finanzas ya pagó p2 mientras el primero
+    // tenía el checkbox tildado (misma UI, otra pestaña/sesión).
+    await pagarFinanzas('Adelanto', p2.id);
+
+    const resultados = await pagarFinanzasBulk('Adelanto', [p1.id, p2.id]);
+    expect(resultados[0].error).toBeUndefined();
+    expect(resultados[1].error).toBeTruthy();
+    // deposito.js (pagarSeleccionadosDeposito) tiene que revisar esto
+    // resultado por resultado — antes lo descartaba entero y siempre
+    // mostraba éxito, aunque un pedido del lote no se pagara de verdad.
   });
 });
 
