@@ -23,6 +23,9 @@ export const DB = {
   // sistema de catálogos, no algo nuevo de este cambio).
   tiposCliente: ['Cadena supermercados', 'Hospital', 'Corporativo', 'Gobierno', 'Educación', 'Otro'],
   categoriasArca: ['Gran contribuyente', 'MiPyME', 'Pequeño contribuyente', 'Otro'],
+  // 2.2.6 (Delta Comercial v1.2) — motivo parametrizable al dar de baja un
+  // objetivo/servicio (antes era 100% texto libre vía prompt()).
+  motivosBajaObjetivo: ['Fin de contrato', 'Impago del cliente', 'Cliente cierra operación', 'Cambio de proveedor', 'Rescisión por incumplimiento nuestro', 'Otro'],
   localidades: ['Floresta', 'Villa del Parque', 'Barracas', 'Retiro', 'Villa Soldati', 'Palermo', 'Belgrano', 'Caballito', 'San Telmo', 'Montserrat', 'San Justo', 'Isidro Casanova', 'Laferrere', 'Quilmes', 'Avellaneda', 'Lanús', 'Lomas de Zamora', 'Berazategui', 'San Martín', 'Caseros', 'Tres de Febrero', 'José C. Paz', 'Tigre', 'San Fernando', 'Pilar', 'Campana', 'Grand Bourg'],
   movimientos: ['Nuevo ingreso', 'Reubicación interna', 'Reingreso', 'Cambio de servicio', 'Cambio de categoría'],
   estadosLegales: ['Carta documento recibida', 'Carta documento contestada', 'Conciliación SECLO', 'Conciliación interna', 'Estado judicial', 'Cerrado', 'Pre-legal'],

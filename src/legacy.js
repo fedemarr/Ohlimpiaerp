@@ -1382,8 +1382,10 @@ function verCliente(idLocal){
       <div class="info-item"><div class="key">Forma de pago</div><div class="val">${c.formaPago}</div></div>
       <div class="info-item"><div class="key">Código Tango</div><div class="val" style="font-family:'DM Mono',monospace;">${c.codigoTango}</div></div>
       <div class="info-item"><div class="key">Período facturación</div><div class="val">${c.periodoFact}</div></div>
+      <div class="info-item"><div class="key">Tipo de contrato</div><div class="val">${c.tipoContrato||'—'}</div></div>
       <div class="info-item"><div class="key">Ingresos brutos</div><div class="val">${c.ingresosBrutos||'—'}</div></div>
       <div class="info-item"><div class="key">Jurisdicción IIBB</div><div class="val">${c.jurisdiccionIibb||'—'}</div></div>
+      <div class="info-item"><div class="key">Responsable interno</div><div class="val">${c.responsable||'—'}</div></div>
     </div>
     <div>
       <div style="font-size:11px;font-weight:700;text-transform:uppercase;color:var(--texto-suave);margin-bottom:8px;">Contactos clave</div>
@@ -1423,7 +1425,7 @@ function nuevoObjetivoDesde(clienteId){
 let contactosClienteTemp=[];
 window.contactosClienteTemp=contactosClienteTemp;
 let clienteEditIdLocal=null;
-const CLI_CAMPOS_TEXTO=['cli-razon','cli-nombre','cli-tipo','cli-cuit','cli-iva','cli-arca','cli-cond-pago','cli-forma-pago','cli-codigo-tango','cli-ciudad','cli-direccion','cli-logo','cli-obs','cli-fact-por','cli-periodo-fact','cli-productos-fact','cli-req-oc','cli-notas-fact','cli-ib','cli-jur'];
+const CLI_CAMPOS_TEXTO=['cli-razon','cli-nombre','cli-tipo','cli-cuit','cli-iva','cli-arca','cli-cond-pago','cli-forma-pago','cli-codigo-tango','cli-ciudad','cli-direccion','cli-responsable','cli-logo','cli-obs','cli-tipo-contrato','cli-fact-por','cli-periodo-fact','cli-productos-fact','cli-req-oc','cli-notas-fact','cli-ib','cli-jur'];
 const CLI_CAMPOS_DOC=['doc-seguros','doc-monotributo','doc-antecedentes','doc-ddjj-iva','doc-pago-iva','doc-remito-servicio','doc-planilla-horas','doc-oc'];
 function abrirModalCliente(idLocal){
   poblarSelectsComercial();
@@ -1439,10 +1441,12 @@ function abrirModalCliente(idLocal){
     if($('cli-arca')) $('cli-arca').value=c.arca||'';
     if($('cli-cond-pago')) $('cli-cond-pago').value=c.condPago||'';
     if($('cli-forma-pago')) $('cli-forma-pago').value=c.formaPago||'';
+    if($('cli-responsable')) $('cli-responsable').value=c.responsable||'';
     $('cli-codigo-tango').value=c.codigoTango||'';
     if($('cli-estado')) $('cli-estado').value=c.estado||'Activo';
     $('cli-ciudad').value=c.ciudad||'';$('cli-direccion').value=c.direccion||'';
     $('cli-logo').value=c.logo||'';$('cli-obs').value=c.obs||'';
+    if($('cli-tipo-contrato')) $('cli-tipo-contrato').value=c.tipoContrato||'';
     if($('cli-fact-por')) $('cli-fact-por').value=c.factPor||'';
     if($('cli-periodo-fact')) $('cli-periodo-fact').value=c.periodoFact||'';
     if($('cli-productos-fact')) $('cli-productos-fact').value=c.productosEnFactura||'';
@@ -1504,11 +1508,13 @@ function guardarCliente(){
     tipo:$('cli-tipo')?.value,cuit:$('cli-cuit')?.value,
     iva:$('cli-iva')?.value,arca:$('cli-arca')?.value,
     condPago:$('cli-cond-pago')?.value,formaPago:$('cli-forma-pago')?.value,
+    responsable:cleanText($('cli-responsable')?.value||''),
     codigoTango:cleanText($('cli-codigo-tango')?.value||'').toUpperCase(),estado:$('cli-estado')?.value,
     ciudad:$('cli-ciudad')?.value,direccion:$('cli-direccion')?.value,
     logo:$('cli-logo')?.value,obs:$('cli-obs')?.value,
     ingresosBrutos:$('cli-ib')?.value||'',jurisdiccionIibb:$('cli-jur')?.value||'',
     docReq:{seguros:$('doc-seguros')?.checked,monotributo:$('doc-monotributo')?.checked,antecedentes:$('doc-antecedentes')?.checked,ddjjIva:$('doc-ddjj-iva')?.checked,pagoIva:$('doc-pago-iva')?.checked,remitoServicio:$('doc-remito-servicio')?.checked,planillaHoras:$('doc-planilla-horas')?.checked,oc:$('doc-oc')?.checked},
+    tipoContrato:$('cli-tipo-contrato')?.value||'',
     factPor:$('cli-fact-por')?.value,periodoFact:$('cli-periodo-fact')?.value,
     productosEnFactura:$('cli-productos-fact')?.value,reqOC:$('cli-req-oc')?.value,
     notasFact:$('cli-notas-fact')?.value,
@@ -1909,20 +1915,60 @@ function confirmarSupervisorObjetivo(){
   cerrarModal('modal-sup-objetivo');
   filtrarObjetivos();toast(esCambio?'✓ Supervisor actualizado':'✓ Supervisor asignado — objetivo Operativo');
 }
+// 2.2.6 (Delta Comercial v1.2) — la razón de baja pasa de texto libre por
+// prompt() a un motivo parametrizable (Configuración → Comercial) más un
+// detalle libre opcional, igual que se hizo con el supervisor en 2.2.5.
+let _bajaObjetivoIdLocal=null;
+function ensureModalBajaObjetivo(){
+  if($('modal-baja-objetivo')) return;
+  const m=document.createElement('div');
+  m.className='modal-overlay';
+  m.id='modal-baja-objetivo';
+  m.innerHTML=`
+    <div class="modal" style="max-width:460px;">
+      <div class="modal-header"><h3 id="baja-obj-titulo">Dar de baja objetivo</h3><button class="btn-close" onclick="cerrarModal('modal-baja-objetivo')">×</button></div>
+      <div class="modal-body">
+        <div class="form-group"><label>Motivo</label>
+          <select id="baja-obj-motivo" style="width:100%;padding:8px;border:1px solid var(--borde-fuerte);border-radius:6px;font-family:inherit;font-size:13px;">
+            <option value="">— Seleccionar —</option>${(DB.motivosBajaObjetivo||[]).map(m=>`<option>${m}</option>`).join('')}
+          </select>
+        </div>
+        <div class="form-group"><label>Detalle (opcional)</label>
+          <textarea id="baja-obj-detalle" style="width:100%;padding:8px;border:1px solid var(--borde-fuerte);border-radius:6px;font-family:inherit;font-size:13px;" rows="3"></textarea>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="cerrarModal('modal-baja-objetivo')">Cancelar</button>
+        <button class="btn btn-danger" onclick="confirmarBajaObjetivo()">Dar de baja</button>
+      </div>
+    </div>`;
+  document.body.appendChild(m);
+}
 function abrirBajaObjetivo(idLocal){
   const o=getObjetivoByIdLocal(idLocal);if(!o)return;
   if(!esGerenteComercial()){toast('Solo Comercial puede dar de baja un objetivo');return;}
-  const motivo=prompt('Motivo de la baja de "'+o.nombre+'":');
-  if(motivo===null) return;
-  if(!motivo.trim()){toast('La baja requiere un motivo');return;}
+  ensureModalBajaObjetivo();
+  _bajaObjetivoIdLocal=idLocal;
+  $('baja-obj-titulo').textContent=`Dar de baja "${o.nombre}"`;
+  $('baja-obj-motivo').value='';$('baja-obj-detalle').value='';
+  abrirModal('modal-baja-objetivo');
+}
+function confirmarBajaObjetivo(){
+  const o=getObjetivoByIdLocal(_bajaObjetivoIdLocal);if(!o)return;
+  const razon=$('baja-obj-motivo')?.value||'';
+  if(!razon){toast('Elegí un motivo');return;}
+  const detalle=$('baja-obj-detalle')?.value.trim()||'';
+  const motivoCompleto=razon+(detalle?' — '+detalle:'');
   const estadoDesde=o.estado;
-  o.estado='Baja';o.fechaBaja=hoyStr();o.dadoDeBajaPor=currentUser?.nombre||'';o.motivoBaja=motivo.trim();
+  o.estado='Baja';o.fechaBaja=hoyStr();o.dadoDeBajaPor=currentUser?.nombre||'';
+  o.motivoBajaRazon=razon;o.motivoBajaDetalle=detalle;o.motivoBaja=motivoCompleto;
   supaSync('objetivos', objetivoParaGuardar(o));
-  registrarEventoObjetivo(o,estadoDesde,'Baja',motivo.trim());
+  registrarEventoObjetivo(o,estadoDesde,'Baja',motivoCompleto);
   const asocAsignados=(DB.legajos||[]).filter(l=>l.servicio===o.codigo&&l.estado==='Activo').map(l=>l.nombre);
-  const detalle=asocAsignados.length?` Asociados asignados al servicio: ${asocAsignados.join(', ')}. Sugerencia: reasignar vía Reasignaciones.`:'';
-  crearNotificacion({tipo:'objetivo_dado_de_baja',entidadTipo:'objetivo',entidadIdLocal:idLocalTrunc(o.id),destinatarioNombre:GERENTE_OPERACIONES,mensaje:`Se dio de baja el objetivo ${o.nombre} (${o.codigo}). Motivo: ${motivo.trim()}.${detalle}`});
-  crearNotificacion({tipo:'objetivo_dado_de_baja',entidadTipo:'objetivo',entidadIdLocal:idLocalTrunc(o.id),destinatarioNombre:GERENTE_RRHH_COMERCIAL,mensaje:`Se dio de baja el objetivo ${o.nombre} (${o.codigo}). Motivo: ${motivo.trim()}.${detalle}`});
+  const detalleAsoc=asocAsignados.length?` Asociados asignados al servicio: ${asocAsignados.join(', ')}. Sugerencia: reasignar vía Reasignaciones.`:'';
+  crearNotificacion({tipo:'objetivo_dado_de_baja',entidadTipo:'objetivo',entidadIdLocal:idLocalTrunc(o.id),destinatarioNombre:GERENTE_OPERACIONES,mensaje:`Se dio de baja el objetivo ${o.nombre} (${o.codigo}). Motivo: ${motivoCompleto}.${detalleAsoc}`});
+  crearNotificacion({tipo:'objetivo_dado_de_baja',entidadTipo:'objetivo',entidadIdLocal:idLocalTrunc(o.id),destinatarioNombre:GERENTE_RRHH_COMERCIAL,mensaje:`Se dio de baja el objetivo ${o.nombre} (${o.codigo}). Motivo: ${motivoCompleto}.${detalleAsoc}`});
+  cerrarModal('modal-baja-objetivo');
   filtrarObjetivos();toast('✓ Objetivo dado de baja');
 }
 // Alerta de objetivos con 7+ días esperando asignación — se chequea al
@@ -2223,7 +2269,11 @@ function guardarReclamo(){
   const nroNC=generaNC?'NC-'+new Date().getFullYear()+'-'+String(DB.noConformidades.length+1).padStart(3,'0'):'';
   const nuevo={id:Date.now(),clienteId:cliId,objetivoCod:$('rec-objetivo')?.value||'—',tipo:$('rec-tipo')?.value,prioridad:$('rec-prioridad')?.value,iniciador:$('rec-iniciador')?.value,desc,responsable:$('rec-responsable')?.value,estado:'Abierto',fecha:new Date().toLocaleDateString('es-AR'),fechaCierre:'',generaNC,nc:nroNC,tratamiento:''};
   DB.reclamos.push(nuevo);
-  if(generaNC) DB.noConformidades.push({id:Date.now(),nro:nroNC,fecha:new Date().toLocaleDateString('es-AR'),origen:'Reclamo externo',desc,causaRaiz:'',tratamiento:'',responsable:nuevo.responsable,fechaCierre:'',estado:'Abierta'});
+  // 2.5.1 (Delta Comercial v1.2): la NC se vincula al reclamo por
+  // reclamoId en vez de copiarle la descripción — antes quedaban dos
+  // textos independientes que podían divergir si alguno se editaba.
+  // renderNC() resuelve la descripción en vivo desde el reclamo vinculado.
+  if(generaNC) DB.noConformidades.push({id:Date.now(),nro:nroNC,fecha:new Date().toLocaleDateString('es-AR'),origen:'Reclamo externo',reclamoId:nuevo.id,causaRaiz:'',tratamiento:'',responsable:nuevo.responsable,fechaCierre:'',estado:'Abierta'});
   supaSync('reclamos', DB.reclamos[DB.reclamos.length-1]); cerrarModal('modal-reclamo');renderReclamos();construirMenu();toast('✓ Reclamo registrado'+(generaNC?' — NC generada':''));
 }
 function analizarReclamosIA(){
@@ -2235,18 +2285,24 @@ function analizarReclamosIA(){
   toast(`🤖 Análisis IA: "${masFrec?masFrec[0]:'—'}" es el tipo más frecuente. Tiempo promedio de cierre: ${tiempoPromedio} días. Tasa resolución: ${pctCerrado}%. Principales factores: personal insuficiente (${Math.round(DB.reclamos.filter(r=>r.tipo==='Falta de personal').length/Math.max(DB.reclamos.length,1)*100)}%) y calidad del servicio (${Math.round(DB.reclamos.filter(r=>r.tipo==='Calidad del servicio').length/Math.max(DB.reclamos.length,1)*100)}%).`,8000);
 }
 function renderNC(){
-  $('tbody-nc').innerHTML=DB.noConformidades.map((nc,i)=>`<tr>
+  $('tbody-nc').innerHTML=DB.noConformidades.map((nc,i)=>{
+    // 2.5.1: si la NC viene de un reclamo, la descripción se lee del
+    // reclamo vinculado (no se duplica texto entre los dos registros).
+    const reclamoVinculado=nc.reclamoId?DB.reclamos.find(r=>r.id===nc.reclamoId):null;
+    const desc=reclamoVinculado?reclamoVinculado.desc:(nc.desc||'—');
+    return `<tr>
     <td><span class="badge badge-azul">${nc.nro}</span></td>
     <td style="font-size:12px;">${nc.fecha}</td>
     <td style="font-size:12px;">${nc.origen}</td>
-    <td style="font-size:12px;max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${nc.desc}</td>
+    <td style="font-size:12px;max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${desc}</td>
     <td style="font-size:12px;">${nc.causaRaiz||'—'}</td>
     <td style="font-size:12px;">${nc.tratamiento||'—'}</td>
     <td style="font-size:12px;">${nc.responsable}</td>
     <td style="font-size:12px;">${nc.fechaCierre||'—'}</td>
     <td>${badge(nc.estado==='Cerrada'?'Activo':'Pendiente')}<span style="font-size:10px;display:block;">${nc.estado}</span></td>
     <td>${nc.estado==='Abierta'?`<button class="btn btn-xs" style="background:var(--verde-claro);color:var(--verde);border:1px solid #9fdaba;" onclick="cerrarNC(${i})">✓</button>`:'—'}</td>
-  </tr>`).join('')||`<tr><td colspan="10"><div class="empty-state"><div class="icon">📋</div><p>Sin no conformidades</p></div></td></tr>`;
+  </tr>`;
+  }).join('')||`<tr><td colspan="10"><div class="empty-state"><div class="icon">📋</div><p>Sin no conformidades</p></div></td></tr>`;
 }
 function cerrarNC(idx){DB.noConformidades[idx].estado='Cerrada';DB.noConformidades[idx].fechaCierre=new Date().toLocaleDateString('es-AR');renderNC();toast('✓ NC cerrada');}
 function renderStatsReclamos(){
@@ -2328,6 +2384,7 @@ function renderConfigComercial(){
   renderCfgComercialLista('tiposServicio','lista-tipos-servicio');
   renderCfgComercialLista('tiposCliente','lista-tipos-cliente');
   renderCfgComercialLista('categoriasArca','lista-categorias-arca');
+  renderCfgComercialLista('motivosBajaObjetivo','lista-motivos-baja-obj');
   renderCfgComercialLista('condicionesIVA','lista-cond-iva');
   renderCfgComercialLista('condicionesPago','lista-cond-pago');
   renderCfgComercialLista('formasPago','lista-formas-pago');
@@ -2384,6 +2441,7 @@ function poblarSelectsComercial(){
   fS('cli-tipo',DB.tiposCliente);
   fS('cf-cli-tipo',DB.tiposCliente);
   fS('cli-arca',DB.categoriasArca);
+  fillDL('dl-cli-responsable',(DB.legajos||[]).filter(l=>l.estado==='Activo').map(l=>l.nombre));
   fSId('obj-cliente',DB.clientes);
   fSId('rec-cliente',DB.clientes);
   fS('cf-obj-cliente',DB.clientes.map(c=>c.nombre));
@@ -9785,6 +9843,7 @@ window.confirmarNuevoAdminLiq = confirmarNuevoAdminLiq;
 window.confirmarNuevoMant = confirmarNuevoMant;
 window.confirmarNuevoReten = confirmarNuevoReten;
 window.confirmarNuevoSuplemento = confirmarNuevoSuplemento;
+window.confirmarBajaObjetivo = confirmarBajaObjetivo;
 window.confirmarSolicitudAsociado = confirmarSolicitudAsociado;
 window.confirmarSupervisorObjetivo = confirmarSupervisorObjetivo;
 window.contactarAsociadosIA = contactarAsociadosIA;

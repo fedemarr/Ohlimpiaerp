@@ -939,6 +939,14 @@
       </div>
 
       <div class="card">
+        <div class="card-header"><h3>🚫 Motivos de baja de servicio</h3></div>
+        <div class="card-body">
+          <div class="config-list" id="lista-motivos-baja-obj"></div>
+          <div class="config-add"><input type="text" id="nuevo-motivo-baja-obj" placeholder="Ej: Fin de contrato, Impago..."><button class="btn btn-primary btn-sm" onclick="agregarCfgComercial('motivosBajaObjetivo','nuevo-motivo-baja-obj','lista-motivos-baja-obj')">Agregar</button></div>
+        </div>
+      </div>
+
+      <div class="card">
         <div class="card-header"><h3>👤 Roles de responsables (objetivos)</h3><span class="text-muted">Cargos del personal del cliente en cada servicio</span></div>
         <div class="card-body">
           <div class="config-list" id="lista-roles-resp"></div>
@@ -4984,6 +4992,7 @@
             <div class="form-group"><label>Dirección fiscal</label><input type="text" id="cli-direccion"></div>
             <div class="form-group"><label>Localidad / Ciudad</label><input type="text" id="cli-ciudad"></div>
           </div>
+          <div class="form-group"><label>Responsable interno (Comercial)</label><input type="text" id="cli-responsable" list="dl-cli-responsable" placeholder="Buscar en Personal..."><datalist id="dl-cli-responsable"></datalist></div>
           <div class="form-group"><label>URL logo (opcional)</label><input type="text" id="cli-logo" placeholder="https://..."></div>
           <div class="form-group"><label>Observaciones</label><textarea id="cli-obs"></textarea></div>
         </div>
@@ -5035,6 +5044,9 @@
           </div>
           <div class="form-section">Modalidad de facturación</div>
           <div class="form-grid form-grid-2">
+            <div class="form-group"><label>Tipo de contrato</label>
+              <select id="cli-tipo-contrato"><option value="">— Seleccionar —</option><option value="Por hora">Por hora</option><option value="Presupuesto fijo">Presupuesto fijo</option></select>
+            </div>
             <div class="form-group"><label>Factura por</label>
               <select id="cli-fact-por"><option>Objetivo individual</option><option>Factura consolidada (todos los objetivos)</option></select>
             </div>
