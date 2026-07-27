@@ -2637,7 +2637,7 @@ function renderCobros(lista){
 
   const parseF=f=>{if(!f)return new Date();const[dd,mm,yy]=f.split('/');return new Date(`${yy}-${mm.padStart(2,'0')}-${dd.padStart(2,'0')}`);};
   const getCliente=id=>DB.clientes.find(c=>c.id===id);
-  const estColor={'Gestión activa':'badge-acento','Impago':'badge-rojo','Incobrable':'badge-gris'};
+  const estColor={'Gestión activa':'badge-acento','Impago':'badge-rojo','Incobrable':'badge-gris','Cobrada (pendiente Tango)':'badge-azul'};
   const tbody=$('tbody-cobros');
   if(!tbody)return;
   tbody.innerHTML=rows.map((f,i)=>{
@@ -2674,7 +2674,7 @@ function renderCobros(lista){
       </td>
       <td><span class="badge ${estColor[f.estado]||'badge-gris'}">${f.estado}</span></td>
       <td><button class="btn btn-secondary btn-xs" onclick="verAccionesCobro(${realIdx})" title="Acciones de cobro">📋 ${(f.acciones||[]).length}</button></td>
-      <td><button class="btn btn-xs" style="background:var(--verde-claro);color:var(--verde);border:1px solid #9fdaba;" onclick="marcarCobrado(${realIdx})">✓</button></td>
+      <td>${f.estado==='Cobrada (pendiente Tango)'?'<span style="font-size:10px;color:var(--texto-suave);">⏳ Pendiente Tango</span>':`<button class="btn btn-xs" style="background:var(--verde-claro);color:var(--verde);border:1px solid #9fdaba;" onclick="marcarCobrado(${realIdx})">✓</button>`}</td>
     </tr>`;
   }).join('')||`<tr><td colspan="17"><div class="empty-state"><div class="icon">💳</div><p>Sin facturas pendientes</p></div></td></tr>`;
 }
@@ -2727,17 +2727,19 @@ function actualizarFechaCobro(idx,fecha){
   toast(`✓ Fecha posible cobro: ${DB.facturas[idx].fechaPosibleCobro}${dias>0?' (en '+dias+' días)':dias<0?' (ya pasó)':' (hoy)'}`);
 }
 
+// 2.6/2.6.2 (Delta Comercial v1.2) — Tango es la única fuente de verdad de
+// "Cobros registrados": la gestora ya NO puede escribir directo ahí. Al
+// marcar una factura como cobrada acá, queda en un estado intermedio
+// ("Cobrada (pendiente Tango)") y sigue en Facturas pendientes — recién
+// pasa a Cobros registrados cuando el PRÓXIMO importarCobrosTango() la
+// confirme por nroFactura (ver ese función más abajo).
 function marcarCobrado(idx){
   const f=DB.facturas[idx];if(!f)return;
-  DB.cobros.push({
-    id:Date.now(),clienteId:f.clienteId,objetivoCod:f.objetivoCod,
-    nroFactura:f.nroFactura,periodoDesde:f.periodoDesde||'',periodoHasta:f.periodoHasta||'',
-    importeFacturado:f.importe,importeCobrado:f.importe,
-    nroRecibo:'',fechaCobro:new Date().toLocaleDateString('es-AR'),
-    fechaAcreditacion:'',formaPago:f.formaPago
-  });
-  f.estado='Cobrado';
-  renderCobros();toast(`✓ ${f.nroFactura} marcada como cobrada`);
+  if(f.estado==='Cobrada (pendiente Tango)'){toast('Ya está marcada como cobrada, pendiente de confirmar con el próximo import de Tango');return;}
+  f.estado='Cobrada (pendiente Tango)';
+  f.marcadaCobradaPor=currentUser?.nombre||'';
+  f.fechaMarcadaCobrada=new Date().toLocaleDateString('es-AR');
+  renderCobros();toast(`✓ ${f.nroFactura} marcada como cobrada — queda pendiente de confirmar con el próximo import de Tango`);
 }
 
 function analizarCobrosIA(){
@@ -2810,21 +2812,39 @@ function importarFacturasTango(){
   const lines=csv.split('\n').filter(l=>l.trim());
   if(lines.length<2){toast('El CSV necesita al menos una fila de datos');return;}
   const headers=lines[0].split(',').map(h=>h.trim().toLowerCase().replace(/"/g,''));
-  let importadas=0,errores=0;
+  let importadas=0,importadasCobradas=0,errores=0;
   const get=(vals,key)=>{const i=headers.findIndex(h=>h.includes(key));return i>=0?(vals[i]||'').trim().replace(/"/g,''):''};
+  // 2.6.1 (Delta Comercial v1.2) — Tango es la fuente de verdad: si el
+  // export de facturas ya trae una columna de estado/pagado indicando que
+  // está cobrada, va directo a Cobros registrados (no pasa por Facturas
+  // pendientes). Si no hay esa columna o no está pagada, sigue el
+  // comportamiento de siempre (Impago).
   lines.slice(1).forEach(line=>{
     const vals=line.split(',');
     const nroFact=get(vals,'factura')||get(vals,'comprobante');
     if(!nroFact){errores++;return;}
+    if(DB.facturas.some(f=>f.nroFactura===nroFact)||(DB.cobros||[]).some(c=>c.nroFactura===nroFact)){errores++;return;}
     const codCli=get(vals,'cliente')||get(vals,'cod');
     const cli=DB.clientes.find(c=>c.codigoTango===codCli||c.nombre.toLowerCase().includes(codCli.toLowerCase()));
+    const importe=parseFloat((get(vals,'importe')||get(vals,'total')||'0').replace(/[$\s]/g,'').replace(',','.'))||0;
+    const objetivoCod=get(vals,'objetivo')||get(vals,'servicio')||'IMPORTADO';
+    const periodoDesde=get(vals,'desde')||get(vals,'periodo desde')||'';
+    const periodoHasta=get(vals,'hasta')||get(vals,'periodo hasta')||'';
+    const estadoTango=(get(vals,'estado')||get(vals,'pagad')||get(vals,'cobrad')||'').toLowerCase();
+    const yaPagada=/pagad|cobrad|^si$|^sí$/.test(estadoTango);
+    if(yaPagada){
+      DB.cobros.push({
+        id:Date.now()+importadas+importadasCobradas,clienteId:cli?.id||0,objetivoCod,nroFactura:nroFact,
+        periodoDesde,periodoHasta,importeFacturado:importe,importeCobrado:importe,
+        nroRecibo:get(vals,'recibo')||'—',fechaCobro:get(vals,'fecha')||new Date().toLocaleDateString('es-AR'),
+        fechaAcreditacion:'',formaPago:'—',
+      });
+      importadasCobradas++;
+      return;
+    }
     DB.facturas.push({
-      id:Date.now()+importadas,clienteId:cli?.id||0,
-      objetivoCod:get(vals,'objetivo')||get(vals,'servicio')||'IMPORTADO',
-      nroFactura:nroFact,
-      periodoDesde:get(vals,'desde')||get(vals,'periodo desde')||'',
-      periodoHasta:get(vals,'hasta')||get(vals,'periodo hasta')||'',
-      importe:parseFloat((get(vals,'importe')||get(vals,'total')||'0').replace(/[$\s]/g,'').replace(',','.'))||0,
+      id:Date.now()+importadas+importadasCobradas,clienteId:cli?.id||0,
+      objetivoCod,nroFactura:nroFact,periodoDesde,periodoHasta,importe,
       fechaFactura:get(vals,'fecha')||'',
       vencimiento:get(vals,'vencimiento')||get(vals,'vto')||'',
       formaPago:'Pendiente',
@@ -2837,10 +2857,10 @@ function importarFacturasTango(){
     importadas++;
   });
   const resEl=$('tango-import-facturas-resultado');
-  if(resEl) resEl.innerHTML=`<span style="color:var(--verde);">✓ ${importadas} factura${importadas!==1?'s':''} importada${importadas!==1?'s':''}${errores?' · '+errores+' error(es)':''}</span>`;
-  DB.historialImportaciones.push({tipo:'Facturas',fecha:new Date().toLocaleDateString('es-AR'),cantidad:importadas});
+  if(resEl) resEl.innerHTML=`<span style="color:var(--verde);">✓ ${importadas} factura${importadas!==1?'s':''} pendiente${importadas!==1?'s':''}${importadasCobradas?' · '+importadasCobradas+' ya cobrada(s)':''}${errores?' · '+errores+' error(es)/duplicada(s)':''}</span>`;
+  DB.historialImportaciones.push({tipo:'Facturas',fecha:new Date().toLocaleDateString('es-AR'),cantidad:importadas+importadasCobradas});
   renderHistorialImportaciones();
-  if(importadas>0){$('tango-csv-facturas').value='';renderCobros();toast(`✓ ${importadas} facturas importadas de Tango`);}
+  if(importadas+importadasCobradas>0){$('tango-csv-facturas').value='';renderCobros();renderCobrados();toast(`✓ ${importadas} facturas pendientes${importadasCobradas?' + '+importadasCobradas+' ya cobradas':''} importadas de Tango`);}
 }
 
 function importarCobrosTango(){
@@ -2849,13 +2869,14 @@ function importarCobrosTango(){
   const lines=csv.split('\n').filter(l=>l.trim());
   if(lines.length<2){toast('El CSV necesita al menos una fila de datos');return;}
   const headers=lines[0].split(',').map(h=>h.trim().toLowerCase().replace(/"/g,''));
-  let importados=0,errores=0;
+  let importados=0,confirmados=0,errores=0;
   const get=(vals,key)=>{const i=headers.findIndex(h=>h.includes(key));return i>=0?(vals[i]||'').trim().replace(/"/g,''):''};
   lines.slice(1).forEach(line=>{
     const vals=line.split(',');
     const nroFact=get(vals,'factura')||get(vals,'comprobante');
     const importe=parseFloat((get(vals,'cobrado')||get(vals,'importe')||'0').replace(/[$\s]/g,'').replace(',','.'))||0;
     if(!nroFact||!importe){errores++;return;}
+    if((DB.cobros||[]).some(c=>c.nroFactura===nroFact)){errores++;return;}
     const fact=DB.facturas.find(f=>f.nroFactura===nroFact);
     const fechaCobro=get(vals,'cobro')||get(vals,'fecha')||new Date().toLocaleDateString('es-AR');
     DB.cobros.push({
@@ -2868,11 +2889,13 @@ function importarCobrosTango(){
       fechaCobro,fechaAcreditacion:get(vals,'acreditacion')||get(vals,'acredit')||'',
       formaPago:fact?.formaPago||'—',
     });
-    if(fact) fact.estado='Cobrado';
+    // 2.6.2: si la factura estaba "Cobrada (pendiente Tango)" (la gestora ya
+    // la había marcado a mano), este import es la confirmación que faltaba.
+    if(fact){if(fact.estado==='Cobrada (pendiente Tango)') confirmados++; fact.estado='Cobrado';}
     importados++;
   });
   const resEl=$('tango-import-cobros-resultado');
-  if(resEl) resEl.innerHTML=`<span style="color:var(--verde);">✓ ${importados} cobro${importados!==1?'s':''} importado${importados!==1?'s':''}${errores?' · '+errores+' error(es)':''}</span>`;
+  if(resEl) resEl.innerHTML=`<span style="color:var(--verde);">✓ ${importados} cobro${importados!==1?'s':''} importado${importados!==1?'s':''}${confirmados?' ('+confirmados+' confirmaban una gestión pendiente)':''}${errores?' · '+errores+' error(es)/duplicado(s)':''}</span>`;
   DB.historialImportaciones.push({tipo:'Cobros',fecha:new Date().toLocaleDateString('es-AR'),cantidad:importados});
   renderHistorialImportaciones();
   if(importados>0){$('tango-csv-cobros').value='';renderCobros();renderCobrados();toast(`✓ ${importados} cobros importados de Tango`);}
