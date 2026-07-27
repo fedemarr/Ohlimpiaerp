@@ -320,6 +320,8 @@ export function _toSnake(obj) {
     clausulaActualizacion: 'clausula_actualizacion', modeloPrecio: 'modelo_precio',
     valorEft: 'valor_eft', textoFactura: 'texto_factura', periodoFact: 'periodo_fact', reqOC: 'req_oc',
     dadoDeBajaPor: 'dado_de_baja_por', motivoBaja: 'motivo_baja', motivoCambio: 'motivo_cambio',
+    motivoBajaRazon: 'motivo_baja_razon', motivoBajaDetalle: 'motivo_baja_detalle',
+    fechaReactivacion: 'fecha_reactivacion', reactivadoPor: 'reactivado_por',
     aSatisfacer: 'a_satisfacer',
     // Liquidación de horas v1.1 (v040)
     objCodigo: 'objetivo_codigo', horasEFT: 'horas_eft', horasContratadas: 'horas_contratadas',
@@ -570,6 +572,8 @@ export function _toCamel(obj) {
     clausula_actualizacion: 'clausulaActualizacion', modelo_precio: 'modeloPrecio',
     valor_eft: 'valorEft', texto_factura: 'textoFactura', periodo_fact: 'periodoFact', req_oc: 'reqOC',
     dado_de_baja_por: 'dadoDeBajaPor', motivo_baja: 'motivoBaja', motivo_cambio: 'motivoCambio',
+    motivo_baja_razon: 'motivoBajaRazon', motivo_baja_detalle: 'motivoBajaDetalle',
+    fecha_reactivacion: 'fechaReactivacion', reactivado_por: 'reactivadoPor',
     a_satisfacer: 'aSatisfacer',
     // Liquidación de horas v1.1 (v040)
     objetivo_codigo: 'objCodigo', horas_eft: 'horasEFT', horas_contratadas: 'horasContratadas',

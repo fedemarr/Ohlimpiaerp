@@ -1616,6 +1616,7 @@ function renderObjetivos(lista){
           ${o.estado==='Pendiente asignación operativa'&&esGerenteOperaciones()?`<button class="btn btn-primary btn-xs" onclick="abrirAsignarSupervisor('${idl}')">Asignar supervisor</button>`:''}
           ${o.estado==='Operativo'&&esGerenteOperaciones()?`<button class="btn btn-secondary btn-xs" onclick="abrirCambiarSupervisor('${idl}')">🔄</button>`:''}
           ${o.estado!=='Baja'&&esGerenteComercial()?`<button class="btn btn-danger btn-xs" onclick="abrirBajaObjetivo('${idl}')">🚫</button>`:''}
+          ${o.estado==='Baja'&&esGerenteComercial()?`<button class="btn btn-primary btn-xs" onclick="reactivarObjetivo('${idl}')">♻️ Reactivar</button>`:''}
         </div>
       </td>
     </tr>`;
@@ -1641,6 +1642,10 @@ function verObjetivo(idLocal){
   const cli=DB.clientes.find(c=>c.id===o.clienteId);
   const idl=idLocalTrunc(o.id);
   const historial=(DB.objetivoSupervisoresHistorial||[]).filter(h=>h.objetivoIdLocal===idl&&!h.anulado).sort((a,b)=>(b.vigenciaDesde||'').localeCompare(a.vigenciaDesde||''));
+  // 2.2.7 (Delta Comercial v1.2): objetivoEventos ya se registraba en cada
+  // cambio de estado (baja, reactivación, asignación de supervisor) pero
+  // nunca se mostraba en ningún lado — quedaba escrito y nunca leído.
+  const eventos=(DB.objetivoEventos||[]).filter(e=>e.objetivoIdLocal===idl).sort((a,b)=>(b.ejecutadoEn||'').localeCompare(a.ejecutadoEn||''));
   const html=`<div class="info-grid">
     <div class="info-item"><div class="key">Código</div><div class="val" style="font-family:'DM Mono',monospace;">${o.codigo}</div></div>
     <div class="info-item"><div class="key">Cliente</div><div class="val">${cli?.nombre||'—'}</div></div>
@@ -1664,10 +1669,16 @@ function verObjetivo(idLocal){
   ${o.notas?`<div class="alerta alerta-info" style="margin-top:12px;font-size:12px;"><strong>Notas:</strong> ${o.notas}</div>`:''}
   ${o.textoFactura?`<div class="alerta alerta-info" style="margin-top:12px;font-size:12px;"><strong>Texto en factura:</strong> ${o.textoFactura}</div>`:''}
   ${o.estado==='Baja'?`<div class="alerta alerta-danger" style="margin-top:12px;font-size:12px;"><strong>🚫 Dado de baja</strong> el ${o.fechaBaja} por ${o.dadoDeBajaPor}. Motivo: ${o.motivoBaja||'—'}</div>`:''}
+  ${o.fechaReactivacion?`<div class="alerta alerta-info" style="margin-top:12px;font-size:12px;"><strong>♻️ Reactivado</strong> el ${o.fechaReactivacion} por ${o.reactivadoPor}.</div>`:''}
   <div style="margin-top:14px;font-size:11px;font-weight:700;text-transform:uppercase;color:var(--texto-suave);margin-bottom:8px;">Historial de supervisores</div>
   ${historial.length?historial.map(h=>`<div style="padding:6px 10px;background:var(--fondo);border-radius:var(--radio);margin-bottom:4px;font-size:12px;border:1px solid var(--borde);">
     <strong>${h.supervisorNombre}</strong> — ${h.vigenciaDesde} a ${h.vigenciaHasta||'hoy'} <span style="color:var(--texto-suave);">(asignado por ${h.asignadoPor})</span>
-  </div>`).join(''):'<p class="text-muted" style="font-size:12px;">Sin historial todavía</p>'}`;
+  </div>`).join(''):'<p class="text-muted" style="font-size:12px;">Sin historial todavía</p>'}
+  <div style="margin-top:14px;font-size:11px;font-weight:700;text-transform:uppercase;color:var(--texto-suave);margin-bottom:8px;">Historial de estados</div>
+  ${eventos.length?eventos.map(e=>`<div style="padding:6px 10px;background:var(--fondo);border-radius:var(--radio);margin-bottom:4px;font-size:12px;border:1px solid var(--borde);">
+    <strong>${e.estadoDesde||'—'} → ${e.estadoHasta}</strong> <span style="color:var(--texto-suave);">— ${(e.ejecutadoEn||'').slice(0,10)} (${e.ejecutadoPor||'—'})</span>
+    ${e.observaciones?`<div style="color:var(--texto-suave);">${e.observaciones}</div>`:''}
+  </div>`).join(''):'<p class="text-muted" style="font-size:12px;">Sin eventos registrados</p>'}`;
   $('pedido-title').textContent=`📍 ${o.nombre}`;
   $('pedido-body').innerHTML=html;
   abrirModal('modal-ver-pedido');
@@ -1970,6 +1981,26 @@ function confirmarBajaObjetivo(){
   crearNotificacion({tipo:'objetivo_dado_de_baja',entidadTipo:'objetivo',entidadIdLocal:idLocalTrunc(o.id),destinatarioNombre:GERENTE_RRHH_COMERCIAL,mensaje:`Se dio de baja el objetivo ${o.nombre} (${o.codigo}). Motivo: ${motivoCompleto}.${detalleAsoc}`});
   cerrarModal('modal-baja-objetivo');
   filtrarObjetivos();toast('✓ Objetivo dado de baja');
+}
+// 2.2.7 (Delta Comercial v1.2) — reactivar un servicio dado de baja NO
+// pisa las condiciones/motivo de la baja anterior (o.fechaBaja/motivoBaja
+// quedan como quedaron, son "la última baja registrada"): se abre un
+// nuevo tramo de vigencia vía registrarEventoObjetivo() (mismo objetivoEventos
+// que ya usan todas las transiciones de estado) y se agregan campos propios
+// de la reactivación (fechaReactivacion/reactivadoPor), preservando el
+// historial completo en vez de sobrescribirlo (política A.6).
+function reactivarObjetivo(idLocal){
+  const o=getObjetivoByIdLocal(idLocal);if(!o)return;
+  if(!esGerenteComercial()){toast('Solo Comercial puede reactivar un objetivo');return;}
+  if(o.estado!=='Baja'){toast('El objetivo no está dado de baja');return;}
+  if(!confirm(`¿Reactivar "${o.nombre}"? Se preserva el historial de la baja anterior (${o.motivoBaja||'sin motivo registrado'}).`)) return;
+  const estadoDesde=o.estado;
+  const nuevoEstado=o.supervisorAsignado?'Operativo':'Pendiente asignación operativa';
+  o.estado=nuevoEstado;o.fechaReactivacion=hoyStr();o.reactivadoPor=currentUser?.nombre||'';
+  supaSync('objetivos', objetivoParaGuardar(o));
+  registrarEventoObjetivo(o,estadoDesde,nuevoEstado,`Reactivación (baja anterior: ${o.motivoBaja||'sin motivo registrado'})`);
+  crearNotificacion({tipo:'objetivo_reactivado',entidadTipo:'objetivo',entidadIdLocal:idLocalTrunc(o.id),destinatarioNombre:GERENTE_OPERACIONES,mensaje:`Se reactivó el objetivo ${o.nombre} (${o.codigo}).${nuevoEstado==='Pendiente asignación operativa'?' Necesita asignación de supervisor.':''}`});
+  filtrarObjetivos();toast('✓ Objetivo reactivado — '+nuevoEstado);
 }
 // Alerta de objetivos con 7+ días esperando asignación — se chequea al
 // entrar al módulo (mismo criterio de "chequear al render" ya usado en
@@ -9948,6 +9979,7 @@ window.quitarPersonalAdmin = quitarPersonalAdmin;
 window.quitarSuplemento = quitarSuplemento;
 window.quitarTodosModulos = quitarTodosModulos;
 window.recalcCatVH = recalcCatVH;
+window.reactivarObjetivo = reactivarObjetivo;
 window.recalcClienteVH = recalcClienteVH;
 window.recalcLiquidacion = recalcLiquidacion;
 window.recalcTotalesLiq = recalcTotalesLiq;
