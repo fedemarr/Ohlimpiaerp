@@ -1653,13 +1653,16 @@ function verObjetivo(idLocal){
     <div class="info-item"><div class="key">Dirección</div><div class="val">${o.dir||'—'}</div></div>
     <div class="info-item"><div class="key">Estado</div><div class="val">${badgeEstadoObjetivo(o.estado)}</div></div>
     <div class="info-item"><div class="key">Supervisor asignado</div><div class="val">${o.supervisorAsignado||'— (pendiente Operaciones)'}</div></div>
+    <div class="info-item"><div class="key">Localidad</div><div class="val">${o.localidad||'—'}</div></div>
     <div class="info-item"><div class="key">Modelo precio</div><div class="val">${o.modeloPrecio}</div></div>
     <div class="info-item"><div class="key">Valor mensual</div><div class="val" style="font-weight:700;color:var(--azul);">$${(o.valor||0).toLocaleString('es-AR')}</div></div>
     ${o.efts?`<div class="info-item"><div class="key">EFTs</div><div class="val">${o.efts} EFTs (${o.efts*200}hs/mes)</div></div>`:''}
+    ${(()=>{const fact=calcularFacturacionMensualObjetivo(o);return fact!=null?`<div class="info-item"><div class="key">Facturación mensual estimada</div><div class="val" style="font-weight:700;color:var(--verde);">$${fact.toLocaleString('es-AR')}</div></div>`:`<div class="info-item"><div class="key">Facturación mensual estimada</div><div class="val">Depende de horas trabajadas (Liquidación de horas)</div></div>`;})()}
     <div class="info-item"><div class="key">Contrato</div><div class="val">${o.contrato}</div></div>
     <div class="info-item"><div class="key">Cláusula actualización</div><div class="val">${o.clausulaActualizacion||'—'}</div></div>
     <div class="info-item"><div class="key">Período facturación</div><div class="val">${o.periodoFact}</div></div>
     <div class="info-item"><div class="key">Requiere OC</div><div class="val">${o.reqOC}</div></div>
+    <div class="info-item"><div class="key">Personal necesario y horario</div><div class="val">${o.personalHorario||'—'}</div></div>
   </div>
   <div style="margin-top:14px;font-size:11px;font-weight:700;text-transform:uppercase;color:var(--texto-suave);margin-bottom:8px;">Responsables del cliente</div>
   ${(o.responsables||[]).map(r=>`<div style="padding:8px;background:var(--fondo);border-radius:var(--radio);margin-bottom:5px;border:1px solid var(--borde);display:flex;justify-content:space-between;align-items:center;">
@@ -1702,6 +1705,50 @@ function objetivoParaGuardar(o){
   const {responsables,adjuntos,historialPrecios,supervisor,...resto}=o;
   return resto;
 }
+// 2.2.1 (Delta Comercial v1.2) — el modelo de precio del objetivo queda
+// gobernado por el tipo de contrato del cliente (Por hora / Presupuesto
+// fijo, 2.1.2). No se le ocultan opciones a Comercial (puede haber
+// excepciones legítimas), pero se avisa cuál correspondería y
+// guardarObjetivo() pide confirmación si no coincide, en vez de dejar
+// los dos datos inconsistentes en silencio.
+const MODELOS_PRECIO_POR_HORA=['Por EFTs (FT = 200hs/mes)','Por horas variables'];
+const MODELOS_PRECIO_PRESUPUESTO_FIJO=['Abono mensual fijo','Presupuesto cerrado'];
+// 2.2.3 (Delta Comercial v1.2) — facturación mensual estimada: se calcula
+// siempre en el momento (nunca se guarda en el objetivo), así nunca queda
+// desactualizada si cambia efts/valorEft/valorHora. Para "Por EFTs" el
+// cálculo es EFT × 200hs/mes × valor hora (con valorEft como fallback si
+// no hay valor hora cargado). "Por horas variables" depende de las horas
+// realmente trabajadas (Liquidación de horas, fuera de este módulo) — acá
+// se muestra null y el llamador lo aclara en vez de inventar un número.
+function calcularFacturacionMensualObjetivo(o){
+  if(o.modeloPrecio==='Por EFTs (FT = 200hs/mes)'){
+    if(o.valorHora) return (o.efts||0)*200*o.valorHora;
+    if(o.valorEft) return (o.efts||0)*o.valorEft;
+    return 0;
+  }
+  if(o.modeloPrecio==='Por horas variables') return null;
+  return o.valor||0;
+}
+function modelosPrecioEsperados(clienteId){
+  const cli=DB.clientes.find(c=>c.id===clienteId);
+  if(!cli||!cli.tipoContrato) return null;
+  return cli.tipoContrato==='Por hora'?MODELOS_PRECIO_POR_HORA:MODELOS_PRECIO_PRESUPUESTO_FIJO;
+}
+// 2.2.4 (Delta Comercial v1.2) — mientras el objetivo está "Pendiente
+// asignación operativa", los datos del servicio son de solo lectura;
+// las únicas 2 excepciones editables son el EFT (obj-efts) y los
+// Responsables del cliente (tab aparte, no se toca acá).
+const OBJ_CAMPOS_BLOQUEABLES_PENDIENTE=['obj-cliente','obj-codigo','obj-nombre','obj-tipo','obj-dir','obj-localidad','obj-personal-horario','obj-fecha-inicio','obj-clausula-actualizacion','obj-modelo-precio','obj-valor','obj-valor-eft','obj-valor-hora','obj-fecha-fin','obj-contrato','obj-notas-precio','obj-productos','obj-periodo-fact','obj-req-oc','obj-texto-factura'];
+function bloquearCamposObjetivoPendiente(bloquear){
+  OBJ_CAMPOS_BLOQUEABLES_PENDIENTE.forEach(id=>{const el=$(id);if(el) el.disabled=bloquear;});
+  const aviso=$('obj-aviso-pendiente');if(aviso) aviso.style.display=bloquear?'block':'none';
+}
+function poblarModeloPrecioSegunCliente(clienteId){
+  const hint=$('obj-modelo-precio-hint');if(!hint)return;
+  const esperados=modelosPrecioEsperados(clienteId);
+  const cli=DB.clientes.find(c=>c.id===clienteId);
+  hint.textContent=esperados?`Cliente con contrato "${cli.tipoContrato}" — modelo esperado: ${esperados.join(' o ')}.`:'';
+}
 let objetivoEditIdLocal=null;
 function abrirModalObjetivo(idLocal){
   poblarSelectsComercial();
@@ -1715,7 +1762,10 @@ function abrirModalObjetivo(idLocal){
     $('obj-cliente').value=o.clienteId;$('obj-codigo').value=o.codigo;
     $('obj-nombre').value=o.nombre;if($('obj-tipo'))$('obj-tipo').value=o.tipo||'';
     $('obj-dir').value=o.dir||'';
+    if($('obj-localidad')) $('obj-localidad').value=o.localidad||'';
+    if($('obj-personal-horario')) $('obj-personal-horario').value=o.personalHorario||'';
     if($('obj-fecha-inicio')&&o.fechaInicio){const[dd,mm,yy]=o.fechaInicio.split('/');$('obj-fecha-inicio').value=`${yy}-${mm}-${dd}`;}
+    poblarModeloPrecioSegunCliente(o.clienteId);
     if($('obj-modelo-precio')) $('obj-modelo-precio').value=o.modeloPrecio||'';
     $('obj-valor').value=o.valor||'';$('obj-efts').value=o.efts||'';
     $('obj-valor-eft').value=o.valorEft||'';$('obj-valor-hora').value=o.valorHora||'';
@@ -1728,9 +1778,11 @@ function abrirModalObjetivo(idLocal){
     $('obj-texto-factura').value=o.textoFactura||'';
     $('obj-notas-precio').value=o.notas||'';
   } else {
-    ['obj-cliente','obj-codigo','obj-nombre','obj-dir','obj-fecha-inicio','obj-valor','obj-efts','obj-valor-eft','obj-valor-hora','obj-fecha-fin','obj-texto-factura','obj-notas-precio'].forEach(id=>{const el=$(id);if(el)el.value='';});
+    ['obj-cliente','obj-codigo','obj-nombre','obj-dir','obj-localidad','obj-personal-horario','obj-fecha-inicio','obj-valor','obj-efts','obj-valor-eft','obj-valor-hora','obj-fecha-fin','obj-texto-factura','obj-notas-precio'].forEach(id=>{const el=$(id);if(el)el.value='';});
+    poblarModeloPrecioSegunCliente(0);
   }
   renderRespObjetivoTemp();renderAdjuntosObj();toggleModeloPrecio();
+  bloquearCamposObjetivoPendiente(o?.estado==='Pendiente asignación operativa');
   abrirModal('modal-objetivo');
 }
 // ========== GUARDAR OBJETIVO ==========
@@ -1747,7 +1799,8 @@ function guardarObjetivo(){
   const datos={
     clienteId,clienteIdLocal:idLocalTrunc(clienteId),
     codigo:cod,nombre:nom,tipo:$('obj-tipo')?.value,
-    dir:$('obj-dir')?.value,
+    dir:$('obj-dir')?.value,localidad:$('obj-localidad')?.value.trim()||'',
+    personalHorario:$('obj-personal-horario')?.value.trim()||'',
     modeloPrecio:$('obj-modelo-precio')?.value,
     valor:parseFloat($('obj-valor')?.value)||0,
     efts:parseFloat($('obj-efts')?.value)||0,
@@ -1763,6 +1816,33 @@ function guardarObjetivo(){
     responsables:[...respObjetivoTemp],
     adjuntos:[...adjuntosObjTemp],
   };
+  // 2.2.2 (Delta Comercial v1.2) — checklist de campos mínimos antes de
+  // guardar. EFT y "cantidad de horas por mes" son el mismo dato (EFT ×
+  // 200hs, ver verObjetivo) — no se pide por separado, alcanza con EFT
+  // (o valor hora) según el modelo de precio elegido. No aplica mientras
+  // el objetivo está "Pendiente asignación operativa" (2.2.4): ahí casi
+  // todos los campos están bloqueados en el modal, así que exigirlos
+  // completos impediría la única edición permitida (EFT/responsables).
+  if(!existente||existente.estado!=='Pendiente asignación operativa'){
+    const faltantes=[];
+    if(!datos.localidad) faltantes.push('Localidad');
+    if(!datos.dir) faltantes.push('Dirección');
+    if(!datos.fechaInicio) faltantes.push('Fecha de inicio');
+    if(!datos.personalHorario) faltantes.push('Personal necesario y horario');
+    if(!datos.modeloPrecio) faltantes.push('Modelo de precio');
+    else if(MODELOS_PRECIO_POR_HORA.includes(datos.modeloPrecio)){
+      if(!datos.efts&&!datos.valorHora) faltantes.push('EFT o valor hora');
+    } else if(!datos.valor) faltantes.push('Valor mensual / presupuesto');
+    if(faltantes.length){toast('⚠️ Faltan campos mínimos: '+faltantes.join(', '));return;}
+  }
+  // 2.2.1: el modelo de precio debería coincidir con el tipo de contrato
+  // del cliente (2.1.2) — no se bloquea (puede haber excepciones), se
+  // confirma explícitamente si no coincide.
+  const modelosEsperados=modelosPrecioEsperados(clienteId);
+  if(modelosEsperados&&!modelosEsperados.includes(datos.modeloPrecio)){
+    const tipoContratoCliente=DB.clientes.find(c=>c.id===clienteId)?.tipoContrato;
+    if(!confirm(`El cliente tiene contrato "${tipoContratoCliente}" — se esperaba un modelo de precio "${modelosEsperados.join(' o ')}", elegiste "${datos.modeloPrecio}".\n\n¿Confirmás igual?`)) return;
+  }
   let objetivo;
   if(existente){
     // Comercial no puede reasignar supervisor ni estado desde este modal —
@@ -2473,6 +2553,7 @@ function poblarSelectsComercial(){
   fS('cf-cli-tipo',DB.tiposCliente);
   fS('cli-arca',DB.categoriasArca);
   fillDL('dl-cli-responsable',(DB.legajos||[]).filter(l=>l.estado==='Activo').map(l=>l.nombre));
+  fillDL('dl-obj-localidad',DB.localidades);
   fSId('obj-cliente',DB.clientes);
   fSId('rec-cliente',DB.clientes);
   fS('cf-obj-cliente',DB.clientes.map(c=>c.nombre));
@@ -10109,6 +10190,7 @@ window.toggleDescuentoBase = toggleDescuentoBase;
 window.toggleFueraEFT = toggleFueraEFT;
 window.toggleGrilla = toggleGrilla;
 window.toggleModeloPrecio = toggleModeloPrecio;
+window.poblarModeloPrecioSegunCliente = poblarModeloPrecioSegunCliente;
 window.toggleMotivoNoFact = toggleMotivoNoFact;
 window.toggleNuevaGrillaTipo = toggleNuevaGrillaTipo;
 window.togglePermiso = togglePermiso;

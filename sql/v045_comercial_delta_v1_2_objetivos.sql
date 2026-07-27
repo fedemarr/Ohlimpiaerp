@@ -7,6 +7,8 @@
 -- existentes de esa columna).
 -- 2.2.7: reactivación de un objetivo dado de baja, sin pisar fecha_baja/
 -- dado_de_baja_por/motivo_baja (quedan como historial de la última baja).
+-- 2.2.1-2.2.3: checklist de campos mínimos del objetivo — localidad y
+-- personal_horario son campos nuevos del formulario, no existían.
 
 BEGIN;
 
@@ -14,6 +16,8 @@ ALTER TABLE public.objetivos
   ADD COLUMN IF NOT EXISTS motivo_baja_razon   text,
   ADD COLUMN IF NOT EXISTS motivo_baja_detalle text,
   ADD COLUMN IF NOT EXISTS fecha_reactivacion  date,
-  ADD COLUMN IF NOT EXISTS reactivado_por      text;
+  ADD COLUMN IF NOT EXISTS reactivado_por      text,
+  ADD COLUMN IF NOT EXISTS localidad           text,
+  ADD COLUMN IF NOT EXISTS personal_horario    text;
 
 COMMIT;

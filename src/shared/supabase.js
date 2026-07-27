@@ -322,6 +322,7 @@ export function _toSnake(obj) {
     dadoDeBajaPor: 'dado_de_baja_por', motivoBaja: 'motivo_baja', motivoCambio: 'motivo_cambio',
     motivoBajaRazon: 'motivo_baja_razon', motivoBajaDetalle: 'motivo_baja_detalle',
     fechaReactivacion: 'fecha_reactivacion', reactivadoPor: 'reactivado_por',
+    personalHorario: 'personal_horario',
     aSatisfacer: 'a_satisfacer',
     // Liquidación de horas v1.1 (v040)
     objCodigo: 'objetivo_codigo', horasEFT: 'horas_eft', horasContratadas: 'horas_contratadas',
@@ -574,6 +575,7 @@ export function _toCamel(obj) {
     dado_de_baja_por: 'dadoDeBajaPor', motivo_baja: 'motivoBaja', motivo_cambio: 'motivoCambio',
     motivo_baja_razon: 'motivoBajaRazon', motivo_baja_detalle: 'motivoBajaDetalle',
     fecha_reactivacion: 'fechaReactivacion', reactivado_por: 'reactivadoPor',
+    personal_horario: 'personalHorario',
     a_satisfacer: 'aSatisfacer',
     // Liquidación de horas v1.1 (v040)
     objetivo_codigo: 'objCodigo', horas_eft: 'horasEFT', horas_contratadas: 'horasContratadas',

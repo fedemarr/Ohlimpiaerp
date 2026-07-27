@@ -5087,7 +5087,7 @@
       <div id="obj-tab-0" class="tab-content active">
         <div class="form-grid gap-12">
           <div class="form-grid form-grid-2">
-            <div class="form-group"><label>Cliente *</label><select id="obj-cliente"></select></div>
+            <div class="form-group"><label>Cliente *</label><select id="obj-cliente" onchange="poblarModeloPrecioSegunCliente(parseInt(this.value)||0)"></select></div>
             <div class="form-group"><label>Código del objetivo *</label><input type="text" id="obj-codigo" placeholder="Ej: CHANGO.BROWN"></div>
           </div>
           <div class="form-grid form-grid-2">
@@ -5097,14 +5097,16 @@
             </div>
           </div>
           <div class="form-grid form-grid-2">
-            <div class="form-group"><label>Dirección</label><input type="text" id="obj-dir" placeholder="Calle, número, localidad"></div>
-            <div class="form-group"><label>Cláusula de actualización</label><select id="obj-clausula-actualizacion"></select></div>
+            <div class="form-group"><label>Dirección *</label><input type="text" id="obj-dir" placeholder="Calle, número"></div>
+            <div class="form-group"><label>Localidad *</label><input type="text" id="obj-localidad" list="dl-obj-localidad" placeholder="Ej: San Isidro"><datalist id="dl-obj-localidad"></datalist></div>
           </div>
           <div class="form-grid form-grid-2">
             <div class="form-group"><label>Fecha inicio *</label><input type="date" id="obj-fecha-inicio"></div>
-            <div class="form-group"></div>
+            <div class="form-group"><label>Cláusula de actualización</label><select id="obj-clausula-actualizacion"></select></div>
           </div>
+          <div class="form-group"><label>Personal necesario y horario *</label><textarea id="obj-personal-horario" placeholder="Ej: 3 operarios de lunes a viernes de 8 a 17hs + 1 encargado sábados 9 a 13hs"></textarea></div>
           <div class="alerta alerta-info" style="font-size:12px;">El supervisor se asigna desde Operaciones una vez que el contrato está firmado (flujo de asignación). No se elige acá.</div>
+          <div id="obj-aviso-pendiente" class="alerta alerta-danger" style="font-size:12px;display:none;">🔒 Este objetivo está "Pendiente de asignación operativa" — los datos del servicio quedan de solo lectura hasta que se asigne supervisor. Las únicas excepciones editables son el EFT/tope de horas y los Responsables del cliente.</div>
         </div>
       </div>
       <div id="obj-tab-1" class="tab-content">
@@ -5112,6 +5114,7 @@
           <div class="form-grid form-grid-2">
             <div class="form-group"><label>Modelo de precio *</label>
               <select id="obj-modelo-precio" onchange="toggleModeloPrecio()"></select>
+              <span id="obj-modelo-precio-hint" style="font-size:11px;color:var(--texto-suave);"></span>
             </div>
             <div class="form-group"><label>Valor mensual / total *</label><input type="number" id="obj-valor" placeholder="$"></div>
           </div>
