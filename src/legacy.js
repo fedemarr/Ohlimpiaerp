@@ -1368,7 +1368,7 @@ function verCliente(idLocal){
   let html=`<div style="display:flex;gap:14px;align-items:flex-start;margin-bottom:18px;">
     <div style="width:48px;height:48px;border-radius:10px;background:var(--azul-claro);display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:700;color:var(--azul);">${c.nombre[0]}</div>
     <div><div style="font-size:17px;font-weight:700;">${c.nombre}</div><div style="font-size:12px;color:var(--texto-suave);">${c.razon} · CUIT: ${c.cuit}</div>
-    <div style="display:flex;gap:6px;margin-top:6px;">${badge(c.estado==='Activo'?'Activo':'Baja')}<span class="chip" style="font-size:11px;">${c.tipo}</span></div>
+    <div style="display:flex;gap:6px;margin-top:6px;">${badge(c.estado==='Activo'?'Activo':c.estado==='Inactivo'?'Baja':'Pendiente')}<span class="chip" style="font-size:11px;">${c.tipo}</span></div>
     </div>
   </div>
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:16px;">
@@ -1409,7 +1409,14 @@ function nuevoObjetivoDesde(clienteId){
   if(sel){for(let i=0;i<sel.options.length;i++){if(sel.options[i].value==clienteId){sel.selectedIndex=i;break;}}}
 }
 
+// P.11 (Delta Comercial v1.2) — bindeado a window porque los oninput/onclick
+// inline del modal (contactosClienteTemp[i].nombre=this.value, etc.) corren
+// en scope global: sin esto, contactosClienteTemp (let de módulo) no existe
+// para ellos y cada tecleo tira ReferenceError en silencio, dejando el
+// contacto guardado vacío. La referencia del array nunca se reasigna (solo
+// se muta in-place) para que este binding no quede desincronizado.
 let contactosClienteTemp=[];
+window.contactosClienteTemp=contactosClienteTemp;
 let clienteEditIdLocal=null;
 const CLI_CAMPOS_TEXTO=['cli-razon','cli-nombre','cli-tipo','cli-cuit','cli-iva','cli-arca','cli-cond-pago','cli-forma-pago','cli-codigo-tango','cli-ciudad','cli-direccion','cli-logo','cli-obs','cli-fact-por','cli-periodo-fact','cli-productos-fact','cli-req-oc','cli-notas-fact','cli-ib','cli-jur'];
 const CLI_CAMPOS_DOC=['doc-seguros','doc-monotributo','doc-antecedentes','doc-ddjj-iva','doc-pago-iva','doc-remito-servicio','doc-planilla-horas','doc-oc'];
@@ -1419,7 +1426,7 @@ function abrirModalCliente(idLocal){
   const c=idLocal?getClienteByIdLocal(idLocal):null;
   if($('cli-modal-title')) $('cli-modal-title').textContent=c?'🏢 Editar cliente':'🏢 Nuevo cliente';
   if(c){
-    contactosClienteTemp=(c.contactos||[]).map(ct=>({...ct}));
+    contactosClienteTemp.length=0;contactosClienteTemp.push(...(c.contactos||[]).map(ct=>({...ct})));
     $('cli-razon').value=c.razon||'';$('cli-nombre').value=c.nombre||'';
     if($('cli-tipo')) $('cli-tipo').value=c.tipo||'';
     $('cli-cuit').value=c.cuit||'';
@@ -1448,7 +1455,7 @@ function abrirModalCliente(idLocal){
     if($('doc-planilla-horas')) $('doc-planilla-horas').checked=!!dr.planillaHoras;
     if($('doc-oc')) $('doc-oc').checked=!!dr.oc;
   } else {
-    contactosClienteTemp=[];
+    contactosClienteTemp.length=0;
     CLI_CAMPOS_TEXTO.forEach(id=>{const el=$(id);if(el)el.value='';});
     CLI_CAMPOS_DOC.forEach(id=>{const el=$(id);if(el)el.checked=false;});
     if($('cli-estado')) $('cli-estado').value='Activo';
@@ -1480,15 +1487,19 @@ function renderContactosClienteTemp(){
 const inputStyle='padding:6px 10px;border:1px solid var(--borde-fuerte);border-radius:var(--radio);font-size:12px;font-family:inherit;outline:none;width:100%;';
 
 function guardarCliente(){
-  const razon=$('cli-razon')?.value.trim();
+  // P.1 (Delta Comercial v1.2) — normalización preventiva: el código de
+  // cliente se usa para relacionar módulos, así que "cli001" y "CLI001"
+  // tienen que ser el mismo código siempre (mayúscula fija), y los
+  // nombres en formato título sin importar cómo los tipeó quien cargó.
+  const razon=toTitleCase(cleanText($('cli-razon')?.value||''));
   if(!razon){toast('Ingresá la razón social');return;}
   const existente=clienteEditIdLocal?getClienteByIdLocal(clienteEditIdLocal):null;
   const datos={
-    razon,nombre:$('cli-nombre')?.value||razon,
+    razon,nombre:toTitleCase(cleanText($('cli-nombre')?.value||''))||razon,
     tipo:$('cli-tipo')?.value,cuit:$('cli-cuit')?.value,
     iva:$('cli-iva')?.value,arca:$('cli-arca')?.value,
     condPago:$('cli-cond-pago')?.value,formaPago:$('cli-forma-pago')?.value,
-    codigoTango:$('cli-codigo-tango')?.value,estado:$('cli-estado')?.value,
+    codigoTango:cleanText($('cli-codigo-tango')?.value||'').toUpperCase(),estado:$('cli-estado')?.value,
     ciudad:$('cli-ciudad')?.value,direccion:$('cli-direccion')?.value,
     logo:$('cli-logo')?.value,obs:$('cli-obs')?.value,
     ingresosBrutos:$('cli-ib')?.value||'',jurisdiccionIibb:$('cli-jur')?.value||'',
@@ -1555,6 +1566,7 @@ function diasDesde(fechaISOoDDMMYYYY){
 }
 function renderObjetivos(lista){
   reconciliarClienteIdObjetivos();
+  reconciliarResponsablesObjetivos();
   const estadoTab=OBJ_TABS[objTabActual];
   const rows=(lista||DB.objetivos).filter(o=>!o.anulado&&(!estadoTab||o.estado===estadoTab));
   const todosActivos=DB.objetivos.filter(o=>o.estado==='Operativo'&&!o.anulado);
@@ -1650,7 +1662,11 @@ function verObjetivo(idLocal){
   abrirModal('modal-ver-pedido');
 }
 
+// P.10 (Delta Comercial v1.2) — bindeado a window por la misma razón que
+// contactosClienteTemp: los oninput/onclick inline del modal de objetivo
+// (respObjetivoTemp[i].nombre=this.value, etc.) corren en scope global.
 let respObjetivoTemp=[];
+window.respObjetivoTemp=respObjetivoTemp;
 function agregarRespObjetivo(){
   respObjetivoTemp.push({nombre:'',rol:'',tel:'',aSatisfacer:false});
   renderRespObjetivoTemp();
@@ -1669,8 +1685,8 @@ function abrirModalObjetivo(idLocal){
   poblarSelectsComercial();
   objetivoEditIdLocal=idLocal||null;
   const o=idLocal?getObjetivoByIdLocal(idLocal):null;
-  respObjetivoTemp=o?(o.responsables||[]).map(r=>({...r})):[];
-  adjuntosObjTemp=o?(o.adjuntos||[]).map(a=>({...a})):[];
+  respObjetivoTemp.length=0;respObjetivoTemp.push(...(o?(o.responsables||[]).map(r=>({...r})):[]));
+  adjuntosObjTemp.length=0;adjuntosObjTemp.push(...(o?(o.adjuntos||[]).map(a=>({...a})):[]));
   const titulo=$('modal-objetivo')?.querySelector('.modal-header h3');
   if(titulo) titulo.textContent=o?'📍 Editar objetivo / servicio':'📍 Nuevo objetivo / servicio';
   if(o){
@@ -1761,7 +1777,10 @@ function toggleModeloPrecio(){
 }
 
 // Adjuntos objetivo
+// Mismo bindeo a window que respObjetivoTemp — el botón "✕" de la lista
+// (adjuntosObjTemp.splice(i,1)) es inline y corre en scope global.
 let adjuntosObjTemp=[];
+window.adjuntosObjTemp=adjuntosObjTemp;
 function agregarAdjuntoObj(){
   const nom=$('obj-adj-nombre')?.value.trim();
   const url=$('obj-adj-url')?.value.trim();
@@ -2281,8 +2300,28 @@ function reconciliarClienteIdObjetivos(){
     }
   });
 }
+// P.10 (Delta Comercial v1.2): responsables/adjuntos de un objetivo viven en
+// tablas relacionales propias (objetivo_responsables/objetivo_adjuntos, ver
+// persistirRelacionadosObjetivo) y objetivoParaGuardar los excluye de la
+// tabla objetivos a propósito. Al recargar desde Supabase, o.responsables/
+// o.adjuntos llegan undefined — mismo síntoma que clienteId, misma cura:
+// se reconstruyen acá resolviendo por objetivoIdLocal.
+function reconciliarResponsablesObjetivos(){
+  DB.objetivos.forEach(o=>{
+    const idl=idLocalTrunc(o.id);
+    if((!o.responsables||!o.responsables.length)){
+      const resp=(DB.objetivoResponsables||[]).filter(r=>String(r.objetivoIdLocal)===idl);
+      if(resp.length) o.responsables=resp;
+    }
+    if((!o.adjuntos||!o.adjuntos.length)){
+      const adj=(DB.objetivoAdjuntos||[]).filter(a=>String(a.objetivoIdLocal)===idl);
+      if(adj.length) o.adjuntos=adj;
+    }
+  });
+}
 function poblarSelectsComercial(){
   reconciliarClienteIdObjetivos();
+  reconciliarResponsablesObjetivos();
 
   const fS=(id,items)=>{const el=$(id);if(!el)return;const ph=el.options[0]?.outerHTML||'';el.innerHTML=ph+[...new Set(items)].filter(Boolean).map(i=>`<option value="${i}">${i}</option>`).join('');};
   const fSId=(id,items)=>{const el=$(id);if(!el)return;const ph=el.options[0]?.outerHTML||'';el.innerHTML=ph+items.map(i=>`<option value="${i.id}">${i.nombre}</option>`).join('');};
@@ -2491,7 +2530,13 @@ function verAccionesCobro(idx){
   </div>
   <div style="font-size:11px;font-weight:700;text-transform:uppercase;color:var(--texto-suave);margin-bottom:8px;">Historial de gestiones</div>
   <div style="max-height:180px;overflow-y:auto;margin-bottom:14px;display:flex;flex-direction:column;gap:6px;">
-    ${f.acciones.map(a=>`<div style="padding:8px 12px;background:${a.estado==='Pendiente'?'var(--acento-suave)':'var(--fondo)'};border-radius:var(--radio);border:1px solid var(--borde);">
+    ${f.acciones.slice().reverse().map(a=>`<div style="padding:8px 12px;background:${a.estado==='Pendiente'?'var(--acento-suave)':'var(--fondo)'};border-radius:var(--radio);border:1px solid var(--borde);">
+      <div style="display:flex;justify-content:space-between;align-items:center;">
+        <div style="font-weight:600;font-size:12px;">${a.tipo} <span style="font-weight:400;color:var(--texto-suave);">— ${a.fecha}</span></div>
+        <span class="badge ${a.estado==='Pendiente'?'badge-acento':'badge-verde'}" style="font-size:10px;">${a.estado}</span>
+      </div>
+      ${a.nota?`<div style="font-size:12px;margin-top:4px;">${a.nota}</div>`:''}
+      ${a.fechaVenc?`<div style="font-size:10px;color:var(--texto-muy-suave);margin-top:4px;">📅 Vence: ${a.fechaVenc}</div>`:''}
     </div>`).join('')||'<p class="text-muted" style="font-size:12px;">Sin gestiones registradas</p>'}
   </div>
   <div style="background:var(--fondo);border-radius:var(--radio);padding:12px;border:1px solid var(--borde);">

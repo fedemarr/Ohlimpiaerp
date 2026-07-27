@@ -4954,14 +4954,14 @@
       <div id="cli-tab-0" class="tab-content active">
         <div class="form-grid gap-12">
           <div class="form-grid form-grid-2">
-            <div class="form-group"><label>Razón social *</label><input type="text" id="cli-razon"></div>
-            <div class="form-group"><label>Nombre comercial</label><input type="text" id="cli-nombre"></div>
+            <div class="form-group"><label>Razón social *</label><input type="text" id="cli-razon" onblur="applyTitleCase('cli-razon')"></div>
+            <div class="form-group"><label>Nombre comercial</label><input type="text" id="cli-nombre" onblur="applyTitleCase('cli-nombre')"></div>
           </div>
           <div class="form-grid form-grid-3">
             <div class="form-group"><label>Tipo de cliente</label>
               <select id="cli-tipo"><option>Cadena supermercados</option><option>Hospital</option><option>Corporativo</option><option>Gobierno</option><option>Educación</option><option>Otro</option></select>
             </div>
-            <div class="form-group"><label>Código Tango *</label><input type="text" id="cli-codigo-tango" placeholder="Ej: CLI-0042"></div>
+            <div class="form-group"><label>Código Tango *</label><input type="text" id="cli-codigo-tango" placeholder="Ej: CLI-0042" onblur="this.value=this.value.toUpperCase()"></div>
             <div class="form-group"><label>Estado</label><select id="cli-estado"><option>Activo</option><option>Inactivo</option><option>Prospecto</option></select></div>
           </div>
           <div class="form-grid form-grid-2">
