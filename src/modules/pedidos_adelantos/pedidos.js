@@ -13,6 +13,14 @@ import {
 import { obtenerTopeVigente } from '../adelantos_prestamos_shared/config.js';
 import { esSupervisor, esCentralOperaciones } from '../adelantos_prestamos_shared/permisos.js';
 
+// Mismo fix de huso horario que hoyISO() en flujo.js/config.js —
+// toISOString() es UTC, entre las 21:00 y medianoche en Argentina
+// adelantaba la fecha precargada del modal un día.
+function hoyISOLocal() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
 const ESTADO_BADGE = {
   'Borrador': 'badge-gris', 'Enviada': 'badge-acento', 'Aprobada RRHH': 'badge-azul',
   'Aprobada': 'badge-verde', 'Rechazada RRHH': 'badge-rojo', 'Rechazada Finanzas': 'badge-rojo',
@@ -215,7 +223,7 @@ export function abrirNuevoPedidoAdelanto() {
   $('npa-monto').value = '';
   $('npa-monto-prestamo').value = '';
   $('npa-aviso-tope').style.display = 'none';
-  $('npa-fecha').value = new Date().toISOString().slice(0, 10);
+  $('npa-fecha').value = hoyISOLocal();
   $('npa-obs').value = '';
   abrirModal('modal-padl-nuevo');
 }
@@ -225,7 +233,7 @@ export async function confirmarNuevoPedido(elevarAlGuardar) {
   if (!legajo) { toast('⚠️ Elegí el asociado'); return; }
   if (legajo.estado !== 'Activo') { toast('❌ El asociado no está activo'); return; }
   const tipo = document.querySelector('input[name="npa-tipo"]:checked')?.value;
-  const fechaPedido = $('npa-fecha').value || new Date().toISOString().slice(0, 10);
+  const fechaPedido = $('npa-fecha').value || hoyISOLocal();
   const observaciones = $('npa-obs').value.trim();
 
   let pedido;

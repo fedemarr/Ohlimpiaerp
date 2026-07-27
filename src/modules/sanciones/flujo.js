@@ -14,6 +14,14 @@ import { gerenteResponsable, nombreGerenteRRHH } from './permisos.js';
 // de verdad es el id_local (9 dígitos).
 export const idLocalTrunc = (id) => String(id).slice(-9);
 
+// toISOString() es UTC — entre las 21:00 y medianoche en Argentina
+// (UTC-3) adelantaba "hoy" un día (mismo bug ya conocido de hoyISO()
+// en adelantos_prestamos_shared).
+function hoyISOLocal() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
 const CUARENTA_Y_OCHO_HS_MS = 48 * 3600 * 1000;
 
 export function getSancionById(id) {
@@ -47,7 +55,7 @@ async function registrarEventoSancion(sancion, estadoDesde, estadoHasta, observa
   await supaSync('sancionEventos', ev);
 }
 
-function baseSancion({ protagonista, infraccionIdLocal, fechaHecho, descripcionHecho, generadoPor, nivel, nombreNivel }) {
+function baseSancion({ protagonista, infraccionIdLocal, fechaHecho, fechaDeteccion, descripcionHecho, generadoPor, nivel, nombreNivel }) {
   const version = getVersionInfraccionVigente(infraccionIdLocal, (fechaHecho || '').slice(0, 10));
   const infraccion = getInfraccion(infraccionIdLocal);
   const esAdministrativo = (protagonista.servicio || '').trim().toUpperCase() === 'ADMINISTRATIVO';
@@ -65,7 +73,7 @@ function baseSancion({ protagonista, infraccionIdLocal, fechaHecho, descripcionH
     nombreInfraccion: infraccion?.nombre || '',
     categoriaInfraccion: infraccion?.categoria || '',
     gravedad: version?.gravedad || '',
-    fechaHecho, fechaDeteccion: new Date().toISOString().slice(0, 10),
+    fechaHecho, fechaDeteccion: fechaDeteccion || hoyISOLocal(),
     descripcionHecho,
     propuestaPorLegajo: generadoPor || currentUser?.nombre || '',
     propuestaPorRol: currentUser?.perfil || '',
@@ -83,8 +91,8 @@ async function guardarNueva(sancion) {
 
 // ========== NIVEL 0 — Llamado verbal (informal) ==========
 
-export async function crearSancionNivel0({ protagonista, infraccionIdLocal, fechaHecho, descripcionHecho, generadoPor }) {
-  const s = baseSancion({ protagonista, infraccionIdLocal, fechaHecho, descripcionHecho, generadoPor, nivel: 0, nombreNivel: 'Llamado verbal (informal)' });
+export async function crearSancionNivel0({ protagonista, infraccionIdLocal, fechaHecho, fechaDeteccion, descripcionHecho, generadoPor }) {
+  const s = baseSancion({ protagonista, infraccionIdLocal, fechaHecho, fechaDeteccion, descripcionHecho, generadoPor, nivel: 0, nombreNivel: 'Llamado verbal (informal)' });
   s.estado = 'Ejecutada';
   s.fechaNotificacionAsociado = new Date().toISOString();
   s.notificacionMetodo = 'Sistema';
@@ -96,8 +104,8 @@ export async function crearSancionNivel0({ protagonista, infraccionIdLocal, fech
 
 // ========== NIVEL 1 — Observación ==========
 
-export async function crearYEjecutarNivel1({ protagonista, infraccionIdLocal, fechaHecho, descripcionHecho, generadoPor }) {
-  const s = baseSancion({ protagonista, infraccionIdLocal, fechaHecho, descripcionHecho, generadoPor, nivel: 1, nombreNivel: 'Observación' });
+export async function crearYEjecutarNivel1({ protagonista, infraccionIdLocal, fechaHecho, fechaDeteccion, descripcionHecho, generadoPor }) {
+  const s = baseSancion({ protagonista, infraccionIdLocal, fechaHecho, fechaDeteccion, descripcionHecho, generadoPor, nivel: 1, nombreNivel: 'Observación' });
   s.estado = 'Ejecutada';
   s.fechaNotificacionAsociado = new Date().toISOString();
   s.notificacionMetodo = 'Sistema';
@@ -144,8 +152,8 @@ export async function revertirNivel1(idLocal, motivo) {
 
 // ========== NIVEL 2 — Apercibimiento ==========
 
-export async function crearBorradorNivel2({ protagonista, infraccionIdLocal, fechaHecho, descripcionHecho, generadoPor }) {
-  const s = baseSancion({ protagonista, infraccionIdLocal, fechaHecho, descripcionHecho, generadoPor, nivel: 2, nombreNivel: 'Apercibimiento' });
+export async function crearBorradorNivel2({ protagonista, infraccionIdLocal, fechaHecho, fechaDeteccion, descripcionHecho, generadoPor }) {
+  const s = baseSancion({ protagonista, infraccionIdLocal, fechaHecho, fechaDeteccion, descripcionHecho, generadoPor, nivel: 2, nombreNivel: 'Apercibimiento' });
   await guardarNueva(s);
   toast('💾 Borrador de apercibimiento guardado');
   return s;

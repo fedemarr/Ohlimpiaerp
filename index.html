@@ -2661,6 +2661,132 @@
   </div>
 </div>
 
+  <div class="modal-overlay" id="modal-motivo-tipo">
+  <div class="modal" style="max-width:420px;">
+    <div class="modal-header"><h3>❌ Motivo — No facturable</h3><button class="btn-close" onclick="cerrarModal('modal-motivo-tipo')">×</button></div>
+    <div class="modal-body">
+      <div class="form-group"><label>Motivo *</label><select id="motipo-motivo"></select></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="cerrarModal('modal-motivo-tipo')">Cancelar</button>
+      <button class="btn btn-primary" onclick="confirmarMotivoTipo()">Confirmar</button>
+    </div>
+  </div>
+  </div>
+  <div class="modal-overlay" id="modal-cat-alt">
+  <div class="modal" style="max-width:480px;">
+    <div class="modal-header"><h3>🔀 Categoría alternativa propuesta</h3><button class="btn-close" onclick="cerrarModal('modal-cat-alt')">×</button></div>
+    <div class="modal-body" id="modal-cat-alt-body"></div>
+    <div class="modal-footer" id="modal-cat-alt-footer"></div>
+  </div>
+  </div>
+  <div class="modal-overlay" id="modal-nuevo-reten">
+  <div class="modal" style="max-width:460px;">
+    <div class="modal-header"><h3>🔄 Nuevo retén</h3><button class="btn-close" onclick="cerrarModal('modal-nuevo-reten')">×</button></div>
+    <div class="modal-body">
+      <div class="form-grid gap-12">
+        <div class="form-group"><label>Nombre *</label><input type="text" id="nret-nombre" list="dl-nret-nombre" placeholder="Buscar en Personal..."><datalist id="dl-nret-nombre"></datalist></div>
+        <div class="form-grid form-grid-2">
+          <div class="form-group"><label>N° de socio</label><input type="text" id="nret-nro"></div>
+          <div class="form-group"><label>Categoría base</label><select id="nret-cat-base"></select></div>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="cerrarModal('modal-nuevo-reten')">Cancelar</button>
+      <button class="btn btn-primary" onclick="confirmarNuevoReten()">Agregar</button>
+    </div>
+  </div>
+  </div>
+  <div class="modal-overlay" id="modal-nuevo-mant">
+  <div class="modal" style="max-width:460px;">
+    <div class="modal-header"><h3>🔧 Nuevo técnico de mantenimiento</h3><button class="btn-close" onclick="cerrarModal('modal-nuevo-mant')">×</button></div>
+    <div class="modal-body">
+      <div class="form-grid gap-12">
+        <div class="form-group"><label>Nombre *</label><input type="text" id="nmant-nombre" list="dl-nmant-nombre" placeholder="Buscar en Personal..."><datalist id="dl-nmant-nombre"></datalist></div>
+        <div class="form-grid form-grid-2">
+          <div class="form-group"><label>N° de socio</label><input type="text" id="nmant-nro"></div>
+          <div class="form-group"><label>Categoría base</label><select id="nmant-cat-base"></select></div>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="cerrarModal('modal-nuevo-mant')">Cancelar</button>
+      <button class="btn btn-primary" onclick="confirmarNuevoMant()">Agregar</button>
+    </div>
+  </div>
+  </div>
+  <div class="modal-overlay" id="modal-carga-rapida-reten">
+  <div class="modal" style="max-width:480px;">
+    <div class="modal-header"><h3>⚡ Carga rápida — <span id="crr-nombre"></span></h3><button class="btn-close" onclick="cerrarModal('modal-carga-rapida-reten')">×</button></div>
+    <div class="modal-body">
+      <div class="form-grid gap-12">
+        <div class="form-grid form-grid-3">
+          <div class="form-group"><label>Desde</label><input type="date" id="crr-desde"></div>
+          <div class="form-group"><label>Hasta</label><input type="date" id="crr-hasta"></div>
+          <div class="form-group"><label>Horas/día</label><input type="number" id="crr-horas" value="8"></div>
+        </div>
+        <div class="form-group"><label>Días de la semana</label>
+          <div style="display:flex;flex-wrap:wrap;gap:10px;font-size:12px;">
+            <label><input type="checkbox" id="crr-lunes"> Lun</label>
+            <label><input type="checkbox" id="crr-martes"> Mar</label>
+            <label><input type="checkbox" id="crr-miercoles"> Mié</label>
+            <label><input type="checkbox" id="crr-jueves"> Jue</label>
+            <label><input type="checkbox" id="crr-viernes"> Vie</label>
+            <label><input type="checkbox" id="crr-sabados"> Sáb</label>
+            <label><input type="checkbox" id="crr-domingos"> Dom</label>
+            <label><input type="checkbox" id="crr-feriados"> Feriados</label>
+          </div>
+        </div>
+        <div class="form-group"><label>Categoría alternativa</label><select id="crr-cat-alt"></select></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="cerrarModal('modal-carga-rapida-reten')">Cancelar</button>
+      <button class="btn btn-primary" onclick="confirmarCargaRapidaReten()">Cargar</button>
+    </div>
+  </div>
+  </div>
+  <div class="modal-overlay" id="modal-carga-rapida-mant">
+  <div class="modal" style="max-width:480px;">
+    <div class="modal-header"><h3>⚡ Carga rápida — <span id="cmant-nombre"></span></h3><button class="btn-close" onclick="cerrarModal('modal-carga-rapida-mant')">×</button></div>
+    <div class="modal-body">
+      <div class="form-grid gap-12">
+        <div class="form-grid form-grid-3">
+          <div class="form-group"><label>Desde</label><input type="date" id="cmant-desde"></div>
+          <div class="form-group"><label>Hasta</label><input type="date" id="cmant-hasta"></div>
+          <div class="form-group"><label>Horas/día</label><input type="number" id="cmant-horas" value="8"></div>
+        </div>
+        <div class="form-group"><label>Días de la semana</label>
+          <div style="display:flex;flex-wrap:wrap;gap:10px;font-size:12px;">
+            <label><input type="checkbox" id="cmant-lunes"> Lun</label>
+            <label><input type="checkbox" id="cmant-martes"> Mar</label>
+            <label><input type="checkbox" id="cmant-miercoles"> Mié</label>
+            <label><input type="checkbox" id="cmant-jueves"> Jue</label>
+            <label><input type="checkbox" id="cmant-viernes"> Vie</label>
+            <label><input type="checkbox" id="cmant-sabados"> Sáb</label>
+            <label><input type="checkbox" id="cmant-domingos"> Dom</label>
+            <label><input type="checkbox" id="cmant-feriados"> Feriados</label>
+          </div>
+        </div>
+        <div class="form-group"><label>Categoría alternativa</label><select id="cmant-cat-alt"></select></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="cerrarModal('modal-carga-rapida-mant')">Cancelar</button>
+      <button class="btn btn-primary" onclick="confirmarCargaRapidaMant()">Cargar</button>
+    </div>
+  </div>
+  </div>
+  <div class="modal-overlay" id="modal-detalle-grilla-lqs">
+  <div class="modal" style="max-width:900px;">
+    <div class="modal-header"><h3><span id="det-grilla-titulo"></span> <span style="font-weight:400;font-size:13px;color:var(--texto-suave);" id="det-grilla-periodo"></span></h3><button class="btn-close" onclick="cerrarModal('modal-detalle-grilla-lqs')">×</button></div>
+    <div class="modal-body" id="det-grilla-body"></div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="cerrarModal('modal-detalle-grilla-lqs')">Cerrar</button>
+    </div>
+  </div>
+  </div>
   <div class="modal-overlay" id="modal-art42">
   <div class="modal" style="max-width:580px;">
     <div class="modal-header"><h3>🏥 Nuevo caso Artículo 42</h3><button class="btn-close" onclick="cerrarModal('modal-art42')">×</button></div>
@@ -4184,7 +4310,7 @@
 
 <div class="screen" id="screen-mantenimiento">
   <div class="stats-grid">
-    <div class="stat-card azul"><div class="stat-label">Retenes activos</div><div class="stat-valor" id="st-mant-total">0</div><div class="stat-sub">En nómina</div></div>
+    <div class="stat-card azul"><div class="stat-label">Técnicos activos</div><div class="stat-valor" id="st-mant-total">0</div><div class="stat-sub">En nómina</div></div>
     <div class="stat-card verde"><div class="stat-label">Total hs registradas</div><div class="stat-valor" id="st-mant-hs">0</div><div class="stat-sub">Mes seleccionado</div></div>
     <div class="stat-card acento"><div class="stat-label">Cobran mínimo</div><div class="stat-valor" id="st-mant-minimo">0</div><div class="stat-sub">Con menos de 200hs</div></div>
     <div class="stat-card rojo"><div class="stat-label">Rechazos (AI)</div><div class="stat-valor" id="st-mant-rechazos">0</div><div class="stat-sub">Días rechazados en el mes</div></div>
@@ -4217,7 +4343,7 @@
   <!-- TAB RESUMEN -->
   <div id="mant-tab-resumen" class="tab-content" style="padding-top:0;">
     <div class="card" style="margin-top:0;border-radius:0 var(--radio-lg) var(--radio-lg) var(--radio-lg);">
-      <div class="card-header"><h3>📊 Resumen de pago — Retenes</h3></div>
+      <div class="card-header"><h3>📊 Resumen de pago — Mantenimiento</h3></div>
       <div class="tabla-wrap">
         <table style="border-collapse:collapse;font-size:12px;width:100%;">
           <thead id="thead-mant-resumen"></thead>
@@ -4368,7 +4494,7 @@
       <div class="form-grid gap-12">
         <div class="form-group">
           <label>Nombre *</label>
-          <input type="text" id="nadm-nombre" placeholder="Buscar por nombre..." list="dl-nadm-nombre" oninput="filtrarPersonalAdmin()">
+          <input type="text" id="nadm-nombre" placeholder="Buscar por nombre..." list="dl-nadm-nombre">
           <datalist id="dl-nadm-nombre"></datalist>
         </div>
         <div class="form-grid form-grid-2">

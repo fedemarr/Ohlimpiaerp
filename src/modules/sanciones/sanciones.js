@@ -18,6 +18,13 @@ import { calcularAntecedentesDisciplinarios } from './escalada.js';
 import { gerenteResponsable, esGerenteRRHH, esSupervisor, esRRHHoAdmin } from './permisos.js';
 import { abrirRegistrarDescargo } from './descargo.js';
 
+// toISOString() es UTC — entre las 21:00 y medianoche en Argentina
+// precargaba el modal con la fecha de mañana.
+function hoyISOLocal() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
 const CATEGORIAS_INFRACCION = ['Ausencias e Impuntualidad', 'Incumplimiento de Tareas y Normas', 'Conductas y Comportamiento'];
 const NOMBRES_NIVEL = { 0: 'Llamado verbal (informal)', 1: 'Observación', 2: 'Apercibimiento' };
 const ESTADO_BADGE = {
@@ -293,8 +300,8 @@ export function abrirNuevaSancion() {
   $('ns-info-sancionado').innerHTML = '';
   $('ns-categoria').value = CATEGORIAS_INFRACCION[0];
   poblarInfraccionesPorCategoria();
-  $('ns-fecha-hecho').value = new Date().toISOString().slice(0, 10);
-  $('ns-fecha-deteccion').value = new Date().toISOString().slice(0, 10);
+  $('ns-fecha-hecho').value = hoyISOLocal();
+  $('ns-fecha-deteccion').value = hoyISOLocal();
   $('ns-descripcion').value = '';
   $('ns-adjuntos').value = '';
   $('ns-nivel').value = '1';
@@ -322,6 +329,8 @@ export async function confirmarNuevaSancion() {
   if (!infraccionIdLocal) { toast('⚠️ Elegí la infracción'); return; }
   const fechaHecho = $('ns-fecha-hecho').value;
   if (!fechaHecho) { toast('⚠️ Ingresá la fecha del hecho'); return; }
+  const fechaDeteccion = $('ns-fecha-deteccion').value;
+  if (!fechaDeteccion) { toast('⚠️ Ingresá la fecha de detección'); return; }
   const descripcionHecho = ($('ns-descripcion').value || '').trim();
   if (!descripcionHecho) { toast('⚠️ Ingresá la descripción del hecho'); return; }
   const nivel = parseInt($('ns-nivel').value, 10);
@@ -340,7 +349,7 @@ export async function confirmarNuevaSancion() {
 
   await subirEvidenciaSiCorresponde(legajo);
 
-  const payload = { protagonista: legajo, infraccionIdLocal, fechaHecho, descripcionHecho, generadoPor: currentUser?.nombre || '' };
+  const payload = { protagonista: legajo, infraccionIdLocal, fechaHecho, fechaDeteccion, descripcionHecho, generadoPor: currentUser?.nombre || '' };
   if (nivel === 0) await crearSancionNivel0(payload);
   else if (nivel === 1) await crearYEjecutarNivel1(payload);
   else await crearBorradorNivel2(payload);
@@ -395,6 +404,7 @@ export function abrirDetalleSancion(idLocal) {
     <div class="info-item"><div class="key">Nivel</div><div class="val">${s.nivel} - ${s.nombreNivel}</div></div>
     <div class="info-item"><div class="key">Infracción</div><div class="val">${s.nombreInfraccion} (${s.categoriaInfraccion}, ${s.gravedad})</div></div>
     <div class="info-item"><div class="key">Hecho</div><div class="val">${s.fechaHecho} — ${s.descripcionHecho}</div></div>
+    <div class="info-item"><div class="key">Detección</div><div class="val">${s.fechaDeteccion || '—'}</div></div>
     <div class="info-item"><div class="key">Estado</div><div class="val"><span class="badge ${ESTADO_BADGE[s.estado] || 'badge-gris'}">${s.estado}</span></div></div>
     ${s.motivoRechazo ? `<div class="info-item"><div class="key">Motivo</div><div class="val">${s.motivoRechazo}</div></div>` : ''}
     ${descargo ? `<div class="info-item"><div class="key">Descargo</div><div class="val">${descargo.descripcion} (${descargo.medio})</div></div>` : ''}

@@ -3883,22 +3883,22 @@ function alertarAccionesVencidasModulo(modulo){
 
 // ========== MÓDULO DE FERIADOS ==========
 DB.feriados = [
-  {fecha:'2026-01-01',nombre:'Año Nuevo',tipo:'Nacional inamovible',alt:''},
-  {fecha:'2026-02-16',nombre:'Carnaval',tipo:'Nacional inamovible',alt:''},
-  {fecha:'2026-02-17',nombre:'Carnaval',tipo:'Nacional inamovible',alt:''},
-  {fecha:'2026-03-24',nombre:'Día Nacional de la Memoria',tipo:'Nacional inamovible',alt:''},
-  {fecha:'2026-04-02',nombre:'Día del Veterano',tipo:'Nacional inamovible',alt:''},
-  {fecha:'2026-04-03',nombre:'Viernes Santo',tipo:'Nacional inamovible',alt:''},
-  {fecha:'2026-05-01',nombre:'Día del Trabajador',tipo:'Nacional inamovible',alt:''},
-  {fecha:'2026-05-25',nombre:'Revolución de Mayo',tipo:'Nacional inamovible',alt:''},
-  {fecha:'2026-06-15',nombre:'Paso a la Inmortalidad del Gral. Güemes',tipo:'Nacional inamovible',alt:''},
-  {fecha:'2026-06-20',nombre:'Paso a la Inmortalidad del Gral. Belgrano',tipo:'Nacional inamovible',alt:''},
-  {fecha:'2026-07-09',nombre:'Día de la Independencia',tipo:'Nacional inamovible',alt:''},
-  {fecha:'2026-08-17',nombre:'Paso a la Inmortalidad del Gral. San Martín',tipo:'Nacional trasladable',alt:''},
-  {fecha:'2026-10-12',nombre:'Día del Respeto a la Diversidad Cultural',tipo:'Nacional trasladable',alt:''},
-  {fecha:'2026-11-20',nombre:'Día de la Soberanía Nacional',tipo:'Nacional trasladable',alt:''},
-  {fecha:'2026-12-08',nombre:'Inmaculada Concepción de María',tipo:'Nacional inamovible',alt:''},
-  {fecha:'2026-12-25',nombre:'Navidad',tipo:'Nacional inamovible',alt:''},
+  {id:1,fecha:'2026-01-01',nombre:'Año Nuevo',tipo:'Nacional inamovible',alt:''},
+  {id:2,fecha:'2026-02-16',nombre:'Carnaval',tipo:'Nacional inamovible',alt:''},
+  {id:3,fecha:'2026-02-17',nombre:'Carnaval',tipo:'Nacional inamovible',alt:''},
+  {id:4,fecha:'2026-03-24',nombre:'Día Nacional de la Memoria',tipo:'Nacional inamovible',alt:''},
+  {id:5,fecha:'2026-04-02',nombre:'Día del Veterano',tipo:'Nacional inamovible',alt:''},
+  {id:6,fecha:'2026-04-03',nombre:'Viernes Santo',tipo:'Nacional inamovible',alt:''},
+  {id:7,fecha:'2026-05-01',nombre:'Día del Trabajador',tipo:'Nacional inamovible',alt:''},
+  {id:8,fecha:'2026-05-25',nombre:'Revolución de Mayo',tipo:'Nacional inamovible',alt:''},
+  {id:9,fecha:'2026-06-15',nombre:'Paso a la Inmortalidad del Gral. Güemes',tipo:'Nacional inamovible',alt:''},
+  {id:10,fecha:'2026-06-20',nombre:'Paso a la Inmortalidad del Gral. Belgrano',tipo:'Nacional inamovible',alt:''},
+  {id:11,fecha:'2026-07-09',nombre:'Día de la Independencia',tipo:'Nacional inamovible',alt:''},
+  {id:12,fecha:'2026-08-17',nombre:'Paso a la Inmortalidad del Gral. San Martín',tipo:'Nacional trasladable',alt:''},
+  {id:13,fecha:'2026-10-12',nombre:'Día del Respeto a la Diversidad Cultural',tipo:'Nacional trasladable',alt:''},
+  {id:14,fecha:'2026-11-20',nombre:'Día de la Soberanía Nacional',tipo:'Nacional trasladable',alt:''},
+  {id:15,fecha:'2026-12-08',nombre:'Inmaculada Concepción de María',tipo:'Nacional inamovible',alt:''},
+  {id:16,fecha:'2026-12-25',nombre:'Navidad',tipo:'Nacional inamovible',alt:''},
 ];
 
 function renderFeriados(){
@@ -3907,16 +3907,15 @@ function renderFeriados(){
   const dias=['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'];
   const tipoColor={'Nacional inamovible':'badge-rojo','Nacional trasladable':'badge-acento','Puente':'badge-gris','Especial empresa':'badge-azul'};
   const tbody=$('tbody-feriados'); if(!tbody) return;
-  tbody.innerHTML=feriados.sort((a,b)=>a.fecha.localeCompare(b.fecha)).map((f,i)=>{
+  tbody.innerHTML=feriados.sort((a,b)=>a.fecha.localeCompare(b.fecha)).map((f)=>{
     const d=new Date(f.fecha+'T12:00:00');
-    const fIdx=DB.feriados.indexOf(f);
     return `<tr>
       <td style="font-weight:600;font-family:'DM Mono',monospace;">${f.fecha.split('-').reverse().join('/')}</td>
       <td style="font-size:12px;">${dias[d.getDay()]}</td>
       <td style="font-weight:500;">${f.nombre}</td>
       <td><span class="badge ${tipoColor[f.tipo]||'badge-gris'}" style="font-size:10px;">${f.tipo}</span></td>
       <td style="font-size:12px;">${f.alt?f.alt.split('-').reverse().join('/'):'—'}</td>
-      <td><button class="btn btn-danger btn-xs" onclick="DB.feriados.splice(${fIdx},1);renderFeriados()">Eliminar</button></td>
+      <td><button class="btn btn-danger btn-xs" onclick="eliminarFeriado(${f.id})">Eliminar</button></td>
     </tr>`;
   }).join('')||`<tr><td colspan="6"><div class="empty-state"><div class="icon">📅</div><p>Sin feriados para ${anio}</p></div></td></tr>`;
 }
@@ -3925,8 +3924,21 @@ function abrirModalFeriado(){['fer-fecha','fer-nombre','fer-alt'].forEach(id=>{c
 function guardarFeriado(){
   const fecha=$('fer-fecha')?.value;const nombre=$('fer-nombre')?.value.trim();
   if(!fecha||!nombre){toast('Completá fecha y nombre');return;}
-  DB.feriados.push({fecha,nombre,tipo:$('fer-tipo')?.value||'Nacional inamovible',alt:$('fer-alt')?.value||''});
-  cerrarModal('modal-feriado');supaSync('feriados', DB.feriados[DB.feriados.length-1]); renderFeriados();toast(`✓ Feriado "${nombre}" agregado`);
+  const nuevo={id:Date.now(),fecha,nombre,tipo:$('fer-tipo')?.value||'Nacional inamovible',alt:$('fer-alt')?.value||''};
+  DB.feriados.push(nuevo);
+  cerrarModal('modal-feriado');supaSync('feriados', nuevo); renderFeriados();toast(`✓ Feriado "${nombre}" agregado`);
+}
+// El onclick de "Eliminar" era DB.feriados.splice(...) inline: DB es un
+// binding de módulo, no existe en window, así que cada click tiraba
+// ReferenceError en silencio y no borraba nada (ni local ni en Supabase).
+// eliminarFeriado() además ahora sí persiste la baja con supaDel().
+function eliminarFeriado(id){
+  const f=DB.feriados.find(x=>x.id===id);if(!f)return;
+  if(!confirm(`¿Eliminar el feriado "${f.nombre}" (${f.fecha.split('-').reverse().join('/')})?`))return;
+  DB.feriados=DB.feriados.filter(x=>x.id!==id);
+  supaDel('feriados', idLocalTrunc(id));
+  renderFeriados();
+  toast(`Feriado "${f.nombre}" eliminado`);
 }
 
 // ========== MÓDULO LIQUIDACIÓN DE HORAS ==========
@@ -5108,6 +5120,8 @@ function renderLiqSuplemento(){
       const dow=new Date(dia.iso+'T12:00:00').getDay();
       const bg=dia.esFeriado?'background:#ffe4e6;color:#111;font-weight:800;':dia.esFinde?'background:#ffff00;color:#111;font-weight:700;':'';
       return`<th style="padding:4px 2px;border:1px solid #6b7280;text-align:center;min-width:30px;font-size:10px;${bg}">
+        <div style="font-weight:800;">${dN[dow]}</div>
+        <div>${dia.d}</div>
       </th>`;
     }).join('')}
     <th style="padding:8px;border:1px solid #6b7280;text-align:right;min-width:70px;">Hs reg.</th>
@@ -5324,6 +5338,8 @@ function renderLiqAdmin(){
       const dow=new Date(dia.iso+'T12:00:00').getDay();
       const bg=dia.esFeriado?'background:#ffe4e6;color:#111;font-weight:800;':dia.esFinde?'background:#ffff00;color:#111;font-weight:700;':'';
       return`<th style="padding:4px 2px;border:1px solid #6b7280;text-align:center;min-width:30px;font-size:10px;${bg}">
+        <div style="font-weight:800;">${dN[dow]}</div>
+        <div>${dia.d}</div>
       </th>`;
     }).join('')}
     <th style="padding:8px;border:1px solid #6b7280;text-align:right;min-width:70px;">Hs reg.</th>
@@ -5731,6 +5747,7 @@ function renderLiquidaciones(){
   // Poblar selector de mes
   const sel = $('lqs-mes-sel');
   // Mostrar badge de solo lectura para supervisores
+  const badge = $('lqs-vista-badge');
   if(badge) badge.style.display = esSupervisor ? 'inline' : 'none';
 
 
@@ -6925,6 +6942,8 @@ function renderMantenimiento(){
       const dow=new Date(dia.iso+'T12:00:00').getDay();
       const bg=dia.esFeriado?'background:#ffe4e6;color:#111;font-weight:800;':dia.esFinde?'background:#ffff00;color:#111;font-weight:700;':'';
       return`<th style="padding:4px 2px;border:1px solid #6b7280;text-align:center;min-width:32px;font-size:10px;${bg}">
+        <div style="font-weight:800;">${dN[dow]}</div>
+        <div>${dia.d}</div>
       </th>`;
     }).join('')}
     <th style="padding:8px;border:1px solid #6b7280;text-align:right;min-width:70px;">Hs reales</th>
@@ -7392,8 +7411,6 @@ function renderRetenes(){
 
     const celdas = dias.map(dia=>{
       // Horas del servicio (solo lectura, fondo verde claro)
-      const hsvc = horasDeServicio[r.nombre]?.horas?.[d.iso];
-      // Necesito usar dia.iso no d.iso
       const hsvcVal = horasDeServicio[r.nombre]?.horas?.[dia.iso];
       const esRechSvc = String(hsvcVal||'').toUpperCase()==='AI';
       const hSvc = esRechSvc ? 0 : parseFloat(hsvcVal||0);
@@ -8495,6 +8512,7 @@ function renderGrillasLiq(){
                   :h>0?'color:var(--azul);font-weight:600;'
                   :'color:var(--texto-muy-suave);';
                 return`<td class="liq-celda-dia ${dia.esFeriado?'feriado':dia.esFinde?'finde':!esTrab?'no-laboral':''}" style="border:1px solid var(--borde);${bgCell}">
+                  <input type="text" value="${dispVal}"
                     placeholder="${esTrab&&dentroRango&&!h?(params.horasPorDia||8):''}"
                     title="Ingresá horas (ej: 8), F=Franco, AJ=Aus.Justificada, AI=Aus.Injustificada"
                     style="width:30px;${colorVal}border:none;background:transparent;text-align:center;font-size:11px;outline:none;padding:1px 0;text-transform:uppercase;"
@@ -8995,7 +9013,7 @@ function guardarArt42(){
   const asoc=$('a42-asoc')?.value.trim();const dias=parseInt($('a42-dias')?.value)||0;
   if(!asoc||dias<4){toast('Ingresá asociado y al menos 4 días para Art. 42');return;}
   const leg=(DB.legajos||[]).find(l=>asoc.includes(String(l.nro)));
-  const casoA42={id:Date.now(),asociado:asoc.split('(')[0].trim(),nroSocio:leg?.nro||'—',servicio:leg?.servicio||'—',supervisor:leg?.supervisor||'—',periodo:$('a42-periodo')?.value||'',fechaInicio:$('a42-inicio')?.value?new Date($('a42-inicio').value).toLocaleDateString('es-AR'):'',dias,horasPorDia:8,categoria:$('a42-categoria')?.value||'Operario/a limpieza',obs:$('a42-obs')?.value||'',estado:'Abierto'};
+  const casoA42={id:Date.now(),asociado:asoc.split('(')[0].trim(),nroSocio:leg?.nro||'—',servicio:leg?.servicio||'—',supervisor:leg?.supervisor||'—',periodo:$('a42-periodo')?.value||'',fechaInicio:$('a42-inicio')?.value?new Date($('a42-inicio').value+'T00:00:00').toLocaleDateString('es-AR'):'',dias,horasPorDia:8,categoria:$('a42-categoria')?.value||'Operario/a limpieza',obs:$('a42-obs')?.value||'',estado:'Abierto'};
   DB.art42.push(casoA42);
   supaSync('art42', casoA42);
   cerrarModal('modal-art42');renderArt42();toast(`✓ Caso Art. 42: ${asoc} — ${dias} días`);
@@ -9995,6 +10013,7 @@ window.eliminarCfgComercial = eliminarCfgComercial;
 window.eliminarConceptoLiq = eliminarConceptoLiq;
 window.eliminarDescuentoLiq = eliminarDescuentoLiq;
 window.eliminarEtapaCRM = eliminarEtapaCRM;
+window.eliminarFeriado = eliminarFeriado;
 window.eliminarFuncionUsuario = eliminarFuncionUsuario;
 window.eliminarItem = eliminarItem;
 window.eliminarMesLiq = eliminarMesLiq;
