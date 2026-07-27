@@ -12,6 +12,17 @@ export const DB = {
   zonas: ['CABA', 'Buenos Aires'],
   medios: ['WhatsApp', 'Formulario web', 'Referido', 'Instagram', 'Búsqueda activa'],
   categorias: ['Operario A', 'Operario B', 'Referente', 'Encargado A', 'Encargado B', 'Encargado C', 'Retén', 'Supervisor', 'Auxiliar administrativo', 'Coordinador de área'],
+  // 2.1.1 (Delta Comercial v1.2) — antes hardcodeados en <option> de
+  // index.html (cli-tipo/cf-cli-tipo/cli-arca), duplicados y sin fuente
+  // única. Se mueven acá con los mismos valores para no romper clientes
+  // ya cargados, y ahora son editables desde Configuración → Comercial
+  // (mismo patrón que tiposServicio, condicionesIVA, etc. — que, igual
+  // que estos dos, no tienen tabla propia en Supabase: lo agregado en
+  // Configuración vive solo en memoria del navegador y se pierde al
+  // recargar la página. Es una limitación preexistente de todo ese
+  // sistema de catálogos, no algo nuevo de este cambio).
+  tiposCliente: ['Cadena supermercados', 'Hospital', 'Corporativo', 'Gobierno', 'Educación', 'Otro'],
+  categoriasArca: ['Gran contribuyente', 'MiPyME', 'Pequeño contribuyente', 'Otro'],
   localidades: ['Floresta', 'Villa del Parque', 'Barracas', 'Retiro', 'Villa Soldati', 'Palermo', 'Belgrano', 'Caballito', 'San Telmo', 'Montserrat', 'San Justo', 'Isidro Casanova', 'Laferrere', 'Quilmes', 'Avellaneda', 'Lanús', 'Lomas de Zamora', 'Berazategui', 'San Martín', 'Caseros', 'Tres de Febrero', 'José C. Paz', 'Tigre', 'San Fernando', 'Pilar', 'Campana', 'Grand Bourg'],
   movimientos: ['Nuevo ingreso', 'Reubicación interna', 'Reingreso', 'Cambio de servicio', 'Cambio de categoría'],
   estadosLegales: ['Carta documento recibida', 'Carta documento contestada', 'Conciliación SECLO', 'Conciliación interna', 'Estado judicial', 'Cerrado', 'Pre-legal'],

@@ -52,6 +52,11 @@ export function poblarSelects(){
   fillCol('cf-cand-medio',DB.medios);
   fillCol('cf-cand-rrhh',nicksRRHH);
   poblarSelectsCapacitaciones();
+  // 2.1.1 (Delta Comercial v1.2): antes esto solo se poblaba como efecto
+  // secundario de abrir un modal de Cliente/Objetivo — los filtros de la
+  // pantalla (ej. cf-cli-tipo) quedaban vacíos si el usuario entraba
+  // directo a Clientes después de loguearse sin haber abierto un modal.
+  poblarSelectsComercial();
 }
 
 // ========== NAVEGACIÓN ==========
@@ -1822,40 +1827,87 @@ function renderRespObjetivoTemp(){
 }
 
 // ========== HANDOFF COMERCIAL → OPERACIONES (Cambios 5, 11, 12, 14) ==========
+// 2.2.5 (Delta Comercial v1.2): el supervisor a asignar/cambiar se elige de
+// un dropdown poblado desde Legajos (funcion==='Supervisor', estado
+// Activo), no de un prompt() con una lista de nombres hardcodeada en
+// state.js (DB.supervisores) que podía quedar desactualizada.
+function legajosSupervisoresActivos(){
+  return (DB.legajos||[]).filter(l=>l.funcion==='Supervisor'&&l.estado==='Activo');
+}
+let _supObjetivoIdLocal=null;
+function ensureModalSupervisorObjetivo(){
+  if($('modal-sup-objetivo')) return;
+  const m=document.createElement('div');
+  m.className='modal-overlay';
+  m.id='modal-sup-objetivo';
+  m.innerHTML=`
+    <div class="modal" style="max-width:420px;">
+      <div class="modal-header"><h3 id="sup-obj-titulo">Asignar supervisor</h3><button class="btn-close" onclick="cerrarModal('modal-sup-objetivo')">×</button></div>
+      <div class="modal-body">
+        <div class="form-group"><label>Supervisor</label>
+          <select id="sup-obj-select" style="width:100%;padding:8px;border:1px solid var(--borde-fuerte);border-radius:6px;font-family:inherit;font-size:13px;"></select>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="cerrarModal('modal-sup-objetivo')">Cancelar</button>
+        <button class="btn btn-primary" onclick="confirmarSupervisorObjetivo()">Confirmar</button>
+      </div>
+    </div>`;
+  document.body.appendChild(m);
+}
+function _poblarSelectSupervisorObjetivo(actual){
+  const sel=$('sup-obj-select');if(!sel)return;
+  const sups=legajosSupervisoresActivos();
+  sel.innerHTML=sups.length
+    ?'<option value="">— Seleccionar —</option>'+sups.map(l=>`<option value="${l.nombre}"${l.nombre===actual?' selected':''}>${l.nombre}</option>`).join('')
+    :'<option value="">Sin legajos con función Supervisor activos</option>';
+}
 function abrirAsignarSupervisor(idLocal){
   const o=getObjetivoByIdLocal(idLocal);if(!o)return;
   if(!esGerenteOperaciones()){toast('Solo el Gerente de Operaciones puede asignar supervisor');return;}
-  const supervisor=prompt('Supervisor a asignar a "'+o.nombre+'":\n\n'+DB.supervisores.join(', '));
-  if(supervisor===null) return;
-  if(!supervisor.trim()){toast('Elegí un supervisor');return;}
-  const estadoDesde=o.estado;
-  o.supervisorAsignado=supervisor.trim();o.supervisor=o.supervisorAsignado;o.supervisorAsignadoPor=currentUser?.nombre||GERENTE_OPERACIONES;
-  o.fechaAsignacionSupervisor=hoyStr();o.estado='Operativo';
-  supaSync('objetivos', objetivoParaGuardar(o));
-  const hist={id:Date.now(),objetivoIdLocal:idLocalTrunc(o.id),supervisorNombre:o.supervisorAsignado,vigenciaDesde:hoyStr(),vigenciaHasta:null,asignadoPor:currentUser?.nombre||GERENTE_OPERACIONES,motivoCambio:'Asignación inicial'};
-  DB.objetivoSupervisoresHistorial.push(hist);supaSync('objetivoSupervisoresHistorial', hist);
-  registrarEventoObjetivo(o,estadoDesde,'Operativo','Supervisor asignado: '+o.supervisorAsignado);
-  crearNotificacion({tipo:'objetivo_supervisor_asignado',entidadTipo:'objetivo',entidadIdLocal:idLocalTrunc(o.id),destinatarioNombre:o.cargadoPor,mensaje:`Se asignó supervisor (${o.supervisorAsignado}) al objetivo ${o.nombre}.`});
-  crearNotificacion({tipo:'objetivo_supervisor_asignado',entidadTipo:'objetivo',entidadIdLocal:idLocalTrunc(o.id),destinatarioNombre:o.supervisorAsignado,mensaje:`Te asignaron el objetivo ${o.nombre} (${o.codigo}).`});
-  filtrarObjetivos();toast('✓ Supervisor asignado — objetivo Operativo');
+  ensureModalSupervisorObjetivo();
+  _supObjetivoIdLocal=idLocal;
+  $('sup-obj-titulo').textContent=`Asignar supervisor a "${o.nombre}"`;
+  _poblarSelectSupervisorObjetivo(null);
+  abrirModal('modal-sup-objetivo');
 }
 function abrirCambiarSupervisor(idLocal){
   const o=getObjetivoByIdLocal(idLocal);if(!o)return;
   if(!esGerenteOperaciones()){toast('Solo el Gerente de Operaciones puede cambiar el supervisor');return;}
-  const nuevo=prompt('Nuevo supervisor para "'+o.nombre+'" (actual: '+(o.supervisorAsignado||'—')+'):\n\n'+DB.supervisores.join(', '));
-  if(nuevo===null) return;
-  if(!nuevo.trim()){toast('Elegí un supervisor');return;}
+  ensureModalSupervisorObjetivo();
+  _supObjetivoIdLocal=idLocal;
+  $('sup-obj-titulo').textContent=`Cambiar supervisor de "${o.nombre}" (actual: ${o.supervisorAsignado||'—'})`;
+  _poblarSelectSupervisorObjetivo(o.supervisorAsignado);
+  abrirModal('modal-sup-objetivo');
+}
+function confirmarSupervisorObjetivo(){
+  const o=getObjetivoByIdLocal(_supObjetivoIdLocal);if(!o)return;
+  const elegido=$('sup-obj-select')?.value;
+  if(!elegido){toast('Elegí un supervisor');return;}
+  const esCambio=!!o.supervisorAsignado;
   const anterior=o.supervisorAsignado;
-  const abierto=(DB.objetivoSupervisoresHistorial||[]).find(h=>h.objetivoIdLocal===idLocalTrunc(o.id)&&!h.vigenciaHasta&&!h.anulado);
-  if(abierto){abierto.vigenciaHasta=hoyStr();supaSync('objetivoSupervisoresHistorial', abierto);}
-  const hist={id:Date.now(),objetivoIdLocal:idLocalTrunc(o.id),supervisorNombre:nuevo.trim(),vigenciaDesde:hoyStr(),vigenciaHasta:null,asignadoPor:currentUser?.nombre||GERENTE_OPERACIONES,motivoCambio:'Cambio de supervisor'};
-  DB.objetivoSupervisoresHistorial.push(hist);supaSync('objetivoSupervisoresHistorial', hist);
-  o.supervisorAsignado=nuevo.trim();o.supervisor=o.supervisorAsignado;o.supervisorAsignadoPor=currentUser?.nombre||GERENTE_OPERACIONES;o.fechaAsignacionSupervisor=hoyStr();
+  if(esCambio){
+    const abierto=(DB.objetivoSupervisoresHistorial||[]).find(h=>h.objetivoIdLocal===idLocalTrunc(o.id)&&!h.vigenciaHasta&&!h.anulado);
+    if(abierto){abierto.vigenciaHasta=hoyStr();supaSync('objetivoSupervisoresHistorial', abierto);}
+  }
+  const estadoDesde=o.estado;
+  o.supervisorAsignado=elegido;o.supervisor=o.supervisorAsignado;o.supervisorAsignadoPor=currentUser?.nombre||GERENTE_OPERACIONES;
+  o.fechaAsignacionSupervisor=hoyStr();
+  if(!esCambio) o.estado='Operativo';
   supaSync('objetivos', objetivoParaGuardar(o));
-  crearNotificacion({tipo:'objetivo_supervisor_cambiado',entidadTipo:'objetivo',entidadIdLocal:idLocalTrunc(o.id),destinatarioNombre:anterior,mensaje:`Dejaste de ser supervisor del objetivo ${o.nombre}.`});
-  crearNotificacion({tipo:'objetivo_supervisor_cambiado',entidadTipo:'objetivo',entidadIdLocal:idLocalTrunc(o.id),destinatarioNombre:o.supervisorAsignado,mensaje:`Ahora sos supervisor del objetivo ${o.nombre} (${o.codigo}).`});
-  crearNotificacion({tipo:'objetivo_supervisor_cambiado',entidadTipo:'objetivo',entidadIdLocal:idLocalTrunc(o.id),destinatarioNombre:o.cargadoPor,mensaje:`Cambio de supervisor en ${o.nombre}: ${anterior} → ${o.supervisorAsignado}.`});
-  filtrarObjetivos();toast('✓ Supervisor actualizado');
+  const hist={id:Date.now(),objetivoIdLocal:idLocalTrunc(o.id),supervisorNombre:elegido,vigenciaDesde:hoyStr(),vigenciaHasta:null,asignadoPor:currentUser?.nombre||GERENTE_OPERACIONES,motivoCambio:esCambio?'Cambio de supervisor':'Asignación inicial'};
+  DB.objetivoSupervisoresHistorial.push(hist);supaSync('objetivoSupervisoresHistorial', hist);
+  if(esCambio){
+    crearNotificacion({tipo:'objetivo_supervisor_cambiado',entidadTipo:'objetivo',entidadIdLocal:idLocalTrunc(o.id),destinatarioNombre:anterior,mensaje:`Dejaste de ser supervisor del objetivo ${o.nombre}.`});
+    crearNotificacion({tipo:'objetivo_supervisor_cambiado',entidadTipo:'objetivo',entidadIdLocal:idLocalTrunc(o.id),destinatarioNombre:o.supervisorAsignado,mensaje:`Ahora sos supervisor del objetivo ${o.nombre} (${o.codigo}).`});
+    crearNotificacion({tipo:'objetivo_supervisor_cambiado',entidadTipo:'objetivo',entidadIdLocal:idLocalTrunc(o.id),destinatarioNombre:o.cargadoPor,mensaje:`Cambio de supervisor en ${o.nombre}: ${anterior} → ${o.supervisorAsignado}.`});
+  } else {
+    registrarEventoObjetivo(o,estadoDesde,'Operativo','Supervisor asignado: '+o.supervisorAsignado);
+    crearNotificacion({tipo:'objetivo_supervisor_asignado',entidadTipo:'objetivo',entidadIdLocal:idLocalTrunc(o.id),destinatarioNombre:o.cargadoPor,mensaje:`Se asignó supervisor (${o.supervisorAsignado}) al objetivo ${o.nombre}.`});
+    crearNotificacion({tipo:'objetivo_supervisor_asignado',entidadTipo:'objetivo',entidadIdLocal:idLocalTrunc(o.id),destinatarioNombre:o.supervisorAsignado,mensaje:`Te asignaron el objetivo ${o.nombre} (${o.codigo}).`});
+  }
+  cerrarModal('modal-sup-objetivo');
+  filtrarObjetivos();toast(esCambio?'✓ Supervisor actualizado':'✓ Supervisor asignado — objetivo Operativo');
 }
 function abrirBajaObjetivo(idLocal){
   const o=getObjetivoByIdLocal(idLocal);if(!o)return;
@@ -2274,6 +2326,8 @@ function eliminarEtapaCRM(idx){
 }
 function renderConfigComercial(){
   renderCfgComercialLista('tiposServicio','lista-tipos-servicio');
+  renderCfgComercialLista('tiposCliente','lista-tipos-cliente');
+  renderCfgComercialLista('categoriasArca','lista-categorias-arca');
   renderCfgComercialLista('condicionesIVA','lista-cond-iva');
   renderCfgComercialLista('condicionesPago','lista-cond-pago');
   renderCfgComercialLista('formasPago','lista-formas-pago');
@@ -2327,6 +2381,9 @@ function poblarSelectsComercial(){
   const fSId=(id,items)=>{const el=$(id);if(!el)return;const ph=el.options[0]?.outerHTML||'';el.innerHTML=ph+items.map(i=>`<option value="${i.id}">${i.nombre}</option>`).join('');};
 
   // Clientes y objetivos
+  fS('cli-tipo',DB.tiposCliente);
+  fS('cf-cli-tipo',DB.tiposCliente);
+  fS('cli-arca',DB.categoriasArca);
   fSId('obj-cliente',DB.clientes);
   fSId('rec-cliente',DB.clientes);
   fS('cf-obj-cliente',DB.clientes.map(c=>c.nombre));
@@ -2349,7 +2406,11 @@ function poblarSelectsComercial(){
   // Reclamos
   fS('rec-tipo',DB.tiposReclamo);
   fS('cf-rec-tipo',DB.tiposReclamo);
-  fS('rec-responsable',[...DB.supervisores,...(DB.usuarios||[]).map(u=>u.nombre)]);
+  // 2.5.2 (Delta Comercial v1.2): igual que el supervisor de objetivo
+  // (2.2.5), el responsable se elige entre legajos con función Supervisor
+  // activos, no una lista hardcodeada (DB.supervisores) — se suman los
+  // usuarios del sistema porque también pueden quedar como responsables.
+  fS('rec-responsable',[...legajosSupervisoresActivos().map(l=>l.nombre),...(DB.usuarios||[]).map(u=>u.nombre)]);
 
   // CRM
   fS('lead-etapa',DB.etapasCRM);
@@ -9725,6 +9786,7 @@ window.confirmarNuevoMant = confirmarNuevoMant;
 window.confirmarNuevoReten = confirmarNuevoReten;
 window.confirmarNuevoSuplemento = confirmarNuevoSuplemento;
 window.confirmarSolicitudAsociado = confirmarSolicitudAsociado;
+window.confirmarSupervisorObjetivo = confirmarSupervisorObjetivo;
 window.contactarAsociadosIA = contactarAsociadosIA;
 window.crearGrilla = crearGrilla;
 window.crearGrillaDesdeObj = crearGrillaDesdeObj;

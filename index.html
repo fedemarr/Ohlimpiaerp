@@ -883,6 +883,22 @@
       </div>
 
       <div class="card">
+        <div class="card-header"><h3>🏢 Tipos de cliente</h3></div>
+        <div class="card-body">
+          <div class="config-list" id="lista-tipos-cliente"></div>
+          <div class="config-add"><input type="text" id="nuevo-tipo-cliente" placeholder="Ej: Cadena supermercados..."><button class="btn btn-primary btn-sm" onclick="agregarCfgComercial('tiposCliente','nuevo-tipo-cliente','lista-tipos-cliente')">Agregar</button></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header"><h3>🧾 Categoría ARCA</h3></div>
+        <div class="card-body">
+          <div class="config-list" id="lista-categorias-arca"></div>
+          <div class="config-add"><input type="text" id="nueva-categoria-arca" placeholder="Ej: Responsable Inscripto..."><button class="btn btn-primary btn-sm" onclick="agregarCfgComercial('categoriasArca','nueva-categoria-arca','lista-categorias-arca')">Agregar</button></div>
+        </div>
+      </div>
+
+      <div class="card">
         <div class="card-header"><h3>💰 Condiciones ante el IVA</h3></div>
         <div class="card-body">
           <div class="config-list" id="lista-cond-iva"></div>
@@ -4959,7 +4975,7 @@
           </div>
           <div class="form-grid form-grid-3">
             <div class="form-group"><label>Tipo de cliente</label>
-              <select id="cli-tipo"><option>Cadena supermercados</option><option>Hospital</option><option>Corporativo</option><option>Gobierno</option><option>Educación</option><option>Otro</option></select>
+              <select id="cli-tipo"><option value="">— Seleccionar —</option></select>
             </div>
             <div class="form-group"><label>Código Tango *</label><input type="text" id="cli-codigo-tango" placeholder="Ej: CLI-0042" onblur="this.value=this.value.toUpperCase()"></div>
             <div class="form-group"><label>Estado</label><select id="cli-estado"><option>Activo</option><option>Inactivo</option><option>Prospecto</option></select></div>
@@ -4980,7 +4996,7 @@
               <select id="cli-iva"></select>
             </div>
             <div class="form-group"><label>Categoría ARCA</label>
-              <select id="cli-arca"><option>Gran contribuyente</option><option>MiPyME</option><option>Pequeño contribuyente</option><option>Otro</option></select>
+              <select id="cli-arca"><option value="">— Seleccionar —</option></select>
             </div>
           </div>
           <div class="form-grid form-grid-2">
