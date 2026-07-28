@@ -70,7 +70,23 @@ export const _SM = {
   configuracionAdelantosPrestamos: 'configuracion_adelantos_prestamos',
   topesAdelantosVersiones: 'topes_adelantos_versiones',
   paritarias: 'paritarias',
-  retenes: 'retenes',
+  // v046 — 'retenes' (nombre 'retenes' a secas) ya existe en producción
+  // pero nunca la usó ningún código de esta app (creada a mano, sin
+  // script en el repo). Se apunta a una tabla propia para no arriesgar
+  // un schema desconocido, mismo criterio que cat_alt_pendientes_liq.
+  retenes: 'retenes_liq',
+  // OJO: DB.retenHoras/DB.mantHoras ya son objetos anidados en memoria
+  // ({mes: {personaId: {fecha: {...}}}}) — usar esa misma clave acá haría
+  // que supaInit() los pise con el array plano de filas y rompa todo el
+  // render. Se usan claves _Rows separadas; reconciliarPeriodosOperaciones()
+  // (legacy.js) reconstruye la forma anidada a partir de esos arrays.
+  retenHorasRows: 'retenes_liq_horas',
+  mantPersonal: 'mant_personal',
+  mantHorasRows: 'mant_horas',
+  liqAdminPersonal: 'liq_admin_personal',
+  liqAdminPeriodos: 'liq_admin_periodos',
+  liqSuplemento: 'liq_suplemento_personal',
+  liqSuplementoPeriodos: 'liq_suplemento_periodos',
   sugerencias: 'sugerencias',
   personalRrhh: 'personal_rrhh',
   adjuntos: 'adjuntos',
@@ -332,6 +348,9 @@ export function _toSnake(obj) {
     fechaResolucion: 'fecha_resolucion', nroSocio: 'nro_socio', horasPorDia: 'horas_por_dia',
     catActual: 'cat_actual', catPropuesta: 'cat_propuesta', propuestoPor: 'propuesto_por',
     moduloLabel: 'modulo_label',
+    // v046 — Liq. Admin/Suplemento/Retenes/Mantenimiento
+    categoriBase: 'categori_base', funcionExtra: 'funcion_extra',
+    horasFijas: 'horas_fijas', personaIdLocal: 'persona_id_local',
   };
   const r = {};
   for (const [k, v] of Object.entries(obj)) {
@@ -585,6 +604,8 @@ export function _toCamel(obj) {
     fecha_resolucion: 'fechaResolucion', nro_socio: 'nroSocio', horas_por_dia: 'horasPorDia',
     cat_actual: 'catActual', cat_propuesta: 'catPropuesta', propuesto_por: 'propuestoPor',
     modulo_label: 'moduloLabel',
+    categori_base: 'categoriBase', funcion_extra: 'funcionExtra',
+    horas_fijas: 'horasFijas', persona_id_local: 'personaIdLocal',
   };
   const r = {};
   for (const [k, v] of Object.entries(obj)) {

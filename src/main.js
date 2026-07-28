@@ -264,6 +264,13 @@ registerAuthCallbacks({
     // legacy.js sigue leyendo) desde la config real recién cargada, para
     // que no queden con el seed default hasta visitar Reasignaciones.
     sincronizarConfigReasignaciones();
+    // v046: reconstruye las estructuras anidadas de Liq. Admin/Suplemento/
+    // Retenes/Mantenimiento (DB.liqAdminHoras, DB.retenHoras, etc.) desde
+    // los arrays planos que acaba de traer supaInit — se corre UNA sola vez
+    // acá, nunca en cada render, porque las filas cargadas no se
+    // actualizan en memoria durante la sesión (solo se sincronizan hacia
+    // Supabase); repetirlo pisaría ediciones hechas en vivo.
+    if (window.reconciliarPeriodosOperaciones) window.reconciliarPeriodosOperaciones();
     // Perfil exclusivo del desarrollador: convierte sugerencias nuevas en
     // tickets (nunca duplica — matchea por sugerenciaId).
     if (currentUser?.perfil === 'DEVELOPER') await sincronizarSugerenciasComoTickets();

@@ -5194,11 +5194,20 @@ function renderLiqSuplemento(){
   }).join('');
 }
 
+function syncPeriodoSuplemento(mes, id){
+  const horas=DB.liqSuplementoHoras?.[mes]?.[id]||{};
+  const valores=DB.liqSuplementoValores?.[mes]?.[id]||null;
+  supaSync('liqSuplementoPeriodos', {
+    id:idPersonaPeriodo(id,mes), personaIdLocal:idLocalTrunc(id), periodo:mes,
+    horas, horasFijas:valores?.horasFijas??null, valorHora:valores?.valorHora??null,
+  });
+}
 function setHoraSuplemento(mes, id, fechaISO, valor){
   if(!DB.liqSuplementoHoras[mes]) DB.liqSuplementoHoras[mes]={};
   if(!DB.liqSuplementoHoras[mes][id]) DB.liqSuplementoHoras[mes][id]={};
   const valStr=(valor||'').toString().trim().toUpperCase();
   DB.liqSuplementoHoras[mes][id][fechaISO]=['F','AJ','AI'].includes(valStr)?valStr:(parseFloat(valor)||0);
+  syncPeriodoSuplemento(mes, id);
   renderLiqSuplemento();
 }
 
@@ -5207,6 +5216,7 @@ function actualizarHorasSuplemento(mes, id, valor){
   if(!p) return;
   const actual = getValoresPeriodo(DB.liqSuplementoValores, id, mes, {horasFijas:p.horasFijas||0, valorHora:p.valorHora||0});
   setValoresPeriodo(DB.liqSuplementoValores, id, mes, {horasFijas:parseFloat(valor)||0, valorHora:actual.valorHora});
+  syncPeriodoSuplemento(mes, id);
   renderLiqSuplemento();
 }
 
@@ -5215,13 +5225,17 @@ function actualizarValorHoraSuplemento(mes, id, valor){
   if(!p) return;
   const actual = getValoresPeriodo(DB.liqSuplementoValores, id, mes, {horasFijas:p.horasFijas||0, valorHora:p.valorHora||0});
   setValoresPeriodo(DB.liqSuplementoValores, id, mes, {horasFijas:actual.horasFijas, valorHora:parseFloat(valor)||0});
+  syncPeriodoSuplemento(mes, id);
   renderLiqSuplemento();
 }
 
 function quitarSuplemento(id){
   if(!confirm('¿Eliminar este suplemento?')) return;
   const idx=(DB.liqSuplemento||[]).findIndex(x=>x.id===id);
-  if(idx!==-1) DB.liqSuplemento[idx].activo=false;
+  if(idx!==-1){
+    DB.liqSuplemento[idx].activo=false;
+    supaSync('liqSuplemento', DB.liqSuplemento[idx]);
+  }
   renderLiqSuplemento();
 }
 
@@ -5246,7 +5260,7 @@ function confirmarNuevoSuplemento(){
   if(!nombre){toast('Ingresá el nombre');return;}
   if(!funcionExtra){toast('Ingresá la función extra');return;}
   if(!valorHora){toast('Ingresá el valor por hora');return;}
-  DB.liqSuplemento.push({
+  const nuevo={
     id:Date.now(),
     nombre,
     area:$('nsup-area')?.value||'',
@@ -5254,7 +5268,9 @@ function confirmarNuevoSuplemento(){
     horasFijas,
     valorHora,
     activo:true,
-  });
+  };
+  DB.liqSuplemento.push(nuevo);
+  supaSync('liqSuplemento', nuevo);
   cerrarModal('modal-nuevo-suplemento');
   toast('✅ Suplemento agregado');
   renderLiqSuplemento();
@@ -5285,6 +5301,70 @@ function setValoresPeriodo(db_valores, id, periodo, valores){
   // No sobreescribimos explícitamente meses futuros que ya tienen sus propios valores guardados
 }
 
+// v046 (persistencia Liq. Admin/Suplemento/Retenes/Mantenimiento) — estas
+// tablas guardan una fila por (persona, período); supaSync deriva
+// id_local de obj.id, así que hace falta un id estable por combinación
+// persona+período (si no, todas las filas de una misma persona pisarían
+// el mismo id_local y solo sobreviviría el último mes sincronizado).
+function idPersonaPeriodo(personaId, periodo){
+  let h=0; const s=String(personaId)+periodo;
+  for(let i=0;i<s.length;i++) h=(h*31+s.charCodeAt(i))>>>0;
+  return 100000000 + (h % 900000000);
+}
+// v046 — supaInit() carga DB.liqAdminPeriodos/DB.liqSuplementoPeriodos/
+// DB.retenHorasRows/DB.mantHorasRows como arrays PLANOS (una fila por
+// persona+período). El resto del código de estos 4 módulos espera las
+// estructuras anidadas de siempre (DB.liqAdminHoras[mes][id], etc.) — acá
+// se reconstruyen a partir de esos arrays, resolviendo cada fila a su
+// persona por id_local (mismo patrón que reconciliarClienteIdObjetivos
+// para Comercial). Se llama una sola vez después de supaInit(), nunca en
+// cada render (las filas cargadas no se actualizan en memoria durante la
+// sesión, solo se sincronizan hacia Supabase — repetirlo pisaría
+// ediciones hechas en vivo con la foto vieja del login).
+function reconciliarPeriodosOperaciones(){
+  const rebuild=(rows,personalArr,destHoras,destTipo,destValores)=>{
+    (rows||[]).forEach(row=>{
+      const persona=(personalArr||[]).find(p=>idLocalTrunc(p.id)===String(row.personaIdLocal));
+      if(!persona||!row.periodo) return;
+      const id=persona.id, periodo=row.periodo;
+      if(row.horas && Object.keys(row.horas).length){
+        if(!destHoras[periodo]) destHoras[periodo]={};
+        destHoras[periodo][id]=row.horas;
+      }
+      if(destTipo && row.tipo){
+        if(!destTipo[periodo]) destTipo[periodo]={};
+        destTipo[periodo][id]=row.tipo;
+      }
+      if(destValores && (row.horasFijas!=null || row.valorHora!=null)){
+        if(!destValores[periodo]) destValores[periodo]={};
+        destValores[periodo][id]={horasFijas:row.horasFijas, valorHora:row.valorHora};
+      }
+    });
+  };
+  if(!DB.liqAdminHoras) DB.liqAdminHoras={};
+  if(!DB.liqAdminTipo) DB.liqAdminTipo={};
+  if(!DB.liqAdminValores) DB.liqAdminValores={};
+  rebuild(DB.liqAdminPeriodos, DB.liqAdminPersonal, DB.liqAdminHoras, DB.liqAdminTipo, DB.liqAdminValores);
+
+  if(!DB.liqSuplementoHoras) DB.liqSuplementoHoras={};
+  if(!DB.liqSuplementoValores) DB.liqSuplementoValores={};
+  rebuild(DB.liqSuplementoPeriodos, DB.liqSuplemento, DB.liqSuplementoHoras, null, DB.liqSuplementoValores);
+
+  if(!DB.retenHoras) DB.retenHoras={};
+  rebuild(DB.retenHorasRows, DB.retenes, DB.retenHoras, null, null);
+
+  if(!DB.mantHoras) DB.mantHoras={};
+  rebuild(DB.mantHorasRows, DB.mantPersonal, DB.mantHoras, null, null);
+}
+function syncPeriodoAdmin(mes, personalId){
+  const horas=DB.liqAdminHoras?.[mes]?.[personalId]||{};
+  const tipo=DB.liqAdminTipo?.[mes]?.[personalId]||'facturable';
+  const valores=DB.liqAdminValores?.[mes]?.[personalId]||null;
+  supaSync('liqAdminPeriodos', {
+    id:idPersonaPeriodo(personalId,mes), personaIdLocal:idLocalTrunc(personalId), periodo:mes,
+    horas, tipo, horasFijas:valores?.horasFijas??null, valorHora:valores?.valorHora??null,
+  });
+}
 function renderLiqAdmin(){
   // Poblar el selector de mes PRIMERO (antes de leer el valor)
   const sel = $('ladm-mes-sel');
@@ -5440,6 +5520,7 @@ function actualizarHorasAdmin(mes, id, valor){
   if(!p) return;
   const actual = getValoresPeriodo(DB.liqAdminValores, id, mes, {horasFijas:p.horasFijas||200, valorHora:p.valorHora||0});
   setValoresPeriodo(DB.liqAdminValores, id, mes, {horasFijas:parseFloat(valor)||0, valorHora:actual.valorHora});
+  syncPeriodoAdmin(mes, id);
   renderLiqAdmin();
 }
 
@@ -5449,6 +5530,7 @@ function actualizarValorHoraAdmin(mes, id, valor){
   if(!p) return;
   const actual = getValoresPeriodo(DB.liqAdminValores, id, mes, {horasFijas:p.horasFijas||200, valorHora:p.valorHora||0});
   setValoresPeriodo(DB.liqAdminValores, id, mes, {horasFijas:actual.horasFijas, valorHora:parseFloat(valor)||0});
+  syncPeriodoAdmin(mes, id);
   renderLiqAdmin();
 }
 
@@ -5460,6 +5542,7 @@ function setHoraAdmin(mes, personalId, fechaISO, valor){
 
   if(esEsp){
     DB.liqAdminHoras[mes][personalId][fechaISO] = valStr;
+    syncPeriodoAdmin(mes, personalId);
     renderLiqAdmin(); return;
   }
 
@@ -5482,6 +5565,7 @@ function setHoraAdmin(mes, personalId, fechaISO, valor){
   }
 
   DB.liqAdminHoras[mes][personalId][fechaISO] = nuevaHora;
+  syncPeriodoAdmin(mes, personalId);
   renderLiqAdmin();
 }
 
@@ -5490,6 +5574,7 @@ function setTipoAdmin(mes, personalId, tipo){
   if(!DB.liqAdminTipo) DB.liqAdminTipo={};
   if(!DB.liqAdminTipo[mes]) DB.liqAdminTipo[mes]={};
   DB.liqAdminTipo[mes][personalId] = tipo;
+  syncPeriodoAdmin(mes, personalId);
   renderLiqAdmin();
 }
 
@@ -5497,7 +5582,10 @@ function setTipoAdmin(mes, personalId, tipo){
 function quitarPersonalAdmin(id){
   if(!confirm('¿Eliminar a esta persona de la planilla de administración?')) return;
   const idx = DB.liqAdminPersonal.findIndex(p=>p.id===id);
-  if(idx!==-1) DB.liqAdminPersonal[idx].activo=false;
+  if(idx!==-1){
+    DB.liqAdminPersonal[idx].activo=false;
+    supaSync('liqAdminPersonal', DB.liqAdminPersonal[idx]);
+  }
   renderLiqAdmin();
 }
 
@@ -5525,7 +5613,7 @@ function confirmarNuevoAdminLiq(){
   const yaExiste=(DB.liqAdminPersonal||[]).find(p=>p.nombre===nombre&&p.activo);
   if(yaExiste){toast('Esta persona ya está en la planilla');return;}
   const legajo=(DB.legajos||[]).find(l=>l.nombre===nombre);
-  DB.liqAdminPersonal.push({
+  const nuevo={
     id:Date.now(),
     nombre,
     area:$('nadm-area')?.value||legajo?.area||'',
@@ -5533,7 +5621,9 @@ function confirmarNuevoAdminLiq(){
     horasFijas,
     valorHora,
     activo:true,
-  });
+  };
+  DB.liqAdminPersonal.push(nuevo);
+  supaSync('liqAdminPersonal', nuevo);
   cerrarModal('modal-nuevo-admin-liq');
   toast('✅ Personal agregado a la planilla de administración');
   renderLiqAdmin();
@@ -6861,6 +6951,7 @@ function confirmarCargaRapidaReten(){
     count++;
   }
 
+  syncPeriodoReten(mes, retenId);
   cerrarModal('modal-carga-rapida-reten');
   toast('⚡ '+count+' días cargados para '+nombre+(catAlt?' (cat. alternativa: '+catAlt+')':''));
   renderRetenes();
@@ -7018,18 +7109,25 @@ function renderMantenimiento(){
   }).join('');
 }
 
+function syncPeriodoMant(mes, id){
+  supaSync('mantHorasRows', {
+    id:idPersonaPeriodo(id,mes), personaIdLocal:idLocalTrunc(id), periodo:mes,
+    horas: DB.mantHoras?.[mes]?.[id]||{},
+  });
+}
 function setHoraMant(mes, id, fechaISO, valor){
   if(!DB.mantHoras[mes]) DB.mantHoras[mes]={};
   if(!DB.mantHoras[mes][id]) DB.mantHoras[mes][id]={};
   const valStr=(valor||'').toString().trim().toUpperCase();
   const esEsp=['F','AJ','AI'].includes(valStr);
   DB.mantHoras[mes][id][fechaISO]={hs:esEsp?valStr:(parseFloat(valor)||0),catAlt:DB.mantHoras[mes][id][fechaISO]?.catAlt||''};
+  syncPeriodoMant(mes, id);
   renderMantenimiento();
 }
 
 function setCatBaseMant(id, cat){
   const r=(DB.mantPersonal||[]).find(x=>x.id===id);
-  if(r){r.categoriBase=cat;renderMantenimiento();}
+  if(r){r.categoriBase=cat;supaSync('mantPersonal', r);renderMantenimiento();}
 }
 
 function renderMantResumen(){
@@ -7101,7 +7199,9 @@ function confirmarNuevoMant(){
   if(!nombre){toast('Ingresá el nombre');return;}
   const yaExiste=(DB.mantPersonal||[]).find(r=>r.nombre===nombre&&r.activo);
   if(yaExiste){toast('Este técnico ya está activo');return;}
-  DB.mantPersonal.push({id:Date.now(),nombre,nroSocio:nro,categoriBase:cat||'Operario/a limpieza especializado/a',activo:true});
+  const nuevo={id:Date.now(),nombre,nroSocio:nro,categoriBase:cat||'Operario/a limpieza especializado/a',activo:true};
+  DB.mantPersonal.push(nuevo);
+  supaSync('mantPersonal', nuevo);
   cerrarModal('modal-nuevo-mant');
   toast('✅ Técnico agregado — '+nombre);
   renderMantenimiento();
@@ -7154,6 +7254,7 @@ function confirmarCargaRapidaMant(){
     DB.mantHoras[mes][id][iso]={hs:horas,catAlt};
     count++;
   }
+  syncPeriodoMant(mes, id);
   cerrarModal('modal-carga-rapida-mant');
   toast('⚡ '+count+' días cargados para '+nombre);
   renderMantenimiento();
@@ -7482,6 +7583,12 @@ function renderRetenes(){
 }
 
 
+function syncPeriodoReten(mes, retenId){
+  supaSync('retenHorasRows', {
+    id:idPersonaPeriodo(retenId,mes), personaIdLocal:idLocalTrunc(retenId), periodo:mes,
+    horas: DB.retenHoras?.[mes]?.[retenId]||{},
+  });
+}
 function setHoraReten(mes, retenId, fechaISO, valor){
   if(!DB.retenHoras[mes]) DB.retenHoras[mes]={};
   if(!DB.retenHoras[mes][retenId]) DB.retenHoras[mes][retenId]={};
@@ -7491,12 +7598,13 @@ function setHoraReten(mes, retenId, fechaISO, valor){
     hs: esEsp ? valStr : (parseFloat(valor)||0),
     catAlt: DB.retenHoras[mes][retenId][fechaISO]?.catAlt||'',
   };
+  syncPeriodoReten(mes, retenId);
   renderRetenes();
 }
 
 function setCatBaseReten(id, cat){
   const r=(DB.retenes||[]).find(x=>x.id===id);
-  if(r){ r.categoriBase=cat; renderRetenes(); }
+  if(r){ r.categoriBase=cat; supaSync('retenes', r); renderRetenes(); }
 }
 
 // ── Resumen de pago ──
@@ -7587,7 +7695,9 @@ function confirmarNuevoReten(){
   if(!nombre){toast('Ingresá el nombre del retén');return;}
   const yaExiste=(DB.retenes||[]).find(r=>r.nombre===nombre&&r.activo);
   if(yaExiste){toast('Este asociado ya está como retén activo');return;}
-  DB.retenes.push({id:Date.now(),nombre,nroSocio:nro,categoriBase:cat||'Operario/a limpieza',activo:true});
+  const nuevo={id:Date.now(),nombre,nroSocio:nro,categoriBase:cat||'Operario/a limpieza',activo:true};
+  DB.retenes.push(nuevo);
+  supaSync('retenes', nuevo);
   cerrarModal('modal-nuevo-reten');
   toast('✅ Retén agregado — '+nombre);
   renderRetenes();
@@ -10103,6 +10213,7 @@ window.quitarSuplemento = quitarSuplemento;
 window.quitarTodosModulos = quitarTodosModulos;
 window.recalcCatVH = recalcCatVH;
 window.reactivarObjetivo = reactivarObjetivo;
+window.reconciliarPeriodosOperaciones = reconciliarPeriodosOperaciones;
 window.recalcClienteVH = recalcClienteVH;
 window.recalcLiquidacion = recalcLiquidacion;
 window.recalcTotalesLiq = recalcTotalesLiq;
