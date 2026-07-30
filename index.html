@@ -2380,6 +2380,7 @@
           <th>N° Factura</th>
           <th>Período prestación</th>
           <th>Importe</th>
+          <th>Saldo pendiente</th>
           <th>Fha. factura</th>
           <th>Vencimiento</th>
           <th>Días atraso</th>
@@ -2431,42 +2432,28 @@
   <div id="cob-tab-importar" class="tab-content">
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:18px;">
 
-      <!-- Importar facturas -->
+      <!-- Importar composición de saldos -->
       <div class="card">
-        <div class="card-header"><h3>📄 Importar facturas desde Tango</h3></div>
+        <div class="card-header"><h3>📥 Importar Composición de Saldos de Tango</h3></div>
         <div class="card-body">
           <div class="alerta alerta-info" style="font-size:12px;margin-bottom:14px;">
-            Exportá el listado de facturas desde Tango en formato CSV.<br>
-            <strong>Columnas esperadas:</strong> Código cliente, Código objetivo, N° factura, Período desde, Período hasta, Importe, Fecha factura, Vencimiento, Estado.
+            Pegá el reporte de <strong>Composición de Saldos</strong> de Tango (por cliente, con cada factura FAC y sus recibos REC debajo). El matcheo del cliente es por su <strong>Código Tango</strong> de 6 dígitos (cargado en la ficha del cliente) — si un cliente no lo tiene cargado, sus comprobantes no se van a poder importar y quedan listados aparte.<br><br>
+            Solo las facturas con <strong>saldo pendiente &gt; 0</strong> quedan en "Facturas pendientes"; cada recibo se agrega como una línea propia en "Cobros registrados". Las notas de crédito/débito y comprobantes a cuenta se cuentan pero no se aplican todavía (v1).
           </div>
           <div class="form-group">
-            <label>Pegá el contenido CSV de facturas Tango</label>
-            <textarea id="tango-csv-facturas" style="height:120px;padding:8px;border:1px solid var(--borde-fuerte);border-radius:var(--radio);font-size:12px;font-family:'DM Mono',monospace;resize:vertical;width:100%;outline:none;" placeholder="Código cliente,Código objetivo,N° factura,Período desde,Período hasta,Importe,Fecha,Vencimiento,Estado&#10;CLI-0001,CHANGO.BROWN,FA-0001-00050001,01/03/2026,31/03/2026,850000,31/03/2026,05/04/2026,Impago"></textarea>
+            <label>Pegá la Composición de Saldos (texto)</label>
+            <textarea id="tango-composicion" style="height:180px;padding:8px;border:1px solid var(--borde-fuerte);border-radius:var(--radio);font-size:11px;font-family:'DM Mono',monospace;resize:vertical;width:100%;outline:none;" placeholder="000013  COTO&#10;29/02/2024  FAC  B0000100002909  15/03/2024  2,241,585.39  2,241,585.39&#10;  12/08/2024  REC  0000200004110  1,741,293.57  500,291.82&#10;  15/11/2024  REC  0000200004574  223,644.43  276,647.39&#10;SALDO DEL CLIENTE  276,647.39"></textarea>
           </div>
-          <button class="btn btn-primary" onclick="importarFacturasTango()">📥 Importar facturas</button>
-          <div id="tango-import-facturas-resultado" style="margin-top:10px;font-size:12px;"></div>
-        </div>
-      </div>
-
-      <!-- Importar cobros -->
-      <div class="card">
-        <div class="card-header"><h3>💰 Importar cobros desde Tango</h3></div>
-        <div class="card-body">
-          <div class="alerta alerta-info" style="font-size:12px;margin-bottom:14px;">
-            Exportá el listado de recibos/cobros desde Tango en formato CSV.<br>
-            <strong>Columnas esperadas:</strong> N° factura, N° recibo, Importe cobrado, Fecha cobro, Fecha acreditación.
+          <div style="display:flex;gap:8px;">
+            <button class="btn btn-secondary" onclick="analizarComposicionTango()">🔍 Analizar</button>
+            <button class="btn btn-primary" id="btn-confirmar-import-tango" onclick="confirmarImportacionTango()" disabled>✅ Confirmar importación</button>
           </div>
-          <div class="form-group">
-            <label>Pegá el contenido CSV de cobros Tango</label>
-            <textarea id="tango-csv-cobros" style="height:120px;padding:8px;border:1px solid var(--borde-fuerte);border-radius:var(--radio);font-size:12px;font-family:'DM Mono',monospace;resize:vertical;width:100%;outline:none;" placeholder="N° factura,N° recibo,Importe cobrado,Fecha cobro,Fecha acreditación&#10;FA-0001-00044890,REC-00012345,1200000,28/03/2026,03/04/2026"></textarea>
-          </div>
-          <button class="btn btn-primary" onclick="importarCobrosTango()">💰 Importar cobros</button>
-          <div id="tango-import-cobros-resultado" style="margin-top:10px;font-size:12px;"></div>
+          <div id="tango-analisis-resultado" style="margin-top:12px;"></div>
         </div>
       </div>
 
       <!-- Historial importaciones -->
-      <div class="card" style="grid-column:span 2;">
+      <div class="card">
         <div class="card-header"><h3>📋 Historial de importaciones</h3></div>
         <div class="card-body" id="historial-importaciones">
           <p class="text-muted" style="font-size:13px;">Sin importaciones registradas aún.</p>

@@ -1302,15 +1302,16 @@ DB.noConformidades = [
 
 // Cobros
 DB.facturas = [
-  {id:1,clienteId:1,objetivoCod:'CHANGO.BROWN',nroFactura:'FA-0001-00045231',periodoDesde:'01/03/2026',periodoHasta:'31/03/2026',importe:850000,fechaFactura:'31/03/2026',vencimiento:'05/04/2026',formaPago:'Transferencia',contactoCobro:'Laura Pérez',telefono:'11-4567-8902',horarioCobro:'Lun-Vie 9-17hs',ultimoContacto:'01/04/2026',proximaGestion:'05/04/2026',probCobro:85,estado:'Gestión activa',fechaPosibleCobro:'05/04/2026',acciones:[{tipo:'Llamada',fecha:'01/04/2026',estado:'Realizada',nota:'Confirmaron pago para el día 5.'}],notas:''},
-  {id:2,clienteId:1,objetivoCod:'CHANGO.CASEROS',nroFactura:'FA-0001-00045232',periodoDesde:'01/03/2026',periodoHasta:'31/03/2026',importe:620000,fechaFactura:'31/03/2026',vencimiento:'05/04/2026',formaPago:'Transferencia',contactoCobro:'Laura Pérez',telefono:'11-4567-8902',horarioCobro:'Lun-Vie 9-17hs',ultimoContacto:'01/04/2026',proximaGestion:'05/04/2026',probCobro:85,estado:'Gestión activa',fechaPosibleCobro:'05/04/2026',acciones:[],notas:''},
-  {id:3,clienteId:2,objetivoCod:'HTAL.ALEMAN.LIMP',nroFactura:'FA-0001-00044890',periodoDesde:'01/03/2026',periodoHasta:'31/03/2026',importe:1200000,fechaFactura:'31/03/2026',vencimiento:'20/03/2026',formaPago:'Transferencia',contactoCobro:'Carlos Rodríguez',telefono:'11-5678-9012',horarioCobro:'Lun-Vie 10-16hs',ultimoContacto:'25/03/2026',proximaGestion:'02/04/2026',probCobro:60,estado:'Impago',fechaPosibleCobro:'',acciones:[{tipo:'Llamada',fecha:'25/03/2026',estado:'Realizada',nota:'Piden extensión de plazo. Hablar con gerente.'},{tipo:'Email',fecha:'01/04/2026',estado:'Pendiente',nota:'Enviar nota de deuda formal.'}],notas:''},
+  {id:1,clienteId:1,objetivoCod:'CHANGO.BROWN',nroFactura:'FA-0001-00045231',periodoDesde:'01/03/2026',periodoHasta:'31/03/2026',importe:850000,saldo:850000,fechaFactura:'31/03/2026',vencimiento:'05/04/2026',formaPago:'Transferencia',contactoCobro:'Laura Pérez',telefonoCobro:'11-4567-8902',horarioCobro:'Lun-Vie 9-17hs',ultimoContacto:'01/04/2026',proximaGestion:'05/04/2026',probCobro:85,estado:'Gestión activa',fechaPosibleCobro:'05/04/2026',acciones:[{tipo:'Llamada',fecha:'01/04/2026',estado:'Realizada',nota:'Confirmaron pago para el día 5.'}],notas:''},
+  {id:2,clienteId:1,objetivoCod:'CHANGO.CASEROS',nroFactura:'FA-0001-00045232',periodoDesde:'01/03/2026',periodoHasta:'31/03/2026',importe:620000,saldo:620000,fechaFactura:'31/03/2026',vencimiento:'05/04/2026',formaPago:'Transferencia',contactoCobro:'Laura Pérez',telefonoCobro:'11-4567-8902',horarioCobro:'Lun-Vie 9-17hs',ultimoContacto:'01/04/2026',proximaGestion:'05/04/2026',probCobro:85,estado:'Gestión activa',fechaPosibleCobro:'05/04/2026',acciones:[],notas:''},
+  {id:3,clienteId:2,objetivoCod:'HTAL.ALEMAN.LIMP',nroFactura:'FA-0001-00044890',periodoDesde:'01/03/2026',periodoHasta:'31/03/2026',importe:1200000,saldo:700000,fechaFactura:'31/03/2026',vencimiento:'20/03/2026',formaPago:'Transferencia',contactoCobro:'Carlos Rodríguez',telefonoCobro:'11-5678-9012',horarioCobro:'Lun-Vie 10-16hs',ultimoContacto:'25/03/2026',proximaGestion:'02/04/2026',probCobro:60,estado:'Impago',fechaPosibleCobro:'',acciones:[{tipo:'Llamada',fecha:'25/03/2026',estado:'Realizada',nota:'Piden extensión de plazo. Hablar con gerente.'},{tipo:'Email',fecha:'01/04/2026',estado:'Pendiente',nota:'Enviar nota de deuda formal.'}],notas:'Cobro parcial: $500.000 recibidos el 10/04 (REC-00012001, ver Cobros registrados). Saldo pendiente $700.000.'},
 ];
 
 // Cobros registrados (recibos de Tango)
 DB.cobros = [
   {id:1,clienteId:2,objetivoCod:'HTAL.ALEMAN.LIMP',nroFactura:'FA-0001-00043200',periodoDesde:'01/02/2026',periodoHasta:'28/02/2026',importeFacturado:1200000,importeCobrado:1200000,nroRecibo:'REC-00011890',fechaCobro:'15/03/2026',fechaAcreditacion:'18/03/2026',formaPago:'Transferencia'},
   {id:2,clienteId:1,objetivoCod:'CHANGO.BROWN',nroFactura:'FA-0001-00043100',periodoDesde:'01/02/2026',periodoHasta:'28/02/2026',importeFacturado:850000,importeCobrado:850000,nroRecibo:'REC-00011750',fechaCobro:'05/03/2026',fechaAcreditacion:'06/03/2026',formaPago:'Transferencia'},
+  {id:3,clienteId:2,objetivoCod:'HTAL.ALEMAN.LIMP',nroFactura:'FA-0001-00044890',periodoDesde:'01/03/2026',periodoHasta:'31/03/2026',importeFacturado:1200000,importeCobrado:500000,nroRecibo:'REC-00012001',fechaCobro:'10/04/2026',fechaAcreditacion:'13/04/2026',formaPago:'Transferencia'},
 ];
 DB.historialImportaciones = [];
 
@@ -2774,14 +2775,15 @@ function renderCobros(lista){
   const pendientes=DB.facturas.filter(f=>f.estado!=='Cobrado');
   const rows=lista||pendientes;
   const hoy=new Date();
-  const deudaTotal=pendientes.reduce((s,f)=>s+f.importe,0);
+  const saldoDe=f=>f.saldo!==undefined&&f.saldo!==null?f.saldo:f.importe;
+  const deudaTotal=pendientes.reduce((s,f)=>s+saldoDe(f),0);
   const cobradoMes=(DB.cobros||[]).reduce((s,c)=>s+c.importeCobrado,0);
   const venMes=pendientes.filter(f=>{
     if(!f.vencimiento)return false;
     const[dd,mm,yy]=f.vencimiento.split('/');
     const d=new Date(`${yy}-${mm}-${dd}`);
     return d.getMonth()===hoy.getMonth()&&d.getFullYear()===hoy.getFullYear();
-  }).reduce((s,f)=>s+f.importe,0);
+  }).reduce((s,f)=>s+saldoDe(f),0);
   if($('st-cob-deuda')) $('st-cob-deuda').textContent='$'+Math.round(deudaTotal/1000)+'k';
   if($('st-cob-mes')) $('st-cob-mes').textContent='$'+Math.round(venMes/1000)+'k';
   if($('st-cob-cobrado')) $('st-cob-cobrado').textContent='$'+Math.round(cobradoMes/1000)+'k';
@@ -2808,11 +2810,12 @@ function renderCobros(lista){
       <td style="font-family:'DM Mono',monospace;font-size:11px;">${f.nroFactura}</td>
       <td style="font-size:11px;color:var(--texto-suave);">${periodo}</td>
       <td style="font-weight:700;color:var(--azul);">$${f.importe.toLocaleString('es-AR')}</td>
+      <td style="font-weight:700;color:${saldoDe(f)<f.importe?'var(--naranja)':'var(--rojo)'};" title="${saldoDe(f)<f.importe?'Pago parcial recibido':'Sin cobros aplicados'}">$${saldoDe(f).toLocaleString('es-AR')}</td>
       <td style="font-size:12px;">${f.fechaFactura||'—'}</td>
       <td style="font-size:12px;">${f.vencimiento}</td>
       <td style="text-align:center;font-weight:700;color:${diasAtraso>0?'var(--rojo)':'var(--verde)'};">${diasAtraso>0?'+'+diasAtraso+' días':'Al día'}</td>
       <td style="font-size:12px;">${f.formaPago}</td>
-      <td><div style="font-size:12px;font-weight:500;">${f.contactoCobro}</div><div style="font-size:10px;color:var(--texto-suave);">${f.telefono}</div></td>
+      <td><div style="font-size:12px;font-weight:500;">${f.contactoCobro}</div><div style="font-size:10px;color:var(--texto-suave);">${f.telefonoCobro}</div></td>
       <td style="font-size:11px;">${ultimaAcc?ultimaAcc.tipo+' '+ultimaAcc.fecha:'—'}</td>
       <td style="font-size:11px;color:var(--naranja);">${f.proximaGestion||'—'}</td>
       <td style="background:var(--acento-suave);text-align:center;">
@@ -2828,14 +2831,14 @@ function renderCobros(lista){
       <td><button class="btn btn-secondary btn-xs" onclick="verAccionesCobro(${realIdx})" title="Acciones de cobro">📋 ${(f.acciones||[]).length}</button></td>
       <td>${f.estado==='Cobrada (pendiente Tango)'?'<span style="font-size:10px;color:var(--texto-suave);">⏳ Pendiente Tango</span>':`<button class="btn btn-xs" style="background:var(--verde-claro);color:var(--verde);border:1px solid #9fdaba;" onclick="marcarCobrado(${realIdx})">✓</button>`}</td>
     </tr>`;
-  }).join('')||`<tr><td colspan="17"><div class="empty-state"><div class="icon">💳</div><p>Sin facturas pendientes</p></div></td></tr>`;
+  }).join('')||`<tr><td colspan="18"><div class="empty-state"><div class="icon">💳</div><p>Sin facturas pendientes</p></div></td></tr>`;
 }
 
 function renderCobrados(lista){
   const rows=lista||(DB.cobros||[]);
   const getCliente=id=>DB.clientes.find(c=>c.id===id);
   const tbody=$('tbody-cobrados');if(!tbody)return;
-  tbody.innerHTML=rows.map((c,i)=>{
+  tbody.innerHTML=rows.map(c=>{
     const cli=getCliente(c.clienteId);
     const periodo=formatPeriodo(c.periodoDesde,c.periodoHasta);
     return `<tr>
@@ -2849,9 +2852,17 @@ function renderCobrados(lista){
       <td style="font-size:12px;">${c.fechaCobro}</td>
       <td style="font-size:12px;font-weight:500;color:var(--azul);">${c.fechaAcreditacion||'—'}</td>
       <td style="font-size:12px;">${c.formaPago}</td>
-      <td><button class="btn btn-secondary btn-xs" onclick="DB.cobros.splice(${i},1);renderCobrados();toast('Cobro eliminado')">🗑</button></td>
+      <td><button class="btn btn-secondary btn-xs" onclick="eliminarCobro('${c.id}')">🗑</button></td>
     </tr>`;
   }).join('')||`<tr><td colspan="11"><div class="empty-state"><div class="icon">✅</div><p>Sin cobros registrados</p></div></td></tr>`;
+}
+
+function eliminarCobro(id){
+  const idx=DB.cobros.findIndex(c=>String(c.id)===String(id));
+  if(idx===-1)return;
+  const [c]=DB.cobros.splice(idx,1);
+  supaDel('cobros',c.id);
+  renderCobrados();toast('Cobro eliminado');
 }
 
 function filtrarCobrados(){
@@ -2875,6 +2886,7 @@ function filtrarCobros(){
 function actualizarFechaCobro(idx,fecha){
   if(!DB.facturas[idx])return;
   DB.facturas[idx].fechaPosibleCobro=fecha?new Date(fecha).toLocaleDateString('es-AR'):'';
+  supaSync('facturas',DB.facturas[idx]);
   const dias=fecha?Math.round((new Date(fecha)-new Date())/(1000*3600*24)):0;
   toast(`✓ Fecha posible cobro: ${DB.facturas[idx].fechaPosibleCobro}${dias>0?' (en '+dias+' días)':dias<0?' (ya pasó)':' (hoy)'}`);
 }
@@ -2883,14 +2895,15 @@ function actualizarFechaCobro(idx,fecha){
 // "Cobros registrados": la gestora ya NO puede escribir directo ahí. Al
 // marcar una factura como cobrada acá, queda en un estado intermedio
 // ("Cobrada (pendiente Tango)") y sigue en Facturas pendientes — recién
-// pasa a Cobros registrados cuando el PRÓXIMO importarCobrosTango() la
-// confirme por nroFactura (ver ese función más abajo).
+// pasa a Cobros registrados cuando la PRÓXIMA importación de la composición
+// de Tango la confirme por nroFactura (ver confirmarImportacionTango() más abajo).
 function marcarCobrado(idx){
   const f=DB.facturas[idx];if(!f)return;
   if(f.estado==='Cobrada (pendiente Tango)'){toast('Ya está marcada como cobrada, pendiente de confirmar con el próximo import de Tango');return;}
   f.estado='Cobrada (pendiente Tango)';
   f.marcadaCobradaPor=currentUser?.nombre||'';
   f.fechaMarcadaCobrada=new Date().toLocaleDateString('es-AR');
+  supaSync('facturas',f);
   renderCobros();toast(`✓ ${f.nroFactura} marcada como cobrada — queda pendiente de confirmar con el próximo import de Tango`);
 }
 
@@ -2911,7 +2924,7 @@ function verAccionesCobro(idx){
     <div class="info-item"><div class="key">Factura</div><div class="val" style="font-family:'DM Mono',monospace;">${f.nroFactura}</div></div>
     <div class="info-item"><div class="key">Importe</div><div class="val" style="font-weight:700;color:var(--azul);">$${f.importe.toLocaleString('es-AR')}</div></div>
     <div class="info-item"><div class="key">Período</div><div class="val">${formatPeriodo(f.periodoDesde,f.periodoHasta)}</div></div>
-    <div class="info-item"><div class="key">Contacto</div><div class="val">${f.contactoCobro} · ${f.telefono}</div></div>
+    <div class="info-item"><div class="key">Contacto</div><div class="val">${f.contactoCobro} · ${f.telefonoCobro}</div></div>
   </div>
   <div style="font-size:11px;font-weight:700;text-transform:uppercase;color:var(--texto-suave);margin-bottom:8px;">Historial de gestiones</div>
   <div style="max-height:180px;overflow-y:auto;margin-bottom:14px;display:flex;flex-direction:column;gap:6px;">
@@ -2954,103 +2967,227 @@ function agregarAccionCobro(idx){
   const nota=$('acc-cobro-nota')?.value||'';
   f.acciones.push({tipo,fecha,fechaVenc,estado,nota});
   f.ultimoContacto=fecha;
+  supaSync('facturas',f);
   cerrarModal('modal-ver-pedido');renderCobros();
   toast(`✓ Gestión de cobro registrada para ${f.nroFactura}${fechaVenc?' · Vence: '+fechaVenc:''}`);
 }
 
-function importarFacturasTango(){
-  const csv=($('tango-csv-facturas')||{value:''}).value.trim();
-  if(!csv){toast('Pegá el CSV de facturas de Tango');return;}
-  const lines=csv.split('\n').filter(l=>l.trim());
-  if(lines.length<2){toast('El CSV necesita al menos una fila de datos');return;}
-  const headers=lines[0].split(',').map(h=>h.trim().toLowerCase().replace(/"/g,''));
-  let importadas=0,importadasCobradas=0,errores=0;
-  const get=(vals,key)=>{const i=headers.findIndex(h=>h.includes(key));return i>=0?(vals[i]||'').trim().replace(/"/g,''):''};
-  // 2.6.1 (Delta Comercial v1.2) — Tango es la fuente de verdad: si el
-  // export de facturas ya trae una columna de estado/pagado indicando que
-  // está cobrada, va directo a Cobros registrados (no pasa por Facturas
-  // pendientes). Si no hay esa columna o no está pagada, sigue el
-  // comportamiento de siempre (Impago).
-  lines.slice(1).forEach(line=>{
-    const vals=line.split(',');
-    const nroFact=get(vals,'factura')||get(vals,'comprobante');
-    if(!nroFact){errores++;return;}
-    if(DB.facturas.some(f=>f.nroFactura===nroFact)||(DB.cobros||[]).some(c=>c.nroFactura===nroFact)){errores++;return;}
-    const codCli=get(vals,'cliente')||get(vals,'cod');
-    const cli=DB.clientes.find(c=>c.codigoTango===codCli||c.nombre.toLowerCase().includes(codCli.toLowerCase()));
-    const importe=parseFloat((get(vals,'importe')||get(vals,'total')||'0').replace(/[$\s]/g,'').replace(',','.'))||0;
-    const objetivoCod=get(vals,'objetivo')||get(vals,'servicio')||'IMPORTADO';
-    const periodoDesde=get(vals,'desde')||get(vals,'periodo desde')||'';
-    const periodoHasta=get(vals,'hasta')||get(vals,'periodo hasta')||'';
-    const estadoTango=(get(vals,'estado')||get(vals,'pagad')||get(vals,'cobrad')||'').toLowerCase();
-    const yaPagada=/pagad|cobrad|^si$|^sí$/.test(estadoTango);
-    if(yaPagada){
-      DB.cobros.push({
-        id:Date.now()+importadas+importadasCobradas,clienteId:cli?.id||0,objetivoCod,nroFactura:nroFact,
-        periodoDesde,periodoHasta,importeFacturado:importe,importeCobrado:importe,
-        nroRecibo:get(vals,'recibo')||'—',fechaCobro:get(vals,'fecha')||new Date().toLocaleDateString('es-AR'),
-        fechaAcreditacion:'',formaPago:'—',
+// ========== IMPORTAR DESDE TANGO — Composición de Saldos ==========
+// DELTA_comercial_cobros_tango_v1 (29/07/2026). Tango es la única fuente de
+// verdad de los cobros (2.6, Delta Comercial v1.2): acá se LEE su reporte de
+// "Composición de Saldos" (organizado por cliente, con líneas FAC y sus REC
+// debajo) para que la gestora reclame — no se replica la contabilidad fina
+// de Tango (orden de aplicación de recibos, N/D, comprobantes a cuenta).
+//
+// C.1/C.2/C.3 del delta: se parsea secuencialmente (una FAC abre "factura
+// actual", los REC siguientes se le asocian hasta la próxima FAC); solo las
+// facturas con saldo>0 quedan en Facturas pendientes; cada recibo es una
+// línea propia en Cobros registrados (no se suman).
+//
+// Matcheo cliente↔Tango: por el código de 6 dígitos (c.codigoTango), campo
+// separado del código interno (c.codigo) — confirmado que no coinciden. Si
+// un cliente no tiene su Código Tango cargado, sus comprobantes no se
+// importan y quedan listados como "sin matchear" para resolverlos a mano.
+//
+// Pendiente de una próxima sesión (ver delta v1): si Tango pasa a exportar
+// Excel/CSV en vez de texto de PDF puede simplificar este parser; manejo
+// fino de N/C, N/D y comprobantes a cuenta (hoy solo se cuentan, no ajustan
+// saldo); frecuencia/mecánica de reimportación.
+
+const TANGO_MONTO_RE=/-?\d{1,3}(?:,\d{3})*\.\d{2}/g;
+
+function parsearComposicionTango(texto){
+  const resultado={
+    facturasNuevas:[],facturasActualizadas:[],recibosNuevos:[],
+    clientesSinMatchear:new Map(),ignoradas:{},lineasNoReconocidas:0,
+  };
+  if(!texto||!texto.trim())return resultado;
+
+  let clienteCodActual=null,clienteNombreActual='',facturaActual=null;
+
+  // Cierra la "factura actual": recién acá se decide si va a facturasNuevas
+  // (saldo final>0) o facturasActualizadas — se difiere hasta este punto
+  // porque los REC que van llegando bajo la FAC siguen bajando su saldo.
+  const cerrarFacturaActual=()=>{
+    if(!facturaActual)return;
+    const existente=DB.facturas.find(f=>f.nroFactura===facturaActual.nroFactura);
+    if(existente){
+      resultado.facturasActualizadas.push({
+        nroFactura:facturaActual.nroFactura,
+        saldoAnterior:existente.saldo??existente.importe,
+        saldoNuevo:facturaActual.saldo,
+        cerrada:facturaActual.saldo<=0.01,
       });
-      importadasCobradas++;
+    }else if(facturaActual.saldo>0.01){
+      resultado.facturasNuevas.push({
+        nroFactura:facturaActual.nroFactura,clienteId:facturaActual.clienteId,
+        importe:facturaActual.importe,saldo:facturaActual.saldo,
+        fecha:facturaActual.fecha,vencimiento:facturaActual.vencimiento,objetivoCod:'—',
+      });
+    }
+    facturaActual=null;
+  };
+
+  texto.split('\n').forEach(raw=>{
+    const line=raw.trim();
+    if(!line)return;
+    if(/SALDO\s+DEL\s+CLIENTE/i.test(line)){cerrarFacturaActual();clienteCodActual=null;return;}
+
+    const mCliente=line.match(/^(\d{6})\s+(.+)$/);
+    if(mCliente){cerrarFacturaActual();clienteCodActual=mCliente[1];clienteNombreActual=mCliente[2].trim();return;}
+
+    const mFecha=line.match(/^(\d{2}\/\d{2}\/\d{4})\s+(.*)$/);
+    if(!mFecha){resultado.lineasNoReconocidas++;return;}
+    const fecha=mFecha[1];
+    const resto=mFecha[2];
+    const tipoMatch=resto.match(/\b(FAC|N\/C|N\/D|REC|DRT|IND)\b/i);
+    if(!tipoMatch){resultado.lineasNoReconocidas++;return;}
+    const tipo=tipoMatch[1].toUpperCase();
+
+    // N/C, N/D, DRT, IND y "comprobantes a cuenta": se cuentan pero no
+    // ajustan saldo en v1 (pendiente del delta) y NO cierran la factura
+    // actual — los REC que sigan abajo se siguen asociando a la misma FAC.
+    if(tipo!=='FAC'&&tipo!=='REC'){
+      resultado.ignoradas[tipo]=(resultado.ignoradas[tipo]||0)+1;
       return;
     }
-    DB.facturas.push({
-      id:Date.now()+importadas+importadasCobradas,clienteId:cli?.id||0,
-      objetivoCod,nroFactura:nroFact,periodoDesde,periodoHasta,importe,
-      fechaFactura:get(vals,'fecha')||'',
-      vencimiento:get(vals,'vencimiento')||get(vals,'vto')||'',
-      formaPago:'Pendiente',
-      contactoCobro:cli?.contactos?.find(c=>!c.aSatisfacer)?.nombre||'—',
-      telefono:cli?.contactos?.find(c=>!c.aSatisfacer)?.tel||'—',
-      horarioCobro:'Lun-Vie 9-17hs',
-      ultimoContacto:'',proximaGestion:'',probCobro:50,
-      estado:'Impago',fechaPosibleCobro:'',acciones:[],notas:'Importado desde Tango',
-    });
-    importadas++;
+
+    const montos=(resto.match(TANGO_MONTO_RE)||[]).map(m=>parseFloat(m.replace(/,/g,'')));
+    const fechas=resto.match(/\d{2}\/\d{2}\/\d{4}/g)||[];
+    const numero=resto
+      .replace(tipoMatch[0],' ')
+      .replace(TANGO_MONTO_RE,' ')
+      .replace(/\d{2}\/\d{2}\/\d{4}/g,' ')
+      .replace(/→/g,' ').replace(/saldo/ig,' ')
+      .replace(/\s+/g,' ').trim();
+    if(!numero){resultado.lineasNoReconocidas++;return;}
+
+    if(tipo==='FAC'){
+      cerrarFacturaActual();
+      const cliente=clienteCodActual?DB.clientes.find(c=>c.codigoTango===clienteCodActual):null;
+      if(clienteCodActual&&!cliente)resultado.clientesSinMatchear.set(clienteCodActual,clienteNombreActual);
+      if(!cliente)return; // sin Código Tango cargado: no se puede abrir "factura actual"
+      const importe=montos[0]||0;
+      const saldoInicial=montos.length>1?montos[1]:importe;
+      const vencimiento=fechas.length>1?fechas[1]:'';
+      facturaActual={nroFactura:numero,clienteId:cliente.id,importe,saldo:saldoInicial,fecha,vencimiento};
+      return;
+    }
+
+    if(tipo==='REC'){
+      if(!facturaActual){resultado.lineasNoReconocidas++;return;}
+      const importe=montos[0]||0;
+      if(!importe){resultado.lineasNoReconocidas++;return;}
+      // Saldo corriente de la factura: usa la columna de saldo del propio
+      // REC si vino, si no lo calcula restando el importe cobrado (C.2).
+      facturaActual.saldo=montos.length>1?montos[1]:Math.max(0,facturaActual.saldo-importe);
+      const yaExiste=(DB.cobros||[]).some(c=>c.nroRecibo===numero)||resultado.recibosNuevos.some(r=>r.nroRecibo===numero);
+      if(yaExiste)return;
+      resultado.recibosNuevos.push({
+        nroFactura:facturaActual.nroFactura,clienteId:facturaActual.clienteId,
+        importeFacturado:facturaActual.importe,objetivoCod:'—',
+        nroRecibo:numero,importe,fecha,
+      });
+    }
   });
-  const resEl=$('tango-import-facturas-resultado');
-  if(resEl) resEl.innerHTML=`<span style="color:var(--verde);">✓ ${importadas} factura${importadas!==1?'s':''} pendiente${importadas!==1?'s':''}${importadasCobradas?' · '+importadasCobradas+' ya cobrada(s)':''}${errores?' · '+errores+' error(es)/duplicada(s)':''}</span>`;
-  DB.historialImportaciones.push({tipo:'Facturas',fecha:new Date().toLocaleDateString('es-AR'),cantidad:importadas+importadasCobradas});
-  renderHistorialImportaciones();
-  if(importadas+importadasCobradas>0){$('tango-csv-facturas').value='';renderCobros();renderCobrados();toast(`✓ ${importadas} facturas pendientes${importadasCobradas?' + '+importadasCobradas+' ya cobradas':''} importadas de Tango`);}
+  cerrarFacturaActual();
+
+  return resultado;
 }
 
-function importarCobrosTango(){
-  const csv=($('tango-csv-cobros')||{value:''}).value.trim();
-  if(!csv){toast('Pegá el CSV de cobros de Tango');return;}
-  const lines=csv.split('\n').filter(l=>l.trim());
-  if(lines.length<2){toast('El CSV necesita al menos una fila de datos');return;}
-  const headers=lines[0].split(',').map(h=>h.trim().toLowerCase().replace(/"/g,''));
-  let importados=0,confirmados=0,errores=0;
-  const get=(vals,key)=>{const i=headers.findIndex(h=>h.includes(key));return i>=0?(vals[i]||'').trim().replace(/"/g,''):''};
-  lines.slice(1).forEach(line=>{
-    const vals=line.split(',');
-    const nroFact=get(vals,'factura')||get(vals,'comprobante');
-    const importe=parseFloat((get(vals,'cobrado')||get(vals,'importe')||'0').replace(/[$\s]/g,'').replace(',','.'))||0;
-    if(!nroFact||!importe){errores++;return;}
-    if((DB.cobros||[]).some(c=>c.nroFactura===nroFact)){errores++;return;}
-    const fact=DB.facturas.find(f=>f.nroFactura===nroFact);
-    const fechaCobro=get(vals,'cobro')||get(vals,'fecha')||new Date().toLocaleDateString('es-AR');
-    DB.cobros.push({
-      id:Date.now()+importados,
-      clienteId:fact?.clienteId||0,objetivoCod:fact?.objetivoCod||'—',
-      nroFactura:nroFact,
-      periodoDesde:fact?.periodoDesde||'',periodoHasta:fact?.periodoHasta||'',
-      importeFacturado:fact?.importe||importe,importeCobrado:importe,
-      nroRecibo:get(vals,'recibo')||'—',
-      fechaCobro,fechaAcreditacion:get(vals,'acreditacion')||get(vals,'acredit')||'',
-      formaPago:fact?.formaPago||'—',
-    });
-    // 2.6.2: si la factura estaba "Cobrada (pendiente Tango)" (la gestora ya
-    // la había marcado a mano), este import es la confirmación que faltaba.
-    if(fact){if(fact.estado==='Cobrada (pendiente Tango)') confirmados++; fact.estado='Cobrado';}
-    importados++;
+let tangoImportPendiente=null;
+
+function analizarComposicionTango(){
+  const texto=($('tango-composicion')||{value:''}).value;
+  if(!texto||!texto.trim()){toast('Pegá la Composición de Saldos de Tango');return;}
+  const analisis=parsearComposicionTango(texto);
+  tangoImportPendiente=analisis;
+  const totalCambios=analisis.facturasNuevas.length+analisis.facturasActualizadas.length+analisis.recibosNuevos.length;
+  const cerradasCant=analisis.facturasActualizadas.filter(f=>f.cerrada).length;
+  const ignoradasTxt=Object.entries(analisis.ignoradas).map(([t,n])=>`${n}× ${t}`).join(', ');
+  const sinMatch=[...analisis.clientesSinMatchear.entries()];
+  const el=$('tango-analisis-resultado');
+  if(el)el.innerHTML=`
+    <div style="display:flex;flex-direction:column;gap:6px;font-size:12px;">
+      <div>📄 Facturas nuevas a Facturas pendientes: <strong>${analisis.facturasNuevas.length}</strong></div>
+      <div>🔄 Facturas existentes con saldo actualizado: <strong>${analisis.facturasActualizadas.length}</strong>${cerradasCant?` (${cerradasCant} quedan totalmente cobradas)`:''}</div>
+      <div>💰 Recibos nuevos a Cobros registrados: <strong>${analisis.recibosNuevos.length}</strong></div>
+      ${ignoradasTxt?`<div style="color:var(--texto-suave);">↪️ Líneas ignoradas (N/C, N/D, etc. — no ajustan saldo en v1, requieren revisión manual): ${ignoradasTxt}</div>`:''}
+      ${analisis.lineasNoReconocidas?`<div style="color:var(--naranja);">⚠️ ${analisis.lineasNoReconocidas} línea(s) no reconocida(s) — revisá el formato pegado.</div>`:''}
+      ${sinMatch.length?`<div style="color:var(--rojo);">⚠️ ${sinMatch.length} cliente(s) sin Código Tango cargado en su ficha — sus comprobantes NO se importan hasta cargarlo:<br>${sinMatch.map(([cod,nom])=>`&nbsp;&nbsp;· ${cod} — ${nom}`).join('<br>')}</div>`:''}
+      ${!totalCambios&&!sinMatch.length?`<div style="color:var(--texto-suave);">Nada nuevo para importar (o el texto no tiene el formato esperado).</div>`:''}
+    </div>`;
+  const btnConfirmar=$('btn-confirmar-import-tango');
+  if(btnConfirmar)btnConfirmar.disabled=totalCambios===0;
+}
+
+function confirmarImportacionTango(){
+  const analisis=tangoImportPendiente;
+  if(!analisis||(analisis.facturasNuevas.length+analisis.facturasActualizadas.length+analisis.recibosNuevos.length===0)){
+    toast('Analizá una composición con cambios antes de confirmar');return;
+  }
+  let confirmadasPendientesTango=0,nSeq=0,rSeq=0;
+
+  analisis.facturasNuevas.forEach(f=>{
+    const cli=DB.clientes.find(c=>c.id===f.clienteId);
+    const nueva={
+      id:Date.now()+(nSeq++),
+      clienteId:f.clienteId,objetivoCod:f.objetivoCod,nroFactura:f.nroFactura,
+      periodoDesde:'',periodoHasta:'',importe:f.importe,saldo:f.saldo,
+      fechaFactura:f.fecha,vencimiento:f.vencimiento||'',
+      formaPago:'Pendiente',
+      contactoCobro:cli?.contactos?.find(c=>!c.aSatisfacer)?.nombre||'—',
+      telefonoCobro:cli?.contactos?.find(c=>!c.aSatisfacer)?.tel||'—',
+      horarioCobro:'Lun-Vie 9-17hs',ultimoContacto:'',proximaGestion:'',probCobro:50,
+      estado:'Impago',fechaPosibleCobro:'',acciones:[],notas:'Importado desde Tango',
+    };
+    DB.facturas.push(nueva);
+    supaSync('facturas',nueva);
   });
-  const resEl=$('tango-import-cobros-resultado');
-  if(resEl) resEl.innerHTML=`<span style="color:var(--verde);">✓ ${importados} cobro${importados!==1?'s':''} importado${importados!==1?'s':''}${confirmados?' ('+confirmados+' confirmaban una gestión pendiente)':''}${errores?' · '+errores+' error(es)/duplicado(s)':''}</span>`;
-  DB.historialImportaciones.push({tipo:'Cobros',fecha:new Date().toLocaleDateString('es-AR'),cantidad:importados});
+
+  analisis.facturasActualizadas.forEach(u=>{
+    const f=DB.facturas.find(x=>x.nroFactura===u.nroFactura);
+    if(!f)return;
+    f.saldo=u.saldoNuevo;
+    // 2.6.2 (Delta Comercial v1.2): si la gestora ya la había marcado a mano
+    // como "Cobrada (pendiente Tango)", este import es la confirmación.
+    if(u.cerrada){
+      if(f.estado==='Cobrada (pendiente Tango)')confirmadasPendientesTango++;
+      f.estado='Cobrado';
+    }
+    supaSync('facturas',f);
+  });
+
+  analisis.recibosNuevos.forEach(r=>{
+    const fact=DB.facturas.find(f=>f.nroFactura===r.nroFactura);
+    const nuevo={
+      id:Date.now()+(rSeq++),
+      clienteId:r.clienteId,objetivoCod:fact?.objetivoCod||r.objetivoCod,
+      nroFactura:r.nroFactura,periodoDesde:fact?.periodoDesde||'',periodoHasta:fact?.periodoHasta||'',
+      importeFacturado:r.importeFacturado,importeCobrado:r.importe,
+      nroRecibo:r.nroRecibo,fechaCobro:r.fecha,fechaAcreditacion:'',
+      formaPago:fact?.formaPago||'—',
+    };
+    DB.cobros.push(nuevo);
+    supaSync('cobros',nuevo);
+  });
+
+  const historialNuevo={
+    id:Date.now(),
+    tipo:'Composición Tango',fecha:new Date().toLocaleDateString('es-AR'),
+    cantidad:analisis.facturasNuevas.length+analisis.facturasActualizadas.length+analisis.recibosNuevos.length,
+    detalle:`${analisis.facturasNuevas.length} facturas nuevas · ${analisis.facturasActualizadas.length} actualizadas · ${analisis.recibosNuevos.length} recibos`,
+  };
+  DB.historialImportaciones.push(historialNuevo);
+  supaSync('historialImportaciones',historialNuevo);
   renderHistorialImportaciones();
-  if(importados>0){$('tango-csv-cobros').value='';renderCobros();renderCobrados();toast(`✓ ${importados} cobros importados de Tango`);}
+
+  if($('tango-composicion'))$('tango-composicion').value='';
+  if($('tango-analisis-resultado'))$('tango-analisis-resultado').innerHTML='';
+  if($('btn-confirmar-import-tango'))$('btn-confirmar-import-tango').disabled=true;
+  tangoImportPendiente=null;
+  renderCobros();renderCobrados();
+  toast(`✓ Importación de Tango aplicada: ${analisis.facturasNuevas.length} facturas nuevas, ${analisis.facturasActualizadas.length} actualizadas, ${analisis.recibosNuevos.length} recibos${confirmadasPendientesTango?` (${confirmadasPendientesTango} confirmaban una gestión "Cobrada (pendiente Tango)")`:''}`,7000);
 }
 
 function renderHistorialImportaciones(){
@@ -3059,6 +3196,9 @@ function renderHistorialImportaciones(){
   if(!hist.length){el.innerHTML='<p class="text-muted" style="font-size:13px;">Sin importaciones realizadas aún.</p>';return;}
   el.innerHTML=`<div style="display:flex;flex-direction:column;gap:6px;">
     ${hist.slice().reverse().slice(0,10).map(h=>`
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 12px;background:var(--fondo);border-radius:var(--radio);border:1px solid var(--borde);">
+        <div><strong style="font-size:12px;">${h.tipo}</strong><div style="font-size:11px;color:var(--texto-suave);">${h.detalle||`${h.cantidad} registro(s)`}</div></div>
+        <div style="font-size:11px;color:var(--texto-suave);">${h.fecha}</div>
       </div>`).join('')}
   </div>`;
 }
@@ -10288,6 +10428,7 @@ window.filtrarAcciones = filtrarAcciones;
 window.filtrarClientes = filtrarClientes;
 window.filtrarCobrados = filtrarCobrados;
 window.filtrarCobros = filtrarCobros;
+window.eliminarCobro = eliminarCobro;
 window.filtrarLeads = filtrarLeads;
 window.filtrarObjetivos = filtrarObjetivos;
 window.filtrarReclamos = filtrarReclamos;
@@ -10331,8 +10472,8 @@ window.buscarAsocVac = buscarAsocVac;
 window.seleccionarAsocVac = seleccionarAsocVac;
 window.guardarVacOp = guardarVacOp;
 window.homologarParitaria = homologarParitaria;
-window.importarCobrosTango = importarCobrosTango;
-window.importarFacturasTango = importarFacturasTango;
+window.analizarComposicionTango = analizarComposicionTango;
+window.confirmarImportacionTango = confirmarImportacionTango;
 window.initPermisosUsuarios = initPermisosUsuarios;
 window.initResumenMes = initResumenMes;
 window.liberarRetencion = liberarRetencion;

@@ -109,6 +109,10 @@ export const _SM = {
   historialAuthLiq: 'historial_auth_liq',
   catAltPendientesLiq: 'cat_alt_pendientes_liq',
   art42: 'registros_art42',
+  // v048 — Cobros / Importación Tango
+  facturas: 'facturas',
+  cobros: 'cobros',
+  historialImportaciones: 'historial_importaciones',
 };
 
 // camelCase → snake_case para guardar en Supabase
@@ -367,6 +371,16 @@ export function _toSnake(obj) {
     // v046 — Liq. Admin/Suplemento/Retenes/Mantenimiento
     categoriBase: 'categori_base', funcionExtra: 'funcion_extra',
     horasFijas: 'horas_fijas', personaIdLocal: 'persona_id_local',
+    // v048 — Cobros / Importación Tango
+    clienteId: 'cliente_id', objetivoCod: 'objetivo_cod', nroFactura: 'nro_factura',
+    periodoDesde: 'periodo_desde', periodoHasta: 'periodo_hasta',
+    fechaFactura: 'fecha_factura', contactoCobro: 'contacto_cobro',
+    telefonoCobro: 'telefono_cobro',
+    horarioCobro: 'horario_cobro', proximaGestion: 'proxima_gestion',
+    probCobro: 'prob_cobro', fechaPosibleCobro: 'fecha_posible_cobro',
+    marcadaCobradaPor: 'marcada_cobrada_por', fechaMarcadaCobrada: 'fecha_marcada_cobrada',
+    importeFacturado: 'importe_facturado', importeCobrado: 'importe_cobrado',
+    nroRecibo: 'nro_recibo', fechaCobro: 'fecha_cobro', fechaAcreditacion: 'fecha_acreditacion',
   };
   const r = {};
   for (const [k, v] of Object.entries(obj)) {
@@ -627,6 +641,16 @@ export function _toCamel(obj) {
     modulo_label: 'moduloLabel',
     categori_base: 'categoriBase', funcion_extra: 'funcionExtra',
     horas_fijas: 'horasFijas', persona_id_local: 'personaIdLocal',
+    // v048 — Cobros / Importación Tango
+    cliente_id: 'clienteId', objetivo_cod: 'objetivoCod', nro_factura: 'nroFactura',
+    periodo_desde: 'periodoDesde', periodo_hasta: 'periodoHasta',
+    fecha_factura: 'fechaFactura', contacto_cobro: 'contactoCobro',
+    telefono_cobro: 'telefonoCobro',
+    horario_cobro: 'horarioCobro', proxima_gestion: 'proximaGestion',
+    prob_cobro: 'probCobro', fecha_posible_cobro: 'fechaPosibleCobro',
+    marcada_cobrada_por: 'marcadaCobradaPor', fecha_marcada_cobrada: 'fechaMarcadaCobrada',
+    importe_facturado: 'importeFacturado', importe_cobrado: 'importeCobrado',
+    nro_recibo: 'nroRecibo', fecha_cobro: 'fechaCobro', fecha_acreditacion: 'fechaAcreditacion',
   };
   const r = {};
   for (const [k, v] of Object.entries(obj)) {
