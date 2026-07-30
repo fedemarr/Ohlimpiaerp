@@ -381,6 +381,8 @@ export function _toSnake(obj) {
     marcadaCobradaPor: 'marcada_cobrada_por', fechaMarcadaCobrada: 'fecha_marcada_cobrada',
     importeFacturado: 'importe_facturado', importeCobrado: 'importe_cobrado',
     nroRecibo: 'nro_recibo', fechaCobro: 'fecha_cobro', fechaAcreditacion: 'fecha_acreditacion',
+    // v049 — Delta Cobros/Tango v2
+    alertaTangoNoConfirmo: 'alerta_tango_no_confirmo',
   };
   const r = {};
   for (const [k, v] of Object.entries(obj)) {
@@ -651,6 +653,8 @@ export function _toCamel(obj) {
     marcada_cobrada_por: 'marcadaCobradaPor', fecha_marcada_cobrada: 'fechaMarcadaCobrada',
     importe_facturado: 'importeFacturado', importe_cobrado: 'importeCobrado',
     nro_recibo: 'nroRecibo', fecha_cobro: 'fechaCobro', fecha_acreditacion: 'fechaAcreditacion',
+    // v049 — Delta Cobros/Tango v2
+    alerta_tango_no_confirmo: 'alertaTangoNoConfirmo',
   };
   const r = {};
   for (const [k, v] of Object.entries(obj)) {
