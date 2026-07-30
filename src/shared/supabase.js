@@ -387,6 +387,8 @@ export function _toSnake(obj) {
     alertaTangoNoConfirmo: 'alerta_tango_no_confirmo',
     // v050 — CRM / leads
     clienteBorradorId: 'cliente_borrador_id', motivoPerdida: 'motivo_perdida',
+    // v051 — Gestión de cobranzas (a nivel cliente)
+    gestionesCobro: 'gestiones_cobro',
   };
   const r = {};
   for (const [k, v] of Object.entries(obj)) {
@@ -661,6 +663,8 @@ export function _toCamel(obj) {
     alerta_tango_no_confirmo: 'alertaTangoNoConfirmo',
     // v050 — CRM / leads
     cliente_borrador_id: 'clienteBorradorId', motivo_perdida: 'motivoPerdida',
+    // v051 — Gestión de cobranzas (a nivel cliente)
+    gestiones_cobro: 'gestionesCobro',
   };
   const r = {};
   for (const [k, v] of Object.entries(obj)) {

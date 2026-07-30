@@ -3153,12 +3153,15 @@ function renderSaldoPorCliente(pendientes){
     .sort((a,b)=>b.saldo-a.saldo);
   if(!filas.length){el.innerHTML='<p class="text-muted" style="font-size:12px;">Sin saldos pendientes.</p>';return;}
   el.innerHTML=filas.map(f=>`
-    <div onclick="filtrarPorCliente(${f.clienteId})" style="display:flex;justify-content:space-between;align-items:center;padding:8px 12px;background:var(--fondo);border-radius:var(--radio);border:1px solid var(--borde);cursor:pointer;" title="Ver las facturas de este cliente">
-      <div>
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 12px;background:var(--fondo);border-radius:var(--radio);border:1px solid var(--borde);">
+      <div onclick="filtrarPorCliente(${f.clienteId})" style="cursor:pointer;flex:1;" title="Ver el detalle de sus facturas más abajo">
         <div style="font-weight:600;font-size:12px;">${f.cliente?.nombre||'—'}</div>
         <div style="font-size:10px;color:var(--texto-suave);">${f.facturas} factura${f.facturas!==1?'s':''} pendiente${f.facturas!==1?'s':''}${f.alertas?` · <span style="color:var(--rojo);">⚠️ ${f.alertas} sin confirmar</span>`:''}</div>
       </div>
-      <div style="font-weight:700;font-size:14px;color:var(--rojo);">$${Math.round(f.saldo).toLocaleString('es-AR')}</div>
+      <div style="display:flex;align-items:center;gap:10px;">
+        <div style="font-weight:700;font-size:14px;color:var(--rojo);">$${Math.round(f.saldo).toLocaleString('es-AR')}</div>
+        <button class="btn btn-primary btn-xs" onclick="abrirGestionCliente(${f.clienteId})">💬 Gestionar</button>
+      </div>
     </div>`).join('');
 }
 
@@ -3173,6 +3176,7 @@ function filtrarPorCliente(clienteId){
 }
 
 function renderCobros(lista){
+  _migrarAccionesFacturaACliente();
   const pendientes=DB.facturas.filter(f=>f.estado!=='Cobrado');
   const rows=lista||pendientes;
   const hoy=new Date();
@@ -3203,8 +3207,14 @@ function renderCobros(lista){
     const probColor=f.probCobro>=80?'var(--verde)':f.probCobro>=50?'var(--naranja)':'var(--rojo)';
     const realIdx=DB.facturas.indexOf(f);
     const periodo=formatPeriodo(f.periodoDesde,f.periodoHasta);
-    const accsRealizadas=(f.acciones||[]).filter(a=>a.estado==='Realizada');
-    const ultimaAcc=accsRealizadas[accsRealizadas.length-1];
+    // Gestión de cobranzas v1: la gestión vive a nivel cliente, no factura
+    // — acá se toma la porción que aplica a ESTA factura (todas las del
+    // cliente sin alcance puntual, más las que la listan explícitamente).
+    const gestionesFactura=gestionesQueAplicanAFactura(f);
+    const realizadasFactura=gestionesFactura.filter(g=>g.estado==='Realizada');
+    const ultimaAcc=realizadasFactura[realizadasFactura.length-1];
+    const pendientesFactura=gestionesFactura.filter(g=>g.estado==='Pendiente'&&g.fechaVenc).sort((a,b)=>parseF(a.fechaVenc)-parseF(b.fechaVenc));
+    const proxGestion=pendientesFactura[0];
     const fechaInputVal=f.fechaPosibleCobro?f.fechaPosibleCobro.split('/').reverse().join('-'):'';
     return `<tr>
       <td style="font-weight:500;">${cli?.nombre||'—'}</td>
@@ -3219,7 +3229,7 @@ function renderCobros(lista){
       <td style="font-size:12px;">${f.formaPago}</td>
       <td><div style="font-size:12px;font-weight:500;">${f.contactoCobro}</div><div style="font-size:10px;color:var(--texto-suave);">${f.telefonoCobro}</div></td>
       <td style="font-size:11px;">${ultimaAcc?ultimaAcc.tipo+' '+ultimaAcc.fecha:'—'}</td>
-      <td style="font-size:11px;color:var(--naranja);">${f.proximaGestion||'—'}</td>
+      <td style="font-size:11px;color:var(--naranja);">${proxGestion?proxGestion.tipo+' '+proxGestion.fechaVenc:'—'}</td>
       <td style="background:var(--acento-suave);text-align:center;">
         <input type="date" value="${fechaInputVal}"
           style="border:1px solid #e6c84a;border-radius:6px;font-size:11px;padding:3px 6px;font-family:inherit;outline:none;background:white;"
@@ -3230,7 +3240,7 @@ function renderCobros(lista){
         <div style="width:50px;height:4px;background:var(--borde);border-radius:2px;margin:3px auto 0;overflow:hidden;"><div style="height:100%;width:${f.probCobro}%;background:${probColor};"></div></div>
       </td>
       <td><span class="badge ${estColor[f.estado]||'badge-gris'}">${f.estado}</span>${f.alertaTangoNoConfirmo?`<div style="margin-top:4px;"><span class="badge badge-rojo" style="font-size:9px;" title="Pasó una importación de Tango y no confirmó este cobro — la marca se mantiene, pero conviene chequear con el cliente.">⚠️ Tango no confirmó</span></div>`:''}</td>
-      <td><button class="btn btn-secondary btn-xs" onclick="verAccionesCobro(${realIdx})" title="Acciones de cobro">📋 ${(f.acciones||[]).length}</button></td>
+      <td><button class="btn btn-secondary btn-xs" onclick="abrirGestionCliente(${f.clienteId})" title="Gestiones de cobro de este cliente">📋 ${gestionesFactura.length}</button></td>
       <td>${f.estado==='Cobrada (pendiente Tango)'?'<span style="font-size:10px;color:var(--texto-suave);">⏳ Pendiente Tango</span>':`<button class="btn btn-xs" style="background:var(--verde-claro);color:var(--verde);border:1px solid #9fdaba;" onclick="marcarCobrado(${realIdx})">✓</button>`}</td>
     </tr>`;
   }).join('')||`<tr><td colspan="18"><div class="empty-state"><div class="icon">💳</div><p>Sin facturas pendientes</p></div></td></tr>`;
@@ -3318,60 +3328,212 @@ function analizarCobrosIA(){
   toast(`🤖 Deuda $${Math.round(deuda/1000)}k · Prob. promedio ${Math.round(probProm)}% · Proyección $${Math.round(proyeccion/1000)}k · ${conFecha.length} facturas con fecha posible cargada.`,7000);
 }
 
-function verAccionesCobro(idx){
-  const f=DB.facturas[idx];if(!f)return;
-  if(!f.acciones) f.acciones=[];
-  const tiposAccion=DB.tiposAccionCobro||['Llamada','Email','WhatsApp','Visita presencial','Nota de deuda','Carta documento','Negociación de plan'];
-  const html=`<div class="info-grid" style="margin-bottom:14px;">
-    <div class="info-item"><div class="key">Factura</div><div class="val" style="font-family:'DM Mono',monospace;">${f.nroFactura}</div></div>
-    <div class="info-item"><div class="key">Importe</div><div class="val" style="font-weight:700;color:var(--azul);">$${f.importe.toLocaleString('es-AR')}</div></div>
-    <div class="info-item"><div class="key">Período</div><div class="val">${formatPeriodo(f.periodoDesde,f.periodoHasta)}</div></div>
-    <div class="info-item"><div class="key">Contacto</div><div class="val">${f.contactoCobro} · ${f.telefonoCobro}</div></div>
-  </div>
-  <div style="font-size:11px;font-weight:700;text-transform:uppercase;color:var(--texto-suave);margin-bottom:8px;">Historial de gestiones</div>
-  <div style="max-height:180px;overflow-y:auto;margin-bottom:14px;display:flex;flex-direction:column;gap:6px;">
-    ${f.acciones.slice().reverse().map(a=>`<div style="padding:8px 12px;background:${a.estado==='Pendiente'?'var(--acento-suave)':'var(--fondo)'};border-radius:var(--radio);border:1px solid var(--borde);">
-      <div style="display:flex;justify-content:space-between;align-items:center;">
-        <div style="font-weight:600;font-size:12px;">${a.tipo} <span style="font-weight:400;color:var(--texto-suave);">— ${a.fecha}</span></div>
-        <span class="badge ${a.estado==='Pendiente'?'badge-acento':'badge-verde'}" style="font-size:10px;">${a.estado}</span>
-      </div>
-      ${a.nota?`<div style="font-size:12px;margin-top:4px;">${a.nota}</div>`:''}
-      ${a.fechaVenc?`<div style="font-size:10px;color:var(--texto-muy-suave);margin-top:4px;">📅 Vence: ${a.fechaVenc}</div>`:''}
-    </div>`).join('')||'<p class="text-muted" style="font-size:12px;">Sin gestiones registradas</p>'}
-  </div>
-  <div style="background:var(--fondo);border-radius:var(--radio);padding:12px;border:1px solid var(--borde);">
-    <div style="font-size:12px;font-weight:600;margin-bottom:8px;">+ Registrar nueva gestión</div>
-    <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:8px;margin-bottom:8px;">
-      <select id="acc-cobro-tipo" style="padding:6px;border:1px solid var(--borde-fuerte);border-radius:6px;font-size:12px;font-family:inherit;outline:none;">
-        ${tiposAccion.map(t=>`<option>${t}</option>`).join('')}
-      </select>
-      <input type="date" id="acc-cobro-fecha" style="padding:6px;border:1px solid var(--borde-fuerte);border-radius:6px;font-size:12px;font-family:inherit;outline:none;" placeholder="Fecha">
-      <input type="date" id="acc-cobro-fechavenc" style="padding:6px;border:1px solid var(--borde-fuerte);border-radius:6px;font-size:12px;font-family:inherit;outline:none;border-color:#f0c857;" title="Fecha límite — si vence sin completarse genera alerta">
-      <select id="acc-cobro-estado" style="padding:6px;border:1px solid var(--borde-fuerte);border-radius:6px;font-size:12px;font-family:inherit;outline:none;">
-        <option>Realizada</option><option>Pendiente</option>
-      </select>
-    </div>
-    <div style="font-size:10px;color:var(--texto-muy-suave);margin-bottom:6px;">📅 Fecha límite: si la acción no se completa antes de esa fecha, se marcará como <strong>Vencida</strong> y se generará una alerta.</div>
-    <input type="text" id="acc-cobro-nota" placeholder="Resultado de la gestión..." style="width:100%;padding:6px 10px;border:1px solid var(--borde-fuerte);border-radius:6px;font-size:12px;font-family:inherit;outline:none;margin-bottom:8px;">
-    <button class="btn btn-primary btn-sm" onclick="agregarAccionCobro(${idx})">Registrar gestión</button>
-  </div>`;
-  $('pedido-title').textContent=`💳 Gestiones de cobro — ${f.nroFactura}`;
-  $('pedido-body').innerHTML=html;
-  abrirModal('modal-ver-pedido');
+// ========== GESTIÓN DE COBRANZAS — a nivel CLIENTE (Delta Cobros/Gestión de Cobranzas v1) ==========
+// Principio rector del delta: la gestora no cobra facturas, cobra clientes
+// — llama a un cliente y habla de todo lo que debe. La gestión (llamada,
+// mail, etc.) se registra UNA vez por conversación y por defecto aplica a
+// TODAS las facturas pendientes del cliente (facturasAplicadas:null); solo
+// si la gestora tilda un subconjunto puntual queda una lista explícita de
+// N° de factura. El historial vive en cliente.gestionesCobro (antes vivía
+// repetido en cada f.acciones — absurdo si un cliente tiene 10 facturas).
+//
+// Ciclo de vida (punto 4): una gestión nace Pendiente (planificada, sin
+// resultado todavía) o Realizada (ya se hizo, con resultado de una). Una
+// Pendiente se REABRE cuando se ejecuta — se le carga el resultado y pasa
+// a Realizada — o el sweep de verificarAccionesVencidas() la pasa a
+// Vencida si venció la fecha límite sin completarse. Antes esto no existía
+// (el formulario nacía y moría en el mismo paso, sin forma de volver).
+
+// Migración única (datos de demo): las gestiones vivían por factura
+// (f.acciones); se trasladan una sola vez a cliente.gestionesCobro la
+// primera vez que se abre la pantalla, para no perder el historial mock
+// ya cargado.
+let _gestionClienteMigrada=false;
+function _migrarAccionesFacturaACliente(){
+  if(_gestionClienteMigrada)return;
+  _gestionClienteMigrada=true;
+  DB.facturas.forEach(f=>{
+    if(!f.acciones||!f.acciones.length)return;
+    const cli=DB.clientes.find(c=>c.id===f.clienteId);
+    if(!cli)return;
+    if(!cli.gestionesCobro)cli.gestionesCobro=[];
+    f.acciones.forEach((a,i)=>{
+      cli.gestionesCobro.push({
+        id:Date.now()+cli.gestionesCobro.length*7+i,
+        tipo:a.tipo,fecha:a.fecha,fechaVenc:a.fechaVenc||'',
+        estado:a.estado==='Vencida'?'Vencida':a.estado==='Pendiente'?'Pendiente':'Realizada',
+        resultado:a.nota||'',resp:currentUser?.nombre||'',
+        facturasAplicadas:[f.nroFactura],
+      });
+    });
+    f.acciones=[];
+    supaSync('clientes',cli);
+    supaSync('facturas',f);
+  });
 }
 
-function agregarAccionCobro(idx){
-  const f=DB.facturas[idx];if(!f.acciones)f.acciones=[];
-  const tipo=$('acc-cobro-tipo')?.value;
-  const fecha=$('acc-cobro-fecha')?.value?new Date($('acc-cobro-fecha').value).toLocaleDateString('es-AR'):new Date().toLocaleDateString('es-AR');
-  const fechaVenc=$('acc-cobro-fechavenc')?.value?new Date($('acc-cobro-fechavenc').value).toLocaleDateString('es-AR'):'';
-  const estado=$('acc-cobro-estado')?.value||'Realizada';
-  const nota=$('acc-cobro-nota')?.value||'';
-  f.acciones.push({tipo,fecha,fechaVenc,estado,nota});
-  f.ultimoContacto=fecha;
-  supaSync('facturas',f);
-  cerrarModal('modal-ver-pedido');renderCobros();
-  toast(`✓ Gestión de cobro registrada para ${f.nroFactura}${fechaVenc?' · Vence: '+fechaVenc:''}`);
+// Gestiones del cliente que aplican a una factura puntual (todas las que
+// tienen facturasAplicadas:null, más las que la listan explícitamente) —
+// usado para "Último contacto"/"Próxima gestión" en la tabla de facturas.
+function gestionesQueAplicanAFactura(f){
+  const cli=DB.clientes.find(c=>c.id===f.clienteId);
+  if(!cli||!cli.gestionesCobro)return[];
+  return cli.gestionesCobro.filter(g=>!g.facturasAplicadas||g.facturasAplicadas.includes(f.nroFactura));
+}
+
+function ensureModalGestionCliente(){
+  if($('modal-gestion-cliente'))return;
+  const m=document.createElement('div');
+  m.className='modal-overlay';
+  m.id='modal-gestion-cliente';
+  m.innerHTML=`
+    <div class="modal" style="max-width:760px;">
+      <div class="modal-header"><h3 id="gc-titulo">💳 Gestiones de cobro</h3><button class="btn-close" onclick="cerrarModal('modal-gestion-cliente')">×</button></div>
+      <div class="modal-body">
+        <div class="info-grid" style="margin-bottom:14px;" id="gc-info-cliente"></div>
+        <div style="font-size:11px;font-weight:700;text-transform:uppercase;color:var(--texto-suave);margin-bottom:6px;">Facturas pendientes de este cliente</div>
+        <div id="gc-facturas-lista" style="max-height:140px;overflow-y:auto;margin-bottom:14px;border:1px solid var(--borde);border-radius:var(--radio);"></div>
+
+        <div style="font-size:11px;font-weight:700;text-transform:uppercase;color:var(--texto-suave);margin-bottom:8px;">Historial de gestiones</div>
+        <div id="gc-historial" style="max-height:220px;overflow-y:auto;margin-bottom:14px;display:flex;flex-direction:column;gap:6px;"></div>
+
+        <div style="background:var(--fondo);border-radius:var(--radio);padding:12px;border:1px solid var(--borde);">
+          <div style="font-size:12px;font-weight:600;margin-bottom:8px;">+ Registrar nueva gestión</div>
+          <div class="form-grid form-grid-2" style="margin-bottom:8px;">
+            <div class="form-group"><label>Tipo</label><select id="gc-tipo">${DB.tiposAccionCobro.map(t=>`<option>${t}</option>`).join('')}</select></div>
+            <div class="form-group"><label>Estado</label><select id="gc-estado" onchange="toggleGcResultado()"><option>Realizada</option><option>Pendiente</option></select></div>
+            <div class="form-group"><label>Fecha de la gestión</label><input type="date" id="gc-fecha"></div>
+            <div class="form-group"><label>Fecha límite / próxima gestión</label><input type="date" id="gc-fechavenc" title="Si vence sin completarse pasa a Vencida y genera alerta"></div>
+          </div>
+          <div class="form-group" style="margin-bottom:8px;"><label id="gc-resultado-label">Resultado</label><textarea id="gc-resultado" placeholder="Qué dijo el cliente, acuerdo al que se llegó..."></textarea></div>
+          <div style="margin-bottom:10px;">
+            <label style="font-size:11px;font-weight:600;display:flex;align-items:center;gap:6px;margin-bottom:4px;cursor:pointer;">
+              <input type="checkbox" id="gc-todas" checked onchange="toggleGcTodasFacturas()"> Aplica a todas las facturas pendientes
+            </label>
+            <div id="gc-checks-facturas" style="display:none;max-height:100px;overflow-y:auto;border:1px solid var(--borde);border-radius:var(--radio);padding:6px 10px;"></div>
+          </div>
+          <button class="btn btn-primary btn-sm" onclick="guardarGestionCliente()">Registrar gestión</button>
+        </div>
+      </div>
+    </div>`;
+  document.body.appendChild(m);
+}
+let _gestionClienteAbiertaId=null;
+function abrirGestionCliente(clienteId){
+  _migrarAccionesFacturaACliente();
+  const cli=DB.clientes.find(c=>c.id===clienteId);
+  if(!cli)return;
+  ensureModalGestionCliente();
+  _gestionClienteAbiertaId=clienteId;
+  const facturasPend=DB.facturas.filter(f=>f.clienteId===clienteId&&f.estado!=='Cobrado');
+  const saldoDe=f=>f.saldo!==undefined&&f.saldo!==null?f.saldo:f.importe;
+  const saldoTotal=facturasPend.reduce((s,f)=>s+saldoDe(f),0);
+
+  $('gc-titulo').textContent=`💳 Gestiones de cobro — ${cli.nombre}`;
+  $('gc-info-cliente').innerHTML=`
+    <div class="info-item"><div class="key">Saldo total pendiente</div><div class="val" style="font-weight:700;color:var(--rojo);">$${Math.round(saldoTotal).toLocaleString('es-AR')}</div></div>
+    <div class="info-item"><div class="key">Facturas pendientes</div><div class="val">${facturasPend.length}</div></div>
+    <div class="info-item"><div class="key">Contacto de cobro</div><div class="val">${facturasPend[0]?.contactoCobro||'—'}</div></div>
+    <div class="info-item"><div class="key">Teléfono</div><div class="val">${facturasPend[0]?.telefonoCobro||'—'}</div></div>`;
+  $('gc-facturas-lista').innerHTML=facturasPend.length?facturasPend.map(f=>`
+    <div style="display:flex;justify-content:space-between;padding:6px 10px;font-size:12px;border-bottom:1px solid var(--borde);">
+      <span style="font-family:'DM Mono',monospace;">${f.nroFactura}</span>
+      <span style="font-weight:600;color:var(--rojo);">$${Math.round(saldoDe(f)).toLocaleString('es-AR')}</span>
+    </div>`).join(''):'<div style="padding:10px;font-size:12px;color:var(--texto-muy-suave);text-align:center;">Sin facturas pendientes</div>';
+  $('gc-checks-facturas').innerHTML=facturasPend.map(f=>`
+    <label style="display:flex;align-items:center;gap:6px;font-size:11px;padding:2px 0;cursor:pointer;">
+      <input type="checkbox" class="gc-check-factura" value="${f.nroFactura}" checked> ${f.nroFactura} — $${Math.round(saldoDe(f)).toLocaleString('es-AR')}
+    </label>`).join('')||'<p class="text-muted" style="font-size:11px;">Sin facturas pendientes</p>';
+
+  if($('gc-todas'))$('gc-todas').checked=true;
+  if($('gc-checks-facturas'))$('gc-checks-facturas').style.display='none';
+  if($('gc-tipo'))$('gc-tipo').selectedIndex=0;
+  if($('gc-estado'))$('gc-estado').value='Realizada';
+  if($('gc-fecha'))$('gc-fecha').value=new Date().toISOString().slice(0,10);
+  if($('gc-fechavenc'))$('gc-fechavenc').value='';
+  if($('gc-resultado'))$('gc-resultado').value='';
+  toggleGcResultado();
+
+  renderHistorialGestionCliente(cli);
+  abrirModal('modal-gestion-cliente');
+}
+function toggleGcTodasFacturas(){
+  const todas=$('gc-todas')?.checked;
+  if($('gc-checks-facturas'))$('gc-checks-facturas').style.display=todas?'none':'block';
+}
+function toggleGcResultado(){
+  const estado=$('gc-estado')?.value;
+  const ta=$('gc-resultado');
+  if(!ta)return;
+  ta.placeholder=estado==='Pendiente'
+    ?'Opcional — qué se espera de este contacto (se completa cuando se ejecute la gestión)'
+    :'Qué dijo el cliente, acuerdo al que se llegó...';
+}
+function renderHistorialGestionCliente(cli){
+  const el=$('gc-historial');if(!el)return;
+  const gestiones=(cli.gestionesCobro||[]).slice().reverse();
+  el.innerHTML=gestiones.map(g=>{
+    const estColor=g.estado==='Pendiente'?'badge-acento':g.estado==='Vencida'?'badge-rojo':'badge-verde';
+    const bg=g.estado==='Pendiente'?'var(--acento-suave)':g.estado==='Vencida'?'rgba(229,62,62,.08)':'var(--fondo)';
+    const alcance=g.facturasAplicadas?`Aplica a: ${g.facturasAplicadas.join(', ')}`:'Aplica a todas las facturas pendientes';
+    const puedeCompletar=g.estado==='Pendiente'||g.estado==='Vencida';
+    return `<div style="padding:8px 12px;background:${bg};border-radius:var(--radio);border:1px solid var(--borde);">
+      <div style="display:flex;justify-content:space-between;align-items:center;">
+        <div style="font-weight:600;font-size:12px;">${g.tipo} <span style="font-weight:400;color:var(--texto-suave);">— ${g.fecha||'—'}</span></div>
+        <span class="badge ${estColor}" style="font-size:10px;">${g.estado}</span>
+      </div>
+      <div style="font-size:10px;color:var(--texto-muy-suave);margin-top:2px;">${alcance}</div>
+      ${g.resultado?`<div style="font-size:12px;margin-top:4px;">${g.resultado}</div>`:''}
+      ${g.fechaVenc?`<div style="font-size:10px;color:${g.estado==='Vencida'?'var(--rojo)':'var(--texto-muy-suave)'};margin-top:4px;">📅 ${g.estado==='Vencida'?'Venció':'Vence'}: ${g.fechaVenc}</div>`:''}
+      ${puedeCompletar?`
+        <button class="btn btn-secondary btn-xs" style="margin-top:6px;" onclick="document.getElementById('gc-completar-${g.id}').style.display='block';this.style.display='none';">✓ Completar</button>
+        <div id="gc-completar-${g.id}" style="display:none;margin-top:8px;padding-top:8px;border-top:1px dashed var(--borde);">
+          <textarea id="gc-completar-texto-${g.id}" placeholder="Resultado de la gestión..." style="width:100%;padding:6px 10px;border:1px solid var(--borde-fuerte);border-radius:6px;font-size:12px;font-family:inherit;outline:none;margin-bottom:6px;"></textarea>
+          <button class="btn btn-primary btn-xs" onclick="confirmarCompletarGestion(${g.id})">Guardar resultado</button>
+        </div>`:''}
+    </div>`;
+  }).join('')||'<p class="text-muted" style="font-size:12px;">Sin gestiones registradas</p>';
+}
+function guardarGestionCliente(){
+  const clienteId=_gestionClienteAbiertaId;
+  const cli=DB.clientes.find(c=>c.id===clienteId);
+  if(!cli)return;
+  const tipo=$('gc-tipo')?.value;
+  const estado=$('gc-estado')?.value||'Realizada';
+  const fecha=$('gc-fecha')?.value?new Date($('gc-fecha').value).toLocaleDateString('es-AR'):new Date().toLocaleDateString('es-AR');
+  const fechaVenc=$('gc-fechavenc')?.value?new Date($('gc-fechavenc').value).toLocaleDateString('es-AR'):'';
+  const resultado=$('gc-resultado')?.value.trim()||'';
+  const todas=$('gc-todas')?.checked;
+  let facturasAplicadas=null;
+  if(!todas){
+    facturasAplicadas=[...document.querySelectorAll('.gc-check-factura:checked')].map(el=>el.value);
+    if(!facturasAplicadas.length){toast('Marcá al menos una factura, o tildá "Todas las facturas pendientes"');return;}
+  }
+  if(!cli.gestionesCobro)cli.gestionesCobro=[];
+  cli.gestionesCobro.push({id:Date.now(),tipo,fecha,fechaVenc,estado,resultado,resp:currentUser?.nombre||'',facturasAplicadas});
+  supaSync('clientes',cli);
+  renderHistorialGestionCliente(cli);
+  renderCobros();
+  if($('gc-resultado'))$('gc-resultado').value='';
+  if($('gc-fechavenc'))$('gc-fechavenc').value='';
+  toast(`✓ Gestión registrada para ${cli.nombre}${estado==='Pendiente'&&fechaVenc?' · vence '+fechaVenc:''}`);
+}
+// Punto clave del delta: una gestión Pendiente (o ya Vencida) se REABRE acá
+// para cargarle el resultado real y cerrarla — antes no existía forma de
+// volver a una gestión planificada, el formulario nacía y moría en un paso.
+function confirmarCompletarGestion(gestionId){
+  const cli=DB.clientes.find(c=>c.id===_gestionClienteAbiertaId);
+  if(!cli)return;
+  const g=(cli.gestionesCobro||[]).find(x=>String(x.id)===String(gestionId));
+  if(!g)return;
+  const texto=$(`gc-completar-texto-${gestionId}`)?.value.trim()||'';
+  if(texto)g.resultado=texto;
+  g.estado='Realizada';
+  g.fecha=new Date().toLocaleDateString('es-AR'); // la ejecución real es hoy
+  supaSync('clientes',cli);
+  renderHistorialGestionCliente(cli);
+  renderCobros();
+  toast('✓ Gestión completada');
 }
 
 // ========== IMPORTAR DESDE TANGO — Estado de cuenta (v2) ==========
@@ -4656,13 +4818,13 @@ function verificarAccionesVencidas(){
       }
     });
   });
-  // Cobros
-  (DB.facturas||[]).forEach(f=>{
-    (f.acciones||[]).forEach(a=>{
-      if(a.estado==='Pendiente'&&a.fechaVenc){
-        const [dd,mm,yy]=a.fechaVenc.split('/');
+  // Cobros — gestión a nivel cliente (Delta Cobros/Gestión de Cobranzas v1)
+  (DB.clientes||[]).forEach(c=>{
+    (c.gestionesCobro||[]).forEach(g=>{
+      if(g.estado==='Pendiente'&&g.fechaVenc){
+        const [dd,mm,yy]=g.fechaVenc.split('/');
         const fv=new Date(`${yy}-${mm}-${dd}`);
-        if(fv<hoy){a.estado='Vencida';vencidas++;}
+        if(fv<hoy){g.estado='Vencida';vencidas++;}
       }
     });
   });
@@ -4679,7 +4841,7 @@ function alertarAccionesVencidasModulo(modulo){
   if(modulo==='crm'){
     accVencidas=DB.leads.flatMap(l=>(l.acciones||[]).filter(a=>a.estado==='Vencida').map(a=>({empresa:l.empresa,...a})));
   } else if(modulo==='cobros'){
-    accVencidas=DB.facturas.flatMap(f=>(f.acciones||[]).filter(a=>a.estado==='Vencida').map(a=>({factura:f.nroFactura,...a})));
+    accVencidas=DB.clientes.flatMap(c=>(c.gestionesCobro||[]).filter(g=>g.estado==='Vencida').map(g=>({empresa:c.nombre,...g})));
   }
   if(accVencidas.length>0){
     toast(`⚠️ ${accVencidas.length} acción${accVencidas.length!==1?'es':''} VENCIDA${accVencidas.length!==1?'s':''} — ${accVencidas.map(a=>a.empresa||a.factura).slice(0,3).join(', ')}${accVencidas.length>3?'...':''}. ¡Poné en contacto lo antes posible!`,8000);
@@ -10859,7 +11021,6 @@ window.actualizarPreviewFormula = actualizarPreviewFormula;
 window.actualizarProyeccion = actualizarProyeccion;
 window.actualizarValorHoraAdmin = actualizarValorHoraAdmin;
 window.actualizarValorHoraSuplemento = actualizarValorHoraSuplemento;
-window.agregarAccionCobro = agregarAccionCobro;
 window.agregarAdjuntoObj = agregarAdjuntoObj;
 window.agregarAsocDesdeSearch = agregarAsocDesdeSearch;
 window.agregarAsociadoGrilla = agregarAsociadoGrilla;
@@ -10947,6 +11108,11 @@ window.filtrarClientes = filtrarClientes;
 window.filtrarCobrados = filtrarCobrados;
 window.filtrarCobros = filtrarCobros;
 window.filtrarPorCliente = filtrarPorCliente;
+window.abrirGestionCliente = abrirGestionCliente;
+window.toggleGcTodasFacturas = toggleGcTodasFacturas;
+window.toggleGcResultado = toggleGcResultado;
+window.guardarGestionCliente = guardarGestionCliente;
+window.confirmarCompletarGestion = confirmarCompletarGestion;
 window.eliminarCobro = eliminarCobro;
 window.filtrarLeads = filtrarLeads;
 window.filtrarObjetivos = filtrarObjetivos;
@@ -11168,7 +11334,6 @@ window.toggleMotivoNoFact = toggleMotivoNoFact;
 window.toggleNuevaGrillaTipo = toggleNuevaGrillaTipo;
 window.togglePermiso = togglePermiso;
 window.validarFechasArt42 = validarFechasArt42;
-window.verAccionesCobro = verAccionesCobro;
 window.verCatAlt = verCatAlt;
 window.verCliente = verCliente;
 window.verDetalleEvaluacion = verDetalleEvaluacion;
