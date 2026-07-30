@@ -340,6 +340,22 @@ export function _toSnake(obj) {
     fechaReactivacion: 'fecha_reactivacion', reactivadoPor: 'reactivado_por',
     personalHorario: 'personal_horario',
     aSatisfacer: 'a_satisfacer',
+    // objetivo_responsables.telefono — bug preexistente encontrado de paso
+    // (Delta v1.3): 'tel' nunca tenía mapeo, se mandaba tal cual a
+    // PostgREST contra una columna 'telefono' que no existe → todo el
+    // insert/update de ese responsable fallaba en silencio.
+    tel: 'telefono',
+    // 2.3.2 (Delta Comercial v1.3)
+    recibeFactura: 'recibe_factura',
+    // V.1/A.1 (Delta Comercial v1.3) — Clientes. 'codigo' NO necesita
+    // mapeo acá (sin mayúsculas, pasa igual): ojo, no mapearlo a otro
+    // nombre de columna porque colisionaría con objetivos.codigo (el
+    // mapa es global, no por tabla).
+    responsableTipo: 'responsable_tipo', responsableContacto: 'responsable_contacto',
+    // A.3 (Delta Comercial v1.3)
+    puestos: 'puestos_necesarios',
+    // 2.5/A.6 (Delta Comercial v1.3)
+    logProductos: 'log_productos', logElementos: 'log_elementos', logMaquinas: 'log_maquinas',
     // Liquidación de horas v1.1 (v040)
     objCodigo: 'objetivo_codigo', horasEFT: 'horas_eft', horasContratadas: 'horas_contratadas',
     alertaEFT: 'alerta_eft', totalHorasFacturables: 'total_horas_facturables',
@@ -596,6 +612,11 @@ export function _toCamel(obj) {
     fecha_reactivacion: 'fechaReactivacion', reactivado_por: 'reactivadoPor',
     personal_horario: 'personalHorario',
     a_satisfacer: 'aSatisfacer',
+    telefono: 'tel',
+    recibe_factura: 'recibeFactura',
+    responsable_tipo: 'responsableTipo', responsable_contacto: 'responsableContacto',
+    puestos_necesarios: 'puestos',
+    log_productos: 'logProductos', log_elementos: 'logElementos', log_maquinas: 'logMaquinas',
     // Liquidación de horas v1.1 (v040)
     objetivo_codigo: 'objCodigo', horas_eft: 'horasEFT', horas_contratadas: 'horasContratadas',
     alerta_eft: 'alertaEFT', total_horas_facturables: 'totalHorasFacturables',

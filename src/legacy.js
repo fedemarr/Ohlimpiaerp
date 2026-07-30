@@ -1263,8 +1263,8 @@ DB.clientes = [
 ];
 DB.tiposServicio = ['Limpieza','Mantenimiento','Final de obra','Evento','Obra','Otro'];
 DB.objetivos = [
-  {id:1,clienteId:1,clienteIdLocal:idLocalTrunc(1),codigo:'CHANGO.BROWN',nombre:'Chango Mas Brown',tipo:'Limpieza',dir:'Av. Brown 4563, Lanús',ciudad:'Lanús',supervisorAsignado:'Matias Maidana',supervisor:'Matias Maidana',supervisorAsignadoPor:GERENTE_OPERACIONES,fechaAsignacionSupervisor:'01/03/2023',modeloPrecio:'Por EFTs (FT = 200hs/mes)',valor:850000,valorHora:7083,efts:3,valorEft:283333,fechaInicio:'01/03/2023',fechaFin:'',contrato:'Contrato firmado',productos:'Factura separada',periodoFact:'Del 1 al último del mes',reqOC:'Sí — siempre',textoFactura:'Servicio de limpieza — Chango Mas Brown',estado:'Operativo',clausulaActualizacion:'Paritarias',responsables:[{nombre:'Roberto Silva',rol:'Encargado de seguridad',tel:'11-3456-7890',aSatisfacer:true}],historialPrecios:[{fecha:'01/03/2023',valor:600000,valorHora:5000,motivo:'Precio inicial',aprobadoPor:'Gerente Comercial',estado:'Vigente'},{fecha:'01/09/2023',valor:720000,valorHora:6000,motivo:'Ajuste paritarias 20%',aprobadoPor:'Gerente Comercial',estado:'Histórico'},{fecha:'01/03/2024',valor:850000,valorHora:7083,motivo:'Ajuste paritarias 18%',aprobadoPor:'Gerente Comercial',estado:'Vigente'}],adjuntos:[],notas:'',cargadoPor:'Jorgelina Bianchi',fechaCarga:'01/03/2023'},
-  {id:2,clienteId:1,clienteIdLocal:idLocalTrunc(1),codigo:'CHANGO.CASEROS',nombre:'Chango Mas Caseros',tipo:'Limpieza',dir:'Av. San Martín 2341, Caseros',ciudad:'Caseros',supervisorAsignado:'Lorena Unzain',supervisor:'Lorena Unzain',supervisorAsignadoPor:GERENTE_OPERACIONES,fechaAsignacionSupervisor:'15/06/2023',modeloPrecio:'Por EFTs (FT = 200hs/mes)',valor:620000,valorHora:5167,efts:2,valorEft:310000,fechaInicio:'15/06/2023',fechaFin:'',contrato:'Contrato firmado',productos:'Factura separada',periodoFact:'Del 1 al último del mes',reqOC:'Sí — siempre',textoFactura:'Servicio de limpieza — Chango Mas Caseros',estado:'Operativo',clausulaActualizacion:'Inflación mensual',responsables:[{nombre:'Ana Torres',rol:'Encargado de seguridad',tel:'11-2345-6789',aSatisfacer:true}],historialPrecios:[{fecha:'15/06/2023',valor:620000,valorHora:5167,motivo:'Precio inicial',aprobadoPor:'Gerente Comercial',estado:'Vigente'}],adjuntos:[],notas:'',cargadoPor:'Jorgelina Bianchi',fechaCarga:'15/06/2023'},
+  {id:1,clienteId:1,clienteIdLocal:idLocalTrunc(1),codigo:'CHANGO.BROWN',nombre:'Chango Mas Brown',tipo:'Limpieza',dir:'Av. Brown 4563, Lanús',ciudad:'Lanús',supervisorAsignado:'Matias Maidana',supervisor:'Matias Maidana',supervisorAsignadoPor:GERENTE_OPERACIONES,fechaAsignacionSupervisor:'01/03/2023',modeloPrecio:'Por EFT',valor:850000,valorHora:7083,efts:3,valorEft:283333,fechaInicio:'01/03/2023',fechaFin:'',contrato:'Contrato firmado',productos:'Factura separada',periodoFact:'Del 1 al último del mes',reqOC:'Sí — siempre',textoFactura:'Servicio de limpieza — Chango Mas Brown',estado:'Operativo',clausulaActualizacion:'Paritarias',responsables:[{nombre:'Roberto Silva',rol:'Encargado de seguridad',tel:'11-3456-7890',aSatisfacer:true}],historialPrecios:[{fecha:'01/03/2023',valor:600000,valorHora:5000,motivo:'Precio inicial',aprobadoPor:'Gerente Comercial',estado:'Vigente'},{fecha:'01/09/2023',valor:720000,valorHora:6000,motivo:'Ajuste paritarias 20%',aprobadoPor:'Gerente Comercial',estado:'Histórico'},{fecha:'01/03/2024',valor:850000,valorHora:7083,motivo:'Ajuste paritarias 18%',aprobadoPor:'Gerente Comercial',estado:'Vigente'}],adjuntos:[],notas:'',cargadoPor:'Jorgelina Bianchi',fechaCarga:'01/03/2023'},
+  {id:2,clienteId:1,clienteIdLocal:idLocalTrunc(1),codigo:'CHANGO.CASEROS',nombre:'Chango Mas Caseros',tipo:'Limpieza',dir:'Av. San Martín 2341, Caseros',ciudad:'Caseros',supervisorAsignado:'Lorena Unzain',supervisor:'Lorena Unzain',supervisorAsignadoPor:GERENTE_OPERACIONES,fechaAsignacionSupervisor:'15/06/2023',modeloPrecio:'Por EFT',valor:620000,valorHora:5167,efts:2,valorEft:310000,fechaInicio:'15/06/2023',fechaFin:'',contrato:'Contrato firmado',productos:'Factura separada',periodoFact:'Del 1 al último del mes',reqOC:'Sí — siempre',textoFactura:'Servicio de limpieza — Chango Mas Caseros',estado:'Operativo',clausulaActualizacion:'Inflación mensual',responsables:[{nombre:'Ana Torres',rol:'Encargado de seguridad',tel:'11-2345-6789',aSatisfacer:true}],historialPrecios:[{fecha:'15/06/2023',valor:620000,valorHora:5167,motivo:'Precio inicial',aprobadoPor:'Gerente Comercial',estado:'Vigente'}],adjuntos:[],notas:'',cargadoPor:'Jorgelina Bianchi',fechaCarga:'15/06/2023'},
   {id:3,clienteId:2,clienteIdLocal:idLocalTrunc(2),codigo:'HTAL.ALEMAN.LIMP',nombre:'Hospital Alemán — Limpieza general',tipo:'Limpieza',dir:'Av. Pueyrredón 1640, CABA',ciudad:'CABA',supervisorAsignado:'Claudia Cazenave',supervisor:'Claudia Cazenave',supervisorAsignadoPor:GERENTE_OPERACIONES,fechaAsignacionSupervisor:'01/01/2024',modeloPrecio:'Abono mensual fijo',valor:1200000,valorHora:0,efts:0,valorEft:0,fechaInicio:'01/01/2024',fechaFin:'',contrato:'Contrato firmado',productos:'Incluidos en el servicio',periodoFact:'Del 1 al último del mes',reqOC:'No',textoFactura:'Servicio de limpieza y mantenimiento — Hospital Alemán',estado:'Operativo',clausulaActualizacion:'Índice trimestral',responsables:[{nombre:'Dr. Carlos Rodríguez',rol:'Jefe de Servicios Generales',tel:'11-5678-9012',aSatisfacer:true}],historialPrecios:[{fecha:'01/01/2024',valor:1200000,valorHora:0,motivo:'Precio inicial',aprobadoPor:'Gerente Comercial',estado:'Vigente'}],adjuntos:[],notas:'',cargadoPor:'Jorgelina Bianchi',fechaCarga:'01/01/2024'},
 ];
 if(!DB.objetivoSupervisoresHistorial) DB.objetivoSupervisoresHistorial=[];
@@ -1340,13 +1340,13 @@ function renderClientes(lista){
       <td style="text-align:center;font-weight:700;color:var(--azul);">${objCount}</td>
       <td style="font-size:12px;">${c.condPago}</td>
       <td style="font-size:12px;">${c.formaPago}</td>
-      <td style="font-family:'DM Mono',monospace;font-size:11px;color:var(--texto-suave);">${c.codigoTango}</td>
+      <td style="font-family:'DM Mono',monospace;font-size:11px;color:var(--texto-suave);">${c.codigo||'—'}</td>
       <td>${badge(c.estado==='Activo'?'Activo':c.estado==='Inactivo'?'Baja':'Pendiente')}</td>
       <td>
         <div style="display:flex;gap:4px;flex-wrap:wrap;">
           <button class="btn btn-secondary btn-xs" onclick="verCliente('${idl}')">Ver</button>
           <button class="btn btn-secondary btn-xs" onclick="abrirModalCliente('${idl}')">✏️</button>
-          <button class="btn btn-primary btn-xs" onclick="nuevoObjetivoDesde(${c.id})">+ Objetivo</button>
+          <button class="btn btn-primary btn-xs" onclick="nuevoObjetivoDesde(${c.id})">+ Servicio</button>
           ${c.estado!=='Inactivo'?`<button class="btn btn-danger btn-xs" onclick="abrirBajaCliente('${idl}')">🚫</button>`:''}
         </div>
       </td>
@@ -1373,19 +1373,20 @@ function verCliente(idLocal){
   let html=`<div style="display:flex;gap:14px;align-items:flex-start;margin-bottom:18px;">
     <div style="width:48px;height:48px;border-radius:10px;background:var(--azul-claro);display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:700;color:var(--azul);">${c.nombre[0]}</div>
     <div><div style="font-size:17px;font-weight:700;">${c.nombre}</div><div style="font-size:12px;color:var(--texto-suave);">${c.razon} · CUIT: ${c.cuit}</div>
-    <div style="display:flex;gap:6px;margin-top:6px;">${badge(c.estado==='Activo'?'Activo':c.estado==='Inactivo'?'Baja':'Pendiente')}<span class="chip" style="font-size:11px;">${c.tipo}</span></div>
+    <div style="display:flex;gap:6px;margin-top:6px;">${badge(c.estado==='Activo'?'Activo':c.estado==='Borrador'?'Pendiente':'Baja')}<span class="chip" style="font-size:11px;">${c.tipo}</span></div>
     </div>
   </div>
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:16px;">
     <div class="info-grid">
+      <div class="info-item"><div class="key">Código interno</div><div class="val" style="font-family:'DM Mono',monospace;">${c.codigo||'—'}</div></div>
       <div class="info-item"><div class="key">Condición pago</div><div class="val">${c.condPago}</div></div>
       <div class="info-item"><div class="key">Forma de pago</div><div class="val">${c.formaPago}</div></div>
-      <div class="info-item"><div class="key">Código Tango</div><div class="val" style="font-family:'DM Mono',monospace;">${c.codigoTango}</div></div>
+      <div class="info-item"><div class="key">Código Tango (ref. externa)</div><div class="val" style="font-family:'DM Mono',monospace;">${c.codigoTango||'—'}</div></div>
       <div class="info-item"><div class="key">Período facturación</div><div class="val">${c.periodoFact}</div></div>
       <div class="info-item"><div class="key">Tipo de contrato</div><div class="val">${c.tipoContrato||'—'}</div></div>
       <div class="info-item"><div class="key">Ingresos brutos</div><div class="val">${c.ingresosBrutos||'—'}</div></div>
       <div class="info-item"><div class="key">Jurisdicción IIBB</div><div class="val">${c.jurisdiccionIibb||'—'}</div></div>
-      <div class="info-item"><div class="key">Responsable interno</div><div class="val">${c.responsable||'—'}</div></div>
+      <div class="info-item"><div class="key">Responsable</div><div class="val">${c.responsable||'—'}${c.responsableTipo==='Externo'?' <span class="chip" style="font-size:10px;">Externo</span>'+(c.responsableContacto?' · '+c.responsableContacto:''):''}</div></div>
     </div>
     <div>
       <div style="font-size:11px;font-weight:700;text-transform:uppercase;color:var(--texto-suave);margin-bottom:8px;">Contactos clave</div>
@@ -1401,7 +1402,7 @@ function verCliente(idLocal){
       </div>`).join('')||'<p class="text-muted" style="font-size:12px;">Sin contactos cargados</p>'}
     </div>
   </div>
-  <div style="font-size:11px;font-weight:700;text-transform:uppercase;color:var(--texto-suave);margin-bottom:8px;">Objetivos (${objDelCliente.length})</div>
+  <div style="font-size:11px;font-weight:700;text-transform:uppercase;color:var(--texto-suave);margin-bottom:8px;">Servicios (${objDelCliente.length})</div>
   <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px;">
     ${objDelCliente.map(o=>`<span class="chip" style="font-size:11px;">📍 ${o.nombre} — $${(o.valor||0).toLocaleString('es-AR')} — ${o.estado}</span>`).join('')||'<span class="text-muted">Sin objetivos</span>'}
   </div>
@@ -1425,7 +1426,7 @@ function nuevoObjetivoDesde(clienteId){
 let contactosClienteTemp=[];
 window.contactosClienteTemp=contactosClienteTemp;
 let clienteEditIdLocal=null;
-const CLI_CAMPOS_TEXTO=['cli-razon','cli-nombre','cli-tipo','cli-cuit','cli-iva','cli-arca','cli-cond-pago','cli-forma-pago','cli-codigo-tango','cli-ciudad','cli-direccion','cli-responsable','cli-logo','cli-obs','cli-tipo-contrato','cli-fact-por','cli-periodo-fact','cli-productos-fact','cli-req-oc','cli-notas-fact','cli-ib','cli-jur'];
+const CLI_CAMPOS_TEXTO=['cli-razon','cli-nombre','cli-tipo','cli-codigo','cli-cuit','cli-iva','cli-arca','cli-cond-pago','cli-forma-pago','cli-codigo-tango','cli-ciudad','cli-direccion','cli-responsable','cli-responsable-contacto','cli-logo','cli-obs','cli-tipo-contrato','cli-fact-por','cli-periodo-fact','cli-productos-fact','cli-req-oc','cli-notas-fact','cli-ib','cli-jur'];
 const CLI_CAMPOS_DOC=['doc-seguros','doc-monotributo','doc-antecedentes','doc-ddjj-iva','doc-pago-iva','doc-remito-servicio','doc-planilla-horas','doc-oc'];
 function abrirModalCliente(idLocal){
   poblarSelectsComercial();
@@ -1442,6 +1443,10 @@ function abrirModalCliente(idLocal){
     if($('cli-cond-pago')) $('cli-cond-pago').value=c.condPago||'';
     if($('cli-forma-pago')) $('cli-forma-pago').value=c.formaPago||'';
     if($('cli-responsable')) $('cli-responsable').value=c.responsable||'';
+    if($('cli-responsable-tipo')) $('cli-responsable-tipo').value=c.responsableTipo||'Interno';
+    if($('cli-responsable-contacto')) $('cli-responsable-contacto').value=c.responsableContacto||'';
+    toggleResponsableClienteTipo();
+    if($('cli-codigo')) $('cli-codigo').value=c.codigo||'—';
     $('cli-codigo-tango').value=c.codigoTango||'';
     if($('cli-estado')) $('cli-estado').value=c.estado||'Activo';
     $('cli-ciudad').value=c.ciudad||'';$('cli-direccion').value=c.direccion||'';
@@ -1468,6 +1473,8 @@ function abrirModalCliente(idLocal){
     CLI_CAMPOS_TEXTO.forEach(id=>{const el=$(id);if(el)el.value='';});
     CLI_CAMPOS_DOC.forEach(id=>{const el=$(id);if(el)el.checked=false;});
     if($('cli-estado')) $('cli-estado').value='Activo';
+    if($('cli-responsable-tipo')) $('cli-responsable-tipo').value='Interno';
+    toggleResponsableClienteTipo();
   }
   renderContactosClienteTemp();
   abrirModal('modal-cliente');
@@ -1495,6 +1502,24 @@ function renderContactosClienteTemp(){
 }
 const inputStyle='padding:6px 10px;border:1px solid var(--borde-fuerte);border-radius:var(--radio);font-size:12px;font-family:inherit;outline:none;width:100%;';
 
+// V.1 (Delta Comercial v1.3) — identidad interna propia, desacoplada del
+// Código Tango (evidencia: en la lista real convivían códigos formato
+// interno "CLI-0001" con códigos crudos de Tango como "46" en el mismo
+// campo). El código interno es la identidad del sistema; el Código Tango
+// pasa a ser una referencia externa más (como el CUIT), sin exigencia de
+// formato.
+function generarCodigoCliente(){
+  const nums=(DB.clientes||[]).map(c=>parseInt((c.codigo||'').replace('CLI-',''),10)).filter(n=>!isNaN(n));
+  const max=nums.length?Math.max(...nums):0;
+  return 'CLI-'+String(max+1).padStart(4,'0');
+}
+function toggleResponsableClienteTipo(){
+  const externo=$('cli-responsable-tipo')?.value==='Externo';
+  const row=$('cli-responsable-contacto-row');
+  if(row) row.style.display=externo?'':'none';
+  const inp=$('cli-responsable');
+  if(inp) inp.placeholder=externo?'Nombre del responsable externo':'Buscar en Personal...';
+}
 function guardarCliente(){
   // P.1 (Delta Comercial v1.2) — normalización preventiva: el código de
   // cliente se usa para relacionar módulos, así que "cli001" y "CLI001"
@@ -1509,6 +1534,8 @@ function guardarCliente(){
     iva:$('cli-iva')?.value,arca:$('cli-arca')?.value,
     condPago:$('cli-cond-pago')?.value,formaPago:$('cli-forma-pago')?.value,
     responsable:cleanText($('cli-responsable')?.value||''),
+    responsableTipo:$('cli-responsable-tipo')?.value||'Interno',
+    responsableContacto:cleanText($('cli-responsable-contacto')?.value||''),
     codigoTango:cleanText($('cli-codigo-tango')?.value||'').toUpperCase(),estado:$('cli-estado')?.value,
     ciudad:$('cli-ciudad')?.value,direccion:$('cli-direccion')?.value,
     logo:$('cli-logo')?.value,obs:$('cli-obs')?.value,
@@ -1525,7 +1552,7 @@ function guardarCliente(){
     Object.assign(existente,datos);
     cliente=existente;
   } else {
-    cliente={id:Date.now(),...datos};
+    cliente={id:Date.now(),codigo:generarCodigoCliente(),...datos};
     DB.clientes.push(cliente);
   }
   cerrarModal('modal-cliente');renderClientes();poblarSelectsComercial();
@@ -1598,7 +1625,7 @@ function renderObjetivos(lista){
   $('tbody-objetivos').innerHTML=rows.map((o)=>{
     const cli=getCliente(o.clienteId);
     const idl=idLocalTrunc(o.id);
-    const modColor={'Abono mensual fijo':'badge-azul','Por EFTs (FT = 200hs/mes)':'badge-verde','Por horas variables':'badge-acento','Presupuesto cerrado':'badge-naranja'};
+    const modColor={'Abono mensual fijo':'badge-azul','Por EFT':'badge-verde','Por horas variables':'badge-acento','Presupuesto cerrado':'badge-naranja'};
     const esperando7=o.estado==='Pendiente asignación operativa'&&diasDesde(o.fechaCarga)>=7;
     return `<tr>
       <td style="font-family:'DM Mono',monospace;font-size:11px;color:var(--azul);">${o.codigo}</td>
@@ -1620,7 +1647,7 @@ function renderObjetivos(lista){
         </div>
       </td>
     </tr>`;
-  }).join('')||`<tr><td colspan="9"><div class="empty-state"><div class="icon">📍</div><p>Sin objetivos en este estado</p></div></td></tr>`;
+  }).join('')||`<tr><td colspan="9"><div class="empty-state"><div class="icon">📍</div><p>Sin servicios en este estado</p></div></td></tr>`;
 }
 function filtrarObjetivos(){
   const cod=($('cf-on-cod')||{value:''}).value.toLowerCase();
@@ -1653,22 +1680,36 @@ function verObjetivo(idLocal){
     <div class="info-item"><div class="key">Dirección</div><div class="val">${o.dir||'—'}</div></div>
     <div class="info-item"><div class="key">Estado</div><div class="val">${badgeEstadoObjetivo(o.estado)}</div></div>
     <div class="info-item"><div class="key">Supervisor asignado</div><div class="val">${o.supervisorAsignado||'— (pendiente Operaciones)'}</div></div>
+    <div class="info-item"><div class="key">Jurisdicción</div><div class="val">${o.jurisdiccion||'—'}</div></div>
     <div class="info-item"><div class="key">Localidad</div><div class="val">${o.localidad||'—'}</div></div>
     <div class="info-item"><div class="key">Modelo precio</div><div class="val">${o.modeloPrecio}</div></div>
     <div class="info-item"><div class="key">Valor mensual</div><div class="val" style="font-weight:700;color:var(--azul);">$${(o.valor||0).toLocaleString('es-AR')}</div></div>
-    ${o.efts?`<div class="info-item"><div class="key">EFTs</div><div class="val">${o.efts} EFTs (${o.efts*200}hs/mes)</div></div>`:''}
-    ${(()=>{const fact=calcularFacturacionMensualObjetivo(o);return fact!=null?`<div class="info-item"><div class="key">Facturación mensual estimada</div><div class="val" style="font-weight:700;color:var(--verde);">$${fact.toLocaleString('es-AR')}</div></div>`:`<div class="info-item"><div class="key">Facturación mensual estimada</div><div class="val">Depende de horas trabajadas (Liquidación de horas)</div></div>`;})()}
+    ${o.efts?`<div class="info-item"><div class="key">Cantidad de horas</div><div class="val">${o.efts}hs/mes${o.valorHora?` — $${o.valorHora.toLocaleString('es-AR')}/hora`:''}</div></div>`:''}
+    ${(()=>{const fact=calcularFacturacionMensualObjetivo(o);return fact!=null?`<div class="info-item"><div class="key">Monto estimado a facturar por mes</div><div class="val" style="font-weight:700;color:var(--verde);">$${fact.toLocaleString('es-AR')}</div></div>`:`<div class="info-item"><div class="key">Monto estimado a facturar por mes</div><div class="val">Depende de horas trabajadas (Liquidación de horas)</div></div>`;})()}
     <div class="info-item"><div class="key">Contrato</div><div class="val">${o.contrato}</div></div>
     <div class="info-item"><div class="key">Cláusula actualización</div><div class="val">${o.clausulaActualizacion||'—'}</div></div>
     <div class="info-item"><div class="key">Período facturación</div><div class="val">${o.periodoFact}</div></div>
     <div class="info-item"><div class="key">Requiere OC</div><div class="val">${o.reqOC}</div></div>
-    <div class="info-item"><div class="key">Personal necesario y horario</div><div class="val">${o.personalHorario||'—'}</div></div>
+    <div class="info-item"><div class="key">Facturación de productos</div><div class="val">${o.productos||'—'}</div></div>
   </div>
+  <div style="margin-top:14px;font-size:11px;font-weight:700;text-transform:uppercase;color:var(--texto-suave);margin-bottom:8px;">Personal necesario</div>
+  ${(o.puestos||[]).length?o.puestos.map(p=>{
+    const diasTxt=DIAS_PUESTO.filter(([d])=>p.dias?.[d]).map(([,l])=>l).join(', ')||'—';
+    return `<div style="padding:8px;background:var(--fondo);border-radius:var(--radio);margin-bottom:5px;border:1px solid var(--borde);font-size:12px;">
+    <strong>${p.cantidad||1}</strong> persona(s)${p.perfil?' — '+p.perfil:''} · ${p.horarioDesde||'?'} a ${p.horarioHasta||'?'} · ${diasTxt}
+    ${p.obs?`<div style="color:var(--texto-suave);margin-top:2px;">${p.obs}</div>`:''}
+  </div>`;}).join(''):'<p class="text-muted" style="font-size:12px;">Sin puestos cargados</p>'}
   <div style="margin-top:14px;font-size:11px;font-weight:700;text-transform:uppercase;color:var(--texto-suave);margin-bottom:8px;">Responsables del cliente</div>
   ${(o.responsables||[]).map(r=>`<div style="padding:8px;background:var(--fondo);border-radius:var(--radio);margin-bottom:5px;border:1px solid var(--borde);display:flex;justify-content:space-between;align-items:center;">
     <div><div style="font-weight:600;font-size:12px;">${r.nombre}</div><div style="font-size:11px;color:var(--texto-suave);">${r.rol||'—'}${r.tel?` · <a href="tel:${r.tel}" style="color:var(--azul);">📞 ${r.tel}</a>`:''}</div></div>
-    ${r.aSatisfacer?'<span class="badge badge-acento" style="font-size:10px;">⭐ A satisfacer</span>':''}
+    <div style="display:flex;gap:4px;">${r.aSatisfacer?'<span class="badge badge-acento" style="font-size:10px;">⭐ A satisfacer</span>':''}${r.recibeFactura?'<span class="badge badge-azul" style="font-size:10px;">🧾 Recibe factura</span>':''}</div>
   </div>`).join('')||'<p class="text-muted" style="font-size:12px;">Sin responsables cargados</p>'}
+  ${(o.logProductos||o.logElementos||o.logMaquinas)?`<div style="margin-top:14px;font-size:11px;font-weight:700;text-transform:uppercase;color:var(--texto-suave);margin-bottom:8px;">Necesidad logística</div>
+  <div class="info-grid">
+    ${o.logProductos?`<div class="info-item"><div class="key">Productos</div><div class="val">${o.logProductos}</div></div>`:''}
+    ${o.logElementos?`<div class="info-item"><div class="key">Elementos de limpieza</div><div class="val">${o.logElementos}</div></div>`:''}
+    ${o.logMaquinas?`<div class="info-item"><div class="key">Máquinas</div><div class="val">${o.logMaquinas}</div></div>`:''}
+  </div>`:''}
   ${o.notas?`<div class="alerta alerta-info" style="margin-top:12px;font-size:12px;"><strong>Notas:</strong> ${o.notas}</div>`:''}
   ${o.textoFactura?`<div class="alerta alerta-info" style="margin-top:12px;font-size:12px;"><strong>Texto en factura:</strong> ${o.textoFactura}</div>`:''}
   ${o.estado==='Baja'?`<div class="alerta alerta-danger" style="margin-top:12px;font-size:12px;"><strong>🚫 Dado de baja</strong> el ${o.fechaBaja} por ${o.dadoDeBajaPor}. Motivo: ${o.motivoBaja||'—'}</div>`:''}
@@ -1711,21 +1752,20 @@ function objetivoParaGuardar(o){
 // excepciones legítimas), pero se avisa cuál correspondería y
 // guardarObjetivo() pide confirmación si no coincide, en vez de dejar
 // los dos datos inconsistentes en silencio.
-const MODELOS_PRECIO_POR_HORA=['Por EFTs (FT = 200hs/mes)','Por horas variables'];
+const MODELOS_PRECIO_POR_HORA=['Por EFT','Por horas variables'];
 const MODELOS_PRECIO_PRESUPUESTO_FIJO=['Abono mensual fijo','Presupuesto cerrado'];
-// 2.2.3 (Delta Comercial v1.2) — facturación mensual estimada: se calcula
-// siempre en el momento (nunca se guarda en el objetivo), así nunca queda
-// desactualizada si cambia efts/valorEft/valorHora. Para "Por EFTs" el
-// cálculo es EFT × 200hs/mes × valor hora (con valorEft como fallback si
-// no hay valor hora cargado). "Por horas variables" depende de las horas
-// realmente trabajadas (Liquidación de horas, fuera de este módulo) — acá
-// se muestra null y el llamador lo aclara en vez de inventar un número.
+// 2.2.3/2.2.1 (Delta Comercial v1.3) — "monto estimado a facturar por
+// mes": se calcula siempre en el momento (nunca se guarda en el
+// objetivo), así nunca queda desactualizado si cambia el valor hora
+// vigente (paritaria). Para "Por EFT" (o.efts ya es la cantidad de horas
+// directa, ej. 200/500/1200 — no un factor de EFTs a multiplicar por
+// 200): monto = horas × valor hora. Para el resto (Abono mensual fijo,
+// Presupuesto cerrado): el monto es el valor cargado directamente. "Por
+// horas variables" depende de las horas realmente trabajadas
+// (Liquidación de horas, fuera de este módulo) — se muestra null y el
+// llamador lo aclara en vez de inventar un número.
 function calcularFacturacionMensualObjetivo(o){
-  if(o.modeloPrecio==='Por EFTs (FT = 200hs/mes)'){
-    if(o.valorHora) return (o.efts||0)*200*o.valorHora;
-    if(o.valorEft) return (o.efts||0)*o.valorEft;
-    return 0;
-  }
+  if(o.modeloPrecio==='Por EFT') return (o.efts||0)*(o.valorHora||0);
   if(o.modeloPrecio==='Por horas variables') return null;
   return o.valor||0;
 }
@@ -1738,10 +1778,36 @@ function modelosPrecioEsperados(clienteId){
 // asignación operativa", los datos del servicio son de solo lectura;
 // las únicas 2 excepciones editables son el EFT (obj-efts) y los
 // Responsables del cliente (tab aparte, no se toca acá).
-const OBJ_CAMPOS_BLOQUEABLES_PENDIENTE=['obj-cliente','obj-codigo','obj-nombre','obj-tipo','obj-dir','obj-localidad','obj-personal-horario','obj-fecha-inicio','obj-clausula-actualizacion','obj-modelo-precio','obj-valor','obj-valor-eft','obj-valor-hora','obj-fecha-fin','obj-contrato','obj-notas-precio','obj-productos','obj-periodo-fact','obj-req-oc','obj-texto-factura'];
+const OBJ_CAMPOS_BLOQUEABLES_PENDIENTE=['obj-cliente','obj-codigo','obj-nombre','obj-tipo','obj-dir','obj-jurisdiccion','obj-localidad','obj-fecha-inicio','obj-clausula-actualizacion','obj-modelo-precio','obj-valor','obj-valor-hora','obj-efts-fijo','obj-fecha-fin','obj-contrato','obj-notas-precio','obj-productos','obj-periodo-fact','obj-req-oc','obj-texto-factura','obj-log-productos','obj-log-elementos','obj-log-maquinas'];
 function bloquearCamposObjetivoPendiente(bloquear){
   OBJ_CAMPOS_BLOQUEABLES_PENDIENTE.forEach(id=>{const el=$(id);if(el) el.disabled=bloquear;});
+  const btnPuesto=$('obj-btn-agregar-puesto');if(btnPuesto) btnPuesto.disabled=bloquear;
   const aviso=$('obj-aviso-pendiente');if(aviso) aviso.style.display=bloquear?'block':'none';
+}
+// A.4 (Delta Comercial v1.3) — jurisdicción → localidad encadenados.
+// DB.jurisdiccionesServicio es un objeto plano {jurisdicción:[localidades]}
+// a propósito: agregar otra provincia a futuro es agregar una clave, sin
+// tocar esta función.
+function poblarLocalidadesServicio(valorActual){
+  const selLoc=$('obj-localidad');if(!selLoc)return;
+  const jurisdiccion=$('obj-jurisdiccion')?.value||'';
+  const localidades=DB.jurisdiccionesServicio?.[jurisdiccion]||[];
+  selLoc.innerHTML=localidades.length
+    ?'<option value="">— Seleccionar —</option>'+localidades.map(l=>`<option${l===valorActual?' selected':''}>${l}</option>`).join('')
+    :'<option value="">— Elegí jurisdicción primero —</option>';
+}
+// 2.4.1 (Delta Comercial v1.3) — herencia con sobrescritura: al elegir
+// cliente en un servicio NUEVO, se copian período de facturación y
+// Requiere OC como default editable (copia, no referencia en vivo — si
+// después cambia el valor del cliente, los servicios ya creados no se
+// alteran). Solo aplica a servicios nuevos: si ya existe, el servicio
+// manda sobre lo suyo y no se pisa lo que Comercial ya cargó.
+function heredarFacturacionDeCliente(clienteId){
+  if(objetivoEditIdLocal) return;
+  const cli=DB.clientes.find(c=>c.id===clienteId);
+  if(!cli) return;
+  if($('obj-periodo-fact')&&cli.periodoFact) $('obj-periodo-fact').value=cli.periodoFact;
+  if($('obj-req-oc')&&cli.reqOC) $('obj-req-oc').value=cli.reqOC;
 }
 function poblarModeloPrecioSegunCliente(clienteId){
   const hint=$('obj-modelo-precio-hint');if(!hint)return;
@@ -1756,19 +1822,23 @@ function abrirModalObjetivo(idLocal){
   const o=idLocal?getObjetivoByIdLocal(idLocal):null;
   respObjetivoTemp.length=0;respObjetivoTemp.push(...(o?(o.responsables||[]).map(r=>({...r})):[]));
   adjuntosObjTemp.length=0;adjuntosObjTemp.push(...(o?(o.adjuntos||[]).map(a=>({...a})):[]));
-  const titulo=$('modal-objetivo')?.querySelector('.modal-header h3');
-  if(titulo) titulo.textContent=o?'📍 Editar objetivo / servicio':'📍 Nuevo objetivo / servicio';
+  puestosObjTemp.length=0;puestosObjTemp.push(...(o?(o.puestos||[]).map(p=>({...p,dias:{...(p.dias||{})}})):[]));
+  const titulo=$('obj-modal-title');
+  if(titulo) titulo.textContent=o?'📍 Editar servicio':'📍 Nuevo servicio';
   if(o){
     $('obj-cliente').value=o.clienteId;$('obj-codigo').value=o.codigo;
     $('obj-nombre').value=o.nombre;if($('obj-tipo'))$('obj-tipo').value=o.tipo||'';
     $('obj-dir').value=o.dir||'';
-    if($('obj-localidad')) $('obj-localidad').value=o.localidad||'';
-    if($('obj-personal-horario')) $('obj-personal-horario').value=o.personalHorario||'';
+    if($('obj-jurisdiccion')) $('obj-jurisdiccion').value=o.jurisdiccion||'';
+    poblarLocalidadesServicio(o.localidad||'');
     if($('obj-fecha-inicio')&&o.fechaInicio){const[dd,mm,yy]=o.fechaInicio.split('/');$('obj-fecha-inicio').value=`${yy}-${mm}-${dd}`;}
     poblarModeloPrecioSegunCliente(o.clienteId);
     if($('obj-modelo-precio')) $('obj-modelo-precio').value=o.modeloPrecio||'';
-    $('obj-valor').value=o.valor||'';$('obj-efts').value=o.efts||'';
-    $('obj-valor-eft').value=o.valorEft||'';$('obj-valor-hora').value=o.valorHora||'';
+    const esPorHora=o.modeloPrecio==='Por EFT';
+    $('obj-efts').value=esPorHora?(o.efts||''):'';
+    $('obj-valor-hora').value=esPorHora?(o.valorHora||''):'';
+    $('obj-valor').value=!esPorHora?(o.valor||''):'';
+    $('obj-efts-fijo').value=!esPorHora?(o.efts||''):'';
     if($('obj-fecha-fin')&&o.fechaFin){const[dd,mm,yy]=o.fechaFin.split('/');$('obj-fecha-fin').value=`${yy}-${mm}-${dd}`;} else if($('obj-fecha-fin')) $('obj-fecha-fin').value='';
     if($('obj-contrato')) $('obj-contrato').value=o.contrato||'';
     if($('obj-productos')) $('obj-productos').value=o.productos||'';
@@ -1777,62 +1847,81 @@ function abrirModalObjetivo(idLocal){
     if($('obj-req-oc')) $('obj-req-oc').value=o.reqOC||'';
     $('obj-texto-factura').value=o.textoFactura||'';
     $('obj-notas-precio').value=o.notas||'';
+    if($('obj-log-productos')) $('obj-log-productos').value=o.logProductos||'';
+    if($('obj-log-elementos')) $('obj-log-elementos').value=o.logElementos||'';
+    if($('obj-log-maquinas')) $('obj-log-maquinas').value=o.logMaquinas||'';
   } else {
-    ['obj-cliente','obj-codigo','obj-nombre','obj-dir','obj-localidad','obj-personal-horario','obj-fecha-inicio','obj-valor','obj-efts','obj-valor-eft','obj-valor-hora','obj-fecha-fin','obj-texto-factura','obj-notas-precio'].forEach(id=>{const el=$(id);if(el)el.value='';});
+    ['obj-cliente','obj-codigo','obj-nombre','obj-dir','obj-fecha-inicio','obj-valor','obj-efts','obj-efts-fijo','obj-valor-hora','obj-fecha-fin','obj-texto-factura','obj-notas-precio','obj-log-productos','obj-log-elementos','obj-log-maquinas'].forEach(id=>{const el=$(id);if(el)el.value='';});
+    if($('obj-jurisdiccion')) $('obj-jurisdiccion').value='';
+    poblarLocalidadesServicio();
     poblarModeloPrecioSegunCliente(0);
   }
-  renderRespObjetivoTemp();renderAdjuntosObj();toggleModeloPrecio();
+  renderRespObjetivoTemp();renderAdjuntosObj();renderPuestosObj();toggleModeloPrecio();
   bloquearCamposObjetivoPendiente(o?.estado==='Pendiente asignación operativa');
   abrirModal('modal-objetivo');
 }
 // ========== GUARDAR OBJETIVO ==========
 function guardarObjetivo(){
   const cod=$('obj-codigo')?.value.trim(), nom=$('obj-nombre')?.value.trim();
-  if(!cod||!nom){toast('Completá código y nombre del objetivo');return;}
+  if(!cod||!nom){toast('Completá código y nombre del servicio');return;}
   const existente=objetivoEditIdLocal?getObjetivoByIdLocal(objetivoEditIdLocal):null;
   if(!existente){
     const dup=DB.objetivos.find(o=>o.codigo===cod&&!o.anulado);
-    if(dup){toast('Ya existe un objetivo con ese código');return;}
+    if(dup){toast('Ya existe un servicio con ese código');return;}
   }
   const clienteId=parseInt($('obj-cliente')?.value)||0;
   const contrato=$('obj-contrato')?.value;
+  const modeloPrecio=$('obj-modelo-precio')?.value;
+  const esPorHora=modeloPrecio==='Por EFT';
+  // A.2 (Delta Comercial v1.3) — modelo de precio: qué se carga y qué se
+  // calcula. "Por EFT": se cargan horas + valor hora, el mensual se
+  // deriva (nunca se tipea). Resto: se carga el mensual (+ horas de
+  // referencia opcionales), la hora de referencia se deriva. o.efts
+  // siempre termina siendo "cantidad de horas" en cualquiera de los dos
+  // casos — un solo campo, no dos según el modelo.
+  const efts=esPorHora?(parseFloat($('obj-efts')?.value)||0):(parseFloat($('obj-efts-fijo')?.value)||0);
+  const valorHora=esPorHora?(parseFloat($('obj-valor-hora')?.value)||0):0;
+  const valor=esPorHora?(efts*valorHora):(parseFloat($('obj-valor')?.value)||0);
   const datos={
     clienteId,clienteIdLocal:idLocalTrunc(clienteId),
     codigo:cod,nombre:nom,tipo:$('obj-tipo')?.value,
-    dir:$('obj-dir')?.value,localidad:$('obj-localidad')?.value.trim()||'',
-    personalHorario:$('obj-personal-horario')?.value.trim()||'',
-    modeloPrecio:$('obj-modelo-precio')?.value,
-    valor:parseFloat($('obj-valor')?.value)||0,
-    efts:parseFloat($('obj-efts')?.value)||0,
-    valorEft:parseFloat($('obj-valor-eft')?.value)||0,
-    valorHora:parseFloat($('obj-valor-hora')?.value)||0,
+    dir:$('obj-dir')?.value,
+    jurisdiccion:$('obj-jurisdiccion')?.value||'',localidad:$('obj-localidad')?.value||'',
+    puestos:[...puestosObjTemp],
+    modeloPrecio,valor,efts,valorHora,
     fechaInicio:$('obj-fecha-inicio')?.value?new Date($('obj-fecha-inicio').value).toLocaleDateString('es-AR'):'',
     fechaFin:$('obj-fecha-fin')?.value?new Date($('obj-fecha-fin').value).toLocaleDateString('es-AR'):'',
-    contrato,productos:$('obj-productos')?.value,
+    contrato,
     clausulaActualizacion:$('obj-clausula-actualizacion')?.value||'',
     periodoFact:$('obj-periodo-fact')?.value,reqOC:$('obj-req-oc')?.value,
     textoFactura:$('obj-texto-factura')?.value,
     notas:$('obj-notas-precio')?.value||'',
+    // 2.5.1 (Delta Comercial v1.3): "Facturación de productos" se movió
+    // de la tab Precio a la tab Logística y cambió de opciones/nombre
+    // (antes "productos", "Productos incluidos en precio").
+    productos:$('obj-productos')?.value,
+    logProductos:$('obj-log-productos')?.value||'',
+    logElementos:$('obj-log-elementos')?.value||'',
+    logMaquinas:$('obj-log-maquinas')?.value||'',
     responsables:[...respObjetivoTemp],
     adjuntos:[...adjuntosObjTemp],
   };
-  // 2.2.2 (Delta Comercial v1.2) — checklist de campos mínimos antes de
-  // guardar. EFT y "cantidad de horas por mes" son el mismo dato (EFT ×
-  // 200hs, ver verObjetivo) — no se pide por separado, alcanza con EFT
-  // (o valor hora) según el modelo de precio elegido. No aplica mientras
-  // el objetivo está "Pendiente asignación operativa" (2.2.4): ahí casi
-  // todos los campos están bloqueados en el modal, así que exigirlos
-  // completos impediría la única edición permitida (EFT/responsables).
+  // 2.2.2 (Delta Comercial v1.2/1.3) — checklist de campos mínimos antes
+  // de guardar. No aplica mientras el servicio está "Pendiente asignación
+  // operativa" (2.2.4): ahí casi todos los campos están bloqueados en el
+  // modal, así que exigirlos completos impediría la única edición
+  // permitida (EFT/responsables).
   if(!existente||existente.estado!=='Pendiente asignación operativa'){
     const faltantes=[];
+    if(!datos.jurisdiccion) faltantes.push('Jurisdicción');
     if(!datos.localidad) faltantes.push('Localidad');
     if(!datos.dir) faltantes.push('Dirección');
     if(!datos.fechaInicio) faltantes.push('Fecha de inicio');
-    if(!datos.personalHorario) faltantes.push('Personal necesario y horario');
+    if(!datos.puestos.length) faltantes.push('Personal necesario (agregá al menos un puesto)');
     if(!datos.modeloPrecio) faltantes.push('Modelo de precio');
-    else if(MODELOS_PRECIO_POR_HORA.includes(datos.modeloPrecio)){
-      if(!datos.efts&&!datos.valorHora) faltantes.push('EFT o valor hora');
-    } else if(!datos.valor) faltantes.push('Valor mensual / presupuesto');
+    else if(esPorHora){
+      if(!efts||!valorHora) faltantes.push('Cantidad de horas y valor hora');
+    } else if(!valor) faltantes.push('Valor mensual / presupuesto');
     if(faltantes.length){toast('⚠️ Faltan campos mínimos: '+faltantes.join(', '));return;}
   }
   // 2.2.1: el modelo de precio debería coincidir con el tipo de contrato
@@ -1864,18 +1953,44 @@ function guardarObjetivo(){
   cerrarModal('modal-objetivo');renderObjetivos();poblarSelectsComercial();
   supaSync('objetivos', objetivoParaGuardar(objetivo));
   persistirRelacionadosObjetivo(objetivo);
-  toast(existente?'✓ Objetivo actualizado':'✓ Objetivo guardado');
+  toast(existente?'✓ Servicio actualizado':'✓ Servicio guardado');
 }
 function tabObjModal(idx,btn){
   document.querySelectorAll('#modal-objetivo .tab-btn').forEach(b=>b.classList.remove('active'));
   document.querySelectorAll('#modal-objetivo .tab-content').forEach(t=>t.classList.remove('active'));
   btn.classList.add('active');$('obj-tab-'+idx).classList.add('active');
 }
+// A.2 (Delta Comercial v1.3) — el modelo de precio define qué se carga y
+// qué se calcula, validado contra el Excel de Lautaro:
+// "Por EFT" (por horas): se cargan horas + valor hora, el mensual se
+// calcula y se muestra bloqueado. Todo lo demás (Abono mensual fijo,
+// Presupuesto cerrado, Por horas variables): se carga el mensual (y
+// opcionalmente horas de referencia), la hora de referencia se calcula.
 function toggleModeloPrecio(){
   const m=$('obj-modelo-precio')?.value||'';
-  const eftRow=$('obj-efts-row');const vencRow=$('obj-vencimiento-row');
-  if(eftRow) eftRow.style.display=(m.includes('EFT')||m.includes('hora'))?'grid':'none';
-  if(vencRow) vencRow.style.display=(m.includes('cerrado')||m.includes('hora'))?'grid':'none';
+  const porHora=m==='Por EFT';
+  const rowHora=$('obj-precio-por-hora-row'), rowFijo=$('obj-precio-fijo-row');
+  if(rowHora) rowHora.style.display=porHora?'grid':'none';
+  if(rowFijo) rowFijo.style.display=porHora?'none':'grid';
+  const vencRow=$('obj-vencimiento-row');
+  if(vencRow) vencRow.style.display=(m==='Presupuesto cerrado'||m==='Por horas variables')?'grid':'none';
+  recalcularPrecioObjetivo();
+}
+// Recalcula en vivo el campo bloqueado según el modelo — nunca se tipea,
+// siempre se deriva de los campos base (2.2.1/2.2.3).
+function recalcularPrecioObjetivo(){
+  const m=$('obj-modelo-precio')?.value||'';
+  if(m==='Por EFT'){
+    const horas=parseFloat($('obj-efts')?.value)||0;
+    const valorHora=parseFloat($('obj-valor-hora')?.value)||0;
+    const calc=$('obj-valor-calculado');
+    if(calc) calc.value=(horas&&valorHora)?'$'+(horas*valorHora).toLocaleString('es-AR'):'—';
+  } else {
+    const valorMensual=parseFloat($('obj-valor')?.value)||0;
+    const horas=parseFloat($('obj-efts-fijo')?.value)||0;
+    const calc=$('obj-valor-hora-calculado');
+    if(calc) calc.value=(valorMensual&&horas)?'$'+Math.round(valorMensual/horas).toLocaleString('es-AR')+'/hora':'—';
+  }
 }
 
 // Adjuntos objetivo
@@ -1901,6 +2016,37 @@ function renderAdjuntosObj(){
     </div>`).join('');
 }
 
+// A.3 (Delta Comercial v1.3) — personal necesario como tabla de puestos
+// estructurada (antes texto libre). Cada puesto describe una NECESIDAD,
+// no una persona concreta — la asignación real ocurre después en
+// Operaciones/RRHH. Mismo bindeo a window que respObjetivoTemp/
+// adjuntosObjTemp: los oninput/onclick inline de las filas corren en
+// scope global.
+const DIAS_PUESTO=[['lunes','L'],['martes','M'],['miercoles','X'],['jueves','J'],['viernes','V'],['sabados','S'],['domingos','D'],['feriados','Fer.']];
+let puestosObjTemp=[];
+window.puestosObjTemp=puestosObjTemp;
+function agregarPuestoObj(){
+  puestosObjTemp.push({cantidad:1,perfil:'',horarioDesde:'',horarioHasta:'',dias:{},obs:''});
+  renderPuestosObj();
+}
+function renderPuestosObj(){
+  const el=$('obj-puestos-lista');if(!el)return;
+  el.innerHTML=puestosObjTemp.map((p,i)=>`
+    <div style="background:var(--fondo);border:1px solid var(--borde);border-radius:var(--radio);padding:10px 12px;margin-bottom:8px;">
+      <div style="display:grid;grid-template-columns:90px 1fr 100px 100px auto;gap:8px;align-items:end;">
+        <div class="form-group" style="margin:0;"><label style="font-size:10px;">Cantidad *</label><input type="number" min="1" value="${p.cantidad||''}" style="${inputStyle}" oninput="puestosObjTemp[${i}].cantidad=parseInt(this.value)||0"></div>
+        <div class="form-group" style="margin:0;"><label style="font-size:10px;">Perfil (opcional)</label><input type="text" value="${p.perfil||''}" placeholder="Ej: H, 25 a 40 años" style="${inputStyle}" oninput="puestosObjTemp[${i}].perfil=this.value"></div>
+        <div class="form-group" style="margin:0;"><label style="font-size:10px;">Desde</label><input type="time" value="${p.horarioDesde||''}" style="${inputStyle}" onchange="puestosObjTemp[${i}].horarioDesde=this.value"></div>
+        <div class="form-group" style="margin:0;"><label style="font-size:10px;">Hasta</label><input type="time" value="${p.horarioHasta||''}" style="${inputStyle}" onchange="puestosObjTemp[${i}].horarioHasta=this.value"></div>
+        <button type="button" style="background:none;border:none;cursor:pointer;color:var(--rojo);font-size:16px;" onclick="puestosObjTemp.splice(${i},1);renderPuestosObj()">✕</button>
+      </div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:8px;">
+        ${DIAS_PUESTO.map(([d,label])=>`<label style="display:flex;align-items:center;gap:3px;font-size:11px;cursor:pointer;"><input type="checkbox" ${p.dias?.[d]?'checked':''} onchange="puestosObjTemp[${i}].dias.${d}=this.checked">${label}</label>`).join('')}
+      </div>
+      <div class="form-group" style="margin:6px 0 0;"><label style="font-size:10px;">Observación</label><input type="text" value="${p.obs||''}" placeholder="Notas de este puesto..." style="${inputStyle}" oninput="puestosObjTemp[${i}].obs=this.value"></div>
+    </div>`).join('')||'<p class="text-muted" style="font-size:12px;">Sin puestos cargados — hacé click en "+ Agregar puesto"</p>';
+}
+
 // Roles de responsables en formulario (parametrizables)
 function renderRespObjetivoTemp(){
   const el=$('resp-objetivo-lista');if(!el)return;
@@ -1916,10 +2062,16 @@ function renderRespObjetivoTemp(){
         <input type="text" placeholder="Teléfono" value="${r.tel}" style="${inputStyle}" oninput="respObjetivoTemp[${i}].tel=this.value">
         <button style="background:none;border:none;cursor:pointer;color:var(--rojo);font-size:16px;" onclick="respObjetivoTemp.splice(${i},1);renderRespObjetivoTemp()">✕</button>
       </div>
-      <label style="display:flex;align-items:center;gap:6px;font-size:11px;margin-top:6px;cursor:pointer;">
-        <input type="checkbox" ${r.aSatisfacer?'checked':''} onchange="respObjetivoTemp[${i}].aSatisfacer=this.checked">
-        ⭐ Marcar como "cliente a satisfacer"
-      </label>
+      <div style="display:flex;gap:14px;flex-wrap:wrap;margin-top:6px;">
+        <label style="display:flex;align-items:center;gap:6px;font-size:11px;cursor:pointer;">
+          <input type="checkbox" ${r.aSatisfacer?'checked':''} onchange="respObjetivoTemp[${i}].aSatisfacer=this.checked">
+          ⭐ "Cliente a satisfacer"
+        </label>
+        <label style="display:flex;align-items:center;gap:6px;font-size:11px;cursor:pointer;">
+          <input type="checkbox" ${r.recibeFactura?'checked':''} onchange="respObjetivoTemp[${i}].recibeFactura=this.checked">
+          🧾 Recibe la factura
+        </label>
+      </div>
     </div>`).join('')||'<p class="text-muted" style="font-size:12px;">Sin responsables — hacé click en "+ Agregar"</p>';
 }
 
@@ -2004,7 +2156,7 @@ function confirmarSupervisorObjetivo(){
     crearNotificacion({tipo:'objetivo_supervisor_asignado',entidadTipo:'objetivo',entidadIdLocal:idLocalTrunc(o.id),destinatarioNombre:o.supervisorAsignado,mensaje:`Te asignaron el objetivo ${o.nombre} (${o.codigo}).`});
   }
   cerrarModal('modal-sup-objetivo');
-  filtrarObjetivos();toast(esCambio?'✓ Supervisor actualizado':'✓ Supervisor asignado — objetivo Operativo');
+  filtrarObjetivos();toast(esCambio?'✓ Supervisor actualizado':'✓ Supervisor asignado — servicio Operativo');
 }
 // 2.2.6 (Delta Comercial v1.2) — la razón de baja pasa de texto libre por
 // prompt() a un motivo parametrizable (Configuración → Comercial) más un
@@ -2037,7 +2189,7 @@ function ensureModalBajaObjetivo(){
 }
 function abrirBajaObjetivo(idLocal){
   const o=getObjetivoByIdLocal(idLocal);if(!o)return;
-  if(!esGerenteComercial()){toast('Solo Comercial puede dar de baja un objetivo');return;}
+  if(!esGerenteComercial()){toast('Solo Comercial puede dar de baja un servicio');return;}
   ensureModalBajaObjetivo();
   _bajaObjetivoIdLocal=idLocal;
   $('baja-obj-titulo').textContent=`Dar de baja "${o.nombre}"`;
@@ -2060,7 +2212,7 @@ function confirmarBajaObjetivo(){
   crearNotificacion({tipo:'objetivo_dado_de_baja',entidadTipo:'objetivo',entidadIdLocal:idLocalTrunc(o.id),destinatarioNombre:GERENTE_OPERACIONES,mensaje:`Se dio de baja el objetivo ${o.nombre} (${o.codigo}). Motivo: ${motivoCompleto}.${detalleAsoc}`});
   crearNotificacion({tipo:'objetivo_dado_de_baja',entidadTipo:'objetivo',entidadIdLocal:idLocalTrunc(o.id),destinatarioNombre:GERENTE_RRHH_COMERCIAL,mensaje:`Se dio de baja el objetivo ${o.nombre} (${o.codigo}). Motivo: ${motivoCompleto}.${detalleAsoc}`});
   cerrarModal('modal-baja-objetivo');
-  filtrarObjetivos();toast('✓ Objetivo dado de baja');
+  filtrarObjetivos();toast('✓ Servicio dado de baja');
 }
 // 2.2.7 (Delta Comercial v1.2) — reactivar un servicio dado de baja NO
 // pisa las condiciones/motivo de la baja anterior (o.fechaBaja/motivoBaja
@@ -2071,8 +2223,8 @@ function confirmarBajaObjetivo(){
 // historial completo en vez de sobrescribirlo (política A.6).
 function reactivarObjetivo(idLocal){
   const o=getObjetivoByIdLocal(idLocal);if(!o)return;
-  if(!esGerenteComercial()){toast('Solo Comercial puede reactivar un objetivo');return;}
-  if(o.estado!=='Baja'){toast('El objetivo no está dado de baja');return;}
+  if(!esGerenteComercial()){toast('Solo Comercial puede reactivar un servicio');return;}
+  if(o.estado!=='Baja'){toast('El servicio no está dado de baja');return;}
   if(!confirm(`¿Reactivar "${o.nombre}"? Se preserva el historial de la baja anterior (${o.motivoBaja||'sin motivo registrado'}).`)) return;
   const estadoDesde=o.estado;
   const nuevoEstado=o.supervisorAsignado?'Operativo':'Pendiente asignación operativa';
@@ -2080,7 +2232,7 @@ function reactivarObjetivo(idLocal){
   supaSync('objetivos', objetivoParaGuardar(o));
   registrarEventoObjetivo(o,estadoDesde,nuevoEstado,`Reactivación (baja anterior: ${o.motivoBaja||'sin motivo registrado'})`);
   crearNotificacion({tipo:'objetivo_reactivado',entidadTipo:'objetivo',entidadIdLocal:idLocalTrunc(o.id),destinatarioNombre:GERENTE_OPERACIONES,mensaje:`Se reactivó el objetivo ${o.nombre} (${o.codigo}).${nuevoEstado==='Pendiente asignación operativa'?' Necesita asignación de supervisor.':''}`});
-  filtrarObjetivos();toast('✓ Objetivo reactivado — '+nuevoEstado);
+  filtrarObjetivos();toast('✓ Servicio reactivado — '+nuevoEstado);
 }
 // Alerta de objetivos con 7+ días esperando asignación — se chequea al
 // entrar al módulo (mismo criterio de "chequear al render" ya usado en
@@ -2428,7 +2580,7 @@ function renderStatsReclamos(){
 DB.condicionesIVA=['Responsable inscripto','Monotributista','Exento','Consumidor final','No responsable'];
 DB.condicionesPago=['30 días','45 días','60 días','90 días','A 30/60 días','Contado','15 días','A 30/60/90 días'];
 DB.formasPago=['Transferencia','Cheque físico','E-cheq','Transferencia programada','Efectivo'];
-DB.modelosPrecio=['Abono mensual fijo','Por EFTs (FT = 200hs/mes)','Por horas variables','Presupuesto cerrado'];
+DB.modelosPrecio=['Abono mensual fijo','Por EFT','Por horas variables','Presupuesto cerrado'];
 DB.periodosFacturacion=['Del 1 al último del mes','Del 21 al 20','Del 26 al 25','Del 16 al 15','Otro'];
 DB.rolesResponsables=['Gerente general','Gerente de operaciones','Gerente de sucursal','Jefe de seguridad','Jefe de servicios','Encargado','Contacto de cobros','Contacto de facturación','Otro'];
 DB.tiposAccionCRM=['Llamada','Reunión','Email','Visita','Propuesta','Seguimiento','Demo','Prueba piloto'];
@@ -2553,7 +2705,7 @@ function poblarSelectsComercial(){
   fS('cf-cli-tipo',DB.tiposCliente);
   fS('cli-arca',DB.categoriasArca);
   fillDL('dl-cli-responsable',(DB.legajos||[]).filter(l=>l.estado==='Activo').map(l=>l.nombre));
-  fillDL('dl-obj-localidad',DB.localidades);
+  fS('obj-jurisdiccion',Object.keys(DB.jurisdiccionesServicio||{}));
   fSId('obj-cliente',DB.clientes);
   fSId('rec-cliente',DB.clientes);
   fS('cf-obj-cliente',DB.clientes.map(c=>c.nombre));
@@ -9225,7 +9377,7 @@ export function renderInicio(){
     {key:'vacaciones',  icon:'🏖️', label:'Vacaciones',         color:'#e8fefc', border:'#5de8dc'},
     {key:'competencia', icon:'🏆', label:'Competencia',         color:'#fffbea', border:'#f0c857'},
     {key:'clientes',    icon:'🏢', label:'Clientes',            color:'#e8effe', border:'#93b4f8'},
-    {key:'objetivos',   icon:'📍', label:'Objetivos',           color:'#e8f8ee', border:'#7dd4a0'},
+    {key:'objetivos',   icon:'📍', label:'Servicios',           color:'#e8f8ee', border:'#7dd4a0'},
     {key:'crm',         icon:'📊', label:'CRM',                 color:'#fdf0f8', border:'#e879d8'},
     {key:'reclamos',    icon:'📣', label:'Reclamos',            color:'#fee8e8', border:'#f87070'},
     {key:'cobros',      icon:'💳', label:'Cobros',              color:'#f0f8e8', border:'#a4d46a'},
@@ -10343,6 +10495,12 @@ window.toggleDescuentoBase = toggleDescuentoBase;
 window.toggleFueraEFT = toggleFueraEFT;
 window.toggleGrilla = toggleGrilla;
 window.toggleModeloPrecio = toggleModeloPrecio;
+window.recalcularPrecioObjetivo = recalcularPrecioObjetivo;
+window.poblarLocalidadesServicio = poblarLocalidadesServicio;
+window.heredarFacturacionDeCliente = heredarFacturacionDeCliente;
+window.agregarPuestoObj = agregarPuestoObj;
+window.renderPuestosObj = renderPuestosObj;
+window.toggleResponsableClienteTipo = toggleResponsableClienteTipo;
 window.poblarModeloPrecioSegunCliente = poblarModeloPrecioSegunCliente;
 window.toggleMotivoNoFact = toggleMotivoNoFact;
 window.toggleNuevaGrillaTipo = toggleNuevaGrillaTipo;

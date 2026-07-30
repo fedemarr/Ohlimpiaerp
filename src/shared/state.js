@@ -26,6 +26,14 @@ export const DB = {
   // 2.2.6 (Delta Comercial v1.2) — motivo parametrizable al dar de baja un
   // objetivo/servicio (antes era 100% texto libre vía prompt()).
   motivosBajaObjetivo: ['Fin de contrato', 'Impago del cliente', 'Cliente cierra operación', 'Cambio de proveedor', 'Rescisión por incumplimiento nuestro', 'Otro'],
+  // A.4 (Delta Comercial v1.3) — localidad del servicio en dos pasos
+  // encadenados: jurisdicción → localidad dependiente. Objeto plano
+  // {jurisdicción: [localidades]} a propósito, para que agregar otra
+  // provincia a futuro sea agregar una clave más, no tocar código.
+  jurisdiccionesServicio: {
+    'CABA': ['Retiro','San Nicolás','Puerto Madero','San Telmo','Montserrat','Constitución','Recoleta','Balvanera','San Cristóbal','La Boca','Barracas','Parque Patricios','Nueva Pompeya','Almagro','Boedo','Caballito','Flores','Parque Chacabuco','Villa Soldati','Villa Riachuelo','Villa Lugano','Liniers','Mataderos','Parque Avellaneda','Versalles','Monte Castro','Floresta','Vélez Sarsfield','Villa Luro','Villa Real','Villa General Mitre','Villa Devoto','Villa del Parque','Villa Santa Rita','Coghlan','Saavedra','Villa Urquiza','Villa Pueyrredón','Núñez','Belgrano','Colegiales','Palermo','Chacarita','Villa Crespo','Paternal','Agronomía','Villa Ortúzar','Parque Chas'],
+    'Provincia de Buenos Aires': ['Adolfo Alsina','Adolfo Gonzales Chaves','Alberti','Almirante Brown','Arrecifes','Avellaneda','Ayacucho','Azul','Bahía Blanca','Balcarce','Baradero','Benito Juárez','Berazategui','Berisso','Bolívar','Bragado','Brandsen','Campana','Cañuelas','Capitán Sarmiento','Carlos Casares','Carlos Tejedor','Carmen de Areco','Castelli','Chacabuco','Chascomús','Chivilcoy','Colón','Coronel Dorrego','Coronel Pringles','Coronel Rosales','Coronel Suárez','Daireaux','Dolores','Ensenada','Escobar','Esteban Echeverría','Exaltación de la Cruz','Ezeiza','Florencio Varela','Florentino Ameghino','General Alvarado','General Alvear','General Arenales','General Belgrano','General Guido','General Juan Madariaga','General La Madrid','General Las Heras','General Lavalle','General Paz','General Pinto','General Pueyrredón','General Rodríguez','General San Martín','General Viamonte','General Villegas','Guaminí','Hipólito Yrigoyen','Hurlingham','Ituzaingó','José C. Paz','Junín','La Costa','La Matanza','Lanús','La Plata','Laprida','Las Flores','Leandro N. Alem','Lezama','Lincoln','Lobería','Lobos','Lomas de Zamora','Luján','Magdalena','Maipú','Malvinas Argentinas','Mar Chiquita','Marcos Paz','Mercedes','Merlo','Monte','Monte Hermoso','Moreno','Morón','Navarro','Necochea','Nueve de Julio','Olavarría','Patagones','Pehuajó','Pellegrini','Pergamino','Pila','Pilar','Pinamar','Presidente Perón','Puán','Punta Indio','Quilmes','Ramallo','Rauch','Rivadavia','Rojas','Roque Pérez','Saavedra','Saladillo','Salliqueló','Salto','San Andrés de Giles','San Antonio de Areco','San Cayetano','San Fernando','San Isidro','San Miguel','San Nicolás','San Pedro','San Vicente','Suipacha','Tandil','Tapalqué','Tigre','Tordillo','Tornquist','Trenque Lauquen','Tres Arroyos','Tres de Febrero','Tres Lomas','Veinticinco de Mayo','Vicente López','Villa Gesell','Villarino','Zárate'],
+  },
   localidades: ['Floresta', 'Villa del Parque', 'Barracas', 'Retiro', 'Villa Soldati', 'Palermo', 'Belgrano', 'Caballito', 'San Telmo', 'Montserrat', 'San Justo', 'Isidro Casanova', 'Laferrere', 'Quilmes', 'Avellaneda', 'Lanús', 'Lomas de Zamora', 'Berazategui', 'San Martín', 'Caseros', 'Tres de Febrero', 'José C. Paz', 'Tigre', 'San Fernando', 'Pilar', 'Campana', 'Grand Bourg'],
   movimientos: ['Nuevo ingreso', 'Reubicación interna', 'Reingreso', 'Cambio de servicio', 'Cambio de categoría'],
   estadosLegales: ['Carta documento recibida', 'Carta documento contestada', 'Conciliación SECLO', 'Conciliación interna', 'Estado judicial', 'Cerrado', 'Pre-legal'],
@@ -186,7 +194,7 @@ export const MENU = [
   ]},
   { section: 'Comercial', items: [
     { key: 'clientes', icon: '🏢', label: 'Clientes', perfiles: ['Administrador total', 'Operaciones', 'Comercial'] },
-    { key: 'objetivos', icon: '📍', label: 'Objetivos / Servicios', perfiles: ['Administrador total', 'Operaciones', 'Comercial'] },
+    { key: 'objetivos', icon: '📍', label: 'Servicios', perfiles: ['Administrador total', 'Operaciones', 'Comercial'] },
     { key: 'precios', icon: '💲', label: 'Gestión de precios', badge: 'prec', perfiles: ['Administrador total', 'Operaciones', 'Comercial'] },
     { key: 'crm', icon: '📊', label: 'CRM Comercial', badge: 'crm', perfiles: ['Administrador total', 'Operaciones', 'Comercial'] },
     { key: 'reclamos', icon: '📣', label: 'Reclamos y NC', badge: 'rec', perfiles: ['Administrador total', 'RRHH', 'Operaciones', 'Comercial'] },
