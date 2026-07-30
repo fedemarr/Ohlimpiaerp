@@ -115,6 +115,8 @@ export const _SM = {
   historialImportaciones: 'historial_importaciones',
   // v050 — CRM / leads
   leads: 'leads',
+  // v052 — Gestión de precios
+  propuestasPrecios: 'propuestas_precios',
 };
 
 // camelCase → snake_case para guardar en Supabase
@@ -389,6 +391,13 @@ export function _toSnake(obj) {
     clienteBorradorId: 'cliente_borrador_id', motivoPerdida: 'motivo_perdida',
     // v051 — Gestión de cobranzas (a nivel cliente)
     gestionesCobro: 'gestiones_cobro',
+    // v052 — Gestión de precios (propuestas con tramos)
+    objetivoId: 'objetivo_id', tipoModificacion: 'tipo_modificacion',
+    tipoConvalidar: 'tipo_convalidar', autorizadaPor: 'autorizada_por',
+    fechaAutorizacion: 'fecha_autorizacion', confirmadaPor: 'confirmada_por',
+    fechaConfirmacion: 'fecha_confirmacion',
+    motivoRechazoGerente: 'motivo_rechazo_gerente', motivoRechazoCliente: 'motivo_rechazo_cliente',
+    loteId: 'lote_id', propuestaAnteriorId: 'propuesta_anterior_id', cargadoPor: 'cargado_por',
   };
   const r = {};
   for (const [k, v] of Object.entries(obj)) {
@@ -665,6 +674,13 @@ export function _toCamel(obj) {
     cliente_borrador_id: 'clienteBorradorId', motivo_perdida: 'motivoPerdida',
     // v051 — Gestión de cobranzas (a nivel cliente)
     gestiones_cobro: 'gestionesCobro',
+    // v052 — Gestión de precios (propuestas con tramos)
+    objetivo_id: 'objetivoId', tipo_modificacion: 'tipoModificacion',
+    tipo_convalidar: 'tipoConvalidar', autorizada_por: 'autorizadaPor',
+    fecha_autorizacion: 'fechaAutorizacion', confirmada_por: 'confirmadaPor',
+    fecha_confirmacion: 'fechaConfirmacion',
+    motivo_rechazo_gerente: 'motivoRechazoGerente', motivo_rechazo_cliente: 'motivoRechazoCliente',
+    lote_id: 'loteId', propuesta_anterior_id: 'propuestaAnteriorId', cargado_por: 'cargadoPor',
   };
   const r = {};
   for (const [k, v] of Object.entries(obj)) {

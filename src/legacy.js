@@ -1272,9 +1272,33 @@ if(!DB.objetivoEventos) DB.objetivoEventos=[];
 
 // Propuestas de modificación de precio — pendientes de aprobación del Gerente
 // (módulo Precios, fuera de alcance de esta migración — se deja intacto)
+// DELTA_comercial_gestion_precios_v1 — modelo con tramos (ver
+// crearPropuestaPrecio). Semilla de demo: un aumento simple (1 tramo, ya
+// enviado al cliente) y un aumento escalonado (2 tramos) recién cargado.
 DB.propuestasPrecios = [
-  {id:1,objetivoCod:'CHANGO.BROWN',clienteNombre:'Chango Mas',objetivoNombre:'Chango Mas Brown',valorActual:850000,valorHoraActual:7083,valorPropuesto:1003000,valorHoraPropuesto:8358,pctAumento:18,clausula:'Paritarias',motivoCliente:'Aumento de paritarias UTEDYC Mar 2026',fechaPropuesta:'01/04/2026',fechaVigencia:'01/05/2026',aprobadoCliente:true,fechaAprobCliente:'28/03/2026',estado:'Pendiente aprobación gerente',aprobadoPor:'',proyeccionMeses:3},
-  {id:2,objetivoCod:'HTAL.ALEMAN.LIMP',clienteNombre:'Hospital Alemán',objetivoNombre:'Hospital Alemán — Limpieza',valorActual:1200000,valorHoraActual:0,valorPropuesto:1380000,valorHoraPropuesto:0,pctAumento:15,clausula:'Índice trimestral',motivoCliente:'Ajuste IPC Q1 2026',fechaPropuesta:'02/04/2026',fechaVigencia:'01/05/2026',aprobadoCliente:true,fechaAprobCliente:'01/04/2026',estado:'Pendiente aprobación gerente',aprobadoPor:'',proyeccionMeses:3},
+  {id:1,objetivoId:1,objetivoCod:'CHANGO.BROWN',objetivoNombre:'Chango Mas Brown',clienteId:1,clienteNombre:'Chango Mas',
+    tipoModificacion:'Aumento',clausula:'Paritarias',motivo:'Aumento de paritarias UTEDYC Mar 2026',
+    valorActual:850000,valorHoraActual:7083,valorPropuesto:1003000,valorHoraPropuesto:8358,pctAumento:18,
+    niveles:{porParitaria:{pct:18,valor:1003000},propuestaOhlimpia:{pct:0,valor:0},yaAcordado:{pct:18,valor:1003000}},
+    tipoConvalidar:'yaAcordado',
+    tramos:[{id:101,pct:18,pctAcumulado:18,fechaVigencia:'01/05/2026',valor:1003000,valorHora:8358}],
+    fechaVigencia:'01/05/2026',estado:'Enviada al cliente',
+    autorizadaPor:'Jorgelina Bianchi',fechaAutorizacion:'29/03/2026',confirmadaPor:'',fechaConfirmacion:'',
+    motivoRechazoGerente:'',motivoRechazoCliente:'',
+    fechaPropuesta:'01/04/2026',proyeccionMeses:3,loteId:null,propuestaAnteriorId:null,origenParitaria:'',cargadoPor:'Jorgelina Bianchi'},
+  {id:2,objetivoId:3,objetivoCod:'HTAL.ALEMAN.LIMP',objetivoNombre:'Hospital Alemán — Limpieza general',clienteId:2,clienteNombre:'Hospital Alemán',
+    tipoModificacion:'Aumento',clausula:'Índice trimestral',motivo:'Ajuste IPC Q1 2026, escalonado en 2 tramos para suavizar el impacto',
+    valorActual:1200000,valorHoraActual:0,valorPropuesto:1380000,valorHoraPropuesto:0,pctAumento:15,
+    niveles:{porParitaria:{pct:0,valor:0},propuestaOhlimpia:{pct:15,valor:1380000},yaAcordado:{pct:0,valor:0}},
+    tipoConvalidar:'propuestaOhlimpia',
+    tramos:[
+      {id:201,pct:7.5,pctAcumulado:7.5,fechaVigencia:'01/05/2026',valor:1290000,valorHora:0},
+      {id:202,pct:7.5,pctAcumulado:15,fechaVigencia:'01/08/2026',valor:1380000,valorHora:0},
+    ],
+    fechaVigencia:'01/05/2026',estado:'Pendiente autorización gerente',
+    autorizadaPor:'',fechaAutorizacion:'',confirmadaPor:'',fechaConfirmacion:'',
+    motivoRechazoGerente:'',motivoRechazoCliente:'',
+    fechaPropuesta:'02/04/2026',proyeccionMeses:6,loteId:null,propuestaAnteriorId:null,origenParitaria:'',cargadoPor:'Jorgelina Bianchi'},
 ];
 
 // Cláusulas de actualización de precio
@@ -4305,84 +4329,421 @@ function exportarLiquidacionCSV(){
   toast('✓ Exportado como CSV');
 }
 
-// ========== 3 NIVELES DE PROPUESTA DE PRECIO ==========
+// ========== GESTIÓN DE PRECIOS v1 (DELTA_comercial_gestion_precios_v1, 30/07/2026) ==========
+// Rehecho de punta a punta (ver decisión A.11: sin datos reales que migrar,
+// el modelo pasa de "un % y una fecha sueltos" a "una propuesta con uno o
+// más tramos (fecha+%), con dirección aumento/rebaja, en circuito
+// Secuencia A (el Gerente autoriza ANTES de ir al cliente, dos
+// intervenciones)". Los ids de campo pp-pct-teorico/comercial/acordado se
+// mantienen tal cual (son internos, no se ven) — lo que cambia es el
+// nombre visible en el HTML (punto 2: "Por paritaria" / "Propuesta de
+// Ohlimpia" / "Ya acordado con el cliente") y las claves con las que se
+// guarda en niveles: porParitaria/propuestaOhlimpia/yaAcordado.
+const PP_NIVEL_A_CLAVE={teorico:'porParitaria',comercial:'propuestaOhlimpia',acordado:'yaAcordado'};
+
+function _dmyPrecios(f){
+  if(!f)return null;
+  const p=f.split('/');if(p.length!==3)return null;
+  const[dd,mm,yy]=p;
+  return new Date(`${yy}-${mm.padStart(2,'0')}-${dd.padStart(2,'0')}`);
+}
+
+// Punto 4: cálculo NO acumulativo — cada tramo se calcula sobre el % que
+// lleva acumulado hasta ese punto, aplicado siempre al valor ORIGINAL (sin
+// interés compuesto). tramos: [{pct,fechaVigencia}] con pct incremental de
+// cada tramo (5% + 5% = 10% acumulado en el segundo, no 5%*1.05).
+function calcularValoresTramos(valorBase,valorHoraBase,tramos,tipoModificacion){
+  let acumulado=0;
+  const signo=tipoModificacion==='Rebaja'?-1:1;
+  return tramos.map(t=>{
+    acumulado+=(t.pct||0);
+    const factor=1+signo*acumulado/100;
+    return{
+      id:t.id||Date.now()+Math.floor(Math.random()*1e6),
+      pct:t.pct||0,pctAcumulado:acumulado,fechaVigencia:t.fechaVigencia||'',
+      valor:Math.round((valorBase||0)*factor),
+      valorHora:valorHoraBase?Math.round(valorHoraBase*factor):0,
+    };
+  });
+}
+
+// Punto 5 — el % siempre positivo; tipoModificacion da la dirección.
+function crearPropuestaPrecio({obj,cli,tipoModificacion,tramos,tipoConvalidar,niveles,clausula,motivo,proyeccionMeses,loteId,propuestaAnteriorId,origenParitaria}){
+  const tramosCalc=calcularValoresTramos(obj.valor,obj.valorHora,tramos,tipoModificacion);
+  const ultimo=tramosCalc[tramosCalc.length-1];
+  return{
+    id:Date.now()+Math.floor(Math.random()*1e6),
+    objetivoId:obj.id,objetivoCod:obj.codigo,objetivoNombre:obj.nombre,
+    clienteId:obj.clienteId,clienteNombre:cli?.nombre||'—',
+    tipoModificacion,clausula:clausula||'',motivo:motivo||'',
+    valorActual:obj.valor,valorHoraActual:obj.valorHora||0,
+    valorPropuesto:ultimo?.valor??obj.valor,valorHoraPropuesto:ultimo?.valorHora??0,
+    pctAumento:ultimo?.pctAcumulado??0,
+    niveles:niveles||null,tipoConvalidar:tipoConvalidar||'',
+    tramos:tramosCalc,
+    fechaVigencia:tramosCalc[0]?.fechaVigencia||'',
+    estado:'Pendiente autorización gerente',
+    autorizadaPor:'',fechaAutorizacion:'',confirmadaPor:'',fechaConfirmacion:'',
+    motivoRechazoGerente:'',motivoRechazoCliente:'',
+    fechaPropuesta:new Date().toLocaleDateString('es-AR'),
+    proyeccionMeses:proyeccionMeses||3,
+    loteId:loteId||null,propuestaAnteriorId:propuestaAnteriorId||null,
+    origenParitaria:origenParitaria||'',cargadoPor:currentUser?.nombre||'',
+  };
+}
+
+// ---------- Modal "Nueva propuesta" — 3 niveles + tramos ----------
+function toggleTipoModificacionPP(){
+  const esRebaja=$('pp-tipo-modificacion')?.value==='Rebaja';
+  if($('pp-aviso-rebaja'))$('pp-aviso-rebaja').style.display=esRebaja?'block':'none';
+  if($('pp-motivo-label'))$('pp-motivo-label').textContent=esRebaja?'Motivo de la rebaja *':'Notas de la negociación';
+  calcularPP('teorico');calcularPP('comercial');calcularPP('acordado');
+}
 function calcularPP(nivel){
   const id=parseInt($('pp-objetivo')?.value)||0;
   const obj=DB.objetivos.find(o=>o.id===id);
   if(!obj) return;
+  const signo=$('pp-tipo-modificacion')?.value==='Rebaja'?-1:1;
   ['teorico','comercial','acordado'].forEach(niv=>{
     const pct=parseFloat($(`pp-pct-${niv}`)?.value)||0;
-    if(!pct) return;
-    const nuevoValor=Math.round(obj.valor*(1+pct/100));
-    const nuevoVH=obj.valorHora?Math.round(obj.valorHora*(1+pct/100)):0;
     const valEl=$(`pp-val-${niv}`);const vhEl=$(`pp-vh-${niv}-lbl`);
+    // B.2 (bug confirmado): antes, si el campo quedaba en 0/vacío, esta
+    // función cortaba acá sin resetear valEl/vhEl — el último valor
+    // calculado quedaba "fantasma" en pantalla. Ahora siempre se resetea.
+    if(!pct){
+      if(valEl)valEl.textContent='—';
+      if(vhEl)vhEl.textContent='';
+      return;
+    }
+    const nuevoValor=Math.round(obj.valor*(1+signo*pct/100));
+    const nuevoVH=obj.valorHora?Math.round(obj.valorHora*(1+signo*pct/100)):0;
     if(valEl) valEl.textContent='$'+nuevoValor.toLocaleString('es-AR')+'/mes';
     if(vhEl) vhEl.textContent=nuevoVH?'Valor hora: $'+nuevoVH.toLocaleString('es-AR'):'';
   });
-  // Actualizar preview con el tipo seleccionado
+  sincronizarTramoUnicoPP();
+  // Preview con el tipo seleccionado
   const tipoSel=$('pp-tipo-propuesta')?.value||'acordado';
   const pctSel=parseFloat($(`pp-pct-${tipoSel}`)?.value)||0;
-  if(pctSel){
-    const nuevoValor=Math.round(obj.valor*(1+pctSel/100));
-    const meses=parseInt($('pp-meses-proy')?.value)||3;
-    const impacto=(nuevoValor-obj.valor)*meses;
-    const prev=$('pp-proyeccion-preview');
-    if(prev) prev.innerHTML=`<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;text-align:center;">
-      <div><div style="font-size:11px;color:var(--texto-suave);">Valor actual</div><div style="font-weight:700;font-size:14px;">$${Math.round(obj.valor/1000)}k/mes</div></div>
-      <div><div style="font-size:11px;color:var(--texto-suave);">Nuevo valor</div><div style="font-weight:700;font-size:14px;color:var(--azul);">$${Math.round(nuevoValor/1000)}k/mes</div></div>
-      <div><div style="font-size:11px;color:var(--texto-suave);">Impacto ${meses} meses</div><div style="font-weight:700;font-size:14px;color:var(--verde);">+$${Math.round(impacto/1000)}k</div></div>
-    </div>`;
-  }
+  const prev=$('pp-proyeccion-preview');
+  if(!prev)return;
+  if(!pctSel){prev.innerHTML='';return;}
+  const nuevoValor=Math.round(obj.valor*(1+signo*pctSel/100));
+  const meses=parseInt($('pp-meses-proy')?.value)||3;
+  const impacto=(nuevoValor-obj.valor)*meses;
+  prev.innerHTML=`<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;text-align:center;">
+    <div><div style="font-size:11px;color:var(--texto-suave);">Valor actual</div><div style="font-weight:700;font-size:14px;">$${Math.round(obj.valor/1000)}k/mes</div></div>
+    <div><div style="font-size:11px;color:var(--texto-suave);">Nuevo valor (último tramo)</div><div style="font-weight:700;font-size:14px;color:var(--azul);">$${Math.round(nuevoValor/1000)}k/mes</div></div>
+    <div><div style="font-size:11px;color:var(--texto-suave);">Impacto ${meses} meses</div><div style="font-weight:700;font-size:14px;color:${impacto>=0?'var(--verde)':'var(--rojo)'};">${impacto>=0?'+':'-'}$${Math.round(Math.abs(impacto)/1000)}k</div></div>
+  </div>`;
 }
 
-function calcularPPDesdeValor(){
-  // Compatibilidad con código viejo
-  calcularPP('comercial');
+// ---------- Cronograma de tramos (punto 4) ----------
+let tramosPPTemp=[];
+function totalPctSeleccionadoPP(){
+  const tipoSel=$('pp-tipo-propuesta')?.value||'acordado';
+  return parseFloat($(`pp-pct-${tipoSel}`)?.value)||0;
+}
+function agregarTramoPP(){
+  tramosPPTemp.push({id:Date.now()+tramosPPTemp.length,pct:0,fechaVigencia:''});
+  renderTramosPP();
+}
+function quitarTramoPP(id){
+  if(tramosPPTemp.length<=1){toast('Tiene que haber al menos un tramo');return;}
+  tramosPPTemp=tramosPPTemp.filter(t=>t.id!==id);
+  renderTramosPP();
+}
+function actualizarTramoPP(id,campo,valor){
+  const t=tramosPPTemp.find(x=>x.id===id);
+  if(t)t[campo]=valor;
+  chequearSumaTramosPP();
+}
+// Con un solo tramo (caso no escalonado, el más común) se mantiene
+// sincronizado con el % total automáticamente. Con más de uno, el reparto
+// es manual — solo se re-chequea que sigan sumando el total.
+function sincronizarTramoUnicoPP(){
+  if(tramosPPTemp.length===1){
+    tramosPPTemp[0].pct=totalPctSeleccionadoPP();
+    renderTramosPP();
+  }else{
+    chequearSumaTramosPP();
+  }
+}
+function renderTramosPP(){
+  const el=$('pp-tramos-lista');if(!el)return;
+  el.innerHTML=tramosPPTemp.map((t,i)=>`
+    <div style="display:grid;grid-template-columns:70px 1fr 1fr auto;gap:8px;align-items:center;">
+      <span style="font-size:11px;color:var(--texto-suave);">Tramo ${i+1}</span>
+      <input type="number" min="0" max="500" step="0.1" value="${t.pct||''}" placeholder="%" oninput="actualizarTramoPP(${t.id},'pct',parseFloat(this.value)||0)" style="padding:5px 8px;border:1px solid var(--borde-fuerte);border-radius:5px;font-size:12px;outline:none;">
+      <input type="date" value="${t.fechaVigencia||''}" onchange="actualizarTramoPP(${t.id},'fechaVigencia',this.value)" style="padding:5px 8px;border:1px solid var(--borde-fuerte);border-radius:5px;font-size:12px;outline:none;">
+      <button class="btn btn-secondary btn-xs" onclick="quitarTramoPP(${t.id})" title="Quitar tramo">✕</button>
+    </div>`).join('');
+  chequearSumaTramosPP();
+}
+function chequearSumaTramosPP(){
+  const el=$('pp-tramos-check');if(!el)return false;
+  const total=totalPctSeleccionadoPP();
+  const suma=tramosPPTemp.reduce((s,t)=>s+(t.pct||0),0);
+  const ok=Math.abs(suma-total)<0.05;
+  el.innerHTML=ok
+    ?`<span style="color:var(--verde);">✓ Los tramos suman ${suma.toFixed(1)}% — coincide con el total a convalidar</span>`
+    :`<span style="color:var(--rojo);">⚠️ Los tramos suman ${suma.toFixed(1)}%, pero el total a convalidar es ${total.toFixed(1)}% — no cierra.</span>`;
+  return ok;
 }
 
 function guardarPropuestaPrecio(){
   const id=parseInt($('pp-objetivo')?.value)||0;
   const obj=DB.objetivos.find(o=>o.id===id);
   if(!obj){toast('Seleccioná un objetivo');return;}
-  const tipoSel=$('pp-tipo-propuesta')?.value||'acordado';
-  // Usar el tipo seleccionado, con fallback a comercial, luego teórico
-  const pctFinal=parseFloat($(`pp-pct-${tipoSel}`)?.value)||
-    parseFloat($('pp-pct-acordado')?.value)||
-    parseFloat($('pp-pct-comercial')?.value)||
-    parseFloat($('pp-pct-teorico')?.value)||0;
-  if(!pctFinal){toast('Completá al menos una propuesta de % de aumento');return;}
-  const nuevoValor=Math.round(obj.valor*(1+pctFinal/100));
-  const nuevoVH=obj.valorHora?Math.round(obj.valorHora*(1+pctFinal/100)):0;
-  const fechaVig=$('pp-fecha-vig')?.value?new Date($('pp-fecha-vig').value).toLocaleDateString('es-AR'):'';
-  if(!fechaVig){supaSync('objetivos', DB.objetivos[DB.objetivos.length-1]); toast('Ingresá la fecha de vigencia');return;}
-  const aprobCliente=($('pp-aprobado-cliente')?.value)==='1';
   const cli=DB.clientes.find(c=>c.id===obj.clienteId);
-  // Guardar los 3 niveles
+  const tipoModificacion=$('pp-tipo-modificacion')?.value||'Aumento';
+  const tipoSel=$('pp-tipo-propuesta')?.value||'acordado';
+  const pctFinal=totalPctSeleccionadoPP()||
+    parseFloat($('pp-pct-acordado')?.value)||parseFloat($('pp-pct-comercial')?.value)||parseFloat($('pp-pct-teorico')?.value)||0;
+  if(!pctFinal){toast('Completá al menos un nivel con % (siempre en positivo)');return;}
+  if(!tramosPPTemp.length||tramosPPTemp.some(t=>!t.pct||!t.fechaVigencia)){toast('Completá % y fecha de vigencia en todos los tramos');return;}
+  if(!chequearSumaTramosPP()){toast('Los tramos no suman el % total — revisá el cronograma');return;}
+  const motivo=$('pp-motivo')?.value.trim()||'';
+  if(tipoModificacion==='Rebaja'&&!motivo){toast('Una rebaja necesita motivo — es obligatorio');return;}
+
   const pctTeorico=parseFloat($('pp-pct-teorico')?.value)||0;
   const pctComercial=parseFloat($('pp-pct-comercial')?.value)||0;
   const pctAcordado=parseFloat($('pp-pct-acordado')?.value)||0;
-  DB.propuestasPrecios.push({
-    id:Date.now(),objetivoCod:obj.codigo,clienteNombre:cli?.nombre||'—',
-    objetivoNombre:obj.nombre,valorActual:obj.valor,valorHoraActual:obj.valorHora||0,
-    valorPropuesto:nuevoValor,valorHoraPropuesto:nuevoVH,pctAumento:pctFinal,
-    clausula:$('pp-clausula')?.value||'',
-    motivoCliente:$('pp-motivo')?.value||'',
-    fechaPropuesta:new Date().toLocaleDateString('es-AR'),
-    fechaVigencia:fechaVig,
-    aprobadoCliente:aprobCliente,
-    fechaAprobCliente:aprobCliente?new Date().toLocaleDateString('es-AR'):'',
-    estado:'Pendiente aprobación gerente',aprobadoPor:'',
+  const signo=tipoModificacion==='Rebaja'?-1:1;
+  const niveles={
+    porParitaria:{pct:pctTeorico,valor:pctTeorico?Math.round(obj.valor*(1+signo*pctTeorico/100)):0},
+    propuestaOhlimpia:{pct:pctComercial,valor:pctComercial?Math.round(obj.valor*(1+signo*pctComercial/100)):0},
+    yaAcordado:{pct:pctAcordado,valor:pctAcordado?Math.round(obj.valor*(1+signo*pctAcordado/100)):0},
+  };
+
+  const propuesta=crearPropuestaPrecio({
+    obj,cli,tipoModificacion,tramos:tramosPPTemp,
+    tipoConvalidar:PP_NIVEL_A_CLAVE[tipoSel],niveles,
+    clausula:$('pp-clausula')?.value||'',motivo,
     proyeccionMeses:parseInt($('pp-meses-proy')?.value)||3,
-    // 3 niveles de propuesta
-    niveles:{
-      teorico:{pct:pctTeorico,valor:pctTeorico?Math.round(obj.valor*(1+pctTeorico/100)):0},
-      comercial:{pct:pctComercial,valor:pctComercial?Math.round(obj.valor*(1+pctComercial/100)):0},
-      acordado:{pct:pctAcordado,valor:pctAcordado?Math.round(obj.valor*(1+pctAcordado/100)):0},
-    },
-    tipoConvalidar:tipoSel,
+    propuestaAnteriorId:_propuestaAnteriorIdPP,
   });
+  DB.propuestasPrecios.push(propuesta);
+  supaSync('propuestasPrecios',propuesta);
   cerrarModal('modal-propuesta-precio');construirMenu();renderPrecios();
-  toast(`✓ Propuesta enviada al Gerente — ${tipoSel==='acordado'?'Acordada':'Comercial'}: +${pctFinal}% → $${nuevoValor.toLocaleString('es-AR')}`);
+  toast(`✓ Propuesta enviada al Gerente para autorización — ${tipoModificacion} de ${pctFinal.toFixed(1)}% en ${tramosPPTemp.length} tramo${tramosPPTemp.length!==1?'s':''}`,6000);
+}
+
+// ---------- Motivo genérico (rechazos del circuito de precios) ----------
+// Evita usar prompt() del navegador (ya hay varios usos legacy de prompt()
+// documentados como pendientes de reemplazar — no se suma uno más acá).
+let _motivoPrecioCallback=null;
+function pedirMotivoPrecio(titulo,callback){
+  _motivoPrecioCallback=callback;
+  if($('mp-titulo'))$('mp-titulo').textContent=titulo;
+  if($('mp-texto'))$('mp-texto').value='';
+  abrirModal('modal-motivo-precio');
+}
+function confirmarMotivoPrecio(){
+  const texto=$('mp-texto')?.value.trim();
+  if(!texto){toast('El motivo es obligatorio');return;}
+  cerrarModal('modal-motivo-precio');
+  const cb=_motivoPrecioCallback;_motivoPrecioCallback=null;
+  if(cb)cb(texto);
+}
+
+// ---------- Circuito de aprobación — Secuencia A (punto 1) ----------
+// 1. Carga → Pendiente autorización gerente.
+// 2. Gerente autoriza la SALIDA (antes de ir al cliente) o rechaza interno.
+// 3. Se envía la carta (marcarEnviadaCliente).
+// 4. El cliente responde: acepta → Gerente confirma el CIERRE (2ª
+//    intervención) → Vigente; rechaza → Rechazada por el cliente, se puede
+//    rearmar con un aumento más bajo (nueva fila, no se pisa la anterior).
+function _esGerentePrecios(){
+  return !!(currentUser&&(currentUser.perfil==='Administrador total'||
+    currentUser.funcion==='Gerente'||currentUser.funcion==='Gerente General'||currentUser.funcion==='Coordinador/a'));
+}
+function autorizarSalidaPrecio(idx){
+  if(!_esGerentePrecios()){toast('⛔ Solo el Gerente Comercial puede autorizar la salida al cliente');return;}
+  const p=DB.propuestasPrecios[idx];if(!p)return;
+  p.estado='Autorizada — lista para enviar';
+  p.autorizadaPor=currentUser.nombre;p.fechaAutorizacion=new Date().toLocaleDateString('es-AR');
+  supaSync('propuestasPrecios',p);
+  construirMenu();renderPrecios();
+  toast(`✓ Salida autorizada — ${p.objetivoNombre}, lista para enviarle la carta al cliente`);
+}
+function rechazarInternoPrecio(idx){
+  if(!_esGerentePrecios()){toast('⛔ Solo el Gerente Comercial puede rechazar');return;}
+  const p=DB.propuestasPrecios[idx];if(!p)return;
+  pedirMotivoPrecio('Motivo del rechazo interno (antes de ir al cliente)',(motivo)=>{
+    p.estado='Rechazada — interna';p.motivoRechazoGerente=motivo;
+    supaSync('propuestasPrecios',p);
+    construirMenu();renderPrecios();
+    toast('Propuesta rechazada internamente — se puede rearmar');
+  });
+}
+function marcarEnviadaCliente(idx){
+  const p=DB.propuestasPrecios[idx];if(!p)return;
+  p.estado='Enviada al cliente';
+  supaSync('propuestasPrecios',p);
+  renderPrecios();
+  toast(`✓ Marcada como enviada al cliente — ${p.objetivoNombre}`);
+}
+function confirmarCierreCliente(idx){
+  if(!_esGerentePrecios()){toast('⛔ Solo el Gerente Comercial puede confirmar el cierre');return;}
+  const p=DB.propuestasPrecios[idx];if(!p)return;
+  p.estado='Vigente';
+  p.confirmadaPor=currentUser.nombre;p.fechaConfirmacion=new Date().toLocaleDateString('es-AR');
+  aplicarPropuestaAlObjetivo(p);
+  supaSync('propuestasPrecios',p);
+  construirMenu();renderPrecios();renderObjetivos();
+  toast(`✓ Cierre confirmado — ${p.objetivoNombre}, ${p.tramos.length>1?'primer tramo':'precio'} vigente desde ${p.fechaVigencia}`,6000);
+}
+function rechazoClientePrecio(idx){
+  const p=DB.propuestasPrecios[idx];if(!p)return;
+  pedirMotivoPrecio('Motivo del rechazo del cliente',(motivo)=>{
+    p.estado='Rechazada por el cliente';p.motivoRechazoCliente=motivo;
+    supaSync('propuestasPrecios',p);
+    construirMenu();renderPrecios();
+    toast('Registrado — se puede abrir una nueva ronda con un aumento más bajo');
+  });
+}
+let _propuestaAnteriorIdPP=null;
+function rearmarPropuesta(idx){
+  const p=DB.propuestasPrecios[idx];if(!p)return;
+  abrirModalPropuestaPrecio(p);
+  toast('Propuesta anterior cargada como base — ajustá el % y volvé a enviar');
+}
+function autorizarLotePrecio(loteId){
+  if(!_esGerentePrecios()){toast('⛔ Solo el Gerente Comercial puede autorizar');return;}
+  let n=0;
+  DB.propuestasPrecios.forEach(p=>{
+    if(p.loteId===loteId&&p.estado==='Pendiente autorización gerente'){
+      p.estado='Autorizada — lista para enviar';
+      p.autorizadaPor=currentUser.nombre;p.fechaAutorizacion=new Date().toLocaleDateString('es-AR');
+      supaSync('propuestasPrecios',p);
+      n++;
+    }
+  });
+  construirMenu();renderPrecios();
+  toast(`✓ Lote autorizado — ${n} propuesta${n!==1?'s':''} lista${n!==1?'s':''} para enviar`);
+}
+
+// ---------- Aplicación de tramos al objetivo (punto 4) ----------
+// Al confirmar el cierre, TODOS los tramos del paquete se cargan al
+// historial del objetivo de una — pero eso no significa que se apliquen
+// todos ya: cada uno entra solo en su fecha (aplicarTramosVencidos), sin
+// otra confirmación manual. Historización pura: no se pisa nada, cada
+// tramo queda como una entrada propia con su estado (Programado/Vigente/
+// Histórico) recalculado cada vez que se visita la pantalla.
+function aplicarPropuestaAlObjetivo(p){
+  const obj=DB.objetivos.find(o=>o.id===p.objetivoId)||DB.objetivos.find(o=>o.codigo===p.objetivoCod);
+  if(!obj)return;
+  if(!obj.historialPrecios)obj.historialPrecios=[];
+  p.tramos.forEach(t=>{
+    obj.historialPrecios.push({
+      fecha:t.fechaVigencia,valor:t.valor,valorHora:t.valorHora,
+      motivo:p.motivo,aprobadoPor:p.confirmadaPor,estado:'Programado',
+      propuestaId:p.id,tipoModificacion:p.tipoModificacion,
+    });
+  });
+  supaSync('objetivos',objetivoParaGuardar(obj));
+  aplicarTramosVencidos();
+}
+function aplicarTramosVencidos(){
+  const hoy=new Date();hoy.setHours(0,0,0,0);
+  let aplicados=0;
+  DB.objetivos.forEach(obj=>{
+    const hist=obj.historialPrecios||[];
+    if(!hist.length)return;
+    const vencidos=hist.filter(h=>{const f=_dmyPrecios(h.fecha);return f&&f<=hoy;}).sort((a,b)=>_dmyPrecios(b.fecha)-_dmyPrecios(a.fecha));
+    const vigente=vencidos[0]||null;
+    hist.forEach(h=>{
+      const f=_dmyPrecios(h.fecha);if(!f)return;
+      h.estado=f>hoy?'Programado':(h===vigente?'Vigente':'Histórico');
+    });
+    if(vigente&&obj.valor!==vigente.valor){
+      obj.valor=vigente.valor;
+      obj.valorHora=vigente.valorHora||0;
+      obj.valorEft=obj.efts?Math.round(vigente.valor/obj.efts):0;
+      supaSync('objetivos',objetivoParaGuardar(obj));
+      aplicados++;
+    }
+  });
+  return aplicados;
+}
+
+// ---------- Carga masiva por cliente (punto 6) ----------
+function abrirModalLotePrecios(){
+  const sel=$('lote-cliente');
+  if(sel){sel.innerHTML='<option value="">— Seleccionar cliente —</option>'+DB.clientes.filter(c=>c.estado==='Activo').map(c=>`<option value="${c.id}">${c.nombre}</option>`).join('');}
+  if($('lote-pct-general'))$('lote-pct-general').value='';
+  if($('lote-fecha-vig'))$('lote-fecha-vig').value='';
+  if($('lote-motivo'))$('lote-motivo').value='';
+  if($('lote-tipo-modificacion'))$('lote-tipo-modificacion').value='Aumento';
+  if($('lote-servicios-lista'))$('lote-servicios-lista').innerHTML='<p class="text-muted" style="padding:10px;font-size:12px;">Elegí un cliente para ver sus servicios.</p>';
+  if($('lote-aviso-rebaja'))$('lote-aviso-rebaja').style.display='none';
+  abrirModal('modal-lote-precios');
+}
+function cargarServiciosLotePrecios(){
+  const clienteId=parseInt($('lote-cliente')?.value)||0;
+  const el=$('lote-servicios-lista');if(!el)return;
+  const servicios=DB.objetivos.filter(o=>o.clienteId===clienteId&&o.estado==='Operativo'&&!o.anulado);
+  if(!servicios.length){el.innerHTML='<p class="text-muted" style="padding:10px;font-size:12px;">Este cliente no tiene servicios operativos.</p>';return;}
+  el.innerHTML=servicios.map(o=>`
+    <div style="display:grid;grid-template-columns:auto 1fr 90px 100px 130px;gap:8px;align-items:center;padding:8px 10px;border-bottom:1px solid var(--borde);font-size:12px;">
+      <input type="checkbox" class="lote-chk-servicio" data-obj-id="${o.id}" checked>
+      <div><div style="font-weight:600;">${o.nombre}</div><div style="font-size:10px;color:var(--texto-suave);">$${(o.valor||0).toLocaleString('es-AR')}/mes</div></div>
+      <input type="number" class="lote-pct-servicio" data-obj-id="${o.id}" min="0" max="500" step="0.1" value="0" oninput="recalcularFilaLote(${o.id})" style="padding:4px 6px;border:1px solid var(--borde-fuerte);border-radius:5px;font-size:11px;outline:none;">
+      <span id="lote-valor-nuevo-${o.id}" style="font-weight:600;color:var(--azul);">—</span>
+      <input type="date" class="lote-fecha-servicio" data-obj-id="${o.id}" style="padding:4px 6px;border:1px solid var(--borde-fuerte);border-radius:5px;font-size:11px;outline:none;">
+    </div>`).join('');
+  aplicarPctGeneralLote();
+}
+function aplicarPctGeneralLote(){
+  const pctGeneral=parseFloat($('lote-pct-general')?.value)||0;
+  const fechaGeneral=$('lote-fecha-vig')?.value||'';
+  const esRebaja=$('lote-tipo-modificacion')?.value==='Rebaja';
+  if($('lote-aviso-rebaja'))$('lote-aviso-rebaja').style.display=esRebaja?'block':'none';
+  document.querySelectorAll('.lote-pct-servicio').forEach(inp=>{inp.value=pctGeneral;});
+  document.querySelectorAll('.lote-fecha-servicio').forEach(inp=>{if(!inp.value)inp.value=fechaGeneral;});
+  document.querySelectorAll('.lote-chk-servicio').forEach(chk=>recalcularFilaLote(parseInt(chk.dataset.objId)));
+}
+function recalcularFilaLote(objId){
+  const obj=DB.objetivos.find(o=>o.id===objId);if(!obj)return;
+  const pct=parseFloat(document.querySelector(`.lote-pct-servicio[data-obj-id="${objId}"]`)?.value)||0;
+  const esRebaja=$('lote-tipo-modificacion')?.value==='Rebaja';
+  const factor=1+(esRebaja?-1:1)*pct/100;
+  const nuevo=Math.round((obj.valor||0)*factor);
+  const lbl=$(`lote-valor-nuevo-${objId}`);
+  if(lbl)lbl.textContent=pct?'$'+nuevo.toLocaleString('es-AR'):'—';
+}
+function guardarLotePrecios(){
+  const clienteId=parseInt($('lote-cliente')?.value)||0;
+  const cli=DB.clientes.find(c=>c.id===clienteId);
+  if(!cli){toast('Elegí un cliente');return;}
+  const tipoModificacion=$('lote-tipo-modificacion')?.value||'Aumento';
+  const motivo=$('lote-motivo')?.value.trim()||'';
+  if(tipoModificacion==='Rebaja'&&!motivo){toast('La rebaja necesita motivo — es obligatorio');return;}
+  const loteId='lote-'+Date.now();
+  let creadas=0;
+  document.querySelectorAll('.lote-chk-servicio:checked').forEach(chk=>{
+    const objId=parseInt(chk.dataset.objId);
+    const obj=DB.objetivos.find(o=>o.id===objId);if(!obj)return;
+    const pct=parseFloat(document.querySelector(`.lote-pct-servicio[data-obj-id="${objId}"]`)?.value)||0;
+    const fecha=document.querySelector(`.lote-fecha-servicio[data-obj-id="${objId}"]`)?.value;
+    if(!pct||!fecha)return; // se saltea lo que no esté completo — no se fuerza a completar todo el lote
+    const fechaFmt=new Date(fecha).toLocaleDateString('es-AR');
+    const signo=tipoModificacion==='Rebaja'?-1:1;
+    const nivelUnico={pct,valor:Math.round(obj.valor*(1+signo*pct/100))};
+    const propuesta=crearPropuestaPrecio({
+      obj,cli,tipoModificacion,tramos:[{pct,fechaVigencia:fechaFmt}],
+      tipoConvalidar:'propuestaOhlimpia',
+      niveles:{porParitaria:{pct:0,valor:0},propuestaOhlimpia:nivelUnico,yaAcordado:{pct:0,valor:0}},
+      clausula:'',motivo,proyeccionMeses:3,loteId,
+    });
+    DB.propuestasPrecios.push(propuesta);
+    supaSync('propuestasPrecios',propuesta);
+    creadas++;
+  });
+  if(!creadas){toast('No se generó ninguna propuesta — completá % y fecha en al menos un servicio');return;}
+  cerrarModal('modal-lote-precios');
+  construirMenu();renderPrecios();
+  toast(`✓ ${creadas} propuesta${creadas!==1?'s':''} generada${creadas!==1?'s':''} para ${cli.nombre} — pendientes de autorización del Gerente. Podés autorizar todo el lote de una desde la tabla.`,7000);
 }
 
 // ========== DASHBOARD DE INICIO ==========
@@ -4670,6 +5031,7 @@ function generarPropuestasClientes(parId){
   const par=DB.paritarias.find(p=>p.id===parId); if(!par) return;
   const seleccionados=[...document.querySelectorAll('.chk-cliente-par:checked')].map(c=>parseInt(c.dataset.objId));
   if(!seleccionados.length){toast('Seleccioná al menos un objetivo');return;}
+  if(!DB.propuestasPrecios)DB.propuestasPrecios=[];
   let creadas=0;
   seleccionados.forEach(objId=>{
     const obj=DB.objetivos.find(o=>o.id===objId); if(!obj) return;
@@ -4677,27 +5039,27 @@ function generarPropuestasClientes(parId){
     const margenEl=$(`margen-cli-${objId}`);
     const margen=parseFloat(margenEl?.value||0);
     const pctTotal=par.pctAumento+margen;
-    const nuevoValor=Math.round(obj.valor*(1+pctTotal/100));
-    const nuevoVH=obj.valorHora?Math.round(obj.valorHora*(1+pctTotal/100)):0;
-    if(!DB.propuestasPrecios) DB.propuestasPrecios=[];
-    DB.propuestasPrecios.push({
-      id:Date.now()+creadas,
-      objetivoCod:obj.codigo, clienteNombre:cli?.nombre||'—',
-      objetivoNombre:obj.nombre, valorActual:obj.valor,
-      valorHoraActual:obj.valorHora||0,
-      valorPropuesto:nuevoValor, valorHoraPropuesto:nuevoVH,
-      pctAumento:pctTotal, clausula:par.sindicato,
-      motivoCliente:`Paritaria ${par.nombre} (+${par.pctAumento}% base${margen?` + ${margen}% margen`:''})`,
-      fechaPropuesta:new Date().toLocaleDateString('es-AR'),
-      fechaVigencia:par.vigencia,
-      aprobadoCliente:false, fechaAprobCliente:'',
-      estado:par.homologada?'Pendiente aprobación gerente':'Proyección — sin homologar',
-      aprobadoPor:'', proyeccionMeses:3, origenParitaria:par.nombre,
+    const nivelUnico={pct:pctTotal,valor:Math.round(obj.valor*(1+pctTotal/100))};
+    const propuesta=crearPropuestaPrecio({
+      obj,cli,tipoModificacion:'Aumento',
+      tramos:[{pct:pctTotal,fechaVigencia:par.vigencia}],
+      tipoConvalidar:'porParitaria',
+      niveles:{porParitaria:nivelUnico,propuestaOhlimpia:{pct:0,valor:0},yaAcordado:{pct:0,valor:0}},
+      clausula:par.sindicato,
+      motivo:`Paritaria ${par.nombre} (+${par.pctAumento}% base${margen?` + ${margen}% margen`:''})`,
+      proyeccionMeses:3,origenParitaria:par.nombre,
     });
+    // Si la paritaria todavía no está homologada, la propuesta queda como
+    // proyección informativa — no entra al circuito de autorización hasta
+    // que se homologue (no hay, todavía, un paso automático que la migre;
+    // se rearma a mano si hace falta).
+    if(!par.homologada)propuesta.estado='Proyección — sin homologar';
+    DB.propuestasPrecios.push(propuesta);
+    supaSync('propuestasPrecios',propuesta);
     creadas++;
   });
   construirMenu();
-  toast(`✅ ${creadas} propuesta${creadas!==1?'s':''} generada${creadas!==1?'s':''}${par.homologada?' — pendientes de aprobación del Gerente':' — marcadas como proyección'}`,6000);
+  toast(`✅ ${creadas} propuesta${creadas!==1?'s':''} generada${creadas!==1?'s':''}${par.homologada?' — pendientes de autorización del Gerente':' — marcadas como proyección'}`,6000);
 }
 
 // Proyección financiera
@@ -10330,9 +10692,10 @@ function tabPrecios(tab,btn){
 }
 
 function renderPrecios(){
+  aplicarTramosVencidos(); // punto 4: los tramos que ya vencieron entran solos, sin confirmación manual
   const props=DB.propuestasPrecios||[];
-  $('st-prec-pend').textContent=props.filter(p=>p.estado==='Pendiente aprobación gerente').length;
-  $('st-prec-aprobados').textContent=props.filter(p=>p.estado==='Aprobado').length;
+  $('st-prec-pend').textContent=props.filter(p=>p.estado==='Pendiente autorización gerente').length;
+  $('st-prec-aprobados').textContent=props.filter(p=>p.estado==='Vigente').length;
   $('st-prec-clausula').textContent=DB.objetivos.filter(o=>o.clausulaActualizacion&&o.clausulaActualizacion!=='Sin cláusula'&&o.clausulaActualizacion!=='Libre negociación').length;
   $('st-prec-sin').textContent=DB.objetivos.filter(o=>!o.clausulaActualizacion||o.clausulaActualizacion==='Sin cláusula'||o.clausulaActualizacion==='Libre negociación').length;
   renderPropuestasPrecio();
@@ -10340,70 +10703,67 @@ function renderPrecios(){
   const fS=(id,items)=>{const el=$(id);if(!el)return;const ph=el.options[0]?.outerHTML||'';el.innerHTML=ph+items.map(i=>`<option>${i}</option>`).join('');};
   fS('cf-hist-obj',DB.objetivos.map(o=>o.nombre));
   fS('cf-hist-cli',DB.clientes.map(c=>c.nombre));
-  fS('proy-objetivo',DB.objetivos.filter(o=>o.estado==='Operativo').map(o=>o.nombre));
+  const proyCli=$('proy-cliente');
+  if(proyCli){const ph=proyCli.options[0]?.outerHTML||'<option value="">— Todos —</option>';proyCli.innerHTML=ph+DB.clientes.map(c=>`<option value="${c.id}">${c.nombre}</option>`).join('');}
+  poblarObjetivosProyeccion();
   const ppObj=$('pp-objetivo');
   if(ppObj){const ph=ppObj.options[0]?.outerHTML||'';ppObj.innerHTML=ph+DB.objetivos.map(o=>`<option value="${o.id}">${o.nombre}</option>`).join('');}
   fS('pp-clausula',DB.clausulasActualizacion||[]);
 }
+function poblarObjetivosProyeccion(){
+  const sel=$('proy-objetivo');if(!sel)return;
+  const clienteId=parseInt($('proy-cliente')?.value)||0;
+  const objs=DB.objetivos.filter(o=>o.estado==='Operativo'&&(!clienteId||o.clienteId===clienteId));
+  sel.innerHTML='<option value="">— Todos los activos —</option>'+objs.map(o=>`<option>${o.nombre}</option>`).join('');
+}
 
+// Punto 6: si varias propuestas comparten loteId, se pueden autorizar
+// todas de una desde cualquiera de sus filas — el gerente puede rechazar
+// alguna puntual antes de tocar ese botón.
 function renderPropuestasPrecio(lista){
   const rows=lista||DB.propuestasPrecios||[];
   const tbody=$('tbody-propuestas-precio');if(!tbody)return;
-  const estColor={'Pendiente aprobación gerente':'badge-acento','Aprobado':'badge-verde','Rechazado':'badge-rojo','Pendiente cliente':'badge-gris'};
-  tbody.innerHTML=rows.map((p,i)=>{
-    const impacto=(p.valorPropuesto-p.valorActual)*p.proyeccionMeses;
+  const estColor={
+    'Pendiente autorización gerente':'badge-acento','Rechazada — interna':'badge-rojo',
+    'Autorizada — lista para enviar':'badge-azul','Enviada al cliente':'badge-acento',
+    'Rechazada por el cliente':'badge-rojo','Vigente':'badge-verde','Proyección — sin homologar':'badge-gris',
+  };
+  tbody.innerHTML=rows.map((p)=>{
+    const idx=DB.propuestasPrecios.indexOf(p);
+    const impactoMensual=p.valorPropuesto-p.valorActual;
+    const impacto=impactoMensual*p.proyeccionMeses;
+    const esRebaja=p.tipoModificacion==='Rebaja';
+    const signo=esRebaja?'-':'+';
+    const colorTipo=esRebaja?'var(--rojo)':'var(--verde)';
+    const motivoRechazo=p.motivoRechazoGerente||p.motivoRechazoCliente;
+    let acciones='—';
+    if(p.estado==='Pendiente autorización gerente'){
+      acciones=`<button class="btn btn-xs" style="background:var(--verde-claro);color:var(--verde);border:1px solid #9fdaba;" onclick="autorizarSalidaPrecio(${idx})">✓ Autorizar</button>
+        <button class="btn btn-danger btn-xs" onclick="rechazarInternoPrecio(${idx})">✕ Rechazar</button>
+        ${p.loteId?`<button class="btn btn-secondary btn-xs" onclick="autorizarLotePrecio('${p.loteId}')" title="Autoriza este y todos los demás pendientes del mismo lote">✓✓ Lote</button>`:''}`;
+    } else if(p.estado==='Rechazada — interna'||p.estado==='Rechazada por el cliente'){
+      acciones=`<button class="btn btn-secondary btn-xs" onclick="rearmarPropuesta(${idx})">↻ Rearmar</button>`;
+    } else if(p.estado==='Autorizada — lista para enviar'){
+      acciones=`<button class="btn btn-primary btn-xs" onclick="marcarEnviadaCliente(${idx})">📨 Marcar enviada</button>`;
+    } else if(p.estado==='Enviada al cliente'){
+      acciones=`<button class="btn btn-xs" style="background:var(--verde-claro);color:var(--verde);border:1px solid #9fdaba;" onclick="confirmarCierreCliente(${idx})">✓ Aceptó — confirmar cierre</button>
+        <button class="btn btn-danger btn-xs" onclick="rechazoClientePrecio(${idx})">✕ Rechazó</button>`;
+    }
     return `<tr>
       <td style="font-weight:500;">${p.objetivoNombre}</td>
       <td style="font-size:12px;">${p.clienteNombre}</td>
-      <td><span class="chip" style="font-size:10px;">${p.clausula}</span></td>
+      <td><span class="badge" style="background:${colorTipo};color:white;font-size:10px;">${p.tipoModificacion}</span></td>
+      <td><span class="chip" style="font-size:10px;">${p.clausula||'—'}</span></td>
       <td style="font-size:12px;">$${p.valorActual.toLocaleString('es-AR')}</td>
       <td style="font-weight:700;color:var(--azul);">$${p.valorPropuesto.toLocaleString('es-AR')}</td>
-      <td style="font-weight:700;color:var(--verde);">+${p.pctAumento}%</td>
-      <td style="font-size:12px;">${p.valorHoraActual?'$'+p.valorHoraActual.toLocaleString('es-AR'):'—'}</td>
-      <td style="font-size:12px;color:var(--azul);">${p.valorHoraPropuesto?'$'+p.valorHoraPropuesto.toLocaleString('es-AR'):'—'}</td>
-      <td style="text-align:center;">${p.aprobadoCliente?`<span class="badge badge-verde">✓ ${p.fechaAprobCliente}</span>`:'<span class="badge badge-gris">Pendiente</span>'}</td>
+      <td style="font-weight:700;color:${colorTipo};">${signo}${p.pctAumento.toFixed(1)}%</td>
+      <td style="font-size:11px;">${p.tramos.length>1?`${p.tramos.length} tramos`:'1 tramo'}</td>
       <td style="font-size:12px;font-weight:500;color:var(--naranja);">${p.fechaVigencia}</td>
-      <td><span class="badge ${estColor[p.estado]||'badge-gris'}" style="font-size:10px;">${p.estado}</span></td>
-      <td style="font-size:12px;color:var(--verde);">+$${Math.round(impacto/1000)}k en ${p.proyeccionMeses}m</td>
-      <td>
-        ${p.estado==='Pendiente aprobación gerente'?`
-          </div>`:'—'}
-      </td>
+      <td><span class="badge ${estColor[p.estado]||'badge-gris'}" style="font-size:10px;">${p.estado}</span>${motivoRechazo?`<div style="font-size:9px;color:var(--texto-suave);margin-top:2px;" title="${motivoRechazo}">💬 ${motivoRechazo.slice(0,28)}${motivoRechazo.length>28?'…':''}</div>`:''}</td>
+      <td style="font-size:12px;color:${colorTipo};">${signo}$${Math.round(Math.abs(impacto)/1000)}k en ${p.proyeccionMeses}m</td>
+      <td><div style="display:flex;flex-direction:column;gap:3px;">${acciones}</div></td>
     </tr>`;
-  }).join('')||`<tr><td colspan="13"><div class="empty-state"><div class="icon">💲</div><p>Sin propuestas de precio</p></div></td></tr>`;
-}
-
-function aprobarPrecioPorGerente(idx){
-  const puedaAprobar=currentUser&&(currentUser.perfil==='Administrador total'||
-    DB.aprobadoresReas?.some(a=>a.toLowerCase().includes('operaciones')&&(currentUser.perfil||'').toLowerCase().includes('operacion'))||
-    currentUser.funcion==='Gerente'||currentUser.funcion==='Gerente General'||currentUser.funcion==='Coordinador/a');
-  if(!puedaAprobar&&currentUser?.perfil!=='Administrador total'){
-    toast('⛔ Solo el Gerente Comercial puede aprobar modificaciones de precio');return;
-  }
-  const p=DB.propuestasPrecios[idx];if(!p)return;
-  // Actualizar objetivo
-  const obj=DB.objetivos.find(o=>o.codigo===p.objetivoCod);
-  if(obj){
-    // Marcar precio anterior como histórico
-    (obj.historialPrecios||[]).forEach(h=>h.estado='Histórico');
-    // Agregar nuevo precio al historial
-    if(!obj.historialPrecios) obj.historialPrecios=[];
-    obj.historialPrecios.push({fecha:p.fechaVigencia,valor:p.valorPropuesto,valorHora:p.valorHoraPropuesto,motivo:p.motivoCliente,aprobadoPor:currentUser.nombre,estado:'Vigente'});
-    // Actualizar valores actuales del objetivo
-    obj.valor=p.valorPropuesto;
-    obj.valorHora=p.valorHoraPropuesto;
-    obj.valorEft=obj.efts?Math.round(p.valorPropuesto/obj.efts):0;
-  }
-  p.estado='Aprobado';p.aprobadoPor=currentUser.nombre;
-  construirMenu();renderPrecios();renderObjetivos();
-  toast(`✓ Precio aprobado — ${p.objetivoNombre} → $${p.valorPropuesto.toLocaleString('es-AR')} vigente desde ${p.fechaVigencia}`,5000);
-}
-
-function rechazarPrecioPorGerente(idx){
-  DB.propuestasPrecios[idx].estado='Rechazado';
-  DB.propuestasPrecios[idx].aprobadoPor=currentUser?.nombre||'—';
-  construirMenu();renderPrecios();
-  toast(`Propuesta rechazada`);
+  }).join('')||`<tr><td colspan="12"><div class="empty-state"><div class="icon">💲</div><p>Sin propuestas de precio</p></div></td></tr>`;
 }
 
 function renderHistorialPrecios(){
@@ -10414,9 +10774,10 @@ function renderHistorialPrecios(){
   if(filtObj) objs=objs.filter(o=>o.nombre===filtObj);
   if(filtCli){const cliId=DB.clientes.find(c=>c.nombre===filtCli)?.id;if(cliId) objs=objs.filter(o=>o.clienteId===cliId);}
   if(!objs.length){el.innerHTML='<p class="text-muted">Sin historial de precios registrado.</p>';return;}
+  const estColorHist={'Vigente':'var(--verde-claro)','Programado':'var(--acento-suave)','Histórico':'white'};
   el.innerHTML=objs.map(o=>{
     const cli=DB.clientes.find(c=>c.id===o.clienteId);
-    const hist=[...(o.historialPrecios||[])].sort((a,b)=>new Date(b.fecha.split('/').reverse().join('-'))-new Date(a.fecha.split('/').reverse().join('-')));
+    const hist=[...(o.historialPrecios||[])].sort((a,b)=>_dmyPrecios(b.fecha)-_dmyPrecios(a.fecha));
     return `<div style="background:white;border:1px solid var(--borde);border-radius:var(--radio-lg);overflow:hidden;">
       <div style="padding:12px 16px;background:var(--fondo);border-bottom:1px solid var(--borde);display:flex;justify-content:space-between;align-items:center;">
         <div>
@@ -10432,6 +10793,7 @@ function renderHistorialPrecios(){
         <table style="width:100%;border-collapse:collapse;font-size:12px;">
           <thead><tr style="background:#f8f9fd;">
             <th style="padding:8px 12px;border:1px solid var(--borde);text-align:left;">Fecha</th>
+            <th style="padding:8px 12px;border:1px solid var(--borde);">Tipo</th>
             <th style="padding:8px 12px;border:1px solid var(--borde);">Valor mensual</th>
             <th style="padding:8px 12px;border:1px solid var(--borde);">Valor hora</th>
             <th style="padding:8px 12px;border:1px solid var(--borde);">Motivo</th>
@@ -10439,7 +10801,14 @@ function renderHistorialPrecios(){
             <th style="padding:8px 12px;border:1px solid var(--borde);">Estado</th>
           </tr></thead>
           <tbody>
-            ${hist.map(h=>`<tr style="background:${h.estado==='Vigente'?'var(--verde-claro)':'white'}">
+            ${hist.map(h=>`<tr style="background:${estColorHist[h.estado]||'white'}">
+              <td style="padding:8px 12px;border:1px solid var(--borde);">${h.fecha}</td>
+              <td style="padding:8px 12px;border:1px solid var(--borde);text-align:center;">${h.tipoModificacion==='Rebaja'?'📉 Rebaja':'📈 Aumento'}</td>
+              <td style="padding:8px 12px;border:1px solid var(--borde);text-align:right;font-weight:600;">$${(h.valor||0).toLocaleString('es-AR')}</td>
+              <td style="padding:8px 12px;border:1px solid var(--borde);text-align:right;">${h.valorHora?'$'+h.valorHora.toLocaleString('es-AR'):'—'}</td>
+              <td style="padding:8px 12px;border:1px solid var(--borde);max-width:220px;">${h.motivo||'—'}</td>
+              <td style="padding:8px 12px;border:1px solid var(--borde);">${h.aprobadoPor||'—'}</td>
+              <td style="padding:8px 12px;border:1px solid var(--borde);text-align:center;"><span class="badge ${h.estado==='Vigente'?'badge-verde':h.estado==='Programado'?'badge-acento':'badge-gris'}" style="font-size:10px;">${h.estado}</span></td>
             </tr>`).join('')}
           </tbody>
         </table>
@@ -10448,80 +10817,143 @@ function renderHistorialPrecios(){
   }).join('');
 }
 
+// Punto 7 — mejoras a Proyección financiera: unidad hora/monto (B.3 de
+// paso: la columna pasa a llamarse "Servicio" y muestra el nombre, antes
+// mostraba importes porque a la fila le faltaba el <td> del nombre),
+// tramos múltiples reflejados como saltos en su mes, rebajas (mismo
+// mecanismo con signo negativo), simulación adicional con signo propio, y
+// vista agrupada por cliente o por servicio.
 function actualizarProyeccion(){
   const el=$('tabla-proyeccion');if(!el)return;
   const meses=parseInt($('proy-meses')?.value)||12;
   const incluirPend=($('proy-incluir-pend')?.value)==='1';
+  const unidad=$('proy-unidad')?.value||'monto';
+  const vista=$('proy-vista')?.value||'servicio';
+  const clienteFiltro=parseInt($('proy-cliente')?.value)||0;
   const pctExtra=parseFloat($('proy-pct-extra')?.value)||0;
+  const signoExtra=parseInt($('proy-pct-extra-signo')?.value)||1;
+  const desdeExtra=parseInt($('proy-pct-extra-desde')?.value)||0;
   const filtObj=($('proy-objetivo')?.value)||'';
   let objs=DB.objetivos.filter(o=>o.estado==='Operativo');
+  if(clienteFiltro) objs=objs.filter(o=>o.clienteId===clienteFiltro);
   if(filtObj) objs=objs.filter(o=>o.nombre===filtObj);
-  const hoy=new Date();
-  // Calcular valor por mes para cada objetivo
+  const hoy=new Date();hoy.setHours(0,0,0,0);
   const mesesArr=Array.from({length:meses},(_, i)=>{
     const d=new Date(hoy.getFullYear(),hoy.getMonth()+i,1);
     return `${String(d.getMonth()+1).padStart(2,'0')}/${d.getFullYear()}`;
   });
-  // Para cada objetivo, verificar si hay propuesta pendiente que entraría en vigencia
-  const getValorEnMes=(obj,mesStr)=>{
+  const mesesDesdeHoy=mesStr=>{const[mm,yy]=mesStr.split('/');return((parseInt(yy)-hoy.getFullYear())*12)+(parseInt(mm)-hoy.getMonth()-1);};
+  // Valor MENSUAL (siempre en $, la conversión a hora se hace al mostrar)
+  // — refleja: (a) los tramos ya vigentes/programados del objetivo, (b)
+  // opcionalmente los tramos de propuestas todavía no confirmadas
+  // (autorizadas o enviadas, no rechazadas), (c) la simulación adicional.
+  const getMontoEnMes=(obj,mesStr)=>{
+    const fMes=new Date(`${mesStr.split('/')[1]}-${mesStr.split('/')[0]}-01`);
     let val=obj.valor||0;
+    (obj.historialPrecios||[]).forEach(h=>{const f=_dmyPrecios(h.fecha);if(f&&f<=fMes)val=h.valor;});
     if(incluirPend){
-      (DB.propuestasPrecios||[]).filter(p=>p.objetivoCod===obj.codigo&&p.estado==='Pendiente aprobación gerente').forEach(p=>{
-        const [dd,mm,yy]=p.fechaVigencia.split('/');
-        const vigStr=`${mm}/${yy}`;
-        if(vigStr<=mesStr) val=p.valorPropuesto;
-      });
+      (DB.propuestasPrecios||[]).filter(p=>p.objetivoId===obj.id&&['Pendiente autorización gerente','Autorizada — lista para enviar','Enviada al cliente'].includes(p.estado))
+        .forEach(p=>{p.tramos.forEach(t=>{const f=_dmyPrecios(t.fechaVigencia);if(f&&f<=fMes)val=t.valor;});});
     }
-    if(pctExtra>0){
-      const [mm,yy]=mesStr.split('/');
-      const mesesDesdeHoy=((parseInt(yy)-hoy.getFullYear())*12)+(parseInt(mm)-hoy.getMonth()-1);
-      if(mesesDesdeHoy>=6) val=Math.round(val*(1+pctExtra/100));
+    if(pctExtra>0&&mesesDesdeHoy(mesStr)>=desdeExtra){
+      val=Math.round(val*(1+signoExtra*pctExtra/100));
     }
     return val;
   };
-  const totalPorMes=mesesArr.map(m=>objs.reduce((s,o)=>s+getValorEnMes(o,m),0));
-  const totalActual=objs.reduce((s,o)=>s+(o.valor||0),0);
+  const getValorEnMes=(obj,mesStr)=>{
+    const monto=getMontoEnMes(obj,mesStr);
+    if(unidad!=='hora')return monto;
+    // Valor hora de referencia: para "Por EFT" ya es la unidad natural; en
+    // abono fijo/presupuesto se deriva (mensual ÷ horas de referencia).
+    return obj.efts?Math.round(monto/obj.efts):null;
+  };
+  const fmtValor=v=>v==null?'—':(unidad==='hora'?'$'+v.toLocaleString('es-AR')+'/h':'$'+Math.round(v/1000)+'k');
+
+  let filasData; // [{label, vals:[...]}]
+  if(vista==='cliente'){
+    const porCliente=new Map();
+    objs.forEach(o=>{
+      const cid=o.clienteId;
+      if(!porCliente.has(cid))porCliente.set(cid,[]);
+      porCliente.get(cid).push(o);
+    });
+    filasData=[...porCliente.entries()].map(([cid,lista])=>{
+      const cli=DB.clientes.find(c=>c.id===cid);
+      // Agrupado por cliente siempre se ve en monto (sumar $/hora entre
+      // servicios distintos no tiene sentido) — se fuerza monto acá.
+      const vals=mesesArr.map(m=>lista.reduce((s,o)=>s+getMontoEnMes(o,m),0));
+      return{label:cli?.nombre||'—',vals};
+    });
+  } else {
+    filasData=objs.map(o=>({label:o.nombre,vals:mesesArr.map(m=>getValorEnMes(o,m))}));
+  }
+  const unidadEfectiva=vista==='cliente'?'monto':unidad;
+  const fmt=v=>v==null?'—':(unidadEfectiva==='hora'?'$'+v.toLocaleString('es-AR')+'/h':'$'+Math.round(v/1000)+'k');
+
+  const totalPorMes=mesesArr.map((m,i)=>filasData.reduce((s,f)=>s+(f.vals[i]||0),0));
+  const totalActual=vista==='cliente'?objs.reduce((s,o)=>s+(o.valor||0),0):filasData.reduce((s,f)=>s+(f.vals[0]||0),0);
   el.innerHTML=`
     <div style="margin-bottom:14px;display:flex;gap:16px;flex-wrap:wrap;">
-      <div style="font-size:13px;"><strong>Facturación actual:</strong> <span style="color:var(--azul);font-weight:700;">$${Math.round(totalActual/1000)}k/mes</span></div>
-      <div style="font-size:13px;"><strong>Pico proyectado:</strong> <span style="color:var(--verde);font-weight:700;">$${Math.round(Math.max(...totalPorMes)/1000)}k/mes</span></div>
-      ${incluirPend?'<span class="badge badge-acento" style="font-size:11px;">⚠️ Incluye propuestas pendientes (no convalidadas)</span>':''}
+      <div style="font-size:13px;"><strong>${unidadEfectiva==='hora'?'Valor hora promedio actual':'Facturación actual'}:</strong> <span style="color:var(--azul);font-weight:700;">${fmt(totalActual)}${unidadEfectiva!=='hora'?'/mes':''}</span></div>
+      <div style="font-size:13px;"><strong>Pico proyectado:</strong> <span style="color:var(--verde);font-weight:700;">${fmt(Math.max(...totalPorMes))}</span></div>
+      ${incluirPend?'<span class="badge badge-acento" style="font-size:11px;">⚠️ Incluye propuestas pendientes (no convalidadas hasta la confirmación del Gerente)</span>':''}
+      ${pctExtra>0?`<span class="badge badge-gris" style="font-size:11px;">🧪 Simulación: ${signoExtra>0?'+':'-'}${pctExtra}% desde el mes ${desdeExtra}</span>`:''}
     </div>
     <table style="width:100%;border-collapse:collapse;font-size:12px;">
       <thead><tr>
-        <th style="padding:8px;background:#f8f9fd;border:1px solid var(--borde);text-align:left;min-width:120px;">Objetivo</th>
+        <th style="padding:8px;background:#f8f9fd;border:1px solid var(--borde);text-align:left;min-width:120px;">${vista==='cliente'?'Cliente':'Servicio'}</th>
         ${mesesArr.map(m=>`<th style="padding:6px 4px;background:#f8f9fd;border:1px solid var(--borde);text-align:center;min-width:70px;font-size:11px;">${m}</th>`).join('')}
         <th style="padding:8px;background:#f8f9fd;border:1px solid var(--borde);">Total</th>
       </tr></thead>
       <tbody>
-        ${objs.map(o=>{
-          const vals=mesesArr.map(m=>getValorEnMes(o,m));
-          const cambio=vals.some((v,i)=>i>0&&v!==vals[i-1]);
+        ${filasData.map(f=>{
+          const totalFila=f.vals.reduce((s,v)=>s+(v||0),0);
           return `<tr>
-            ${vals.map((v,i)=>{
-              const prev=i>0?vals[i-1]:v;
-              const sube=v>prev;
-              return `<td style="padding:6px 4px;border:1px solid var(--borde);text-align:center;background:${sube?'var(--verde-claro)':'white'};font-size:11px;${sube?'font-weight:700;color:var(--verde)':''}">
-                $${Math.round(v/1000)}k${sube?'↑':''}
-              </td>`;
+            <td style="padding:6px 8px;border:1px solid var(--borde);font-weight:500;">${f.label}</td>
+            ${f.vals.map((v,i)=>{
+              const prev=i>0?f.vals[i-1]:v;
+              const sube=v>prev,baja=v<prev;
+              const bg=sube?'var(--verde-claro)':baja?'#fde8e8':'white';
+              const flecha=sube?'↑':baja?'↓':'';
+              const color=sube?'color:var(--verde);font-weight:700;':baja?'color:var(--rojo);font-weight:700;':'';
+              return `<td style="padding:6px 4px;border:1px solid var(--borde);text-align:center;background:${bg};font-size:11px;${color}">${fmt(v)}${flecha}</td>`;
             }).join('')}
+            <td style="padding:6px 4px;border:1px solid var(--borde);text-align:center;font-weight:700;">${unidadEfectiva==='hora'?'—':'$'+Math.round(totalFila/1000)+'k'}</td>
           </tr>`;
         }).join('')}
         <tr style="background:var(--azul-claro);">
           <td style="padding:8px;border:1px solid var(--borde);font-weight:700;">TOTAL</td>
-          ${totalPorMes.map(t=>`<td style="padding:6px 4px;border:1px solid var(--borde);text-align:center;font-weight:700;font-size:11px;">$${Math.round(t/1000)}k</td>`).join('')}
-          <td style="padding:8px;border:1px solid var(--borde);font-weight:800;color:var(--azul);">$${Math.round(totalPorMes.reduce((s,v)=>s+v,0)/1000)}k</td>
+          ${totalPorMes.map(t=>`<td style="padding:6px 4px;border:1px solid var(--borde);text-align:center;font-weight:700;font-size:11px;">${unidadEfectiva==='hora'?'—':'$'+Math.round(t/1000)+'k'}</td>`).join('')}
+          <td style="padding:8px;border:1px solid var(--borde);font-weight:800;color:var(--azul);">${unidadEfectiva==='hora'?'—':'$'+Math.round(totalPorMes.reduce((s,v)=>s+v,0)/1000)+'k'}</td>
         </tr>
       </tbody>
     </table>`;
 }
 
-function abrirModalPropuestaPrecio(){
+function abrirModalPropuestaPrecio(prellenarDesde){
   const ppObj=$('pp-objetivo');
   if(ppObj){const ph='<option value="">— Seleccionar objetivo —</option>';ppObj.innerHTML=ph+DB.objetivos.map(o=>`<option value="${o.id}">${o.nombre}</option>`).join('');}
   const ppCl=$('pp-clausula');
   if(ppCl){ppCl.innerHTML=(DB.clausulasActualizacion||[]).map(c=>`<option>${c}</option>`).join('');}
+  ['pp-pct-teorico','pp-pct-comercial','pp-pct-acordado'].forEach(id=>{if($(id))$(id).value='';});
+  ['pp-val-teorico','pp-val-comercial','pp-val-acordado'].forEach(id=>{if($(id))$(id).textContent='—';});
+  ['pp-vh-teorico-lbl','pp-vh-comercial-lbl','pp-vh-acordado-lbl'].forEach(id=>{if($(id))$(id).textContent='';});
+  if($('pp-motivo'))$('pp-motivo').value='';
+  if($('pp-proyeccion-preview'))$('pp-proyeccion-preview').innerHTML='';
+  if($('pp-tipo-modificacion'))$('pp-tipo-modificacion').value='Aumento';
+  tramosPPTemp=[{id:Date.now(),pct:0,fechaVigencia:''}];
+  renderTramosPP();
+  toggleTipoModificacionPP();
   abrirModal('modal-propuesta-precio');
+  if(prellenarDesde){
+    if($('pp-objetivo'))$('pp-objetivo').value=prellenarDesde.objetivoId||'';
+    cargarDatosObjetivoEnPP();
+    if($('pp-tipo-modificacion'))$('pp-tipo-modificacion').value=prellenarDesde.tipoModificacion||'Aumento';
+    toggleTipoModificacionPP();
+    _propuestaAnteriorIdPP=prellenarDesde.id;
+  } else {
+    _propuestaAnteriorIdPP=null;
+  }
 }
 
 function cargarDatosObjetivoEnPP(){
@@ -10531,7 +10963,7 @@ function cargarDatosObjetivoEnPP(){
   if($('pp-valor-actual')) $('pp-valor-actual').value='$'+obj.valor.toLocaleString('es-AR');
   if($('pp-vh-actual')) $('pp-vh-actual').value=obj.valorHora?'$'+obj.valorHora.toLocaleString('es-AR'):'—';
   if($('pp-modelo')) $('pp-modelo').value=obj.modeloPrecio||'—';
-  // Precargar % de paritaria vigente en el campo teórico si existe
+  // Precargar % de paritaria vigente en el nivel "Por paritaria" si existe
   const parVigente=DB.paritarias?.filter(p=>p.homologada).slice(-1)[0];
   if(parVigente&&$('pp-pct-teorico')&&!$('pp-pct-teorico').value){
     $('pp-pct-teorico').value=parVigente.pctAumento;
@@ -10542,7 +10974,6 @@ function cargarDatosObjetivoEnPP(){
       if(clausula.options[i].value===obj.clausulaActualizacion){clausula.selectedIndex=i;break;}
     }
   }
-  // Calcular los 3 niveles
   calcularPP('teorico');calcularPP('comercial');calcularPP('acordado');
 }
 
@@ -11040,7 +11471,26 @@ window.analizarReclamosIA = analizarReclamosIA;
 window.anularPago = anularPago;
 window.aplicarAumentoAsociados = aplicarAumentoAsociados;
 window.aplicarRecategorizaciones = aplicarRecategorizaciones;
-window.aprobarPrecioPorGerente = aprobarPrecioPorGerente;
+window.autorizarSalidaPrecio = autorizarSalidaPrecio;
+window.rechazarInternoPrecio = rechazarInternoPrecio;
+window.marcarEnviadaCliente = marcarEnviadaCliente;
+window.confirmarCierreCliente = confirmarCierreCliente;
+window.rechazoClientePrecio = rechazoClientePrecio;
+window.rearmarPropuesta = rearmarPropuesta;
+window.autorizarLotePrecio = autorizarLotePrecio;
+window.pedirMotivoPrecio = pedirMotivoPrecio;
+window.confirmarMotivoPrecio = confirmarMotivoPrecio;
+window.toggleTipoModificacionPP = toggleTipoModificacionPP;
+window.agregarTramoPP = agregarTramoPP;
+window.quitarTramoPP = quitarTramoPP;
+window.actualizarTramoPP = actualizarTramoPP;
+window.renderTramosPP = renderTramosPP;
+window.abrirModalLotePrecios = abrirModalLotePrecios;
+window.cargarServiciosLotePrecios = cargarServiciosLotePrecios;
+window.aplicarPctGeneralLote = aplicarPctGeneralLote;
+window.recalcularFilaLote = recalcularFilaLote;
+window.guardarLotePrecios = guardarLotePrecios;
+window.poblarObjetivosProyeccion = poblarObjetivosProyeccion;
 window.asignarColumna = asignarColumna;
 window.asignarTodosModulos = asignarTodosModulos;
 window.asignarTodosUsuario = asignarTodosUsuario;
@@ -11051,7 +11501,6 @@ window.buscarAsocParaArea = buscarAsocParaArea;
 window.calcularCURSugerido = calcularCURSugerido;
 window.calcularHorasMes = calcularHorasMes;
 window.calcularPP = calcularPP;
-window.calcularPPDesdeValor = calcularPPDesdeValor;
 window.calcularVacAdmin = calcularVacAdmin;
 window.cambiarEstadoVacOp = cambiarEstadoVacOp;
 window.cambiarMesPlan = cambiarMesPlan;
@@ -11197,7 +11646,6 @@ window.recalcClienteVH = recalcClienteVH;
 window.recalcLiquidacion = recalcLiquidacion;
 window.recalcTotalesLiq = recalcTotalesLiq;
 window.recategorizarModal = recategorizarModal;
-window.rechazarPrecioPorGerente = rechazarPrecioPorGerente;
 window.rechazarPropuesta = rechazarPropuesta;
 window.registrarAlertaEFT = registrarAlertaEFT;
 window.registrarPago = registrarPago;

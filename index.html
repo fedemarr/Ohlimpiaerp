@@ -2048,18 +2048,21 @@
     <div class="card" style="border-radius:0 var(--radio-lg) var(--radio-lg) var(--radio-lg);">
       <div class="card-header">
         <h3>⏳ Propuestas de modificación de precio</h3>
-        <button class="btn btn-primary btn-sm" onclick="abrirModalPropuestaPrecio()">+ Nueva propuesta</button>
+        <div style="display:flex;gap:8px;">
+          <button class="btn btn-secondary btn-sm" onclick="abrirModalLotePrecios()">📦 Carga masiva por cliente</button>
+          <button class="btn btn-primary btn-sm" onclick="abrirModalPropuestaPrecio()">+ Nueva propuesta</button>
+        </div>
       </div>
       <div class="alerta alerta-info" style="margin:0 0 0;">
-        <strong>🔒 Flujo de convalidación:</strong> El cliente aprueba el nuevo valor → Se carga la propuesta → El Gerente Comercial aprueba en el sistema → El nuevo precio impacta en la facturación a partir de la fecha de vigencia.
+        <strong>🔒 Flujo de convalidación (Secuencia A):</strong> Se carga la propuesta → el <strong>Gerente autoriza la salida</strong> (o rechaza internamente, se puede rearmar) → se envía la carta al cliente → si el cliente acepta, el <strong>Gerente confirma el cierre</strong> y el precio queda Vigente desde la fecha pactada; si rechaza, se puede abrir una nueva ronda con un aumento más bajo, sin pisar la anterior.
       </div>
       <div class="tabla-wrap"><table>
         <thead><tr>
-          <th>Objetivo</th><th>Cliente</th><th>Cláusula</th>
-          <th>Valor actual</th><th>Valor propuesto</th><th>% aumento</th>
-          <th>Valor hora actual</th><th>Valor hora propuesto</th>
-          <th>Aprobado cliente</th><th>Fecha vigencia</th>
-          <th>Estado</th><th>Proyección 3 meses</th><th></th>
+          <th>Servicio</th><th>Cliente</th><th>Tipo</th><th>Cláusula</th>
+          <th>Valor actual</th><th>Valor final</th><th>% total</th>
+          <th>Tramos</th>
+          <th>Vigencia (1er tramo)</th>
+          <th>Estado</th><th>Proyección</th><th></th>
         </tr></thead>
         <tbody id="tbody-propuestas-precio"></tbody>
       </table></div>
@@ -2087,8 +2090,23 @@
         <div class="card-header"><h3>⚙️ Configurar proyección</h3></div>
         <div class="card-body">
           <div class="form-grid gap-12">
-            <div class="form-group"><label>Objetivo a proyectar</label>
+            <div class="form-group"><label>Vista</label>
+              <select id="proy-vista" onchange="actualizarProyeccion()">
+                <option value="servicio">Por servicio</option>
+                <option value="cliente">Agrupada por cliente</option>
+              </select>
+            </div>
+            <div class="form-group"><label>Cliente</label>
+              <select id="proy-cliente" onchange="poblarObjetivosProyeccion();actualizarProyeccion()"><option value="">— Todos —</option></select>
+            </div>
+            <div class="form-group"><label>Servicio a proyectar</label>
               <select id="proy-objetivo" onchange="actualizarProyeccion()"><option value="">— Todos los activos —</option></select>
+            </div>
+            <div class="form-group"><label>Unidad</label>
+              <select id="proy-unidad" onchange="actualizarProyeccion()">
+                <option value="monto">Monto ($/mes)</option>
+                <option value="hora">Valor hora ($/hora — de referencia en abono fijo)</option>
+              </select>
             </div>
             <div class="form-group"><label>Meses a proyectar</label>
               <select id="proy-meses" onchange="actualizarProyeccion()">
@@ -2097,15 +2115,26 @@
             </div>
             <div class="form-group"><label>Incluir propuestas pendientes</label>
               <select id="proy-incluir-pend" onchange="actualizarProyeccion()">
-                <option value="1">Sí — proyectar con aumentos pendientes</option>
+                <option value="1">Sí — proyectar con aumentos/rebajas pendientes</option>
                 <option value="0">No — solo precios vigentes</option>
               </select>
             </div>
-            <div class="form-group"><label>% aumento adicional proyectado</label>
-              <input type="number" id="proy-pct-extra" value="0" min="0" max="200" step="5" oninput="actualizarProyeccion()" placeholder="0">
-              <span class="form-hint">Simulá aumentos futuros adicionales</span>
+            <div class="form-section" style="margin:0;">Simulación adicional</div>
+            <div class="form-grid form-grid-2">
+              <div class="form-group"><label>Tipo</label>
+                <select id="proy-pct-extra-signo" onchange="actualizarProyeccion()">
+                  <option value="1">📈 Aumento</option><option value="-1">📉 Rebaja</option>
+                </select>
+              </div>
+              <div class="form-group"><label>%</label>
+                <input type="number" id="proy-pct-extra" value="0" min="0" max="200" step="5" oninput="actualizarProyeccion()" placeholder="0">
+              </div>
             </div>
-            <div class="alerta alerta-info" style="font-size:12px;">Los valores propuestos pendientes se muestran como proyección pero <strong>no son definitivos</strong> hasta que el Gerente los apruebe.</div>
+            <div class="form-group"><label>A partir de qué mes (desde hoy)</label>
+              <input type="number" id="proy-pct-extra-desde" value="6" min="0" max="60" step="1" oninput="actualizarProyeccion()">
+              <span class="form-hint">Simulá un aumento o rebaja futuro adicional, no cargado todavía como propuesta</span>
+            </div>
+            <div class="alerta alerta-info" style="font-size:12px;">Los valores propuestos pendientes se muestran como proyección pero <strong>no son definitivos</strong> hasta que el Gerente los apruebe (Secuencia A: autoriza, se envía, confirma el cierre).</div>
           </div>
         </div>
       </div>
@@ -2118,18 +2147,31 @@
 </div>
 
 <!-- MODAL PROPUESTA DE PRECIO -->
+<!-- DELTA_comercial_gestion_precios_v1 (30/07/2026): circuito Secuencia A
+     (el gerente autoriza ANTES de ir al cliente), niveles renombrados por
+     origen, tipo de modificación (aumento/rebaja) y cronograma de tramos.
+     Ver guardarPropuestaPrecio() en legacy.js para el detalle del modelo. -->
 <div class="modal-overlay" id="modal-propuesta-precio">
-  <div class="modal" style="max-width:800px;">
-    <div class="modal-header"><h3>💲 Propuesta de modificación de precio</h3><button class="btn-close" onclick="cerrarModal('modal-propuesta-precio')">×</button></div>
+  <div class="modal" style="max-width:820px;">
+    <div class="modal-header"><h3 id="pp-modal-title">💲 Propuesta de modificación de precio</h3><button class="btn-close" onclick="cerrarModal('modal-propuesta-precio')">×</button></div>
     <div class="modal-body">
       <div class="form-grid gap-12">
-        <div class="form-grid form-grid-2">
+        <div class="form-grid form-grid-3">
           <div class="form-group"><label>Objetivo *</label>
             <select id="pp-objetivo" onchange="cargarDatosObjetivoEnPP()"></select>
+          </div>
+          <div class="form-group"><label>Tipo de modificación *</label>
+            <select id="pp-tipo-modificacion" onchange="toggleTipoModificacionPP()">
+              <option value="Aumento">📈 Aumento</option>
+              <option value="Rebaja">📉 Rebaja</option>
+            </select>
           </div>
           <div class="form-group"><label>Cláusula de actualización</label>
             <select id="pp-clausula"></select>
           </div>
+        </div>
+        <div class="alerta alerta-info" id="pp-aviso-rebaja" style="display:none;font-size:12px;">
+          ⚠️ Una rebaja resigna ingresos: el <strong>motivo es obligatorio</strong> y <strong>siempre</strong> requiere aprobación del Gerente (sin excepción — mismo circuito, sin atajos).
         </div>
         <div class="form-section">Valores actuales (solo lectura)</div>
         <div class="form-grid form-grid-3">
@@ -2141,38 +2183,35 @@
             <input type="text" id="pp-modelo" readonly style="background:var(--fondo);"></div>
         </div>
 
-        <!-- 3 NIVELES DE PROPUESTA -->
+        <!-- 3 NIVELES DE PROPUESTA (renombrados por origen — punto 2) -->
         <div style="background:var(--fondo);border-radius:var(--radio-lg);padding:16px;border:1px solid var(--borde);">
           <div style="font-size:12px;font-weight:700;text-transform:uppercase;color:var(--texto-suave);margin-bottom:14px;letter-spacing:.5px;">
-            📊 Tres niveles de propuesta
+            📊 Niveles de propuesta — el % siempre se carga en positivo, la dirección la da "Tipo de modificación"
           </div>
           <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;">
 
-            <!-- Propuesta teórica (de paritaria) -->
             <div style="background:var(--azul-claro);border:2px solid var(--azul);border-radius:var(--radio);padding:12px;">
-              <div style="font-size:11px;font-weight:700;color:var(--azul);margin-bottom:10px;">1️⃣ PROPUESTA TEÓRICA</div>
-              <div style="font-size:11px;color:var(--texto-suave);margin-bottom:8px;">Surge de la paritaria — automático</div>
-              <div class="form-group" style="margin-bottom:8px;"><label style="font-size:11px;">% paritaria</label>
+              <div style="font-size:11px;font-weight:700;color:var(--azul);margin-bottom:10px;">1️⃣ POR PARITARIA</div>
+              <div style="font-size:11px;color:var(--texto-suave);margin-bottom:8px;">Surge del convenio — automático</div>
+              <div class="form-group" style="margin-bottom:8px;"><label style="font-size:11px;">%</label>
                 <input type="number" id="pp-pct-teorico" min="0" max="500" placeholder="0" oninput="calcularPP('teorico')" style="padding:5px 8px;border:1px solid var(--azul);border-radius:5px;font-size:12px;width:100%;outline:none;"></div>
               <div style="font-size:12px;font-weight:700;color:var(--azul);" id="pp-val-teorico">—</div>
               <div style="font-size:11px;color:var(--texto-suave);" id="pp-vh-teorico-lbl">Valor hora: —</div>
             </div>
 
-            <!-- Propuesta comercial (la que Ohlimpia hace al cliente) -->
             <div style="background:#f0f8f0;border:2px solid var(--verde);border-radius:var(--radio);padding:12px;">
-              <div style="font-size:11px;font-weight:700;color:var(--verde);margin-bottom:10px;">2️⃣ PROPUESTA COMERCIAL</div>
-              <div style="font-size:11px;color:var(--texto-suave);margin-bottom:8px;">Lo que Ohlimpia le propone al cliente</div>
-              <div class="form-group" style="margin-bottom:8px;"><label style="font-size:11px;">% a proponer al cliente</label>
+              <div style="font-size:11px;font-weight:700;color:var(--verde);margin-bottom:10px;">2️⃣ PROPUESTA DE OHLIMPIA</div>
+              <div style="font-size:11px;color:var(--texto-suave);margin-bottom:8px;">Lo que la empresa decide ofrecer</div>
+              <div class="form-group" style="margin-bottom:8px;"><label style="font-size:11px;">%</label>
                 <input type="number" id="pp-pct-comercial" min="0" max="500" placeholder="0" oninput="calcularPP('comercial')" style="padding:5px 8px;border:1px solid var(--verde);border-radius:5px;font-size:12px;width:100%;outline:none;"></div>
               <div style="font-size:12px;font-weight:700;color:var(--verde);" id="pp-val-comercial">—</div>
               <div style="font-size:11px;color:var(--texto-suave);" id="pp-vh-comercial-lbl">Valor hora: —</div>
             </div>
 
-            <!-- Propuesta acordada (resultado de la negociación) -->
             <div style="background:#fffbea;border:2px solid var(--naranja);border-radius:var(--radio);padding:12px;">
-              <div style="font-size:11px;font-weight:700;color:var(--naranja);margin-bottom:10px;">3️⃣ PROPUESTA ACORDADA</div>
-              <div style="font-size:11px;color:var(--texto-suave);margin-bottom:8px;">Resultado de la negociación con el cliente</div>
-              <div class="form-group" style="margin-bottom:8px;"><label style="font-size:11px;">% acordado</label>
+              <div style="font-size:11px;font-weight:700;color:var(--naranja);margin-bottom:10px;">3️⃣ YA ACORDADO CON EL CLIENTE</div>
+              <div style="font-size:11px;color:var(--texto-suave);margin-bottom:8px;">Número cerrado de antemano</div>
+              <div class="form-group" style="margin-bottom:8px;"><label style="font-size:11px;">%</label>
                 <input type="number" id="pp-pct-acordado" min="0" max="500" placeholder="0" oninput="calcularPP('acordado')" style="padding:5px 8px;border:1px solid var(--naranja);border-radius:5px;font-size:12px;width:100%;outline:none;"></div>
               <div style="font-size:12px;font-weight:700;color:var(--naranja);" id="pp-val-acordado">—</div>
               <div style="font-size:11px;color:var(--texto-suave);" id="pp-vh-acordado-lbl">Valor hora: —</div>
@@ -2180,33 +2219,37 @@
 
           </div>
           <div style="margin-top:12px;font-size:11px;color:var(--texto-suave);">
-            💡 La propuesta que se enviará al Gerente para aprobación es la <strong>Acordada</strong> (si existe) o la <strong>Comercial</strong>.
+            💡 La propuesta que se enviará al Gerente es la <strong>Ya acordada</strong> (si existe) o la <strong>Propuesta de Ohlimpia</strong>.
           </div>
         </div>
 
-        <!-- Cuál propuesta usar -->
         <div class="form-grid form-grid-2">
           <div class="form-group"><label>Propuesta a convalidar *</label>
-            <select id="pp-tipo-propuesta">
-              <option value="acordado">3 — Acordada con el cliente</option>
-              <option value="comercial">2 — Comercial (sin negociación)</option>
-              <option value="teorico">1 — Teórica (de paritaria)</option>
+            <select id="pp-tipo-propuesta" onchange="renderTramosPP()">
+              <option value="acordado">3 — Ya acordado con el cliente</option>
+              <option value="comercial">2 — Propuesta de Ohlimpia</option>
+              <option value="teorico">1 — Por paritaria</option>
             </select>
           </div>
-          <div class="form-group"><label>Fecha de vigencia *</label>
-            <input type="date" id="pp-fecha-vig"></div>
-        </div>
-        <div class="form-grid form-grid-2">
           <div class="form-group"><label>Meses a proyectar</label>
             <select id="pp-meses-proy">
               <option value="3">3 meses</option><option value="6">6 meses</option><option value="12">12 meses</option>
             </select>
           </div>
-          <div class="form-group"><label>¿El cliente ya aprobó?</label>
-            <select id="pp-aprobado-cliente"><option value="1">Sí — cliente aprobó</option><option value="0">No — pendiente</option></select>
-          </div>
         </div>
-        <div class="form-group"><label>Notas de la negociación</label>
+
+        <!-- Cronograma de tramos (punto 4) -->
+        <div style="background:var(--fondo);border-radius:var(--radio-lg);padding:16px;border:1px solid var(--borde);">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+            <div style="font-size:12px;font-weight:700;text-transform:uppercase;color:var(--texto-suave);letter-spacing:.5px;">📅 Cronograma de vigencia</div>
+            <button class="btn btn-secondary btn-xs" onclick="agregarTramoPP()">+ Agregar tramo</button>
+          </div>
+          <div style="font-size:11px;color:var(--texto-suave);margin-bottom:10px;">Se carga el % total arriba y se reparte acá en uno o más tramos — cada uno con su fecha de vigencia. El cálculo de cada tramo es sobre el precio <strong>original</strong> (no se acumula/compone), y la suma de los tramos tiene que dar el total.</div>
+          <div id="pp-tramos-lista" style="display:flex;flex-direction:column;gap:8px;margin-bottom:8px;"></div>
+          <div id="pp-tramos-check" style="font-size:12px;font-weight:600;"></div>
+        </div>
+
+        <div class="form-group"><label id="pp-motivo-label">Notas de la negociación</label>
           <textarea id="pp-motivo" placeholder="Describí el proceso de negociación: qué propuso el cliente, qué propuso Ohlimpia, cómo se llegó al acuerdo..."></textarea>
         </div>
         <div id="pp-proyeccion-preview" style="background:var(--fondo);border-radius:var(--radio);padding:12px;border:1px solid var(--borde);font-size:12px;"></div>
@@ -2214,7 +2257,50 @@
     </div>
     <div class="modal-footer">
       <button class="btn btn-secondary" onclick="cerrarModal('modal-propuesta-precio')">Cancelar</button>
-      <button class="btn btn-primary" onclick="guardarPropuestaPrecio()">Enviar al Gerente para aprobación</button>
+      <button class="btn btn-primary" onclick="guardarPropuestaPrecio()">Enviar al Gerente para autorización</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL MOTIVO (rechazos / bajas del circuito de precios) -->
+<div class="modal-overlay" id="modal-motivo-precio">
+  <div class="modal" style="max-width:460px;">
+    <div class="modal-header"><h3 id="mp-titulo">Motivo</h3><button class="btn-close" onclick="cerrarModal('modal-motivo-precio')">×</button></div>
+    <div class="modal-body">
+      <div class="form-group"><label>Motivo *</label><textarea id="mp-texto" placeholder="Explicá el motivo..."></textarea></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="cerrarModal('modal-motivo-precio')">Cancelar</button>
+      <button class="btn btn-primary" onclick="confirmarMotivoPrecio()">Confirmar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL CARGA MASIVA DE PRECIOS POR CLIENTE (punto 6) -->
+<div class="modal-overlay" id="modal-lote-precios">
+  <div class="modal" style="max-width:820px;">
+    <div class="modal-header"><h3>💲 Carga masiva de precios por cliente</h3><button class="btn-close" onclick="cerrarModal('modal-lote-precios')">×</button></div>
+    <div class="modal-body">
+      <div class="form-grid form-grid-3" style="margin-bottom:12px;">
+        <div class="form-group"><label>Cliente *</label><select id="lote-cliente" onchange="cargarServiciosLotePrecios()"></select></div>
+        <div class="form-group"><label>Tipo de modificación</label>
+          <select id="lote-tipo-modificacion" onchange="aplicarPctGeneralLote()">
+            <option value="Aumento">📈 Aumento</option><option value="Rebaja">📉 Rebaja</option>
+          </select>
+        </div>
+        <div class="form-group"><label>% general a aplicar a todos</label><input type="number" id="lote-pct-general" min="0" max="500" placeholder="0" oninput="aplicarPctGeneralLote()"></div>
+      </div>
+      <div class="form-grid form-grid-2" style="margin-bottom:12px;">
+        <div class="form-group"><label>Fecha de vigencia</label><input type="date" id="lote-fecha-vig"></div>
+        <div class="form-group"><label>Motivo / notas (para todo el lote)</label><input type="text" id="lote-motivo" placeholder="Ej: ajuste general por paritaria..."></div>
+      </div>
+      <div id="lote-aviso-rebaja" class="alerta alerta-info" style="display:none;font-size:12px;margin-bottom:10px;">⚠️ Rebaja: cada propuesta del lote va a pedir motivo y aprobación del Gerente sin excepción.</div>
+      <div style="font-size:11px;font-weight:700;text-transform:uppercase;color:var(--texto-suave);margin-bottom:8px;">Servicios del cliente — ajustá individualmente las excepciones o destildá para excluir</div>
+      <div id="lote-servicios-lista" style="max-height:320px;overflow-y:auto;border:1px solid var(--borde);border-radius:var(--radio);"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="cerrarModal('modal-lote-precios')">Cancelar</button>
+      <button class="btn btn-primary" onclick="guardarLotePrecios()">Generar propuestas</button>
     </div>
   </div>
 </div>
