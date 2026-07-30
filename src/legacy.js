@@ -1281,8 +1281,16 @@ DB.propuestasPrecios = [
 DB.clausulasActualizacion = ['Paritarias','Inflación mensual (IPC)','Índice trimestral','Índice semestral','Libre negociación','Sin cláusula'];
 
 // CRM
-DB.etapasCRM = ['Prospecto','Primer contacto','Propuesta enviada','Negociación','Contrato','Cerrado ganado','Cerrado perdido'];
-DB.colorEtapasCRM = {'Prospecto':'#94a3b8','Primer contacto':'var(--azul)','Propuesta enviada':'#8b5cf6','Negociación':'var(--naranja)','Contrato':'#10b981','Cerrado ganado':'var(--verde)','Cerrado perdido':'var(--rojo)'};
+// DELTA_crm_flujo_leads_v1 (30/07/2026): "Contrato" y "Cerrado ganado" eran
+// dos etapas separadas (Contrato no era terminal) — el delta trata
+// "Contrato (ganado)" como una sola cosa, así que se fusionan: "Contrato"
+// pasa a ser la etapa terminal ganada (dispara fecha de cierre + auto-create
+// de cliente en borrador). "Cerrado perdido" sigue siendo la otra terminal.
+DB.etapasCRM = ['Prospecto','Primer contacto','Propuesta enviada','Negociación','Contrato','Cerrado perdido'];
+DB.colorEtapasCRM = {'Prospecto':'#94a3b8','Primer contacto':'var(--azul)','Propuesta enviada':'#8b5cf6','Negociación':'var(--naranja)','Contrato':'var(--verde)','Cerrado perdido':'var(--rojo)'};
+// Motivos de pérdida parametrizables (punto 2 del delta) — mismo patrón que
+// el resto de las listas configurables de Comercial (agregarCfgComercial).
+DB.motivosPerdidaCRM = ['Precio','Eligió competencia','Sin personal disponible para cubrir','No respondió','Otro'];
 DB.leads = [
   {id:1,empresa:'Supermercados DIA',contacto:'Marta Vidal',tipo:'Limpieza',zona:'Buenos Aires',valor:450000,etapa:'Propuesta enviada',responsable:'Santiago Ayala',origen:'Referido',obs:'Interesados en cubrir 3 sucursales GBA Norte.',acciones:[{tipo:'Reunión',fecha:'15/03/2026',resp:'Santiago Ayala',estado:'Realizada',nota:'Reunión inicial positiva. Piden propuesta formal.'},{tipo:'Propuesta',fecha:'22/03/2026',resp:'Santiago Ayala',estado:'Realizada',nota:'Enviada propuesta por email.'},{tipo:'Llamada',fecha:'05/04/2026',resp:'Santiago Ayala',estado:'Pendiente',nota:'Seguimiento de propuesta enviada.'}]},
   {id:2,empresa:'Clínica Bazterrica',contacto:'Dr. Tomás Ruiz',tipo:'Limpieza',zona:'CABA',valor:800000,etapa:'Negociación',responsable:'Santiago Ayala',origen:'Vendedor externo',obs:'Clínica privada, alta exigencia de calidad.',acciones:[{tipo:'Visita',fecha:'10/03/2026',resp:'Santiago Ayala',estado:'Realizada',nota:'Visita técnica realizada. Buena predisposición.'},{tipo:'Propuesta',fecha:'17/03/2026',resp:'Santiago Ayala',estado:'Realizada',nota:'Propuesta enviada con presupuesto.'},{tipo:'Reunión',fecha:'28/03/2026',resp:'Santiago Ayala',estado:'Realizada',nota:'Negociando precio y condiciones.'},{tipo:'Llamada',fecha:'04/04/2026',resp:'Santiago Ayala',estado:'Pendiente',nota:'Cierre esperado esta semana.'}]},
@@ -1325,6 +1333,9 @@ function renderClientes(lista){
   $('st-cli-obj').textContent=objActivos;
   $('st-cli-contratos').textContent=DB.objetivos.filter(o=>o.contrato==='Contrato firmado'&&o.estado==='Operativo'&&!o.anulado).length;
   $('st-cli-reclamos').textContent=DB.reclamos.filter(r=>r.estado==='Abierto'||r.estado==='En tratamiento').length;
+  // Punto 4 del delta CRM v1: señal visible de clientes en borrador (auto-
+  // create al ganar un lead) para que ninguno quede olvidado sin activar.
+  if($('st-cli-borrador'))$('st-cli-borrador').textContent=DB.clientes.filter(c=>c.estado==='Borrador'&&!c.anulado).length;
   $('tbody-clientes').innerHTML=base.map((c)=>{
     const objCount=DB.objetivos.filter(o=>o.clienteId===c.id&&!o.anulado).length;
     const idl=idLocalTrunc(c.id);
@@ -2248,6 +2259,227 @@ function chequearObjetivosDemorados(){
   });
 }
 // ========== CRM ==========
+// DELTA_crm_flujo_leads_v1 (30/07/2026), punto 2 — campos estructurados
+// propios de cada etapa (para estadística), separados de la observación
+// libre. "Prospecto" no tiene campos: es donde nace el lead (el origen se
+// carga al crearlo). Se usa tanto en la ventana de cambio de etapa como en
+// la carga retroactiva del modal "Nuevo lead" (punto 3) — mismo spec, dos
+// lugares que lo consumen.
+function crmCamposDeEtapa(etapa){
+  switch(etapa){
+    case 'Primer contacto': return [
+      {id:'fecha',label:'Fecha del contacto',type:'date'},
+      {id:'interlocutor',label:'Interlocutor (con quién se habló)',type:'text'},
+    ];
+    case 'Propuesta enviada': return [
+      {id:'valorEtapa',label:'Valor propuesto ($/mes)',type:'number'},
+      {id:'fecha',label:'Fecha de envío',type:'date'},
+    ];
+    case 'Negociación': return [
+      {id:'valorEtapa',label:'Valor ofrecido ($/mes)',type:'number'},
+      {id:'contraoferta',label:'Contraoferta del cliente ($/mes)',type:'number'},
+    ];
+    case 'Contrato': return [
+      {id:'fecha',label:'Fecha de cierre',type:'date'},
+      {id:'valorEtapa',label:'Valor de cierre ($/mes)',type:'number'},
+    ];
+    case 'Cerrado perdido': return [
+      {id:'motivoPerdida',label:'Motivo de la pérdida',type:'select',opciones:()=>DB.motivosPerdidaCRM},
+    ];
+    default: return []; // Prospecto y etapas custom agregadas desde Configuración
+  }
+}
+function crmCamposHtml(etapa,prefix){
+  return crmCamposDeEtapa(etapa).map(c=>{
+    const id=`${prefix}-${c.id}`;
+    if(c.type==='select'){
+      const opts=(typeof c.opciones==='function'?c.opciones():c.opciones)||[];
+      return `<div class="form-group"><label>${c.label}</label><select id="${id}"><option value="">— Sin especificar —</option>${opts.map(o=>`<option>${o}</option>`).join('')}</select></div>`;
+    }
+    return `<div class="form-group"><label>${c.label}</label><input type="${c.type}" id="${id}"></div>`;
+  }).join('');
+}
+function crmLeerCampos(etapa,prefix){
+  const out={};
+  crmCamposDeEtapa(etapa).forEach(c=>{
+    const el=$(`${prefix}-${c.id}`);
+    if(!el)return;
+    let v=el.value;
+    if(c.type==='date') v=v?new Date(v).toLocaleDateString('es-AR'):'';
+    if(c.type==='number') v=v!==''?parseFloat(v):'';
+    out[c.id]=v;
+  });
+  return out;
+}
+function _slugEtapa(e){
+  // NFD separa la tilde de la letra base (ej. "ó" → "o" + acento combinante);
+  // el filtro de abajo ya descarta cualquier no-alfanumérico, tildes incluidas.
+  return e.normalize('NFD').replace(/[^a-zA-Z0-9]+/g,'').toLowerCase();
+}
+
+// ---------- Ventana de cambio de etapa (punto 1) ----------
+// Avanzar un lead de etapa (arrastrando en el pipeline O con el botón de la
+// Lista) SIEMPRE pasa por acá — no hay mutación silenciosa de l.etapa en
+// ningún otro lado. Confirmar genera una acción "Cambio de etapa" en el
+// historial (con los campos propios de la etapa que llegó) + deja agendada,
+// opcionalmente, la próxima acción programada.
+function ensureModalCambioEtapa(){
+  if($('modal-cambio-etapa'))return;
+  const m=document.createElement('div');
+  m.className='modal-overlay';
+  m.id='modal-cambio-etapa';
+  m.innerHTML=`
+    <div class="modal" style="max-width:600px;">
+      <div class="modal-header"><h3 id="ce-titulo">🎯 Cambio de etapa</h3><button class="btn-close" onclick="cerrarModal('modal-cambio-etapa')">×</button></div>
+      <div class="modal-body">
+        <div id="ce-campos-etapa" class="form-grid form-grid-2 gap-12"></div>
+        <div class="form-group"><label>Observación</label><textarea id="ce-obs"></textarea></div>
+        <div class="form-section">Próxima acción programada (opcional)</div>
+        <div class="form-grid form-grid-3">
+          <div class="form-group"><label>Tipo de acción</label><select id="ce-prox-tipo">${DB.tiposAccionCRM.map(t=>`<option>${t}</option>`).join('')}</select></div>
+          <div class="form-group"><label>Fecha</label><input type="date" id="ce-prox-fecha"></div>
+          <div class="form-group"><label>Fecha límite (vencimiento)</label><input type="date" id="ce-prox-fechavenc"></div>
+        </div>
+        <div class="form-group"><label>Responsable de la próxima acción</label><select id="ce-prox-resp"></select></div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="cerrarModal('modal-cambio-etapa')">Cancelar</button>
+        <button class="btn btn-primary" onclick="confirmarCambioEtapa()">Confirmar avance</button>
+      </div>
+    </div>`;
+  document.body.appendChild(m);
+}
+let _cambioEtapaPendiente=null;
+function abrirModalCambioEtapa(leadIdx,etapaDestino){
+  const l=DB.leads[leadIdx];if(!l)return;
+  ensureModalCambioEtapa();
+  _cambioEtapaPendiente={leadIdx,etapaDestino};
+  $('ce-titulo').textContent=`🎯 ${l.empresa}: ${l.etapa} → ${etapaDestino}`;
+  $('ce-campos-etapa').innerHTML=crmCamposHtml(etapaDestino,'ce')||'<p class="text-muted" style="font-size:12px;">Esta etapa no tiene campos propios.</p>';
+  $('ce-obs').value='';
+  if($('ce-prox-tipo'))$('ce-prox-tipo').value='Llamada';
+  if($('ce-prox-fecha'))$('ce-prox-fecha').value='';
+  if($('ce-prox-fechavenc'))$('ce-prox-fechavenc').value='';
+  const respSel=$('ce-prox-resp');
+  if(respSel){
+    respSel.innerHTML='<option value="">— Elegir —</option>'+(DB.usuarios||[]).map(u=>`<option>${u.nombre}</option>`).join('');
+    respSel.value=l.responsable||'';
+  }
+  abrirModal('modal-cambio-etapa');
+}
+function confirmarCambioEtapa(){
+  if(!_cambioEtapaPendiente)return;
+  const{leadIdx,etapaDestino}=_cambioEtapaPendiente;
+  const l=DB.leads[leadIdx];if(!l)return;
+  const etapaAnterior=l.etapa;
+  const campos=crmLeerCampos(etapaDestino,'ce');
+  const obs=$('ce-obs')?.value.trim()||'';
+  const hoy=new Date().toLocaleDateString('es-AR');
+  const accion={
+    tipo:'Cambio de etapa',etapaDestino,
+    fecha:campos.fecha||hoy,resp:currentUser?.nombre||l.responsable||'',
+    estado:'Realizada',nota:obs,
+    ...(campos.interlocutor?{interlocutor:campos.interlocutor}:{}),
+    ...(campos.valorEtapa!==undefined&&campos.valorEtapa!==''?{valorEtapa:campos.valorEtapa}:{}),
+    ...(campos.contraoferta!==undefined&&campos.contraoferta!==''?{contraoferta:campos.contraoferta}:{}),
+    ...(campos.motivoPerdida?{motivoPerdida:campos.motivoPerdida}:{}),
+  };
+  if(!l.acciones)l.acciones=[];
+  l.acciones.push(accion);
+  // Punto 5 — no pisar: cada etapa deja su propio valor en su propia
+  // acción (ya quedó arriba); l.valor es solo el espejo del más reciente
+  // para que la Lista/Pipeline no tengan que recorrer todo el historial.
+  if(campos.valorEtapa!==undefined&&campos.valorEtapa!==''&&!isNaN(campos.valorEtapa))l.valor=campos.valorEtapa;
+  if(etapaDestino==='Cerrado perdido'&&campos.motivoPerdida)l.motivoPerdida=campos.motivoPerdida;
+
+  const proxFecha=$('ce-prox-fecha')?.value;
+  if(proxFecha){
+    l.acciones.push({
+      tipo:$('ce-prox-tipo')?.value,fecha:new Date(proxFecha).toLocaleDateString('es-AR'),
+      fechaVenc:$('ce-prox-fechavenc')?.value?new Date($('ce-prox-fechavenc').value).toLocaleDateString('es-AR'):'',
+      resp:$('ce-prox-resp')?.value||l.responsable||'',estado:'Pendiente',nota:'',
+    });
+  }
+
+  l.etapa=etapaDestino;
+  supaSync('leads',l);
+  cerrarModal('modal-cambio-etapa');
+  _cambioEtapaPendiente=null;
+  renderCRM();renderLeads();
+  toast(`✓ ${l.empresa}: ${etapaAnterior} → ${etapaDestino}`);
+
+  // Punto 4 — ganar el lead dispara el auto-create del cliente en borrador.
+  if(etapaDestino==='Contrato')ofrecerCrearClienteDesdeLead(l);
+}
+
+// ---------- Ganar el lead → cliente en borrador (punto 4, enfoque híbrido) ----------
+// Delta v1.2 (2.4.2) + v1.3 (1.1, "puerta única de clientes"): al ganar el
+// lead (etapa Contrato) nace el cliente en Borrador, pre-cargado con los
+// datos del lead. El guard por clienteBorradorId evita duplicar el cliente
+// si el lead vuelve a pasar por acá (ej. reconciliación tras recarga).
+function crearClienteBorradorDesdeLead(lead){
+  if(lead.clienteBorradorId){
+    const existente=DB.clientes.find(c=>c.id===lead.clienteBorradorId);
+    if(existente)return existente;
+  }
+  const cliente={
+    id:Date.now(),codigo:generarCodigoCliente(),
+    razon:lead.empresa,nombre:lead.empresa,
+    tipo:'',cuit:'',iva:'',arca:'',
+    condPago:'',formaPago:'',
+    responsable:lead.responsable||'',responsableTipo:'Interno',responsableContacto:'',
+    codigoTango:'',estado:'Borrador',
+    ciudad:'',direccion:lead.zona||'',
+    logo:'',obs:`Creado automáticamente al ganar el lead en CRM (origen: ${lead.origen||'—'}).${lead.obs?' '+lead.obs:''}`,
+    ingresosBrutos:'',jurisdiccionIibb:'',
+    docReq:{seguros:false,monotributo:false,antecedentes:false,ddjjIva:false,pagoIva:false,remitoServicio:false,planillaHoras:false,oc:false},
+    tipoContrato:'',factPor:'',periodoFact:'',productosEnFactura:'',reqOC:'',notasFact:'',
+    contactos:lead.contacto?[{nombre:lead.contacto,rol:'',tel:'',mail:'',aSatisfacer:true}]:[],
+  };
+  DB.clientes.push(cliente);
+  supaSync('clientes',cliente);
+  lead.clienteBorradorId=cliente.id;
+  supaSync('leads',lead);
+  return cliente;
+}
+function ensureModalHibridoCliente(){
+  if($('modal-hibrido-cliente'))return;
+  const m=document.createElement('div');
+  m.className='modal-overlay';
+  m.id='modal-hibrido-cliente';
+  m.innerHTML=`
+    <div class="modal" style="max-width:480px;">
+      <div class="modal-header"><h3>🏢 ¡Lead ganado!</h3></div>
+      <div class="modal-body"><p style="font-size:13px;color:var(--texto-suave);" id="hc-texto"></p></div>
+      <div class="modal-footer" style="justify-content:space-between;">
+        <button class="btn btn-secondary" onclick="completarClienteBorradorDespues()">Completar después</button>
+        <button class="btn btn-primary" onclick="completarClienteBorradorAhora()">Completar ahora</button>
+      </div>
+    </div>`;
+  document.body.appendChild(m);
+}
+let _clienteBorradorPendienteIdLocal=null;
+function ofrecerCrearClienteDesdeLead(lead){
+  const cliente=crearClienteBorradorDesdeLead(lead);
+  if(!cliente)return;
+  ensureModalHibridoCliente();
+  _clienteBorradorPendienteIdLocal=idLocalTrunc(cliente.id);
+  $('hc-texto').textContent=`Se creó el cliente "${cliente.nombre}" en estado Borrador con los datos del lead. ¿Completás la ficha ahora, o lo dejás pendiente en el ABM de Clientes para completarlo después?`;
+  abrirModal('modal-hibrido-cliente');
+  renderClientes(); // refresca el contador de borradores pendientes por si está visible
+}
+function completarClienteBorradorAhora(){
+  const idl=_clienteBorradorPendienteIdLocal;
+  cerrarModal('modal-hibrido-cliente');
+  if(!idl)return;
+  window.navTo('clientes');
+  abrirModalCliente(idl);
+}
+function completarClienteBorradorDespues(){
+  cerrarModal('modal-hibrido-cliente');
+  toast('✓ Cliente en borrador — completalo cuando quieras desde Clientes');
+}
+
 function tabCrm(tab,btn){
   document.querySelectorAll('#screen-crm .tab-content').forEach(t=>t.classList.remove('active'));
   document.querySelectorAll('#screen-crm .tab-btn').forEach(b=>b.classList.remove('active'));
@@ -2259,8 +2491,8 @@ function tabCrm(tab,btn){
 }
 function renderCRM(){
   verificarAccionesVencidas();
-  const activos=DB.leads.filter(l=>l.etapa!=='Cerrado ganado'&&l.etapa!=='Cerrado perdido');
-  const ganados=DB.leads.filter(l=>l.etapa==='Cerrado ganado');
+  const activos=DB.leads.filter(l=>l.etapa!=='Contrato'&&l.etapa!=='Cerrado perdido');
+  const ganados=DB.leads.filter(l=>l.etapa==='Contrato');
   const perdidos=DB.leads.filter(l=>l.etapa==='Cerrado perdido');
   const valorPipeline=activos.reduce((s,l)=>s+(l.valor||0),0);
   const accionesPend=DB.leads.flatMap(l=>l.acciones||[]).filter(a=>a.estado==='Pendiente'||a.estado==='Vencida').length;
@@ -2273,10 +2505,17 @@ function renderCRM(){
 }
 
 // PIPELINE CON DRAG & DROP — Punto 8
+// P.8 (Delta Comercial v1.2, confirmado bug de render en DELTA_crm_flujo_
+// leads_v1): a las tarjetas les faltaba el "<div ...>" de apertura — el
+// template literal empezaba directo por los atributos, así que el browser
+// mostraba ese texto crudo (style="...", ondragstart="...") en vez de
+// interpretarlo como HTML. Además la tarjeta nunca mostró más que el
+// avatar — sin empresa, contacto ni valor. Se corrige acá y se le agrega
+// contenido real.
 function renderPipeline(){
   const board=$('pipeline-board');if(!board)return;
-  const etapasActivas=DB.etapasCRM.filter(e=>e!=='Cerrado ganado'&&e!=='Cerrado perdido');
-  board.innerHTML=etapasActivas.map(etapa=>{
+  const hoy=new Date();hoy.setHours(0,0,0,0);
+  board.innerHTML=DB.etapasCRM.map(etapa=>{
     const leadsEtapa=DB.leads.filter(l=>l.etapa===etapa);
     const valorEtapa=leadsEtapa.reduce((s,l)=>s+(l.valor||0),0);
     const col=DB.colorEtapasCRM[etapa]||'var(--azul)';
@@ -2290,29 +2529,39 @@ function renderPipeline(){
       </div>
       <div style="background:white;border:1px solid var(--borde);border-top:none;border-radius:0 0 var(--radio-lg) var(--radio-lg);padding:10px;min-height:160px;display:flex;flex-direction:column;gap:8px;">
         ${valorEtapa>0?`<div style="font-size:11px;font-weight:600;color:${col};text-align:right;margin-bottom:2px;">$${Math.round(valorEtapa/1000)}k</div>`:''}
-        ${leadsEtapa.map(l=>`
+        ${leadsEtapa.map(l=>{
+          const proxAcc=(l.acciones||[]).find(a=>a.estado==='Pendiente'||a.estado==='Vencida');
+          return `<div draggable="true"
                style="background:var(--fondo);border:1px solid var(--borde);border-radius:var(--radio);padding:10px;cursor:grab;"
                ondragstart="dragLead(event,${l.id})"
                onclick="verLead(${DB.leads.indexOf(l)})">
+            <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:6px;">
+              <div style="font-weight:600;font-size:12px;">${l.empresa}</div>
               ${avatarEl(l.responsable,22)}
-          </div>`).join('')||`<div style="text-align:center;padding:20px 0;font-size:12px;color:var(--texto-muy-suave);">Sin leads</div>`}
+            </div>
+            <div style="font-size:11px;color:var(--texto-suave);margin-top:2px;">${l.contacto||'—'}</div>
+            <div style="font-size:12px;font-weight:700;color:var(--azul);margin-top:4px;">$${Math.round((l.valor||0)/1000)}k/mes</div>
+            ${proxAcc?`<div style="font-size:10px;color:${proxAcc.estado==='Vencida'?'var(--rojo)':'var(--naranja)'};margin-top:4px;">${proxAcc.estado==='Vencida'?'⚠️ ':'⏰ '}${proxAcc.tipo} ${proxAcc.fecha}</div>`:''}
+          </div>`;
+        }).join('')||`<div style="text-align:center;padding:20px 0;font-size:12px;color:var(--texto-muy-suave);">Sin leads</div>`}
       </div>
     </div>`;
   }).join('');
 }
 let dragLeadId=null;
 function dragLead(e,id){dragLeadId=id;e.dataTransfer.effectAllowed='move';}
+// Punto 1 del delta: avanzar de etapa (arrastrando O con botón) SIEMPRE
+// abre la ventana de cambio de etapa — nunca se muta en silencio. Si se
+// suelta sobre la misma columna, o se cancela la ventana, no pasa nada:
+// como nunca se tocó DB.leads, el próximo render deja la tarjeta donde
+// estaba.
 function dropLead(e,nuevaEtapa){
   e.preventDefault();
   document.querySelectorAll('.pipeline-col').forEach(c=>c.style.outline='');
   const lead=DB.leads.find(l=>l.id===dragLeadId);
-  if(lead&&lead.etapa!==nuevaEtapa){
-    const etapaAnterior=lead.etapa;
-    lead.etapa=nuevaEtapa;
-    renderPipeline();renderLeads();
-    toast(`✓ ${lead.empresa}: ${etapaAnterior} → ${nuevaEtapa}`);
-  }
   dragLeadId=null;
+  if(!lead||lead.etapa===nuevaEtapa)return;
+  abrirModalCambioEtapa(DB.leads.indexOf(lead),nuevaEtapa);
 }
 
 function renderLeads(lista){
@@ -2334,7 +2583,8 @@ function renderLeads(lista){
       <td>
         <div style="display:flex;gap:3px;">
           <button class="btn btn-secondary btn-xs" onclick="verLead(${i})">Ver</button>
-          <button class="btn btn-primary btn-xs" onclick="avanzarEtapa(${i})">→</button>
+          ${l.etapa!=='Contrato'&&l.etapa!=='Cerrado perdido'?`<button class="btn btn-primary btn-xs" onclick="avanzarEtapa(${i})" title="Avanzar de etapa">→</button>
+          <button class="btn btn-danger btn-xs" onclick="marcarLeadPerdido(${i})" title="Marcar como perdido">✕</button>`:''}
         </div>
       </td>
     </tr>`;
@@ -2404,11 +2654,21 @@ function marcarAccionRealizada(leadIdx,fecha,tipo){
   const acc=lead?.acciones?.find(a=>a.fecha===fecha&&a.tipo===tipo);
   if(acc){acc.estado='Realizada';renderAcciones();toast('✓ Acción marcada como realizada');}
 }
+// Punto 1 del delta: avanzar (con este botón O arrastrando en el pipeline)
+// SIEMPRE abre la ventana de cambio de etapa — nunca se muta en silencio.
+// "Contrato" y "Cerrado perdido" son terminales: no hay "siguiente" natural
+// desde ahí (evita el bug que tenía antes de re-ofrecer avanzar un lead ya
+// ganado directo a "perdido" solo porque era el último ítem del array).
 function avanzarEtapa(idx){
   const l=DB.leads[idx];
   const etapas=DB.etapasCRM;
   const i=etapas.indexOf(l.etapa);
-  if(i<etapas.length-1){l.etapa=etapas[i+1];renderCRM();renderLeads();toast(`✓ ${l.empresa} → "${l.etapa}"`);}
+  const siguiente=etapas[i+1];
+  if(!siguiente||siguiente==='Cerrado perdido')return;
+  abrirModalCambioEtapa(idx,siguiente);
+}
+function marcarLeadPerdido(idx){
+  abrirModalCambioEtapa(idx,'Cerrado perdido');
 }
 function verLead(idx){
   const l=DB.leads[idx];
@@ -2428,12 +2688,32 @@ function verLead(idx){
   </div>
   <div style="font-size:11px;font-weight:700;text-transform:uppercase;color:var(--texto-suave);margin-bottom:8px;">Historial de acciones</div>
   <div style="display:flex;flex-direction:column;gap:6px;">
-    ${(l.acciones||[]).map(a=>`<div style="padding:8px 12px;background:${a.estado==='Pendiente'?'var(--acento-suave)':'var(--fondo)'};border-radius:var(--radio);border:1px solid ${a.estado==='Pendiente'?'#e6c84a':'var(--borde)'};">
+    ${(l.acciones||[]).slice().reverse().map(a=>`<div style="padding:8px 12px;background:${a.estado==='Pendiente'?'var(--acento-suave)':'var(--fondo)'};border-radius:var(--radio);border:1px solid ${a.estado==='Pendiente'?'#e6c84a':'var(--borde)'};">
+      <div style="display:flex;justify-content:space-between;align-items:center;">
+        <div style="font-weight:600;font-size:12px;">${a.tipo}${a.etapaDestino?' → '+a.etapaDestino:''} <span style="font-weight:400;color:var(--texto-suave);">— ${a.fecha||'—'}</span></div>
+        <span class="badge ${a.estado==='Pendiente'?'badge-acento':a.estado==='Vencida'?'badge-rojo':'badge-verde'}" style="font-size:10px;">${a.estado}</span>
+      </div>
+      ${a.resp?`<div style="font-size:11px;color:var(--texto-suave);margin-top:2px;">Responsable: ${a.resp}</div>`:''}
+      ${_camposEtapaTexto(a)}
+      ${a.nota?`<div style="font-size:12px;margin-top:4px;">${a.nota}</div>`:''}
+      ${a.fechaVenc?`<div style="font-size:10px;color:var(--texto-muy-suave);margin-top:4px;">📅 Vence: ${a.fechaVenc}</div>`:''}
     </div>`).join('')||'<p class="text-muted" style="font-size:12px;">Sin acciones</p>'}
   </div>`;
   $('pedido-title').textContent=`🎯 ${l.empresa}`;
   $('pedido-body').innerHTML=html;
   abrirModal('modal-ver-pedido');
+}
+// Formatea los campos estructurados propios de la etapa que haya guardado
+// una acción de "Cambio de etapa" (punto 2 del delta) — usado en el
+// historial del lead (verLead) y en Acciones.
+function _camposEtapaTexto(a){
+  const partes=[];
+  if(a.interlocutor)partes.push(`Interlocutor: ${a.interlocutor}`);
+  if(a.valorEtapa!==undefined&&a.valorEtapa!==null&&a.valorEtapa!=='')partes.push(`Valor: $${Number(a.valorEtapa).toLocaleString('es-AR')}/mes`);
+  if(a.contraoferta!==undefined&&a.contraoferta!==null&&a.contraoferta!=='')partes.push(`Contraoferta del cliente: $${Number(a.contraoferta).toLocaleString('es-AR')}/mes`);
+  if(a.motivoPerdida)partes.push(`Motivo: ${a.motivoPerdida}`);
+  if(a.retroactivo)partes.push(`📝 Cargado retroactivamente`);
+  return partes.length?`<div style="font-size:11px;color:var(--texto-suave);margin-top:2px;">${partes.join(' · ')}</div>`:'';
 }
 function renderStatsCRM(){
   const barras=(el,datos,total,col='var(--azul)')=>{if(!$(el))return;$(el).innerHTML=datos.map(([k,v])=>`<div style="margin-bottom:10px;"><div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:3px;"><span>${k}</span><strong>${v}</strong></div><div style="height:8px;background:var(--borde);border-radius:4px;overflow:hidden;"><div style="height:100%;width:${total?Math.round(v/total*100):0}%;background:${col};border-radius:4px;"></div></div></div>`).join('');};
@@ -2443,7 +2723,7 @@ function renderStatsCRM(){
   barras('crm-stats-resp',resp.map(r=>[r,DB.leads.filter(l=>l.responsable===r).length]),DB.leads.length);
   const tipos=[...new Set(DB.leads.map(l=>l.tipo))];
   barras('crm-stats-tipo',tipos.map(t=>[t,DB.leads.filter(l=>l.tipo===t).length]),DB.leads.length);
-  const gan=DB.leads.filter(l=>l.etapa==='Cerrado ganado').length;
+  const gan=DB.leads.filter(l=>l.etapa==='Contrato').length;
   const perd=DB.leads.filter(l=>l.etapa==='Cerrado perdido').length;
   const total=gan+perd;
   const tasa=total?Math.round(gan/total*100):0;
@@ -2453,12 +2733,89 @@ function renderStatsCRM(){
     <div style="font-size:13px;color:var(--texto-suave);margin-top:6px;">${gan} ganados de ${total} cerrados</div>
   </div>`;
 }
+// Punto 3 del delta: registrar un lead directo en una etapa avanzada
+// (ej. ya hubo reunión y propuesta en la vida real antes de cargarlo acá).
+// Recorre las etapas entre "Primer contacto" y la elegida (inclusive);
+// cada una que tenga algún campo cargado en el bloque "retro-<slug>" deja
+// su propia acción retroactiva — lo no completado queda vacío, no bloquea
+// el guardado (ver actualizarHistoriaRetroLead, que arma esos bloques).
+// El botón "+ Nuevo lead" abría el modal directo (abrirModal('modal-lead')),
+// sin resetear nada — arrastraba valores de la carga anterior. Como la
+// sección de historia retroactiva (punto 3) depende de la etapa elegida,
+// hace falta arrancar en un estado conocido para que no quede desalineada.
+function abrirNuevoLead(){
+  if($('lead-etapa'))$('lead-etapa').value='Prospecto';
+  actualizarHistoriaRetroLead();
+  abrirModal('modal-lead');
+}
 function guardarLead(){
   const empresa=$('lead-empresa')?.value.trim();
   if(!empresa){toast('Ingresá la empresa');return;}
   const acc={tipo:$('lead-acc-tipo')?.value,fecha:$('lead-acc-fecha')?.value?new Date($('lead-acc-fecha').value).toLocaleDateString('es-AR'):'',fechaVenc:$('lead-acc-fechavenc')?.value?new Date($('lead-acc-fechavenc').value).toLocaleDateString('es-AR'):'',resp:$('lead-acc-resp')?.value,estado:'Pendiente',nota:''};
-  DB.leads.push({id:Date.now(),empresa,contacto:$('lead-contacto')?.value,tipo:$('lead-tipo')?.value,zona:$('lead-zona')?.value,valor:parseFloat($('lead-valor')?.value)||0,etapa:$('lead-etapa')?.value||'Prospecto',responsable:$('lead-responsable')?.value,origen:$('lead-origen')?.value,obs:$('lead-obs')?.value,acciones:acc.fecha?[acc]:[]});
-  cerrarModal('modal-lead');renderCRM();construirMenu();supaSync('leads', DB.leads[DB.leads.length-1]); supaSync('leads', DB.leads[DB.leads.length-1]); toast('✓ Lead guardado');
+
+  const etapaElegida=$('lead-etapa')?.value||'Prospecto';
+  const etapas=DB.etapasCRM;
+  const idxElegida=etapas.indexOf(etapaElegida);
+  const idxPrimerContacto=etapas.indexOf('Primer contacto');
+  const accionesRetro=[];
+  let valorRetroFinal;
+  if(idxElegida>=idxPrimerContacto&&idxPrimerContacto>=0){
+    etapas.slice(idxPrimerContacto,idxElegida+1).forEach(e=>{
+      if(!crmCamposDeEtapa(e).length)return;
+      const prefix='retro-'+_slugEtapa(e);
+      const valores=crmLeerCampos(e,prefix);
+      const tieneAlgo=Object.values(valores).some(v=>v!==''&&v!==undefined);
+      if(!tieneAlgo)return;
+      accionesRetro.push({
+        tipo:'Cambio de etapa',etapaDestino:e,
+        fecha:valores.fecha||'',resp:$('lead-responsable')?.value||'',
+        estado:'Realizada',nota:'',retroactivo:true,
+        ...(valores.interlocutor?{interlocutor:valores.interlocutor}:{}),
+        ...(valores.valorEtapa!==undefined&&valores.valorEtapa!==''?{valorEtapa:valores.valorEtapa}:{}),
+        ...(valores.contraoferta!==undefined&&valores.contraoferta!==''?{contraoferta:valores.contraoferta}:{}),
+        ...(valores.motivoPerdida?{motivoPerdida:valores.motivoPerdida}:{}),
+      });
+      if(valores.valorEtapa!==undefined&&valores.valorEtapa!=='')valorRetroFinal=valores.valorEtapa;
+    });
+  }
+
+  // Punto 5 — no pisar: si cargaron "Valor estimado" a mano se respeta ese
+  // número; si no, el valor "actual" del lead arranca en el último valor
+  // retroactivo cargado (el más avanzado en el tiempo).
+  const valorManual=parseFloat($('lead-valor')?.value);
+  const nuevo={
+    id:Date.now(),empresa,contacto:$('lead-contacto')?.value,tipo:$('lead-tipo')?.value,zona:$('lead-zona')?.value,
+    valor:!isNaN(valorManual)?valorManual:(valorRetroFinal||0),
+    etapa:etapaElegida,responsable:$('lead-responsable')?.value,origen:$('lead-origen')?.value,obs:$('lead-obs')?.value,
+    acciones:[...accionesRetro,...(acc.fecha?[acc]:[])],
+  };
+  DB.leads.push(nuevo);
+  cerrarModal('modal-lead');renderCRM();construirMenu();supaSync('leads',nuevo);
+  toast('✓ Lead guardado'+(accionesRetro.length?` — ${accionesRetro.length} etapa(s) retroactiva(s) registradas`:''));
+
+  // Punto 4 — si ya nace ganado (carga retroactiva hasta Contrato), dispara
+  // el mismo auto-create de cliente en borrador que el avance normal.
+  if(etapaElegida==='Contrato')ofrecerCrearClienteDesdeLead(nuevo);
+}
+// Arma dinámicamente los bloques "retro-<slug>" del punto 3 según la etapa
+// elegida en el select — se llama por onchange desde el modal Nuevo lead.
+function actualizarHistoriaRetroLead(){
+  const etapa=$('lead-etapa')?.value||'Prospecto';
+  const cont=$('lead-historia-retro');
+  if(!cont)return;
+  const etapas=DB.etapasCRM;
+  const idxElegida=etapas.indexOf(etapa);
+  const idxPrimerContacto=etapas.indexOf('Primer contacto');
+  if(idxElegida<idxPrimerContacto){cont.innerHTML='';return;}
+  const recorrido=etapas.slice(idxPrimerContacto,idxElegida+1).filter(e=>crmCamposDeEtapa(e).length);
+  if(!recorrido.length){cont.innerHTML='';return;}
+  cont.innerHTML=`
+    <div class="form-section">Historia retroactiva (opcional) — completá lo que sepas, salteá el resto</div>
+    ${recorrido.map(e=>`
+      <div style="background:var(--fondo);border:1px solid var(--borde);border-radius:var(--radio);padding:10px 12px;margin-bottom:8px;">
+        <div style="font-size:12px;font-weight:700;margin-bottom:6px;">${e}</div>
+        <div class="form-grid form-grid-2">${crmCamposHtml(e,'retro-'+_slugEtapa(e))}</div>
+      </div>`).join('')}`;
 }
 
 // ========== RECLAMOS — Punto 9: stats con tiempo respuesta + IA ==========
@@ -2616,8 +2973,10 @@ function agregarEtapaCRM(){
   const color=$('color-etapa-crm')?.value||'#3b82f6';
   if(!nombre){toast('Ingresá el nombre de la etapa');return;}
   if(DB.etapasCRM.includes(nombre)){toast('Ya existe esa etapa');return;}
-  // Insertar antes de Cerrado ganado/perdido
-  const idx=DB.etapasCRM.indexOf('Cerrado ganado');
+  // Insertar antes de Cerrado perdido (única etapa terminal que queda al
+  // final del array — "Contrato" ya es terminal-ganada pero es una etapa
+  // "normal" del recorrido, no hace falta insertar antes de ella).
+  const idx=DB.etapasCRM.indexOf('Cerrado perdido');
   if(idx>=0) DB.etapasCRM.splice(idx,0,nombre);
   else DB.etapasCRM.push(nombre);
   DB.colorEtapasCRM[nombre]=color;
@@ -2657,6 +3016,7 @@ function renderConfigComercial(){
   renderCfgComercialLista('rolesResponsables','lista-roles-resp');
   renderCfgEtapasCRM();
   renderCfgComercialLista('tiposAccionCRM','lista-acciones-crm');
+  renderCfgComercialLista('motivosPerdidaCRM','lista-motivos-perdida-crm');
   renderCfgComercialLista('tiposReclamo','lista-tipos-reclamo-cfg');
 }
 
@@ -10036,7 +10396,7 @@ function abrirAgenteIA(contexto, datos){
     reasignaciones: '🤖 Agente IA — Reasignaciones',
   };
   const promptsIA={
-    crm: `Analizá el pipeline de ventas: ${DB.leads.length} leads activos, ${DB.leads.filter(l=>l.etapa==='Negociación').length} en negociación, valor total pipeline $${Math.round(DB.leads.filter(l=>l.etapa!=='Cerrado ganado'&&l.etapa!=='Cerrado perdido').reduce((s,l)=>s+l.valor,0)/1000)}k/mes. Principales acciones pendientes hoy: ${DB.leads.flatMap(l=>l.acciones||[]).filter(a=>a.estado==='Pendiente').length} acciones. ¿Qué prioridades me recomendás y cómo puedo comunicarme mejor con los prospectos en etapa de negociación?`,
+    crm: `Analizá el pipeline de ventas: ${DB.leads.length} leads activos, ${DB.leads.filter(l=>l.etapa==='Negociación').length} en negociación, valor total pipeline $${Math.round(DB.leads.filter(l=>l.etapa!=='Contrato'&&l.etapa!=='Cerrado perdido').reduce((s,l)=>s+l.valor,0)/1000)}k/mes. Principales acciones pendientes hoy: ${DB.leads.flatMap(l=>l.acciones||[]).filter(a=>a.estado==='Pendiente').length} acciones. ¿Qué prioridades me recomendás y cómo puedo comunicarme mejor con los prospectos en etapa de negociación?`,
     reclamos: `Analizá los reclamos activos: ${DB.reclamos.filter(r=>r.estado!=='Cerrado').length} sin resolver, ${DB.reclamos.filter(r=>r.prioridad==='Urgente'||r.prioridad==='Alta').length} de alta prioridad. Tipo más frecuente: "${[...Object.entries(DB.reclamos.reduce((a,r)=>{a[r.tipo]=(a[r.tipo]||0)+1;return a},{}))].sort((a,b)=>b[1]-a[1])[0]?.[0]||'—'}". ¿Qué patrones ves y cómo me recomendás comunicarme con los clientes afectados para resolver rápido?`,
     cobros: `Analizá la cartera de cobros: ${DB.facturas.filter(f=>f.estado==='Impago').length} facturas impagas por $${Math.round(DB.facturas.filter(f=>f.estado==='Impago').reduce((s,f)=>s+f.importe,0)/1000)}k. ${DB.facturas.filter(f=>f.estado==='Gestión activa').length} en gestión activa. ¿Cómo debería priorizar los contactos esta semana y qué enfoque de comunicación me recomendás para cada tipo de deudor?`,
     reasignaciones: `Analizá las reasignaciones: ${DB.reasignaciones.filter(r=>r.estado==='Pendiente').length} pendientes de aprobación. Motivos más frecuentes: conflictos y coberturas. ¿Cómo puedo comunicarme mejor con los supervisores y asociados involucrados para hacer las transiciones más fluidas?`,
@@ -10559,6 +10919,11 @@ window.crearGrilla = crearGrilla;
 window.crearGrillaDesdeObj = crearGrillaDesdeObj;
 window.dragLead = dragLead;
 window.dropLead = dropLead;
+window.confirmarCambioEtapa = confirmarCambioEtapa;
+window.marcarLeadPerdido = marcarLeadPerdido;
+window.completarClienteBorradorAhora = completarClienteBorradorAhora;
+window.completarClienteBorradorDespues = completarClienteBorradorDespues;
+window.actualizarHistoriaRetroLead = actualizarHistoriaRetroLead;
 window.editarMonotributo = editarMonotributo;
 window.editarMotivoEFT = editarMotivoEFT;
 window.editarMotivoNF = editarMotivoNF;
@@ -10612,6 +10977,7 @@ window.guardarDescuentoLiq = guardarDescuentoLiq;
 window.guardarEvaluacion = guardarEvaluacion;
 window.guardarFeriado = guardarFeriado;
 window.guardarLead = guardarLead;
+window.abrirNuevoLead = abrirNuevoLead;
 window.guardarMonotributo = guardarMonotributo;
 window.guardarMotivoEFT = guardarMotivoEFT;
 window.guardarMotivoNF = guardarMotivoNF;

@@ -975,6 +975,14 @@
       </div>
 
       <div class="card">
+        <div class="card-header"><h3>❌ Motivos de pérdida (CRM)</h3><span class="text-muted">Se piden al marcar un lead como Cerrado perdido</span></div>
+        <div class="card-body">
+          <div class="config-list" id="lista-motivos-perdida-crm"></div>
+          <div class="config-add"><input type="text" id="nuevo-motivo-perdida-crm" placeholder="Ej: Precio, Eligió competencia..."><button class="btn btn-primary btn-sm" onclick="agregarCfgComercial('motivosPerdidaCRM','nuevo-motivo-perdida-crm','lista-motivos-perdida-crm')">Agregar</button></div>
+        </div>
+      </div>
+
+      <div class="card">
         <div class="card-header"><h3>📣 Tipos de reclamo</h3></div>
         <div class="card-body">
           <div class="config-list" id="lista-tipos-reclamo-cfg"></div>
@@ -1951,6 +1959,7 @@
     <div class="stat-card verde"><div class="stat-label">Servicios activos</div><div class="stat-valor" id="st-cli-obj">0</div><div class="stat-sub">Servicios prestados</div></div>
     <div class="stat-card acento"><div class="stat-label">Contratos vigentes</div><div class="stat-valor" id="st-cli-contratos">0</div><div class="stat-sub">Firmados</div></div>
     <div class="stat-card rojo"><div class="stat-label">Reclamos abiertos</div><div class="stat-valor" id="st-cli-reclamos">0</div><div class="stat-sub">Sin resolver</div></div>
+    <div class="stat-card naranja"><div class="stat-label">Borradores pendientes</div><div class="stat-valor" id="st-cli-borrador">0</div><div class="stat-sub">Por revisar y confirmar</div></div>
   </div>
   <div class="card">
     <div class="card-header">
@@ -5336,13 +5345,16 @@
           <div class="form-group"><label>Valor estimado mensual $</label><input type="number" id="lead-valor"></div>
         </div>
         <div class="form-grid form-grid-2">
-          <div class="form-group"><label>Etapa *</label><select id="lead-etapa"></select></div>
+          <div class="form-group"><label>Etapa *</label><select id="lead-etapa" onchange="actualizarHistoriaRetroLead()"></select></div>
           <div class="form-group"><label>Responsable *</label><select id="lead-responsable"></select></div>
         </div>
         <div class="form-group"><label>Origen del lead</label>
           <select id="lead-origen"><option>Manual</option><option>Referido</option><option>Vendedor externo</option><option>Web / Formulario</option><option>LinkedIn</option><option>Licitación</option><option>Cliente existente</option></select>
         </div>
         <div class="form-group"><label>Observaciones</label><textarea id="lead-obs"></textarea></div>
+        <!-- Punto 3 del delta: si se elige una etapa avanzada, acá aparecen -->
+        <!-- las etapas anteriores para completar opcionalmente su historia. -->
+        <div id="lead-historia-retro"></div>
         <div class="form-section">Primera acción programada</div>
         <div class="form-grid form-grid-3">
           <div class="form-group"><label>Tipo de acción</label>

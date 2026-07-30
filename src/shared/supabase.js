@@ -113,6 +113,8 @@ export const _SM = {
   facturas: 'facturas',
   cobros: 'cobros',
   historialImportaciones: 'historial_importaciones',
+  // v050 — CRM / leads
+  leads: 'leads',
 };
 
 // camelCase → snake_case para guardar en Supabase
@@ -383,6 +385,8 @@ export function _toSnake(obj) {
     nroRecibo: 'nro_recibo', fechaCobro: 'fecha_cobro', fechaAcreditacion: 'fecha_acreditacion',
     // v049 — Delta Cobros/Tango v2
     alertaTangoNoConfirmo: 'alerta_tango_no_confirmo',
+    // v050 — CRM / leads
+    clienteBorradorId: 'cliente_borrador_id', motivoPerdida: 'motivo_perdida',
   };
   const r = {};
   for (const [k, v] of Object.entries(obj)) {
@@ -655,6 +659,8 @@ export function _toCamel(obj) {
     nro_recibo: 'nroRecibo', fecha_cobro: 'fechaCobro', fecha_acreditacion: 'fechaAcreditacion',
     // v049 — Delta Cobros/Tango v2
     alerta_tango_no_confirmo: 'alertaTangoNoConfirmo',
+    // v050 — CRM / leads
+    cliente_borrador_id: 'clienteBorradorId', motivo_perdida: 'motivoPerdida',
   };
   const r = {};
   for (const [k, v] of Object.entries(obj)) {

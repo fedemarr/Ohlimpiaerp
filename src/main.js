@@ -45,6 +45,13 @@ window.doLogin = doLogin;
 window.doLogout = doLogout;
 window.loginAsociado = loginAsociado;
 window.navTo = navTo;
+// construirMenu() se llama "pelado" (sin window.) en ~16 lugares de
+// legacy.js (guardarLead, cerrarReclamo, paritarias, precios, ...) pero
+// nunca estuvo expuesta acá — cada una de esas llamadas tiraba
+// ReferenceError y cortaba en seco todo lo que venía después en la misma
+// función (típicamente el supaSync/toast de esa acción). Descubierto al
+// testear el nuevo flujo de CRM (DELTA_crm_flujo_leads_v1).
+window.construirMenu = construirMenu;
 window.topAction = topAction;
 window.busquedaGlobal = busquedaGlobal;
 window.abrirModal = abrirModal;
@@ -123,7 +130,7 @@ async function loadLegacy() {
       smvm: { title: 'SMVM histórico', btn: '', fn: null, render: () => { if (window.renderSMVM) window.renderSMVM(); } },
       feriados: { title: 'Feriados', btn: '+ Agregar feriado', fn: () => { if (window.abrirModalFeriado) window.abrirModalFeriado(); }, render: () => { if (window.renderFeriados) window.renderFeriados(); } },
       cobros: { title: 'Gestión de cobros', btn: '', fn: null, render: () => { if (window.renderCobros) window.renderCobros(); } },
-      crm: { title: 'CRM Comercial', btn: '+ Nuevo lead', fn: () => abrirModal('modal-lead'), render: () => { if (window.renderCRM) window.renderCRM(); } },
+      crm: { title: 'CRM Comercial', btn: '+ Nuevo lead', fn: () => { if (window.abrirNuevoLead) window.abrirNuevoLead(); }, render: () => { if (window.renderCRM) window.renderCRM(); } },
       reclamos: { title: 'Reclamos y NC', btn: '+ Nuevo reclamo', fn: () => abrirModal('modal-reclamo'), render: () => { if (window.renderReclamos) window.renderReclamos(); } },
       precios: { title: 'Gestión de precios', btn: '', fn: null, render: () => { if (window.renderPrecios) window.renderPrecios(); } },
       liquidacion: { title: 'Liquidación de horas', btn: '', fn: null, render: () => { if (window.renderLiquidacion) window.renderLiquidacion(); } },
