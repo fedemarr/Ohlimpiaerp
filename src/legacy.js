@@ -1661,13 +1661,14 @@ function renderObjetivos(lista){
   $('tbody-objetivos').innerHTML=rows.map((o)=>{
     const cli=getCliente(o.clienteId);
     const idl=idLocalTrunc(o.id);
-    const modColor={'Abono mensual fijo':'badge-azul','Por EFT':'badge-verde','Por horas variables':'badge-acento','Presupuesto cerrado':'badge-naranja'};
+    const modColor={'Abono mensual fijo':'badge-azul','Por EFT':'badge-verde','Por horas variables':'badge-acento'};
     const esperando7=o.estado==='Pendiente asignación operativa'&&diasDesde(o.fechaCarga)>=7;
     return `<tr>
       <td style="font-family:'DM Mono',monospace;font-size:11px;color:var(--azul);">${o.codigo}</td>
       <td style="font-weight:500;">${o.nombre}${esperando7?' <span title="7+ días esperando asignación">🟠</span>':''}</td>
       <td style="font-size:12px;">${cli?cli.nombre:'—'}</td>
       <td><span class="chip" style="font-size:11px;">${o.tipo}</span></td>
+      <td style="font-size:12px;color:var(--texto-suave);">${o.tipoSitio||'—'}</td>
       <td><span class="badge ${modColor[o.modeloPrecio]||'badge-gris'}" style="font-size:10px;">${(o.modeloPrecio||'').split('(')[0].trim()}</span></td>
       <td style="font-weight:700;color:var(--azul);">$${(o.valor||0).toLocaleString('es-AR')}</td>
       <td style="font-size:12px;">${o.supervisorAsignado||'—'}</td>
@@ -1683,19 +1684,20 @@ function renderObjetivos(lista){
         </div>
       </td>
     </tr>`;
-  }).join('')||`<tr><td colspan="9"><div class="empty-state"><div class="icon">📍</div><p>Sin servicios en este estado</p></div></td></tr>`;
+  }).join('')||`<tr><td colspan="10"><div class="empty-state"><div class="icon">📍</div><p>Sin servicios en este estado</p></div></td></tr>`;
 }
 function filtrarObjetivos(){
   const cod=($('cf-on-cod')||{value:''}).value.toLowerCase();
   const nom=($('cf-on-nombre')||{value:''}).value.toLowerCase();
   const cli=($('cf-obj-cliente')||{value:''}).value;
   const tipo=($('cf-obj-tipo')||{value:''}).value;
+  const tipoSitio=($('cf-obj-tipo-sitio')||{value:''}).value;
   const bg=($('buscar-objetivo')||{value:''}).value.toLowerCase();
   const cliId=cli?DB.clientes.find(c=>c.nombre===cli)?.id:null;
   renderObjetivos(DB.objetivos.filter(o=>
     (!cod||o.codigo.toLowerCase().includes(cod))&&
     (!nom||o.nombre.toLowerCase().includes(nom))&&
-    (!cliId||o.clienteId===cliId)&&(!tipo||o.tipo===tipo)&&
+    (!cliId||o.clienteId===cliId)&&(!tipo||o.tipo===tipo)&&(!tipoSitio||o.tipoSitio===tipoSitio)&&
     (!bg||o.nombre.toLowerCase().includes(bg)||o.codigo.toLowerCase().includes(bg))
   ));
 }
@@ -1713,15 +1715,25 @@ function verObjetivo(idLocal){
     <div class="info-item"><div class="key">Código</div><div class="val" style="font-family:'DM Mono',monospace;">${o.codigo}</div></div>
     <div class="info-item"><div class="key">Cliente</div><div class="val">${cli?.nombre||'—'}</div></div>
     <div class="info-item"><div class="key">Tipo servicio</div><div class="val">${o.tipo}</div></div>
+    <div class="info-item"><div class="key">Tipo de sitio</div><div class="val">${o.tipoSitio||'—'}</div></div>
     <div class="info-item"><div class="key">Dirección</div><div class="val">${o.dir||'—'}</div></div>
     <div class="info-item"><div class="key">Estado</div><div class="val">${badgeEstadoObjetivo(o.estado)}</div></div>
     <div class="info-item"><div class="key">Supervisor asignado</div><div class="val">${o.supervisorAsignado||'— (pendiente Operaciones)'}</div></div>
     <div class="info-item"><div class="key">Jurisdicción</div><div class="val">${o.jurisdiccion||'—'}</div></div>
     <div class="info-item"><div class="key">Localidad</div><div class="val">${o.localidad||'—'}</div></div>
     <div class="info-item"><div class="key">Modelo precio</div><div class="val">${o.modeloPrecio}</div></div>
-    <div class="info-item"><div class="key">Valor mensual</div><div class="val" style="font-weight:700;color:var(--azul);">$${(o.valor||0).toLocaleString('es-AR')}</div></div>
     ${o.efts?`<div class="info-item"><div class="key">Cantidad de horas</div><div class="val">${o.efts}hs/mes${o.valorHora?` — $${o.valorHora.toLocaleString('es-AR')}/hora`:''}</div></div>`:''}
-    ${(()=>{const fact=calcularFacturacionMensualObjetivo(o);return fact!=null?`<div class="info-item"><div class="key">Monto estimado a facturar por mes</div><div class="val" style="font-weight:700;color:var(--verde);">$${fact.toLocaleString('es-AR')}</div></div>`:`<div class="info-item"><div class="key">Monto estimado a facturar por mes</div><div class="val">Depende de horas trabajadas (Liquidación de horas)</div></div>`;})()}
+    ${o.modeloPrecio==='Abono mensual fijo'
+      ?`<div class="info-item"><div class="key">Valor mensual</div><div class="val" style="font-weight:700;color:var(--azul);">$${(o.valor||0).toLocaleString('es-AR')}</div></div>`
+      :(()=>{
+          const fact=calcularFacturacionMensualObjetivo(o);
+          const esFirme=o.modeloPrecio==='Por EFT';
+          const etiqueta=esFirme?'Monto a facturar por mes':'Monto estimado a facturar por mes';
+          return fact!=null
+            ?`<div class="info-item"><div class="key">${etiqueta}</div><div class="val" style="font-weight:700;color:${esFirme?'var(--azul)':'var(--verde)'};">$${fact.toLocaleString('es-AR')}${esFirme?'':' (estimado)'}</div></div>`
+            :`<div class="info-item"><div class="key">${etiqueta}</div><div class="val">Depende de horas trabajadas (Liquidación de horas)</div></div>`;
+        })()
+    }
     <div class="info-item"><div class="key">Contrato</div><div class="val">${o.contrato}</div></div>
     <div class="info-item"><div class="key">Cláusula actualización</div><div class="val">${o.clausulaActualizacion||'—'}</div></div>
     <div class="info-item"><div class="key">Período facturación</div><div class="val">${o.periodoFact}</div></div>
@@ -1789,20 +1801,21 @@ function objetivoParaGuardar(o){
 // guardarObjetivo() pide confirmación si no coincide, en vez de dejar
 // los dos datos inconsistentes en silencio.
 const MODELOS_PRECIO_POR_HORA=['Por EFT','Por horas variables'];
-const MODELOS_PRECIO_PRESUPUESTO_FIJO=['Abono mensual fijo','Presupuesto cerrado'];
-// 2.2.3/2.2.1 (Delta Comercial v1.3) — "monto estimado a facturar por
-// mes": se calcula siempre en el momento (nunca se guarda en el
-// objetivo), así nunca queda desactualizado si cambia el valor hora
-// vigente (paritaria). Para "Por EFT" (o.efts ya es la cantidad de horas
-// directa, ej. 200/500/1200 — no un factor de EFTs a multiplicar por
-// 200): monto = horas × valor hora. Para el resto (Abono mensual fijo,
-// Presupuesto cerrado): el monto es el valor cargado directamente. "Por
-// horas variables" depende de las horas realmente trabajadas
-// (Liquidación de horas, fuera de este módulo) — se muestra null y el
-// llamador lo aclara en vez de inventar un número.
+const MODELOS_PRECIO_PRESUPUESTO_FIJO=['Abono mensual fijo'];
+// 2.2.3/2.2.1 (Delta Comercial v1.3) + DELTA_servicios_tipo_de_sitio_v1 —
+// "monto a facturar por mes": se calcula siempre en el momento (nunca se
+// guarda en el objetivo), así nunca queda desactualizado si cambia el
+// valor hora vigente (paritaria). Para "Por EFT" y "Por horas variables"
+// (o.efts ya es la cantidad de horas directa, ej. 200/500/1200 — no un
+// factor de EFTs a multiplicar por 200): monto = horas × valor hora —
+// firme en EFT, estimado en horas variables (las horas reales las define
+// Liquidación de horas, fuera de este módulo; acá sólo se orienta). Para
+// "Abono mensual fijo": el monto es el valor cargado directamente. Si
+// falta cargar horas/valor hora en "Por horas variables" se devuelve
+// null y el llamador aclara que depende de horas trabajadas, en vez de
+// inventar un número.
 function calcularFacturacionMensualObjetivo(o){
-  if(o.modeloPrecio==='Por EFT') return (o.efts||0)*(o.valorHora||0);
-  if(o.modeloPrecio==='Por horas variables') return null;
+  if(o.modeloPrecio==='Por EFT'||o.modeloPrecio==='Por horas variables') return (o.efts&&o.valorHora)?(o.efts*o.valorHora):null;
   return o.valor||0;
 }
 function modelosPrecioEsperados(clienteId){
@@ -1864,17 +1877,21 @@ function abrirModalObjetivo(idLocal){
   if(o){
     $('obj-cliente').value=o.clienteId;$('obj-codigo').value=o.codigo;
     $('obj-nombre').value=o.nombre;if($('obj-tipo'))$('obj-tipo').value=o.tipo||'';
+    if($('obj-tipo-sitio'))$('obj-tipo-sitio').value=o.tipoSitio||'';
     $('obj-dir').value=o.dir||'';
     if($('obj-jurisdiccion')) $('obj-jurisdiccion').value=o.jurisdiccion||'';
     poblarLocalidadesServicio(o.localidad||'');
     if($('obj-fecha-inicio')&&o.fechaInicio){const[dd,mm,yy]=o.fechaInicio.split('/');$('obj-fecha-inicio').value=`${yy}-${mm}-${dd}`;}
     poblarModeloPrecioSegunCliente(o.clienteId);
     if($('obj-modelo-precio')) $('obj-modelo-precio').value=o.modeloPrecio||'';
-    const esPorHora=o.modeloPrecio==='Por EFT';
-    $('obj-efts').value=esPorHora?(o.efts||''):'';
-    $('obj-valor-hora').value=esPorHora?(o.valorHora||''):'';
-    $('obj-valor').value=!esPorHora?(o.valor||''):'';
-    $('obj-efts-fijo').value=!esPorHora?(o.efts||''):'';
+    // DELTA_servicios_tipo_de_sitio_v1 — "Por horas variables" carga horas+
+    // valor hora igual que "Por EFT" (antes se trataba como Abono fijo,
+    // ver bug corregido en toggleModeloPrecio/recalcularPrecioObjetivo).
+    const esHoras=o.modeloPrecio==='Por EFT'||o.modeloPrecio==='Por horas variables';
+    $('obj-efts').value=esHoras?(o.efts||''):'';
+    $('obj-valor-hora').value=esHoras?(o.valorHora||''):'';
+    $('obj-valor').value=!esHoras?(o.valor||''):'';
+    $('obj-efts-fijo').value=!esHoras?(o.efts||''):'';
     if($('obj-fecha-fin')&&o.fechaFin){const[dd,mm,yy]=o.fechaFin.split('/');$('obj-fecha-fin').value=`${yy}-${mm}-${dd}`;} else if($('obj-fecha-fin')) $('obj-fecha-fin').value='';
     if($('obj-contrato')) $('obj-contrato').value=o.contrato||'';
     if($('obj-productos')) $('obj-productos').value=o.productos||'';
@@ -1889,6 +1906,7 @@ function abrirModalObjetivo(idLocal){
   } else {
     ['obj-cliente','obj-codigo','obj-nombre','obj-dir','obj-fecha-inicio','obj-valor','obj-efts','obj-efts-fijo','obj-valor-hora','obj-fecha-fin','obj-texto-factura','obj-notas-precio','obj-log-productos','obj-log-elementos','obj-log-maquinas'].forEach(id=>{const el=$(id);if(el)el.value='';});
     if($('obj-jurisdiccion')) $('obj-jurisdiccion').value='';
+    if($('obj-tipo-sitio')) $('obj-tipo-sitio').value='';
     poblarLocalidadesServicio();
     poblarModeloPrecioSegunCliente(0);
   }
@@ -1908,19 +1926,18 @@ function guardarObjetivo(){
   const clienteId=parseInt($('obj-cliente')?.value)||0;
   const contrato=$('obj-contrato')?.value;
   const modeloPrecio=$('obj-modelo-precio')?.value;
-  const esPorHora=modeloPrecio==='Por EFT';
-  // A.2 (Delta Comercial v1.3) — modelo de precio: qué se carga y qué se
-  // calcula. "Por EFT": se cargan horas + valor hora, el mensual se
-  // deriva (nunca se tipea). Resto: se carga el mensual (+ horas de
-  // referencia opcionales), la hora de referencia se deriva. o.efts
-  // siempre termina siendo "cantidad de horas" en cualquiera de los dos
-  // casos — un solo campo, no dos según el modelo.
-  const efts=esPorHora?(parseFloat($('obj-efts')?.value)||0):(parseFloat($('obj-efts-fijo')?.value)||0);
-  const valorHora=esPorHora?(parseFloat($('obj-valor-hora')?.value)||0):0;
-  const valor=esPorHora?(efts*valorHora):(parseFloat($('obj-valor')?.value)||0);
+  // DELTA_servicios_tipo_de_sitio_v1 — hay TRES modelos, no dos. "Por EFT"
+  // y "Por horas variables" cargan horas + valor hora por igual (la
+  // diferencia es firme vs. estimado, no el campo que se carga); sólo
+  // "Abono mensual fijo" carga el mensual directo y deriva la hora de
+  // referencia. o.efts siempre termina siendo "cantidad de horas".
+  const esHoras=modeloPrecio==='Por EFT'||modeloPrecio==='Por horas variables';
+  const efts=esHoras?(parseFloat($('obj-efts')?.value)||0):(parseFloat($('obj-efts-fijo')?.value)||0);
+  const valorHora=esHoras?(parseFloat($('obj-valor-hora')?.value)||0):0;
+  const valor=esHoras?(efts*valorHora):(parseFloat($('obj-valor')?.value)||0);
   const datos={
     clienteId,clienteIdLocal:idLocalTrunc(clienteId),
-    codigo:cod,nombre:nom,tipo:$('obj-tipo')?.value,
+    codigo:cod,nombre:nom,tipo:$('obj-tipo')?.value,tipoSitio:$('obj-tipo-sitio')?.value||'',
     dir:$('obj-dir')?.value,
     jurisdiccion:$('obj-jurisdiccion')?.value||'',localidad:$('obj-localidad')?.value||'',
     puestos:[...puestosObjTemp],
@@ -1955,7 +1972,7 @@ function guardarObjetivo(){
     if(!datos.fechaInicio) faltantes.push('Fecha de inicio');
     if(!datos.puestos.length) faltantes.push('Personal necesario (agregá al menos un puesto)');
     if(!datos.modeloPrecio) faltantes.push('Modelo de precio');
-    else if(esPorHora){
+    else if(esHoras){
       if(!efts||!valorHora) faltantes.push('Cantidad de horas y valor hora');
     } else if(!valor) faltantes.push('Valor mensual / presupuesto');
     if(faltantes.length){toast('⚠️ Faltan campos mínimos: '+faltantes.join(', '));return;}
@@ -1996,27 +2013,35 @@ function tabObjModal(idx,btn){
   document.querySelectorAll('#modal-objetivo .tab-content').forEach(t=>t.classList.remove('active'));
   btn.classList.add('active');$('obj-tab-'+idx).classList.add('active');
 }
-// A.2 (Delta Comercial v1.3) — el modelo de precio define qué se carga y
-// qué se calcula, validado contra el Excel de Lautaro:
-// "Por EFT" (por horas): se cargan horas + valor hora, el mensual se
-// calcula y se muestra bloqueado. Todo lo demás (Abono mensual fijo,
-// Presupuesto cerrado, Por horas variables): se carga el mensual (y
-// opcionalmente horas de referencia), la hora de referencia se calcula.
+// A.2 (Delta Comercial v1.3) + DELTA_servicios_tipo_de_sitio_v1 — el
+// modelo de precio define qué se carga y qué se calcula, son TRES
+// modelos: "Por EFT" y "Por horas variables" cargan horas + valor hora
+// por igual (fila "por hora"), el mensual se calcula y se muestra
+// bloqueado — firme en EFT, estimado en horas variables (las etiquetas
+// cambian, el cálculo es el mismo). "Abono mensual fijo" (fila "fijo")
+// carga el mensual directo, la hora de referencia se calcula.
 function toggleModeloPrecio(){
   const m=$('obj-modelo-precio')?.value||'';
-  const porHora=m==='Por EFT';
+  const esHoras=m==='Por EFT'||m==='Por horas variables';
+  const esEstimado=m==='Por horas variables';
   const rowHora=$('obj-precio-por-hora-row'), rowFijo=$('obj-precio-fijo-row');
-  if(rowHora) rowHora.style.display=porHora?'grid':'none';
-  if(rowFijo) rowFijo.style.display=porHora?'none':'grid';
+  if(rowHora) rowHora.style.display=esHoras?'grid':'none';
+  if(rowFijo) rowFijo.style.display=esHoras?'none':'grid';
+  const eftsLabel=$('obj-efts-label');
+  if(eftsLabel) eftsLabel.textContent=esEstimado?'Cantidad de horas estimada *':'Cantidad de horas *';
+  const calcLabel=$('obj-valor-calculado-label');
+  if(calcLabel) calcLabel.textContent=esEstimado?'Monto estimado a facturar (calculado)':'Valor mensual (calculado)';
   const vencRow=$('obj-vencimiento-row');
-  if(vencRow) vencRow.style.display=(m==='Presupuesto cerrado'||m==='Por horas variables')?'grid':'none';
+  if(vencRow) vencRow.style.display=esEstimado?'grid':'none';
   recalcularPrecioObjetivo();
 }
 // Recalcula en vivo el campo bloqueado según el modelo — nunca se tipea,
-// siempre se deriva de los campos base (2.2.1/2.2.3).
+// siempre se deriva de los campos base (2.2.1/2.2.3). "Por EFT" y "Por
+// horas variables" comparten la misma cuenta (horas × valor hora); sólo
+// cambia la etiqueta (ver toggleModeloPrecio), no la fórmula.
 function recalcularPrecioObjetivo(){
   const m=$('obj-modelo-precio')?.value||'';
-  if(m==='Por EFT'){
+  if(m==='Por EFT'||m==='Por horas variables'){
     const horas=parseFloat($('obj-efts')?.value)||0;
     const valorHora=parseFloat($('obj-valor-hora')?.value)||0;
     const calc=$('obj-valor-calculado');
@@ -2962,7 +2987,7 @@ function renderStatsReclamos(){
 DB.condicionesIVA=['Responsable inscripto','Monotributista','Exento','Consumidor final','No responsable'];
 DB.condicionesPago=['30 días','45 días','60 días','90 días','A 30/60 días','Contado','15 días','A 30/60/90 días'];
 DB.formasPago=['Transferencia','Cheque físico','E-cheq','Transferencia programada','Efectivo'];
-DB.modelosPrecio=['Abono mensual fijo','Por EFT','Por horas variables','Presupuesto cerrado'];
+DB.modelosPrecio=['Abono mensual fijo','Por EFT','Por horas variables'];
 DB.periodosFacturacion=['Del 1 al último del mes','Del 21 al 20','Del 26 al 25','Del 16 al 15','Otro'];
 DB.rolesResponsables=['Gerente general','Gerente de operaciones','Gerente de sucursal','Jefe de seguridad','Jefe de servicios','Encargado','Contacto de cobros','Contacto de facturación','Otro'];
 DB.tiposAccionCRM=['Llamada','Reunión','Email','Visita','Propuesta','Seguimiento','Demo','Prueba piloto'];
@@ -3030,6 +3055,7 @@ function eliminarEtapaCRM(idx){
 function renderConfigComercial(){
   renderCfgComercialLista('tiposServicio','lista-tipos-servicio');
   renderCfgComercialLista('tiposCliente','lista-tipos-cliente');
+  renderCfgComercialLista('tiposSitio','lista-tipos-sitio');
   renderCfgComercialLista('categoriasArca','lista-categorias-arca');
   renderCfgComercialLista('motivosBajaObjetivo','lista-motivos-baja-obj');
   renderCfgComercialLista('condicionesIVA','lista-cond-iva');
@@ -3104,6 +3130,8 @@ function poblarSelectsComercial(){
   fS('cli-forma-pago',DB.formasPago);
   fS('obj-tipo',DB.tiposServicio);
   fS('cf-obj-tipo',DB.tiposServicio);
+  fS('obj-tipo-sitio',DB.tiposSitio);
+  fS('cf-obj-tipo-sitio',DB.tiposSitio);
   fS('obj-modelo-precio',DB.modelosPrecio);
   const objPeriodo=$('obj-periodo-fact');
   if(objPeriodo){const ph='<option value="">Heredar del cliente</option>';objPeriodo.innerHTML=ph+DB.periodosFacturacion.map(p=>`<option>${p}</option>`).join('');}

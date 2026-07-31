@@ -891,6 +891,14 @@
       </div>
 
       <div class="card">
+        <div class="card-header"><h3>📍 Tipos de sitio</h3><span class="text-muted">El tipo de lugar del servicio (distinto del tipo de tarea)</span></div>
+        <div class="card-body">
+          <div class="config-list" id="lista-tipos-sitio"></div>
+          <div class="config-add"><input type="text" id="nuevo-tipo-sitio" placeholder="Ej: Supermercado, Centro logístico..."><button class="btn btn-primary btn-sm" onclick="agregarCfgComercial('tiposSitio','nuevo-tipo-sitio','lista-tipos-sitio')">Agregar</button></div>
+        </div>
+      </div>
+
+      <div class="card">
         <div class="card-header"><h3>🧾 Categoría ARCA</h3></div>
         <div class="card-body">
           <div class="config-list" id="lista-categorias-arca"></div>
@@ -2009,6 +2017,7 @@
         <input type="text" placeholder="🔍 Buscar servicio..." id="buscar-objetivo" oninput="filtrarObjetivos()">
         <select id="cf-obj-cliente" onchange="filtrarObjetivos()"><option value="">Todos los clientes</option></select>
         <select id="cf-obj-tipo" onchange="filtrarObjetivos()"><option value="">Todos los tipos</option><option>Limpieza</option><option>Mantenimiento</option><option>Final de obra</option><option>Evento</option><option>Obra</option><option>Otro</option></select>
+        <select id="cf-obj-tipo-sitio" onchange="filtrarObjetivos()"><option value="">Todos los tipos de sitio</option></select>
       </div>
     </div>
     <div class="tabla-wrap"><table>
@@ -2017,6 +2026,7 @@
         <th>Servicio<input type="text" placeholder="🔍" style="display:block;width:100%;font-size:10px;padding:2px 4px;border:1px solid var(--borde-fuerte);border-radius:5px;margin-top:4px;outline:none;" oninput="filtrarObjetivos()" id="cf-on-nombre"></th>
         <th>Cliente</th>
         <th>Tipo servicio</th>
+        <th>Tipo de sitio</th>
         <th>Modelo precio</th>
         <th>Valor mensual</th>
         <th>Supervisor</th>
@@ -5321,8 +5331,14 @@
               <select id="obj-tipo"></select>
             </div>
           </div>
-          <div class="form-grid form-grid-3">
+          <div class="form-grid form-grid-2">
+            <div class="form-group"><label>Tipo de sitio</label>
+              <select id="obj-tipo-sitio"><option value="">— Seleccionar —</option></select>
+              <span class="form-hint">El tipo de lugar (Supermercado, Centro logístico...) — distinto del tipo de servicio (la tarea)</span>
+            </div>
             <div class="form-group"><label>Dirección *</label><input type="text" id="obj-dir" placeholder="Calle y altura"></div>
+          </div>
+          <div class="form-grid form-grid-2">
             <div class="form-group"><label>Jurisdicción *</label><select id="obj-jurisdiccion" onchange="poblarLocalidadesServicio()"><option value="">— Seleccionar —</option></select></div>
             <div class="form-group"><label>Localidad *</label><select id="obj-localidad"><option value="">— Elegí jurisdicción primero —</option></select></div>
           </div>
@@ -5344,9 +5360,9 @@
             <span id="obj-modelo-precio-hint" style="font-size:11px;color:var(--texto-suave);"></span>
           </div>
           <div id="obj-precio-por-hora-row" class="form-grid form-grid-3">
-            <div class="form-group"><label>Cantidad de horas *</label><input type="number" id="obj-efts" step="0.5" placeholder="Ej: 200" oninput="recalcularPrecioObjetivo()"></div>
+            <div class="form-group"><label id="obj-efts-label">Cantidad de horas *</label><input type="number" id="obj-efts" step="0.5" placeholder="Ej: 200" oninput="recalcularPrecioObjetivo()"></div>
             <div class="form-group"><label>Valor hora *</label><input type="number" id="obj-valor-hora" placeholder="$ por hora" oninput="recalcularPrecioObjetivo()"></div>
-            <div class="form-group"><label>Valor mensual (calculado)</label><input type="text" id="obj-valor-calculado" disabled style="background:var(--fondo);font-weight:700;"></div>
+            <div class="form-group"><label id="obj-valor-calculado-label">Valor mensual (calculado)</label><input type="text" id="obj-valor-calculado" disabled style="background:var(--fondo);font-weight:700;"></div>
           </div>
           <div id="obj-precio-fijo-row" class="form-grid form-grid-3">
             <div class="form-group"><label>Valor mensual *</label><input type="number" id="obj-valor" placeholder="$" oninput="recalcularPrecioObjetivo()"></div>

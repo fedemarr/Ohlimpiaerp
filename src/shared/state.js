@@ -22,6 +22,14 @@ export const DB = {
   // recargar la página. Es una limitación preexistente de todo ese
   // sistema de catálogos, no algo nuevo de este cambio).
   tiposCliente: ['Cadena supermercados', 'Hospital', 'Corporativo', 'Gobierno', 'Educación', 'Otro'],
+  // DELTA_servicios_tipo_de_sitio_v1 (30/07/2026) — "Tipo de servicio" es
+  // la TAREA (Limpieza, Mantenimiento...); "Tipo de sitio" es el LUGAR
+  // (Supermercado, Centro logístico...). Un cliente puede tener muchos
+  // servicios de la misma tarea en lugares distintos (ej. Chango: ~20
+  // supermercados + 1 centro logístico, todos "Limpieza"). Mismo patrón
+  // que tiposCliente — parametrizable desde Configuración, sin tabla
+  // propia en Supabase (el campo tipoSitio de cada objetivo sí persiste).
+  tiposSitio: ['Supermercado', 'Centro logístico', 'Oficina', 'Hospital', 'Consorcio', 'Industria', 'Otro'],
   categoriasArca: ['Gran contribuyente', 'MiPyME', 'Pequeño contribuyente', 'Otro'],
   // 2.2.6 (Delta Comercial v1.2) — motivo parametrizable al dar de baja un
   // objetivo/servicio (antes era 100% texto libre vía prompt()).
