@@ -117,6 +117,10 @@ export const _SM = {
   leads: 'leads',
   // v052 — Gestión de precios
   propuestasPrecios: 'propuestas_precios',
+  // v054 — Comisiones
+  comisionesExternos: 'comisiones_externos',
+  comisionesDevengos: 'comisiones_devengos',
+  comisionesPagos: 'comisiones_pagos',
 };
 
 // camelCase → snake_case para guardar en Supabase
@@ -398,6 +402,14 @@ export function _toSnake(obj) {
     fechaConfirmacion: 'fecha_confirmacion',
     motivoRechazoGerente: 'motivo_rechazo_gerente', motivoRechazoCliente: 'motivo_rechazo_cliente',
     loteId: 'lote_id', propuestaAnteriorId: 'propuesta_anterior_id', cargadoPor: 'cargado_por',
+    // v054 — Comisiones
+    comisionId: 'comision_id', objetivoNombre: 'objetivo_nombre',
+    clienteNombre: 'cliente_nombre', personaTipo: 'persona_tipo', personaRef: 'persona_ref',
+    personaNombre: 'persona_nombre', facturaId: 'factura_id',
+    montoBase: 'monto_base', montoComision: 'monto_comision', fechaDevengo: 'fecha_devengo',
+    fechaDisponible: 'fecha_disponible', montoPagado: 'monto_pagado',
+    periodosTotal: 'periodos_total', periodosConsumidos: 'periodos_consumidos',
+    tramosPct: 'tramos_pct', registradoEn: 'registrado_en',
   };
   const r = {};
   for (const [k, v] of Object.entries(obj)) {
@@ -681,6 +693,14 @@ export function _toCamel(obj) {
     fecha_confirmacion: 'fechaConfirmacion',
     motivo_rechazo_gerente: 'motivoRechazoGerente', motivo_rechazo_cliente: 'motivoRechazoCliente',
     lote_id: 'loteId', propuesta_anterior_id: 'propuestaAnteriorId', cargado_por: 'cargadoPor',
+    // v054 — Comisiones
+    comision_id: 'comisionId', objetivo_nombre: 'objetivoNombre',
+    cliente_nombre: 'clienteNombre', persona_tipo: 'personaTipo', persona_ref: 'personaRef',
+    persona_nombre: 'personaNombre', factura_id: 'facturaId',
+    monto_base: 'montoBase', monto_comision: 'montoComision', fecha_devengo: 'fechaDevengo',
+    fecha_disponible: 'fechaDisponible', monto_pagado: 'montoPagado',
+    periodos_total: 'periodosTotal', periodos_consumidos: 'periodosConsumidos',
+    tramos_pct: 'tramosPct', registrado_en: 'registradoEn',
   };
   const r = {};
   for (const [k, v] of Object.entries(obj)) {

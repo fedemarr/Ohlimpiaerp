@@ -130,6 +130,7 @@ async function loadLegacy() {
       smvm: { title: 'SMVM histórico', btn: '', fn: null, render: () => { if (window.renderSMVM) window.renderSMVM(); } },
       feriados: { title: 'Feriados', btn: '+ Agregar feriado', fn: () => { if (window.abrirModalFeriado) window.abrirModalFeriado(); }, render: () => { if (window.renderFeriados) window.renderFeriados(); } },
       cobros: { title: 'Gestión de cobros', btn: '', fn: null, render: () => { if (window.renderCobros) window.renderCobros(); } },
+      comisiones: { title: 'Comisiones', btn: '', fn: null, render: () => { if (window.renderComisiones) window.renderComisiones(); } },
       crm: { title: 'CRM Comercial', btn: '+ Nuevo lead', fn: () => { if (window.abrirNuevoLead) window.abrirNuevoLead(); }, render: () => { if (window.renderCRM) window.renderCRM(); } },
       reclamos: { title: 'Reclamos y NC', btn: '+ Nuevo reclamo', fn: () => abrirModal('modal-reclamo'), render: () => { if (window.renderReclamos) window.renderReclamos(); } },
       precios: { title: 'Gestión de precios', btn: '', fn: null, render: () => { if (window.renderPrecios) window.renderPrecios(); } },

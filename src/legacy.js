@@ -1347,6 +1347,21 @@ DB.cobros = [
 ];
 DB.historialImportaciones = [];
 
+// ========== COMISIONES (DELTA_comisiones_v1, 30/07/2026) ==========
+// Cuenta corriente de comisiones por persona (interna de Legajos o
+// externa). La asignación de quién cobra comisión vive en
+// obj.comisiones[] (array por servicio, ver guardarObjetivo). Acá sólo
+// van las colecciones propias del módulo: el mini-registro de externos
+// (no están en Legajos), el libro mayor de devengos (una fila por
+// factura×comisión) y el historial de pagos.
+DB.comisionesExternos = []; // [{id,nombre,dni,tel,mail,activo}]
+DB.comisionesDevengos = [];
+DB.comisionesPagos = [];
+// Tope de aviso (no bloqueo) de % de comisión acumulado por servicio —
+// mismo patrón no-persistido que DB.adelantosConfig (vive en memoria,
+// se resetea a este default en cada carga).
+if(!DB.comisionesConfig) DB.comisionesConfig = { topeAlertaPct: 10 };
+
 // ========== RENDER CLIENTES ==========
 function renderClientes(lista){
   reconciliarClienteIdObjetivos();
@@ -1872,6 +1887,7 @@ function abrirModalObjetivo(idLocal){
   respObjetivoTemp.length=0;respObjetivoTemp.push(...(o?(o.responsables||[]).map(r=>({...r})):[]));
   adjuntosObjTemp.length=0;adjuntosObjTemp.push(...(o?(o.adjuntos||[]).map(a=>({...a})):[]));
   puestosObjTemp.length=0;puestosObjTemp.push(...(o?(o.puestos||[]).map(p=>({...p,dias:{...(p.dias||{})}})):[]));
+  comisionesObjTemp.length=0;comisionesObjTemp.push(...(o?(o.comisiones||[]).map(c=>({...c,tramosPct:(c.tramosPct||[]).map(t=>({...t}))})):[]));
   const titulo=$('obj-modal-title');
   if(titulo) titulo.textContent=o?'📍 Editar servicio':'📍 Nuevo servicio';
   if(o){
@@ -1910,7 +1926,11 @@ function abrirModalObjetivo(idLocal){
     poblarLocalidadesServicio();
     poblarModeloPrecioSegunCliente(0);
   }
-  renderRespObjetivoTemp();renderAdjuntosObj();renderPuestosObj();toggleModeloPrecio();
+  if($('obj-paga-comision')) $('obj-paga-comision').checked=comisionesObjTemp.length>0;
+  if($('obj-com-es-externo')) $('obj-com-es-externo').checked=false;
+  if($('obj-com-tipo')) $('obj-com-tipo').value='Continuo';
+  toggleComisionesObjetivo();toggleObjComExterno();toggleObjComPeriodos();
+  renderRespObjetivoTemp();renderAdjuntosObj();renderPuestosObj();renderComisionesObjTemp();toggleModeloPrecio();
   bloquearCamposObjetivoPendiente(o?.estado==='Pendiente asignación operativa');
   abrirModal('modal-objetivo');
 }
@@ -1941,6 +1961,7 @@ function guardarObjetivo(){
     dir:$('obj-dir')?.value,
     jurisdiccion:$('obj-jurisdiccion')?.value||'',localidad:$('obj-localidad')?.value||'',
     puestos:[...puestosObjTemp],
+    comisiones:$('obj-paga-comision')?.checked?[...comisionesObjTemp]:[],
     modeloPrecio,valor,efts,valorHora,
     fechaInicio:$('obj-fecha-inicio')?.value?new Date($('obj-fecha-inicio').value).toLocaleDateString('es-AR'):'',
     fechaFin:$('obj-fecha-fin')?.value?new Date($('obj-fecha-fin').value).toLocaleDateString('es-AR'):'',
@@ -2106,6 +2127,115 @@ function renderPuestosObj(){
       </div>
       <div class="form-group" style="margin:6px 0 0;"><label style="font-size:10px;">Observación</label><input type="text" value="${p.obs||''}" placeholder="Notas de este puesto..." style="${inputStyle}" oninput="puestosObjTemp[${i}].obs=this.value"></div>
     </div>`).join('')||'<p class="text-muted" style="font-size:12px;">Sin puestos cargados — hacé click en "+ Agregar puesto"</p>';
+}
+
+// ========== COMISIONES asignadas al servicio (DELTA_comisiones_v1) ==========
+// La ASIGNACIÓN (quién cobra, tipo, períodos) se gestiona acá, en el
+// alta/edición del servicio, y vive en obj.comisiones[]. El % nace acá
+// con el % inicial (primer tramo de tramosPct); los CAMBIOS de % a
+// futuro se gestionan desde el módulo de Comisiones, no se re-edita
+// acá — "no se pisa, se agrega un tramo nuevo" (mismo criterio que
+// precios). pctVigenteComision() se reusa también desde ese módulo.
+let comisionesObjTemp=[];
+window.comisionesObjTemp=comisionesObjTemp;
+
+function toggleComisionesObjetivo(){
+  const on=$('obj-paga-comision')?.checked;
+  const wrap=$('obj-comisiones-wrap');
+  if(wrap) wrap.style.display=on?'block':'none';
+}
+function toggleObjComExterno(){
+  const esExt=$('obj-com-es-externo')?.checked;
+  const inp=$('obj-com-persona'), sel=$('obj-com-persona-externo');
+  if(inp) inp.style.display=esExt?'none':'block';
+  if(sel){
+    sel.style.display=esExt?'block':'none';
+    if(esExt){
+      const ph=sel.options[0]?.outerHTML||'<option value="">— Elegir persona externa —</option>';
+      sel.innerHTML=ph+(DB.comisionesExternos||[]).filter(e=>e.activo).map(e=>`<option value="${e.id}">${e.nombre}</option>`).join('');
+    }
+  }
+}
+function toggleObjComPeriodos(){
+  const esTemporal=$('obj-com-tipo')?.value==='Temporal';
+  const row=$('obj-com-periodos-row');
+  if(row) row.style.display=esTemporal?'grid':'none';
+}
+// Último tramo con fechaVigencia <= fecha de referencia (mismo criterio
+// que getMontoEnMes/aplicarTramosVencidos de Gestión de precios, pero
+// genérico para el array tramosPct de una comisión).
+function pctVigenteComision(comision,fechaDMY){
+  const f=fechaDMY?_dmyPrecios(fechaDMY):new Date();
+  let pct=0;
+  (comision.tramosPct||[]).slice().sort((a,b)=>_dmyPrecios(a.fechaVigencia)-_dmyPrecios(b.fechaVigencia)).forEach(t=>{
+    const tf=_dmyPrecios(t.fechaVigencia);
+    if(tf&&tf<=f) pct=t.pct;
+  });
+  return pct;
+}
+function agregarComisionObjetivoTemp(){
+  const esExterno=$('obj-com-es-externo')?.checked;
+  const tipo=$('obj-com-tipo')?.value||'Continuo';
+  const pct=parseFloat($('obj-com-pct')?.value)||0;
+  const periodosTotal=tipo==='Temporal'?(parseInt($('obj-com-periodos')?.value)||0):null;
+  if(!pct){toast('Ingresá el % inicial de la comisión');return;}
+  if(tipo==='Temporal'&&!periodosTotal){toast('Ingresá la cantidad de períodos (comisión temporal)');return;}
+  let personaTipo,personaRef,personaNombre;
+  if(esExterno){
+    const id=$('obj-com-persona-externo')?.value;
+    const ext=(DB.comisionesExternos||[]).find(e=>String(e.id)===String(id));
+    if(!ext){toast('Elegí una persona externa');return;}
+    personaTipo='externo';personaRef=ext.id;personaNombre=ext.nombre;
+  } else {
+    const nombre=$('obj-com-persona')?.value.trim();
+    const legajo=(DB.legajos||[]).find(l=>l.nombre===nombre&&l.estado==='Activo');
+    if(!legajo){toast('Elegí un asociado activo de la lista (buscá por nombre, tal cual aparece en Legajos)');return;}
+    personaTipo='interno';personaRef=legajo.nro;personaNombre=legajo.nombre;
+  }
+  if(comisionesObjTemp.some(c=>c.activa&&c.personaTipo===personaTipo&&String(c.personaRef)===String(personaRef)&&c.tipo===tipo)){
+    toast('Esta persona ya tiene una comisión de este tipo asignada en este servicio');return;
+  }
+  const fechaHoy=new Date().toLocaleDateString('es-AR');
+  comisionesObjTemp.push({
+    id:Date.now()+Math.floor(Math.random()*1e6),
+    personaTipo,personaRef,personaNombre,tipo,
+    periodosTotal,periodosConsumidos:0,
+    tramosPct:[{id:Date.now(),pct,fechaVigencia:fechaHoy}],
+    activa:true,creadaPor:currentUser?.nombre||'',creadaEn:fechaHoy,
+  });
+  if($('obj-com-persona'))$('obj-com-persona').value='';
+  if($('obj-com-persona-externo'))$('obj-com-persona-externo').value='';
+  if($('obj-com-pct'))$('obj-com-pct').value='';
+  if($('obj-com-periodos'))$('obj-com-periodos').value='';
+  if($('obj-com-es-externo'))$('obj-com-es-externo').checked=false;
+  toggleObjComExterno();
+  renderComisionesObjTemp();
+}
+function eliminarComisionObjTemp(idx){
+  comisionesObjTemp.splice(idx,1);
+  renderComisionesObjTemp();
+}
+function renderComisionesObjTemp(){
+  const el=$('obj-comisiones-lista');if(!el)return;
+  const hoy=new Date().toLocaleDateString('es-AR');
+  el.innerHTML=comisionesObjTemp.map((c,i)=>{
+    const pct=pctVigenteComision(c,hoy);
+    return `<div class="config-item">
+      <span style="font-size:12px;">
+        <strong>${c.personaNombre}</strong>${c.personaTipo==='externo'?' <span class="badge badge-gris" style="font-size:9px;">Externo</span>':''}
+        — ${c.tipo==='Temporal'?`Temporal (${c.periodosConsumidos||0}/${c.periodosTotal} períodos)`:'Continuo'}
+        — <strong>${pct}%</strong>
+      </span>
+      <button class="btn btn-danger btn-xs" type="button" onclick="eliminarComisionObjTemp(${i})">Quitar</button>
+    </div>`;
+  }).join('')||'<p class="text-muted" style="font-size:12px;">Sin comisiones cargadas</p>';
+  const tope=DB.comisionesConfig?.topeAlertaPct??10;
+  const sumaPct=comisionesObjTemp.filter(c=>c.activa).reduce((s,c)=>s+pctVigenteComision(c,hoy),0);
+  const aviso=$('obj-com-tope-aviso');
+  if(aviso){
+    if(sumaPct>tope){aviso.style.display='block';aviso.textContent=`⚠️ Este servicio suma ${sumaPct}% de comisión (tope de aviso: ${tope}%).`;}
+    else aviso.style.display='none';
+  }
 }
 
 // Roles de responsables en formulario (parametrizables)
@@ -3116,6 +3246,7 @@ function poblarSelectsComercial(){
   fS('cf-cli-tipo',DB.tiposCliente);
   fS('cli-arca',DB.categoriasArca);
   fillDL('dl-cli-responsable',(DB.legajos||[]).filter(l=>l.estado==='Activo').map(l=>l.nombre));
+  fillDL('dl-obj-comision-persona',(DB.legajos||[]).filter(l=>l.estado==='Activo').map(l=>l.nombre));
   fS('obj-jurisdiccion',Object.keys(DB.jurisdiccionesServicio||{}));
   fSId('obj-cliente',DB.clientes);
   fSId('rec-cliente',DB.clientes);
@@ -3258,7 +3389,19 @@ function renderCobros(lista){
     const diasAtraso=Math.max(0,Math.floor((hoy-venc)/(1000*3600*24)));
     const probColor=f.probCobro>=80?'var(--verde)':f.probCobro>=50?'var(--naranja)':'var(--rojo)';
     const realIdx=DB.facturas.indexOf(f);
-    const periodo=formatPeriodo(f.periodoDesde,f.periodoHasta);
+    // DELTA_comisiones_v1 — objetivoCod/periodoDesde llegan '—'/vacíos en
+    // facturas importadas de Tango (el export es a nivel cliente, sin
+    // servicio ni período de prestación). Sin este dato el módulo de
+    // Comisiones no puede vincular la factura a un servicio, así que acá
+    // se pueden asignar a mano — dispara sincronizarComisionesFactura().
+    const objetivosCliente=DB.objetivos.filter(o=>o.clienteId===f.clienteId);
+    const selObjetivo=`<select style="font-size:11px;padding:2px 4px;border:1px solid var(--borde-fuerte);border-radius:5px;max-width:150px;" onchange="asignarObjetivoFactura(${realIdx},this.value)">
+      <option value="—"${f.objetivoCod==='—'||!f.objetivoCod?' selected':''}>— Sin asignar —</option>
+      ${objetivosCliente.map(o=>`<option value="${o.codigo}"${f.objetivoCod===o.codigo?' selected':''}>${o.codigo}</option>`).join('')}
+    </select>`;
+    let periodoInputVal='';
+    if(f.periodoDesde){const[dd,mm,yy]=f.periodoDesde.split('/');periodoInputVal=`${yy}-${mm}`;}
+    const selPeriodo=`<input type="month" value="${periodoInputVal}" style="font-size:11px;padding:2px 4px;border:1px solid var(--borde-fuerte);border-radius:5px;width:105px;" onchange="asignarPeriodoFactura(${realIdx},this.value)">`;
     // Gestión de cobranzas v1: la gestión vive a nivel cliente, no factura
     // — acá se toma la porción que aplica a ESTA factura (todas las del
     // cliente sin alcance puntual, más las que la listan explícitamente).
@@ -3270,9 +3413,9 @@ function renderCobros(lista){
     const fechaInputVal=f.fechaPosibleCobro?f.fechaPosibleCobro.split('/').reverse().join('-'):'';
     return `<tr>
       <td style="font-weight:500;">${cli?.nombre||'—'}</td>
-      <td style="font-size:11px;color:var(--texto-suave);">${f.objetivoCod}</td>
+      <td>${selObjetivo}</td>
       <td style="font-family:'DM Mono',monospace;font-size:11px;">${f.nroFactura}</td>
-      <td style="font-size:11px;color:var(--texto-suave);">${periodo}</td>
+      <td>${selPeriodo}</td>
       <td style="font-weight:700;color:var(--azul);">$${f.importe.toLocaleString('es-AR')}</td>
       <td style="font-weight:700;color:${saldoDe(f)<f.importe?'var(--naranja)':'var(--rojo)'};" title="${saldoDe(f)<f.importe?'Pago parcial recibido':'Sin cobros aplicados'}">$${saldoDe(f).toLocaleString('es-AR')}</td>
       <td style="font-size:12px;">${f.fechaFactura||'—'}</td>
@@ -3296,6 +3439,118 @@ function renderCobros(lista){
       <td>${f.estado==='Cobrada (pendiente Tango)'?'<span style="font-size:10px;color:var(--texto-suave);">⏳ Pendiente Tango</span>':`<button class="btn btn-xs" style="background:var(--verde-claro);color:var(--verde);border:1px solid #9fdaba;" onclick="marcarCobrado(${realIdx})">✓</button>`}</td>
     </tr>`;
   }).join('')||`<tr><td colspan="18"><div class="empty-state"><div class="icon">💳</div><p>Sin facturas pendientes</p></div></td></tr>`;
+}
+
+function asignarObjetivoFactura(idx,cod){
+  const f=DB.facturas[idx];if(!f)return;
+  f.objetivoCod=cod||'—';
+  supaSync('facturas',f);
+  sincronizarComisionesFactura(f);
+  renderCobros();
+  toast(f.objetivoCod==='—'?'Servicio desasignado de la factura':`Factura vinculada a ${f.objetivoCod}`);
+}
+function asignarPeriodoFactura(idx,mesISO){
+  const f=DB.facturas[idx];if(!f)return;
+  if(!mesISO){f.periodoDesde='';f.periodoHasta='';}
+  else{
+    const[yy,mm]=mesISO.split('-');
+    const ultimoDia=new Date(parseInt(yy),parseInt(mm),0).getDate();
+    f.periodoDesde=`01/${mm}/${yy}`;
+    f.periodoHasta=`${String(ultimoDia).padStart(2,'0')}/${mm}/${yy}`;
+  }
+  supaSync('facturas',f);
+  sincronizarComisionesFactura(f);
+  renderCobros();
+}
+
+// ========== MOTOR DE DEVENGO DE COMISIONES (DELTA_comisiones_v1) ==========
+// Punto 3 del delta: la base de cálculo es SIEMPRE horas, nunca la
+// factura de Tango (que puede mezclar horas+productos en renglones
+// separados) — así los productos quedan afuera automáticamente.
+// Punto 4: se devenga al facturar (objetivoCod+período asignados),
+// se habilita para pago recién cuando esa factura queda 100% cobrada
+// (f.estado==='Cobrado', la única transición que fija Tango como fuente
+// de verdad — "marcada cobrada pendiente Tango" NO habilita todavía).
+function periodoFacturaAMesLiq(factura){
+  const pd=factura.periodoDesde||factura.fechaFactura;
+  if(!pd)return'';
+  const partes=pd.split('/');
+  if(partes.length!==3)return'';
+  const[,mm,yy]=partes;
+  return`${yy}-${mm}`;
+}
+function calcularMontoBaseComision(obj,factura){
+  const fFactura=_dmyPrecios(factura.fechaFactura||factura.periodoDesde);
+  if(obj.modeloPrecio==='Abono mensual fijo'){
+    let val=obj.valor||0;
+    (obj.historialPrecios||[]).forEach(h=>{const f=_dmyPrecios(h.fecha);if(f&&fFactura&&f<=fFactura&&h.valor)val=h.valor;});
+    return val;
+  }
+  // Por EFT / Por horas variables: horas facturables reales del período
+  // (Liquidación de horas) × valor hora vigente a la fecha de la factura.
+  const mesLiq=periodoFacturaAMesLiq(factura);
+  if(!mesLiq)return 0;
+  const grilla=(DB.grillasLiq||[]).find(g=>g.periodo===mesLiq&&g.objCodigo===obj.codigo);
+  const horas=grilla?.totalHorasFacturables||0;
+  let valorHora=obj.valorHora||0;
+  (obj.historialPrecios||[]).forEach(h=>{const f=_dmyPrecios(h.fecha);if(f&&fFactura&&f<=fFactura&&h.valorHora)valorHora=h.valorHora;});
+  return Math.round(horas*valorHora);
+}
+// Idempotente: nunca duplica un devengo para la misma comisión+factura —
+// se puede llamar repetidas veces a medida que se completan datos
+// (objetivo, período, horas cargadas) sin generar duplicados.
+function generarDevengosFactura(factura){
+  if(!factura||!factura.objetivoCod||factura.objetivoCod==='—')return;
+  if(!factura.periodoDesde)return;
+  const obj=DB.objetivos.find(o=>o.codigo===factura.objetivoCod);
+  if(!obj||!(obj.comisiones||[]).length)return;
+  const fechaRef=factura.fechaFactura||factura.periodoDesde;
+  obj.comisiones.filter(c=>c.activa).forEach(com=>{
+    if(com.tipo==='Temporal'&&com.periodosTotal!=null&&(com.periodosConsumidos||0)>=com.periodosTotal)return;
+    const yaExiste=DB.comisionesDevengos.find(d=>d.comisionId===com.id&&d.facturaId===factura.id);
+    if(yaExiste)return;
+    const montoBase=calcularMontoBaseComision(obj,factura);
+    if(!montoBase)return; // sin datos todavía (ej. horas sin cargar) — se reintenta en el próximo sync
+    const pct=pctVigenteComision(com,fechaRef);
+    if(!pct)return;
+    const montoComision=Math.round(montoBase*pct/100);
+    const cli=DB.clientes.find(c=>c.id===obj.clienteId);
+    const nuevo={
+      id:Date.now()+Math.floor(Math.random()*1e6),
+      comisionId:com.id,objetivoId:obj.id,objetivoCod:obj.codigo,objetivoNombre:obj.nombre,
+      clienteId:obj.clienteId,clienteNombre:cli?.nombre||'',
+      personaTipo:com.personaTipo,personaRef:com.personaRef,personaNombre:com.personaNombre,
+      facturaId:factura.id,nroFactura:factura.nroFactura,periodo:formatPeriodo(factura.periodoDesde,factura.periodoHasta),
+      montoBase,pct,montoComision,
+      estado:'Devengada',fechaDevengo:factura.fechaFactura||new Date().toLocaleDateString('es-AR'),
+      fechaDisponible:'',fechaPago:'',montoPagado:0,saldo:montoComision,
+    };
+    DB.comisionesDevengos.push(nuevo);
+    supaSync('comisionesDevengos',nuevo);
+  });
+}
+// Idempotente: sólo actúa sobre devengos todavía 'Devengada' de esta
+// factura — llamarla de más (ej. en cada import de Tango) no repite el
+// consumo de períodos de las comisiones temporales.
+function habilitarComisionesFactura(factura){
+  const devengos=DB.comisionesDevengos.filter(d=>d.facturaId===factura.id&&d.estado==='Devengada');
+  devengos.forEach(d=>{
+    d.estado='Disponible';
+    d.fechaDisponible=new Date().toLocaleDateString('es-AR');
+    supaSync('comisionesDevengos',d);
+    const obj=DB.objetivos.find(o=>o.id===d.objetivoId);
+    const com=obj?.comisiones?.find(c=>c.id===d.comisionId);
+    if(com&&com.tipo==='Temporal'){
+      com.periodosConsumidos=(com.periodosConsumidos||0)+1;
+      if(com.periodosTotal!=null&&com.periodosConsumidos>=com.periodosTotal)com.activa=false;
+      supaSync('objetivos',obj);
+    }
+  });
+}
+function sincronizarComisionesFactura(factura){
+  if(!factura)return;
+  generarDevengosFactura(factura);
+  if(factura.estado==='Cobrado')habilitarComisionesFactura(factura);
 }
 
 function renderCobrados(lista){
@@ -3368,6 +3623,7 @@ function marcarCobrado(idx){
   f.marcadaCobradaPor=currentUser?.nombre||'';
   f.fechaMarcadaCobrada=new Date().toLocaleDateString('es-AR');
   supaSync('facturas',f);
+  generarDevengosFactura(f); // el devengo no depende de la confirmación de Tango, la habilitación para pago sí
   renderCobros();toast(`✓ ${f.nroFactura} marcada como cobrada — queda pendiente de confirmar con el próximo import de Tango`);
 }
 
@@ -3864,6 +4120,7 @@ function confirmarImportacionEstadoCuentaTango(){
       if(f.estado==='Cobrada (pendiente Tango)')confirmadasPendientesTango++;
       f.estado='Cobrado';
       f.alertaTangoNoConfirmo=false;
+      sincronizarComisionesFactura(f);
     }else{
       f.alertaTangoNoConfirmo=!!u.alertaNoConfirmada;
       if(u.alertaNoConfirmada)alertasNoConfirmadas++;
@@ -3928,6 +4185,270 @@ function renderHistorialImportaciones(){
         <div style="font-size:11px;color:var(--texto-suave);">${h.fecha}</div>
       </div>`).join('')}
   </div>`;
+}
+
+// ========== PANTALLA COMISIONES (DELTA_comisiones_v1) ==========
+// Cuenta corriente de comisiones por persona (interna de Legajos o
+// externa). No hay entidad "coordinador" propia: la lista de personas
+// se deriva de obj.comisiones[] de todos los servicios (punto 1 del
+// delta: cualquier asociado puede traer una venta). El detalle por
+// persona (punto 6) muestra los devengos de más antiguo a más nuevo; el
+// pago (punto 7) se aplica FIFO por defecto y admite modo manual, ambos
+// con trazabilidad completa vía comisionesPagos[].aplicaciones.
+function tabComisiones(tab,btn){
+  document.querySelectorAll('#screen-comisiones .tab-content').forEach(t=>t.classList.remove('active'));
+  document.querySelectorAll('#screen-comisiones .tab-btn').forEach(b=>b.classList.remove('active'));
+  const el=$('com-tab-'+tab);if(el)el.classList.add('active');
+  if(btn)btn.classList.add('active');
+  if(tab==='pagos')renderComisionesPagosHistorial();
+  if(tab==='externos')renderComisionesExternos();
+}
+function getPersonasComisionUnicas(){
+  const map=new Map();
+  DB.objetivos.forEach(o=>(o.comisiones||[]).forEach(c=>{
+    const key=c.personaTipo+':'+c.personaRef;
+    if(!map.has(key))map.set(key,{personaTipo:c.personaTipo,personaRef:c.personaRef,personaNombre:c.personaNombre,comisionesActivas:0});
+    if(c.activa)map.get(key).comisionesActivas++;
+  }));
+  return[...map.values()];
+}
+function resumenPersonaComision(tipo,ref){
+  const devs=DB.comisionesDevengos.filter(d=>d.personaTipo===tipo&&String(d.personaRef)===String(ref));
+  const devengado=devs.filter(d=>d.estado==='Devengada').reduce((s,d)=>s+d.montoComision,0);
+  const disponible=devs.filter(d=>d.estado==='Disponible').reduce((s,d)=>s+d.saldo,0);
+  const pagado=(DB.comisionesPagos||[]).filter(p=>p.personaTipo===tipo&&String(p.personaRef)===String(ref)).reduce((s,p)=>s+p.monto,0);
+  return{devengado,disponible,pagado};
+}
+function renderComisiones(){
+  const bg=($('buscar-comision-persona')||{value:''}).value.toLowerCase();
+  const filtroTipo=($('cf-com-tipo')||{value:''}).value;
+  let personas=getPersonasComisionUnicas();
+  if(filtroTipo)personas=personas.filter(p=>p.personaTipo===filtroTipo);
+  if(bg)personas=personas.filter(p=>p.personaNombre.toLowerCase().includes(bg));
+  let totalDisponible=0,totalDevengado=0,personasConSaldo=0;
+  const hoy=new Date();
+  const pagadoMes=(DB.comisionesPagos||[]).filter(p=>{
+    const f=_dmyPrecios(p.fecha);return f&&f.getMonth()===hoy.getMonth()&&f.getFullYear()===hoy.getFullYear();
+  }).reduce((s,p)=>s+p.monto,0);
+  const tbody=$('tbody-comisiones-cuenta');
+  if(tbody){
+    tbody.innerHTML=personas.map(p=>{
+      const r=resumenPersonaComision(p.personaTipo,p.personaRef);
+      totalDisponible+=r.disponible;totalDevengado+=r.devengado;
+      if(r.disponible>0.01)personasConSaldo++;
+      return`<tr>
+        <td style="font-weight:500;">${p.personaNombre}</td>
+        <td>${p.personaTipo==='externo'?'<span class="badge badge-gris">Externo</span>':'<span class="badge badge-azul">Interno</span>'}</td>
+        <td style="text-align:center;">${p.comisionesActivas}</td>
+        <td style="color:var(--naranja);">$${Math.round(r.devengado).toLocaleString('es-AR')}</td>
+        <td style="font-weight:700;color:var(--rojo);">$${Math.round(r.disponible).toLocaleString('es-AR')}</td>
+        <td style="color:var(--verde);">$${Math.round(r.pagado).toLocaleString('es-AR')}</td>
+        <td><button class="btn btn-secondary btn-xs" onclick="abrirComisionPersona('${p.personaTipo}','${p.personaRef}')">Ver detalle</button></td>
+      </tr>`;
+    }).join('')||`<tr><td colspan="7"><div class="empty-state"><div class="icon">🤝</div><p>Sin personas con comisión asignada todavía</p></div></td></tr>`;
+  }
+  if($('st-com-disponible'))$('st-com-disponible').textContent='$'+Math.round(totalDisponible/1000)+'k';
+  if($('st-com-devengado'))$('st-com-devengado').textContent='$'+Math.round(totalDevengado/1000)+'k';
+  if($('st-com-pagado-mes'))$('st-com-pagado-mes').textContent='$'+Math.round(pagadoMes/1000)+'k';
+  if($('st-com-personas'))$('st-com-personas').textContent=personasConSaldo;
+}
+function renderComisionesPagosHistorial(){
+  const tbody=$('tbody-comisiones-pagos');if(!tbody)return;
+  const pagos=(DB.comisionesPagos||[]).slice().sort((a,b)=>_dmyPrecios(b.fecha)-_dmyPrecios(a.fecha));
+  tbody.innerHTML=pagos.map(p=>`<tr>
+    <td style="font-size:12px;">${p.fecha}</td>
+    <td style="font-weight:500;">${p.personaNombre}</td>
+    <td style="font-weight:700;color:var(--verde);">$${Math.round(p.monto).toLocaleString('es-AR')}</td>
+    <td><span class="badge ${p.modo==='FIFO'?'badge-azul':'badge-naranja'}">${p.modo}</span></td>
+    <td style="font-size:12px;">${p.referencia||'—'}</td>
+    <td style="font-size:12px;">${p.registradoPor||'—'}</td>
+  </tr>`).join('')||`<tr><td colspan="6"><div class="empty-state"><div class="icon">💵</div><p>Sin pagos registrados</p></div></td></tr>`;
+}
+
+// ── Personas externas ──
+function agregarComisionExterno(){
+  const nombre=$('com-ext-nombre')?.value.trim();
+  if(!nombre){toast('Ingresá el nombre');return;}
+  const nuevo={id:Date.now(),nombre,dni:$('com-ext-dni')?.value.trim()||'',tel:$('com-ext-tel')?.value.trim()||'',mail:'',activo:true};
+  DB.comisionesExternos.push(nuevo);
+  supaSync('comisionesExternos',nuevo);
+  $('com-ext-nombre').value='';$('com-ext-dni').value='';$('com-ext-tel').value='';
+  renderComisionesExternos();
+  toast('✓ Persona externa agregada');
+}
+function eliminarComisionExterno(id){
+  const ext=(DB.comisionesExternos||[]).find(e=>String(e.id)===String(id));
+  if(!ext)return;
+  if(!confirm(`¿Dar de baja a ${ext.nombre} como persona externa? No se borra el historial de comisiones ya generado.`))return;
+  ext.activo=false;
+  supaSync('comisionesExternos',ext);
+  renderComisionesExternos();
+}
+function renderComisionesExternos(){
+  const el=$('lista-comisiones-externos');if(!el)return;
+  const activos=(DB.comisionesExternos||[]).filter(e=>e.activo);
+  el.innerHTML=activos.length?activos.map(e=>`<div class="config-item">
+    <span style="font-size:13px;">${e.nombre}${e.dni?` — DNI ${e.dni}`:''}${e.tel?` — ${e.tel}`:''}</span>
+    <button class="btn btn-danger btn-xs" onclick="eliminarComisionExterno(${e.id})">Eliminar</button>
+  </div>`).join(''):'<p class="text-muted" style="font-size:12px;">Sin personas externas cargadas</p>';
+}
+
+// ── Detalle por persona + registrar pago (modal dinámico) ──
+function ensureModalComisionPersona(){
+  if($('modal-comision-persona'))return;
+  const m=document.createElement('div');
+  m.className='modal-overlay';
+  m.id='modal-comision-persona';
+  m.innerHTML=`
+    <div class="modal" style="max-width:780px;">
+      <div class="modal-header"><h3 id="cp-titulo">🤝 Estado de cuenta</h3><button class="btn-close" onclick="cerrarModal('modal-comision-persona')">×</button></div>
+      <div class="modal-body">
+        <div class="info-grid" style="margin-bottom:14px;" id="cp-info-resumen"></div>
+        <div style="font-size:11px;font-weight:700;text-transform:uppercase;color:var(--texto-suave);margin-bottom:8px;">Comisiones (de más antigua a más nueva)</div>
+        <div id="cp-devengos-lista" style="max-height:280px;overflow-y:auto;margin-bottom:14px;display:flex;flex-direction:column;gap:6px;"></div>
+
+        <div style="background:var(--fondo);border-radius:var(--radio);padding:12px;border:1px solid var(--borde);">
+          <div style="font-size:12px;font-weight:600;margin-bottom:8px;">💵 Registrar pago</div>
+          <div class="form-grid form-grid-3" style="margin-bottom:8px;">
+            <div class="form-group"><label>Monto pagado *</label><input type="number" id="cp-pago-monto" placeholder="$"></div>
+            <div class="form-group"><label>Fecha del pago</label><input type="date" id="cp-pago-fecha"></div>
+            <div class="form-group"><label>Referencia (opcional)</label><input type="text" id="cp-pago-ref" placeholder="Transferencia, N° comprobante..."></div>
+          </div>
+          <label style="font-size:11px;display:flex;align-items:center;gap:6px;margin-bottom:8px;cursor:pointer;">
+            <input type="checkbox" id="cp-pago-avanzado" onchange="toggleModoAvanzadoPago()"> Modo avanzado — elegir a qué comisiones aplicar el pago
+          </label>
+          <div id="cp-pago-checks" style="display:none;max-height:140px;overflow-y:auto;border:1px solid var(--borde);border-radius:var(--radio);padding:6px 10px;margin-bottom:8px;"></div>
+          <button class="btn btn-primary btn-sm" onclick="guardarPagoComision()">Registrar pago</button>
+        </div>
+      </div>
+    </div>`;
+  document.body.appendChild(m);
+}
+let _comisionPersonaAbierta=null;
+function abrirComisionPersona(tipo,ref){
+  ensureModalComisionPersona();
+  _comisionPersonaAbierta={tipo,ref};
+  if($('cp-pago-monto'))$('cp-pago-monto').value='';
+  if($('cp-pago-fecha'))$('cp-pago-fecha').value=new Date().toISOString().slice(0,10);
+  if($('cp-pago-ref'))$('cp-pago-ref').value='';
+  if($('cp-pago-avanzado'))$('cp-pago-avanzado').checked=false;
+  renderDetalleComisionPersona();
+  abrirModal('modal-comision-persona');
+}
+function renderDetalleComisionPersona(){
+  if(!_comisionPersonaAbierta)return;
+  const{tipo,ref}=_comisionPersonaAbierta;
+  const devs=DB.comisionesDevengos.filter(d=>d.personaTipo===tipo&&String(d.personaRef)===String(ref))
+    .slice().sort((a,b)=>_dmyPrecios(a.fechaDevengo)-_dmyPrecios(b.fechaDevengo));
+  const nombre=devs[0]?.personaNombre||getPersonasComisionUnicas().find(p=>p.personaTipo===tipo&&String(p.personaRef)===String(ref))?.personaNombre||'—';
+  const r=resumenPersonaComision(tipo,ref);
+  if($('cp-titulo'))$('cp-titulo').textContent=`🤝 Estado de cuenta — ${nombre}`;
+  if($('cp-info-resumen'))$('cp-info-resumen').innerHTML=`
+    <div class="info-item"><div class="key">Disponible para pagar</div><div class="val" style="font-weight:700;color:var(--rojo);">$${Math.round(r.disponible).toLocaleString('es-AR')}</div></div>
+    <div class="info-item"><div class="key">Devengado (sin cobrar aún)</div><div class="val" style="color:var(--naranja);">$${Math.round(r.devengado).toLocaleString('es-AR')}</div></div>
+    <div class="info-item"><div class="key">Pagado histórico</div><div class="val" style="color:var(--verde);">$${Math.round(r.pagado).toLocaleString('es-AR')}</div></div>`;
+  const estColor={'Devengada':'badge-naranja','Disponible':'badge-rojo','Pagada':'badge-verde'};
+  if($('cp-devengos-lista'))$('cp-devengos-lista').innerHTML=devs.map(d=>`
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 10px;background:var(--fondo);border-radius:var(--radio);border:1px solid var(--borde);font-size:12px;">
+      <div>
+        <strong>${d.objetivoNombre||d.objetivoCod}</strong> — ${d.clienteNombre} — período ${d.periodo}<br>
+        <span style="color:var(--texto-suave);">Factura ${d.nroFactura} · ${d.pct}% de $${Math.round(d.montoBase).toLocaleString('es-AR')}</span>
+      </div>
+      <div style="text-align:right;">
+        <span class="badge ${estColor[d.estado]||'badge-gris'}" style="font-size:10px;">${d.estado}</span>
+        <div style="font-weight:700;margin-top:2px;">$${Math.round(d.montoComision).toLocaleString('es-AR')}</div>
+        ${d.montoPagado>0?`<div style="font-size:10px;color:var(--texto-suave);">Pagado $${Math.round(d.montoPagado).toLocaleString('es-AR')} · saldo $${Math.round(d.saldo).toLocaleString('es-AR')}</div>`:''}
+      </div>
+    </div>`).join('')||'<p class="text-muted" style="font-size:12px;">Sin comisiones registradas todavía</p>';
+  toggleModoAvanzadoPago();
+}
+function toggleModoAvanzadoPago(){
+  if(!_comisionPersonaAbierta)return;
+  const avanzado=$('cp-pago-avanzado')?.checked;
+  const wrap=$('cp-pago-checks');
+  if(!wrap)return;
+  wrap.style.display=avanzado?'block':'none';
+  if(avanzado){
+    const{tipo,ref}=_comisionPersonaAbierta;
+    const disponibles=DB.comisionesDevengos.filter(d=>d.personaTipo===tipo&&String(d.personaRef)===String(ref)&&d.estado==='Disponible'&&d.saldo>0.01)
+      .slice().sort((a,b)=>_dmyPrecios(a.fechaDisponible)-_dmyPrecios(b.fechaDisponible));
+    wrap.innerHTML=disponibles.map(d=>`<label style="display:flex;align-items:center;gap:6px;font-size:11px;padding:2px 0;cursor:pointer;">
+      <input type="checkbox" class="cp-check-devengo" value="${d.id}"> ${d.objetivoCod} — período ${d.periodo} — saldo $${Math.round(d.saldo).toLocaleString('es-AR')}
+    </label>`).join('')||'<p class="text-muted" style="font-size:11px;">Sin comisiones disponibles para pagar</p>';
+  }
+}
+// Aplica el pago de lo más viejo a lo más nuevo (punto 7 del delta).
+// Admite parciales: cada devengo se salda cuando su saldo llega a 0 y el
+// remanente pasa al siguiente. Queda registrado en comisionesPagos con
+// el detalle de aplicación (trazabilidad) sin importar el modo.
+function aplicarPagoFIFO(tipo,ref,nombre,monto,fecha,referencia){
+  const devengos=DB.comisionesDevengos.filter(d=>d.personaTipo===tipo&&String(d.personaRef)===String(ref)&&d.estado==='Disponible'&&d.saldo>0.01)
+    .slice().sort((a,b)=>_dmyPrecios(a.fechaDisponible)-_dmyPrecios(b.fechaDisponible));
+  let restante=monto;
+  const aplicaciones=[];
+  devengos.forEach(d=>{
+    if(restante<=0.01)return;
+    const aplicar=Math.min(d.saldo,restante);
+    d.montoPagado=(d.montoPagado||0)+aplicar;
+    d.saldo=Math.round((d.saldo-aplicar)*100)/100;
+    restante=Math.round((restante-aplicar)*100)/100;
+    if(d.saldo<=0.01){d.saldo=0;d.estado='Pagada';d.fechaPago=fecha;}
+    aplicaciones.push({devengoId:d.id,montoAplicado:aplicar});
+    supaSync('comisionesDevengos',d);
+  });
+  const pago={id:Date.now(),personaTipo:tipo,personaRef:ref,personaNombre:nombre,monto,fecha,referencia:referencia||'',modo:'FIFO',aplicaciones,registradoPor:currentUser?.nombre||'',registradoEn:new Date().toISOString()};
+  DB.comisionesPagos.push(pago);
+  supaSync('comisionesPagos',pago);
+  return pago;
+}
+// Excepción al FIFO (ej. acuerdo especial de pagar primero un servicio
+// puntual) — misma trazabilidad, elige el usuario qué comisiones saldar.
+function aplicarPagoManual(tipo,ref,nombre,monto,fecha,referencia,devengoIds){
+  const seleccion=devengoIds.map(id=>DB.comisionesDevengos.find(d=>String(d.id)===String(id))).filter(Boolean)
+    .sort((a,b)=>_dmyPrecios(a.fechaDisponible)-_dmyPrecios(b.fechaDisponible));
+  let restante=monto;
+  const aplicaciones=[];
+  seleccion.forEach(d=>{
+    if(restante<=0.01)return;
+    const aplicar=Math.min(d.saldo,restante);
+    d.montoPagado=(d.montoPagado||0)+aplicar;
+    d.saldo=Math.round((d.saldo-aplicar)*100)/100;
+    restante=Math.round((restante-aplicar)*100)/100;
+    if(d.saldo<=0.01){d.saldo=0;d.estado='Pagada';d.fechaPago=fecha;}
+    aplicaciones.push({devengoId:d.id,montoAplicado:aplicar});
+    supaSync('comisionesDevengos',d);
+  });
+  const pago={id:Date.now(),personaTipo:tipo,personaRef:ref,personaNombre:nombre,monto,fecha,referencia:referencia||'',modo:'Manual',aplicaciones,registradoPor:currentUser?.nombre||'',registradoEn:new Date().toISOString()};
+  DB.comisionesPagos.push(pago);
+  supaSync('comisionesPagos',pago);
+  return pago;
+}
+function guardarPagoComision(){
+  if(!_comisionPersonaAbierta)return;
+  const{tipo,ref}=_comisionPersonaAbierta;
+  const monto=parseFloat($('cp-pago-monto')?.value)||0;
+  const fechaInput=$('cp-pago-fecha')?.value;
+  const fecha=fechaInput?new Date(fechaInput).toLocaleDateString('es-AR'):new Date().toLocaleDateString('es-AR');
+  const referencia=$('cp-pago-ref')?.value.trim()||'';
+  if(!monto){toast('Ingresá el monto pagado');return;}
+  const nombre=getPersonasComisionUnicas().find(p=>p.personaTipo===tipo&&String(p.personaRef)===String(ref))?.personaNombre||'';
+  const avanzado=$('cp-pago-avanzado')?.checked;
+  if(avanzado){
+    const ids=[...document.querySelectorAll('.cp-check-devengo:checked')].map(c=>c.value);
+    if(!ids.length){toast('Elegí al menos una comisión para aplicar el pago (modo avanzado)');return;}
+    const saldoSeleccion=ids.reduce((s,id)=>{const d=DB.comisionesDevengos.find(x=>String(x.id)===String(id));return s+(d?.saldo||0);},0);
+    if(monto>saldoSeleccion+0.01){toast(`El monto supera el saldo de las comisiones elegidas ($${Math.round(saldoSeleccion).toLocaleString('es-AR')})`);return;}
+    aplicarPagoManual(tipo,ref,nombre,monto,fecha,referencia,ids);
+  } else {
+    const r=resumenPersonaComision(tipo,ref);
+    if(monto>r.disponible+0.01){toast(`El monto supera el saldo disponible de esta persona ($${Math.round(r.disponible).toLocaleString('es-AR')})`);return;}
+    aplicarPagoFIFO(tipo,ref,nombre,monto,fecha,referencia);
+  }
+  if($('cp-pago-monto'))$('cp-pago-monto').value='';
+  if($('cp-pago-ref'))$('cp-pago-ref').value='';
+  renderDetalleComisionPersona();
+  renderComisiones();
+  toast('✓ Pago registrado');
 }
 
 // ========== ABM CATEGORÍAS SINDICALES (Punto 1) ==========
@@ -11637,6 +12158,25 @@ window.guardarVacOp = guardarVacOp;
 window.homologarParitaria = homologarParitaria;
 window.analizarEstadoCuentaTango = analizarEstadoCuentaTango;
 window.confirmarImportacionEstadoCuentaTango = confirmarImportacionEstadoCuentaTango;
+window.asignarObjetivoFactura = asignarObjetivoFactura;
+window.asignarPeriodoFactura = asignarPeriodoFactura;
+window.sincronizarComisionesFactura = sincronizarComisionesFactura;
+window.generarDevengosFactura = generarDevengosFactura;
+window.habilitarComisionesFactura = habilitarComisionesFactura;
+// DELTA_comisiones_v1 — asignación de comisiones en el modal de Servicios
+window.toggleComisionesObjetivo = toggleComisionesObjetivo;
+window.toggleObjComExterno = toggleObjComExterno;
+window.toggleObjComPeriodos = toggleObjComPeriodos;
+window.agregarComisionObjetivoTemp = agregarComisionObjetivoTemp;
+window.eliminarComisionObjTemp = eliminarComisionObjTemp;
+// DELTA_comisiones_v1 — pantalla Comisiones
+window.tabComisiones = tabComisiones;
+window.renderComisiones = renderComisiones;
+window.agregarComisionExterno = agregarComisionExterno;
+window.eliminarComisionExterno = eliminarComisionExterno;
+window.abrirComisionPersona = abrirComisionPersona;
+window.toggleModoAvanzadoPago = toggleModoAvanzadoPago;
+window.guardarPagoComision = guardarPagoComision;
 window.initPermisosUsuarios = initPermisosUsuarios;
 window.initResumenMes = initResumenMes;
 window.liberarRetencion = liberarRetencion;
