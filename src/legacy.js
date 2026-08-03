@@ -7,7 +7,7 @@ import { $, initials, avatarEl, badge, formatPeriodo, hoyStr, esFeriado, esFinde
 import { toast, abrirModal, cerrarModal, activarOrdenamiento } from '@shared/ui.js';
 import { supaSync, supaDel, supaInit } from '@shared/supabase.js';
 import { crearNotificacion } from '@shared/notificaciones.js';
-import { obtenerValorHoraVigente } from './modules/categorias/consultas.js';
+import { obtenerValorHoraVigente, getCategoriaById } from './modules/categorias/consultas.js';
 
 // ========== ESTADO ==========
 
@@ -5896,6 +5896,68 @@ function validarValorHoraAsociado(legajoNro, objCodigo){
   }
 }
 
+// ========== VALOR HORA EFECTIVO (DELTA_liquidacion_horas_v1) ==========
+// A diferencia de getCategoriaVH/DB.categoriasSalariales (sin vigencia,
+// solo dejado para no romper otras pantallas que aún lo usan), acá SÍ se
+// conecta con el módulo Categorías real (categoriaIdLocal vigente por
+// mes, ya en uso en producción con datos de paritaria). "Regla del más
+// alto" (punto 4 del delta): compara la categoría de legajo contra la
+// alternativa (solo si está Aprobada) y toma la de mayor valor — nunca
+// se pisa la de legajo, solo se supera si corresponde. Devuelve null si
+// falta vincular categoría o no hay valor cargado — nunca inventa un
+// número (mismo criterio que obtenerValorHoraVigente).
+function valorHoraEfectivoAsoc(asoc,servicioNombre,fechaISO){
+  const legajo=(DB.legajos||[]).find(l=>String(l.nro)===String(asoc.nro));
+  const vBase=legajo?.categoriaIdLocal?obtenerValorHoraVigente(legajo.categoriaIdLocal,servicioNombre,fechaISO):null;
+  const vAlt=(asoc.catAltEstado==='Aprobada'&&asoc.catAltIdLocal)?obtenerValorHoraVigente(asoc.catAltIdLocal,servicioNombre,fechaISO):null;
+  if(!vBase&&!vAlt) return null;
+  if(vBase&&vAlt) return (Number(vBase.valorHora)>=Number(vAlt.valorHora))?vBase:vAlt;
+  return vBase||vAlt;
+}
+// Fecha representativa del mes de la planilla para mostrar UN valor hora
+// resumen en la columna (el cálculo real de "A pagar" es día a día, ver
+// renderGrillasLiq, porque el valor puede cambiar a mitad de mes por
+// paritaria). Si el mes ya pasó, usa el último día; si es el mes en
+// curso (o futuro), usa hoy acotado a ese mes.
+function fechaRepresentativaMes(mesISO){
+  const hoy=new Date();hoy.setHours(0,0,0,0);
+  const hoyISO=hoy.toISOString().slice(0,10);
+  const [yy,mm]=mesISO.split('-');
+  const ultimoDiaMes=new Date(parseInt(yy),parseInt(mm),0).toISOString().slice(0,10);
+  return hoyISO<ultimoDiaMes?(hoyISO<`${yy}-${mm}-01`?`${yy}-${mm}-01`:hoyISO):ultimoDiaMes;
+}
+// Vincula la categoría del catálogo (módulo Categorías) al legajo — sin
+// esto, Liquidación de horas no tiene de dónde sacar el valor hora
+// (legajo.categoriaIdLocal no se carga desde ningún otro lado hoy salvo
+// al abrir un caso en Enfermos y Accidentes).
+function asignarCategoriaLegajo(nro,catIdLocal){
+  const legajo=(DB.legajos||[]).find(l=>String(l.nro)===String(nro));
+  if(!legajo||!catIdLocal) return;
+  legajo.categoriaIdLocal=idLocalTrunc(catIdLocal);
+  supaSync('legajos',legajo);
+  renderGrillasLiq();
+  toast('✓ Categoría vinculada — ya se usa para calcular valor hora y A pagar');
+}
+// DELTA_liquidacion_horas_v1, punto 6 — "facturable" para el total de
+// horas (columna Fact., base de Comisiones) NO es lo mismo que
+// asoc.facturable!==false. Una hora fuera del EFT sigue con
+// asoc.facturable en true (confirmarAgregarAsoc sólo guarda el sello en
+// infoEFT), pero si el cliente todavía no la reconoció (o el gerente la
+// rechazó) es pérdida, no debe contar como facturable — "aprobado por
+// el gerente NO vuelve facturable una hora, sólo el reconocimiento del
+// cliente". Antes del delta, totalHorasFacturables ignoraba esto.
+function esHoraFacturableReal(asoc,fechaISO){
+  if(asoc.facturable?.[fechaISO]===false) return false;
+  const eft=asoc.infoEFT?.[fechaISO];
+  if(eft?.fueraEFT&&eft.autorizado!==true) return false;
+  return true;
+}
+function badgeTipoAuth(tipo){
+  if(tipo==='no_facturable') return `<span class="badge badge-rojo" style="font-size:10px;">❌ No facturable</span>`;
+  if(tipo==='cat_alt') return `<span class="badge" style="background:#e0e7ff;color:#3730a3;font-size:10px;">🔁 Cat. alternativa</span>`;
+  return `<span class="badge" style="background:#fff3cd;color:#856404;font-size:10px;">⚠️ Fuera EFT</span>`;
+}
+
 function generarHorasPrecargas(mesISO,objCodigo){
   const params=DB.parametrosServicio[objCodigo]||{diasSemana:[1,2,3,4,5],horasPorDia:8,trabajaFeriados:false,trabajaFinde:false};
   const horas={};
@@ -6057,7 +6119,7 @@ if(!DB.pendientesAuth)  DB.pendientesAuth  = [];
 if(!DB.historialAuth)   DB.historialAuth   = [];
 
 function registrarPendienteAuth(tipo, grillaId, asocIdx, detalle, solicitadoPor){
-  // tipo: 'no_facturable' | 'fuera_eft'
+  // tipo: 'no_facturable' | 'fuera_eft' | 'cat_alt'
   const pend={
     id: Date.now() + Math.random(),
     tipo, grillaId, asocIdx, detalle, solicitadoPor,
@@ -6086,11 +6148,8 @@ function renderPendientesAuth(){
   tbody.innerHTML = pendientes.map(p=>{
     const grilla = DB.grillasLiq.find(g=>g.id===p.grillaId);
     const asoc = grilla?.asociados?.[p.asocIdx];
-    const tipoBadge = p.tipo==='no_facturable'
-      ? `<span class="badge badge-rojo" style="font-size:10px;">❌ No facturable</span>`
-      : `<span class="badge" style="background:#fff3cd;color:#856404;font-size:10px;">⚠️ Fuera EFT</span>`;
     return `<tr>
-      <td>${tipoBadge}</td>
+      <td>${badgeTipoAuth(p.tipo)}</td>
       <td style="font-weight:500;font-size:12px;">${asoc?.nombre||'—'}</td>
       <td style="font-size:12px;">${grilla?.objCodigo||'—'}</td>
       <td style="font-size:12px;">${grilla?.periodo||'—'}</td>
@@ -6123,7 +6182,21 @@ function resolverAuth(pendId, decision){
   const grilla = DB.grillasLiq.find(g=>g.id===pend.grillaId);
   const asoc = grilla?.asociados?.[pend.asocIdx];
   if(asoc){
-    if(decision==='Rechazada'){
+    if(pend.tipo==='cat_alt'){
+      // Categoría alternativa (punto 4 del delta): aprobar NUNCA pisa la
+      // categoría de legajo — sólo habilita que compita por "el más
+      // alto" en valorHoraEfectivoAsoc(). Rechazar limpia la propuesta
+      // sin tocar nada de horas/facturable (a diferencia de los otros
+      // dos tipos, acá NO corresponde borrar la fila del asociado).
+      if(decision==='Aprobada'){
+        asoc.catAltEstado='Aprobada';
+        toast(`✅ Categoría alternativa "${asoc.catAltNombre}" aprobada — se usa si su valor es mayor al de la categoría de legajo`);
+      } else {
+        delete asoc.catAlt;delete asoc.catAltIdLocal;delete asoc.catAltNombre;
+        delete asoc.catAltEstado;delete asoc.catAltFecha;delete asoc.catAltPor;
+        toast('✕ Categoría alternativa rechazada');
+      }
+    } else if(decision==='Rechazada'){
       // Si se rechaza una no-facturable → se convierte en facturable
       // Si se rechaza fuera del EFT → se marca sin autorización
       if(pend.tipo==='no_facturable'){
@@ -6170,9 +6243,7 @@ function renderHistorialAuth(){
   tbody.innerHTML = [...DB.historialAuth].reverse().map(p=>{
     const grilla = DB.grillasLiq.find(g=>g.id===p.grillaId);
     const asoc = grilla?.asociados?.[p.asocIdx];
-    const tipoBadge = p.tipo==='no_facturable'
-      ? `<span class="badge badge-rojo" style="font-size:10px;">❌ No facturable</span>`
-      : `<span class="badge" style="background:#fff3cd;color:#856404;font-size:10px;">⚠️ Fuera EFT</span>`;
+    const tipoBadge = badgeTipoAuth(p.tipo);
     const estadoBadge = p.estado==='Aprobada'
       ? `<span class="badge badge-verde">✅ Aprobada</span>`
       : `<span class="badge badge-rojo">✕ Rechazada</span>`;
@@ -6335,152 +6406,37 @@ function getCategoriasPorTipo(catActual){
 }
 
 // ═══════════════════════════════════════════════════════════
-// CATEGORÍA ALTERNATIVA — solicitar / aprobar / rechazar
+// CATEGORÍA ALTERNATIVA (DELTA_liquidacion_horas_v1, punto 4)
 // ═══════════════════════════════════════════════════════════
-if(!DB.catAltPendientesLiq) DB.catAltPendientesLiq = [];
-if(!DB.catAltHistorial)  DB.catAltHistorial  = [];
-
-function solicitarCatAlt(grillaId, asocIdx, catNueva){
-  if(!catNueva) return;
+// Antes tenía su propio circuito paralelo de aprobación
+// (catAltPendientesLiq/catAltHistorial) con una pantalla de "Cat.
+// pendientes" que nunca llegó a tener HTML propio — quedaba huérfano,
+// sólo se resolvía desde un modal disparado por el badge en la grilla.
+// Ahora reusa el circuito real de "Autorizaciones pendientes"
+// (registrarPendienteAuth/resolverAuth/notificarseAuth, tipo 'cat_alt')
+// para que aparezca donde el Gerente de Operaciones ya mira todo lo
+// demás. Además cambia de fondo: antes guardaba un NOMBRE de categoría
+// (lista hardcodeada CATS_POR_TIPO) y al aprobar pisaba asoc.categoria;
+// ahora guarda un categoriaIdLocal real del módulo Categorías y, al
+// aprobar, NO pisa nada — sólo habilita que compita por "el valor más
+// alto" contra la categoría de legajo (valorHoraEfectivoAsoc).
+function solicitarCatAlt(grillaId, asocIdx, catIdLocal){
+  if(!catIdLocal) return;
   const grilla = DB.grillasLiq.find(g=>g.id===grillaId);
   if(!grilla) return;
   const asoc = grilla.asociados[asocIdx];
   if(!asoc) return;
-  // Guardar la propuesta en el asociado y en la lista global
-  asoc.catAlt = catNueva;
+  const cat = getCategoriaById(catIdLocal);
+  if(!cat) return;
+  asoc.catAltIdLocal = idLocalTrunc(catIdLocal);
+  asoc.catAltNombre = cat.nombre;
   asoc.catAltEstado = 'Pendiente';
   asoc.catAltFecha = new Date().toLocaleDateString('es-AR');
   asoc.catAltPor = currentUser?.nombre||'Supervisor';
-  // Registrar en pendientes globales
-  const pendCat={
-    id: Date.now(),
-    grillaId, asocIdx,
-    asociado: asoc.nombre,
-    servicio: grilla.objCodigo,
-    mes: grilla.periodo,
-    catActual: asoc.categoria,
-    catPropuesta: catNueva,
-    propuestoPor: asoc.catAltPor,
-    fecha: asoc.catAltFecha,
-    estado: 'Pendiente',
-  };
-  DB.catAltPendientesLiq.push(pendCat);
-  supaSync('catAltPendientesLiq', {...pendCat, grillaId:idLocalTrunc(pendCat.grillaId)});
   supaSync('grillasLiq', grilla);
-  construirMenu();
+  registrarPendienteAuth('cat_alt', grillaId, asocIdx, `Categoría alternativa propuesta: ${cat.nombre}`, asoc.catAltPor);
   renderGrillasLiq();
-  toast(`⏳ Categoría "${catNueva}" propuesta — pendiente de aprobación`);
-}
-
-function verCatAlt(grillaId, asocIdx){
-  const grilla = DB.grillasLiq.find(g=>g.id===grillaId);
-  if(!grilla) return;
-  const asoc = grilla.asociados[asocIdx];
-  if(!asoc) return;
-  const esOps = ['Administrador total','Operaciones'].includes(currentUser?.perfil);
-  const body = $('modal-cat-alt-body');
-  const footer = $('modal-cat-alt-footer');
-  body.innerHTML = `
-    <div style="display:grid;gap:10px;font-size:13px;">
-      <div><strong>Asociado:</strong> ${asoc.nombre}</div>
-      <div><strong>Servicio:</strong> ${grilla.objCodigo} — ${grilla.periodo}</div>
-      <div><strong>Categoría actual:</strong> <span style="color:var(--azul);font-weight:600;">${asoc.categoria}</span></div>
-      <div><strong>Categoría propuesta:</strong> <span style="background:#fee2e2;color:#dc2626;padding:2px 8px;border-radius:10px;font-weight:600;">${asoc.catAlt}</span></div>
-      <div><strong>Propuesto por:</strong> ${asoc.catAltPor} — ${asoc.catAltFecha}</div>
-      <div style="background:#fef9c3;border:1px solid #fde047;border-radius:6px;padding:8px;font-size:12px;">
-        ⚠️ Esta categoría está <strong>pendiente de aprobación</strong> por Operaciones.
-        ${esOps ? 'Podés aprobar o rechazar desde acá.' : 'Esperá la resolución de Operaciones.'}
-      </div>
-    </div>`;
-  footer.innerHTML = esOps
-    ? `<button class="btn btn-secondary" onclick="cerrarModal('modal-cat-alt')">Cerrar</button>
-       <button class="btn" style="background:#fee2e2;color:#dc2626;border:1px solid #fca5a5;" onclick="resolverCatAlt('${grillaId}',${asocIdx},'Rechazada')">✕ Rechazar</button>
-       <button class="btn btn-primary" onclick="resolverCatAlt('${grillaId}',${asocIdx},'Aprobada')">✓ Aprobar</button>`
-    : `<button class="btn btn-secondary" onclick="cerrarModal('modal-cat-alt')">Cerrar</button>`;
-  abrirModal('modal-cat-alt');
-}
-
-function resolverCatAlt(grillaId, asocIdx, decision){
-  const grilla = DB.grillasLiq.find(g=>g.id===grillaId);
-  const asoc = grilla?.asociados[asocIdx];
-  if(!asoc) return;
-  const pend = DB.catAltPendientesLiq.find(p=>p.grillaId===grillaId&&p.asocIdx===asocIdx&&p.estado==='Pendiente');
-  if(pend){
-    pend.estado = decision;
-    pend.resueltoPor = currentUser?.nombre||'Operaciones';
-    pend.fechaResolucion = new Date().toLocaleDateString('es-AR');
-    supaSync('catAltPendientesLiq', {...pend, grillaId:idLocalTrunc(pend.grillaId)});
-  }
-  // Pasar al historial
-  DB.catAltHistorial.push({
-    fecha: new Date().toLocaleDateString('es-AR'),
-    asociado: asoc.nombre,
-    servicio: grilla.objCodigo,
-    mes: grilla.periodo,
-    catAnterior: asoc.categoria,
-    catNueva: asoc.catAlt,
-    estado: decision,
-    resueltoPor: currentUser?.nombre||'Operaciones',
-  });
-  if(decision==='Aprobada'){
-    asoc.categoria = asoc.catAlt; // impacta la categoría definitivamente
-    toast(`✅ Categoría "${asoc.catAlt}" aprobada y aplicada`);
-  } else {
-    toast(`✕ Solicitud de categoría rechazada`);
-  }
-  delete asoc.catAlt;
-  delete asoc.catAltEstado;
-  delete asoc.catAltFecha;
-  delete asoc.catAltPor;
-  supaSync('grillasLiq', grilla);
-  cerrarModal('modal-cat-alt');
-  construirMenu();
-  renderGrillasLiq();
-  renderCatPendientes();
-  renderHistorialCat();
-}
-
-function renderCatPendientes(){
-  const tbody = $('tbody-cat-pendientes');
-  if(!tbody) return;
-  const pendientes = DB.catAltPendientesLiq.filter(p=>p.estado==='Pendiente');
-  const esOps = ['Administrador total','Operaciones'].includes(currentUser?.perfil);
-  if(!pendientes.length){
-    tbody.innerHTML = `<tr><td colspan="8"><div class="empty-state"><div class="icon">✅</div><p>Sin categorías pendientes</p></div></td></tr>`;
-    return;
-  }
-  tbody.innerHTML = pendientes.map(p=>`<tr>
-    <td style="font-weight:500;">${p.asociado}</td>
-    <td style="font-size:12px;">${p.servicio}</td>
-    <td style="font-size:12px;">${p.mes}</td>
-    <td style="font-size:12px;color:var(--azul);">${p.catActual}</td>
-    <td><span style="background:#fee2e2;color:#dc2626;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600;">⏳ ${p.catPropuesta}</span></td>
-    <td style="font-size:12px;">${p.propuestoPor}</td>
-    <td style="font-size:12px;color:var(--texto-suave);">${p.fecha}</td>
-    <td>
-      ${esOps ? `
-      ` : '<span style="font-size:11px;color:var(--texto-suave);">Pendiente Ops.</span>'}
-    </td>
-  </tr>`).join('');
-}
-
-function renderHistorialCat(){
-  const tbody = $('tbody-historial-cat');
-  if(!tbody) return;
-  if(!DB.catAltHistorial.length){
-    tbody.innerHTML = `<tr><td colspan="8"><div class="empty-state"><div class="icon">📜</div><p>Sin historial de cambios</p></div></td></tr>`;
-    return;
-  }
-  tbody.innerHTML = [...DB.catAltHistorial].reverse().map(h=>`<tr>
-    <td style="font-size:12px;color:var(--texto-suave);">${h.fecha}</td>
-    <td style="font-weight:500;">${h.asociado}</td>
-    <td style="font-size:12px;">${h.servicio}</td>
-    <td style="font-size:12px;">${h.mes}</td>
-    <td style="font-size:12px;color:var(--azul);">${h.catAnterior}</td>
-    <td style="font-size:12px;font-weight:600;">${h.catNueva}</td>
-    <td><span class="badge ${h.estado==='Aprobada'?'badge-verde':'badge-rojo'}">${h.estado==='Aprobada'?'✅ Aprobada':'✕ Rechazada'}</span></td>
-    <td style="font-size:12px;">${h.resueltoPor}</td>
-  </tr>`).join('');
+  toast(`⏳ Categoría alternativa "${cat.nombre}" propuesta — pendiente de aprobación de Operaciones`);
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -6857,9 +6813,7 @@ function renderMisAuth(){
         ? '<span class="badge badge-verde">✅ Aprobada</span>'
         : '<span class="badge badge-rojo">✕ Rechazada</span>';
 
-    const tipoBadge = p.tipo==='no_facturable'
-      ? '<span class="badge badge-rojo" style="font-size:10px;">❌ No fact.</span>'
-      : '<span class="badge" style="background:#fff3cd;color:#856404;font-size:10px;">⚠️ Fuera EFT</span>';
+    const tipoBadge = badgeTipoAuth(p.tipo);
 
     const accion = p.supervisorNotificado
       ? '<span style="font-size:11px;color:var(--verde);">✓ Notificado</span>'
@@ -6892,7 +6846,10 @@ function notificarseAuth(pendId){
   pend.notificadoPor = currentUser?.nombre||'Supervisor';
 
   // Si fue rechazada → eliminar la fila del asociado de la grilla
-  if(pend.estado==='Rechazada'){
+  // La categoría alternativa rechazada ya se limpió en resolverAuth() —
+  // a diferencia de no_facturable/fuera_eft, NO corresponde borrar la
+  // fila del asociado (sigue trabajando bajo su categoría de legajo).
+  if(pend.estado==='Rechazada'&&pend.tipo!=='cat_alt'){
     const grilla = DB.grillasLiq.find(g=>g.id===pend.grillaId);
     if(grilla && grilla.asociados && grilla.asociados[pend.asocIdx]!==undefined){
       grilla.asociados.splice(pend.asocIdx, 1);
@@ -10329,12 +10286,12 @@ function renderGrillasLiq(){
     <th style="padding:8px;border:1px solid #6b7280;min-width:100px;">Supervisor</th>
     <th style="padding:8px;border:1px solid #6b7280;min-width:90px;text-align:center;">Tipo hs</th>
     ${dias.map(dia=>{
-      const dow=new Date(dia.iso+'T12:00:00').getDay();
       const bg=dia.esFeriado?'background:#ffe4e6;color:#111;font-weight:800;':dia.esFinde?'background:#ffff00;color:#111;font-weight:700;':'';
       return`<th style="padding:4px 2px;border:1px solid #6b7280;text-align:center;min-width:30px;font-size:10px;${bg}">
-      </th>`;
+      ${dia.d}</th>`;
     }).join('')}
     <th style="padding:8px;border:1px solid #6b7280;text-align:right;min-width:65px;">Total hs</th>
+    <th style="padding:8px;border:1px solid #6b7280;text-align:right;min-width:95px;">Valor hora</th>
     <th style="padding:8px;border:1px solid #6b7280;text-align:right;min-width:65px;">Fact.</th>
     <th style="padding:8px;border:1px solid #6b7280;text-align:right;min-width:95px;">A pagar $</th>
     <th style="padding:8px;border:1px solid #6b7280;min-width:80px;"></th>
@@ -10364,7 +10321,7 @@ function renderGrillasLiq(){
         (grilla.asociados||[]).forEach(asoc=>{
           const h=parseFloat(asoc.horas?.[dia.iso]||0);
           sumDia+=h;
-          if(asoc.facturable?.[dia.iso]!==false) totalFactObj+=h;
+          if(esHoraFacturableReal(asoc,dia.iso)) totalFactObj+=h;
           totalPagarObj+=0; // se recalcula abajo
         });
       } else {
@@ -10382,8 +10339,13 @@ function renderGrillasLiq(){
       (grilla.asociados||[]).forEach(asoc=>{
         dias.forEach(dia=>{
           const h=parseFloat(asoc.horas?.[dia.iso]||0);
-          if(asoc.facturable?.[dia.iso]!==false)tFact+=h;
-          tPagar+=h*getCategoriaVH(asoc.categoria);
+          if(!h)return;
+          if(esHoraFacturableReal(asoc,dia.iso))tFact+=h;
+          // DELTA_liquidacion_horas_v1 — valor hora real (con vigencia
+          // por mes) en vez del legacy getCategoriaVH sin vigencia; día
+          // a día porque el valor puede cambiar a mitad de mes.
+          const vh=valorHoraEfectivoAsoc(asoc,obj.nombre,dia.iso);
+          tPagar+=h*(vh?.valorHora||0);
         });
       });
       totalFactObj=tFact;totalPagarObj=Math.round(tPagar);
@@ -10411,6 +10373,7 @@ function renderGrillasLiq(){
         return`<td class="liq-celda-dia" style="border:1px solid #6b7280;${bg}color:${h>0?'white':'rgba(255,255,255,.35)'};">${h||''}</td>`;
       }).join('')}
       <td style="padding:6px 8px;border:1px solid #6b7280;text-align:right;font-weight:700;color:white;">${totalHsObj}hs</td>
+      <td style="padding:6px 8px;border:1px solid #6b7280;"></td>
       <td style="padding:6px 8px;border:1px solid #6b7280;text-align:right;font-size:11px;color:rgba(255,255,255,.8);">${totalFactObj}hs</td>
       <td style="padding:6px 8px;border:1px solid #6b7280;text-align:right;font-weight:700;color:#86efac;">$${(totalPagarObj||0).toLocaleString('es-AR')}</td>
       <td style="padding:6px 8px;border:1px solid #2d5a9e;">${estadoGrilla}</td>
@@ -10428,29 +10391,46 @@ function renderGrillasLiq(){
         const asocs=grilla.asociados||[];
         if(true){  // siempre entra
           asocs.forEach((asoc,ai)=>{
-            let hsAsoc=0,hsFactAsoc=0;
-            dias.forEach(dia=>{const h=parseFloat(asoc.horas?.[dia.iso]||0);hsAsoc+=h;if(asoc.facturable?.[dia.iso]!==false)hsFactAsoc+=h;});
-            const totalPagarAsoc=Math.round(hsAsoc*getCategoriaVH(asoc.categoria));
+            let hsAsoc=0,hsFactAsoc=0,totalPagarAsoc=0;
+            dias.forEach(dia=>{
+              const h=parseFloat(asoc.horas?.[dia.iso]||0);
+              hsAsoc+=h;
+              if(esHoraFacturableReal(asoc,dia.iso))hsFactAsoc+=h;
+              if(h){const vhDia=valorHoraEfectivoAsoc(asoc,obj.nombre,dia.iso);totalPagarAsoc+=h*(vhDia?.valorHora||0);}
+            });
+            totalPagarAsoc=Math.round(totalPagarAsoc);
+            const legajoAsoc=(DB.legajos||[]).find(l=>String(l.nro)===String(asoc.nro));
+            const vhInfo=valorHoraEfectivoAsoc(asoc,obj.nombre,fechaRepresentativaMes(mes));
             const tipoClass=asoc.esReten?'reten':asoc.esEspecial?'especial':asoc.esExtra?'extra':asoc.esEnfermedad?'enfermedad':'';
             const tipoBadge=asoc.esReten?'<span class="liq-badge-tipo liq-badge-reten">Retén</span>':asoc.esEspecial?'<span class="liq-badge-tipo liq-badge-especial">T.Esp.</span>':asoc.esExtra?'<span class="liq-badge-tipo liq-badge-extra">Extra</span>':asoc.esEnfermedad?'<span class="liq-badge-tipo liq-badge-enf">Enf.</span>':'';
             html+=`<tr class="liq-row-asociado ${tipoClass}" data-parent="${obj.codigo}">
               <td style="padding:5px 12px 5px 28px;border:1px solid var(--borde);font-size:12px;position:sticky;left:0;background:inherit;z-index:1;">
                 ${asoc.nombre} ${tipoBadge}
               </td>
-              <td style="padding:4px 8px;border:1px solid var(--borde);font-size:11px;font-weight:500;color:var(--azul);">${asoc.categoria||'—'}</td>
-              <td style="padding:2px 4px;border:1px solid var(--borde);font-size:11px;min-width:120px;">
-                ${asoc.catAlt
-                  ? `<span style="background:#fee2e2;color:#dc2626;font-size:10px;padding:2px 6px;border-radius:10px;font-weight:600;cursor:pointer;"
-                       title="Pendiente de aprobación — click para ver"
-                       onclick="event.stopPropagation();verCatAlt('${grilla.id}',${ai})">
-                       ⏳ ${asoc.catAlt}
-                     </span>`
-                  : `<select style="width:100%;font-size:10px;padding:2px 3px;border:1px solid var(--borde-fuerte);border-radius:4px;outline:none;background:white;"
+              <td style="padding:4px 8px;border:1px solid var(--borde);font-size:11px;">
+                <div style="font-weight:500;color:var(--azul);">${asoc.categoria||'—'}</div>
+                ${legajoAsoc?.categoriaIdLocal
+                  ? `<div style="font-size:9px;color:var(--texto-suave);">🔗 ${getCategoriaById(legajoAsoc.categoriaIdLocal)?.nombre||'—'}</div>`
+                  : `<select style="width:100%;font-size:9px;padding:1px 2px;border:1px solid var(--rojo);border-radius:3px;outline:none;background:#fff5f5;margin-top:2px;"
                        onclick="event.stopPropagation()"
-                       onchange="event.stopPropagation();solicitarCatAlt('${grilla.id}',${ai},this.value)"
-                       ${grilla.estado==='Cerrada'?'disabled':''}>
-                       ${getCategoriasPorTipo(asoc.categoria).map(c=>`<option value="${c}">${c}</option>`).join('')}
+                       onchange="event.stopPropagation();asignarCategoriaLegajo('${asoc.nro}',this.value)">
+                       <option value="">⚠ Vincular categoría</option>
+                       ${(DB.categoriasBase||[]).filter(c=>c.activa).map(c=>`<option value="${c.id}">${c.nombre}</option>`).join('')}
                      </select>`
+                }
+              </td>
+              <td style="padding:2px 4px;border:1px solid var(--borde);font-size:11px;min-width:120px;">
+                ${asoc.catAltEstado==='Pendiente'
+                  ? `<span style="background:#fef3c7;color:#92400e;font-size:10px;padding:2px 6px;border-radius:10px;font-weight:600;" title="Pendiente de aprobación de Operaciones — ver en Autorizaciones pendientes">⏳ ${asoc.catAltNombre}</span>`
+                  : asoc.catAltEstado==='Aprobada'
+                    ? `<span style="background:#d1fae5;color:#065f46;font-size:10px;padding:2px 6px;border-radius:10px;font-weight:600;" title="Compite por el valor más alto contra la categoría de legajo">✓ ${asoc.catAltNombre}</span>`
+                    : `<select style="width:100%;font-size:10px;padding:2px 3px;border:1px solid var(--borde-fuerte);border-radius:4px;outline:none;background:white;"
+                         onclick="event.stopPropagation()"
+                         onchange="event.stopPropagation();solicitarCatAlt('${grilla.id}',${ai},this.value)"
+                         ${grilla.estado==='Cerrada'?'disabled':''}>
+                         <option value="">— Sin alternativa —</option>
+                         ${(DB.categoriasBase||[]).filter(c=>c.activa).map(c=>`<option value="${c.id}">${c.nombre}</option>`).join('')}
+                       </select>`
                 }
               </td>
               <td style="padding:4px 8px;border:1px solid var(--borde);font-size:11px;color:var(--texto-suave);"></td>
@@ -10510,6 +10490,7 @@ function renderGrillasLiq(){
                 </td>`;
               }).join('')}
               <td style="padding:4px 8px;border:1px solid var(--borde);text-align:right;font-weight:700;color:var(--azul);">${hsAsoc}hs</td>
+              <td style="padding:4px 8px;border:1px solid var(--borde);text-align:right;font-size:11px;${vhInfo?'color:var(--texto-suave);':'color:var(--rojo);font-weight:600;'}" title="${vhInfo?'Valor hora vigente ('+fechaRepresentativaMes(mes)+')':'Sin categoría vinculada o sin valor cargado en el módulo Categorías'}">${vhInfo?'$'+Math.round(vhInfo.valorHora).toLocaleString('es-AR'):'Sin valor'}</td>
               <td style="padding:4px 8px;border:1px solid var(--borde);text-align:right;font-size:11px;">${hsFactAsoc}hs</td>
               <td style="padding:4px 8px;border:1px solid var(--borde);text-align:right;font-weight:600;color:var(--verde);">$${totalPagarAsoc.toLocaleString('es-AR')}</td>
               <td style="padding:4px 8px;border:1px solid var(--borde);">
@@ -10527,6 +10508,7 @@ function renderGrillasLiq(){
               return`<td style="padding:4px 2px;border:1px solid var(--borde);text-align:center;font-size:11px;font-weight:700;color:white;">${tot||''}</td>`;
             }).join('')}
             <td style="padding:6px 8px;border:1px solid var(--borde);text-align:right;font-weight:700;color:var(--azul);">${grilla.totalHorasFacturables+(grilla.totalHorasNoFacturables||0)}hs</td>
+            <td style="border:1px solid var(--borde);"></td>
             <td style="padding:6px 8px;border:1px solid var(--borde);text-align:right;">${grilla.totalHorasFacturables||0}hs</td>
             <td style="padding:6px 8px;border:1px solid var(--borde);text-align:right;font-weight:700;color:var(--verde);">$${(grilla.totalAPagar||0).toLocaleString('es-AR')}</td>
             <td style="border:1px solid var(--borde);"></td>
@@ -10563,7 +10545,7 @@ function renderGrillasLiq(){
       return`<td style="padding:6px 2px;border:1px solid #6b7280;text-align:center;font-size:11px;${bg}">${t||''}</td>`;
     }).join('')}
     <td style="padding:10px 8px;border:1px solid #6b7280;text-align:right;">${totalGenHs}hs</td>
-    <td colspan="2" style="border:1px solid #6b7280;"></td>
+    <td colspan="3" style="border:1px solid #6b7280;"></td>
     <td style="border:1px solid #6b7280;"></td>
   </tr>`;
 
@@ -10640,7 +10622,7 @@ function crearGrillaDesdeObj(objCodigo, mes){
   const legajosAsignados=(DB.legajos||[]).filter(l=>l.servicio===obj.codigo&&l.estado==='Activo');
   legajosAsignados.forEach(l=>validarValorHoraAsociado(l.nro, objCodigo));
   const asocAsignados=legajosAsignados.map(l=>({
-    id:l.nro, nombre:l.nombre, categoria:l.funcion||'Operario/a limpieza',
+    id:l.nro, nro:l.nro, nombre:l.nombre, categoria:l.funcion||'Operario/a limpieza',
     horas:generarHorasPrecargas(mes,obj.codigo), facturable:{}, motivoNoFact:{}, infoEFT:{}, tipoHora:'facturable', motivoTipo:'', esExtra:false, esEnfermedad:false,
   }));
   const nueva={
@@ -12229,7 +12211,6 @@ window.renderCalendarioPlan = renderCalendarioPlan;
 // window.renderCalendarioVacaciones ya NO se bindea acá — colisionaba con
 // el calendario nuevo del módulo Vacaciones migrado (src/modules/vacaciones/
 // calendario.js). La función vieja queda arriba como referencia, sin uso.
-window.renderCatPendientes = renderCatPendientes;
 window.renderCategoriasSind = renderCategoriasSind;
 window.renderCfgEtapasCRM = renderCfgEtapasCRM;
 window.renderCfgComercialLista = renderCfgComercialLista;
@@ -12250,7 +12231,6 @@ window.renderGrillaFuncionesUsuario = renderGrillaFuncionesUsuario;
 window.renderGrillaIndividual = renderGrillaIndividual;
 window.renderGrillasLiq = renderGrillasLiq;
 window.renderHistorialAuth = renderHistorialAuth;
-window.renderHistorialCat = renderHistorialCat;
 window.renderHistorialImportaciones = renderHistorialImportaciones;
 window.renderHistorialMono = renderHistorialMono;
 window.renderHistorialPrecios = renderHistorialPrecios;
@@ -12298,7 +12278,6 @@ window.renderVacOp = renderVacOp;
 window.renderVacaciones = renderVacaciones;
 window.resolverAlertaEFT = resolverAlertaEFT;
 window.resolverAuth = resolverAuth;
-window.resolverCatAlt = resolverCatAlt;
 window.seleccionarAsocParaArea = seleccionarAsocParaArea;
 window.seleccionarAsocSearch = seleccionarAsocSearch;
 window.seleccionarTodasCategorias = seleccionarTodasCategorias;
@@ -12317,6 +12296,7 @@ window.setValorLiq = setValorLiq;
 window.setValoresPeriodo = setValoresPeriodo;
 window.simularRegistroPublico = simularRegistroPublico;
 window.solicitarCatAlt = solicitarCatAlt;
+window.asignarCategoriaLegajo = asignarCategoriaLegajo;
 window.tabCliModal = tabCliModal;
 window.tabObjetivos = tabObjetivos;
 window.chequearObjetivosDemorados = chequearObjetivosDemorados;
@@ -12350,7 +12330,6 @@ window.toggleMotivoNoFact = toggleMotivoNoFact;
 window.toggleNuevaGrillaTipo = toggleNuevaGrillaTipo;
 window.togglePermiso = togglePermiso;
 window.validarFechasArt42 = validarFechasArt42;
-window.verCatAlt = verCatAlt;
 window.verCliente = verCliente;
 window.verDetalleEvaluacion = verDetalleEvaluacion;
 window.verDetalleLqs = verDetalleLqs;
