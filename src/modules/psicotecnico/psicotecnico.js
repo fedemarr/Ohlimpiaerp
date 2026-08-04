@@ -27,18 +27,22 @@ export function tabPsico(tab) {
 
 // ========== RENDER ==========
 
-function icon(val, requerida) {
-  if (!requerida) return '<span style="color:#cbd5e1;font-size:12px;">—</span>';
-  // Resultados del psicotécnico (5 niveles)
-  if (val === 'Apto+')            return '<span style="color:#15803d;font-size:16px;" title="Apto+">⭐</span>';
-  if (val === 'Apto')             return '<span style="color:#16a34a;font-size:16px;" title="Apto">✅</span>';
-  if (val === 'Apto-')            return '<span style="color:#ca8a04;font-size:16px;" title="Apto-">✔️</span>';
-  if (val === 'Apto condicional') return '<span style="color:#d97706;font-size:16px;" title="Apto condicional (en revisión)">⚠️</span>';
-  if (val === 'No Apto')          return '<span style="color:#dc2626;font-size:16px;" title="No Apto">❌</span>';
-  // Resultados de las otras etapas (prelaboral, antecedentes, libreta)
-  if (val === 'Aprobado') return '<span style="color:#16a34a;font-size:16px;">✅</span>';
-  if (val === 'Rechazado') return '<span style="color:#dc2626;font-size:16px;">❌</span>';
-  return '<span style="color:#d97706;font-size:16px;">⏳</span>';
+// Texto del resultado del psicotécnico para la columna de la tabla —
+// antes se mostraba como emoji (ticket RRHH 04/08/2026: pasar a texto
+// legible). Mismos colores que tenía cada emoji, aplicados al texto en
+// vez del ícono; mismo patrón sin badge que ya usa la columna "Estado"
+// de esta tabla (más abajo, variable `ec`).
+const COLOR_PSICO = {
+  'Apto+': '#15803d',
+  'Apto': '#16a34a',
+  'Apto-': '#ca8a04',
+  'Apto condicional': '#d97706',
+  'No Apto': '#dc2626',
+};
+function textoPsico(val) {
+  const texto = val || 'Pendiente';
+  const color = COLOR_PSICO[texto] || '#d97706'; // Pendiente / valor no reconocido
+  return '<span style="color:' + color + ';font-size:12px;font-weight:600;">' + texto + '</span>';
 }
 
 export function renderPsico(lista) {
@@ -71,7 +75,7 @@ export function renderPsico(lista) {
       + '<td style="padding:8px 12px;font-size:13px;"><strong>' + p.nombre + '</strong></td>'
       + '<td style="padding:8px;font-size:12px;color:#64748b;">' + (p.dni || '—') + '</td>'
       + '<td style="padding:8px;font-size:12px;">' + (p.zona || '—') + '</td>'
-      + '<td style="padding:8px;text-align:center;">' + icon(p.psicotecnico, true) + '</td>'
+      + '<td style="padding:8px;text-align:center;">' + textoPsico(p.psicotecnico) + '</td>'
       + '<td style="padding:8px;text-align:center;font-size:11px;font-weight:600;color:' + ec + '">' + p.estado + '</td>'
       + '<td style="padding:8px;text-align:center;">'
         + (p.estado === 'En proceso'
