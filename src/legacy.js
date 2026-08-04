@@ -1929,6 +1929,15 @@ function abrirModalObjetivo(idLocal){
   if($('obj-paga-comision')) $('obj-paga-comision').checked=comisionesObjTemp.length>0;
   if($('obj-com-es-externo')) $('obj-com-es-externo').checked=false;
   if($('obj-com-tipo')) $('obj-com-tipo').value='Continuo';
+  // Requerimiento de sincronización de Comisiones (04/08/2026): el
+  // checklist de guardarObjetivo() exige jurisdicción/localidad/puestos
+  // completos — en servicios ya existentes con esos datos incompletos
+  // (frecuente en altas viejas), asignar una comisión y guardar el
+  // servicio entero fallaba en silencio (toast de campos faltantes) y
+  // la comisión nunca se persistía. Guardar comisiones es una acción
+  // aparte que no depende del resto del checklist — sólo disponible
+  // editando un servicio ya creado (uno nuevo se guarda con el alta).
+  if($('obj-com-guardar-wrap')) $('obj-com-guardar-wrap').style.display=o?'block':'none';
   toggleComisionesObjetivo();toggleObjComExterno();toggleObjComPeriodos();
   renderRespObjetivoTemp();renderAdjuntosObj();renderPuestosObj();renderComisionesObjTemp();toggleModeloPrecio();
   bloquearCamposObjetivoPendiente(o?.estado==='Pendiente asignación operativa');
@@ -2236,6 +2245,20 @@ function renderComisionesObjTemp(){
     if(sumaPct>tope){aviso.style.display='block';aviso.textContent=`⚠️ Este servicio suma ${sumaPct}% de comisión (tope de aviso: ${tope}%).`;}
     else aviso.style.display='none';
   }
+}
+// Guarda SÓLO las comisiones de un servicio ya existente, sin pasar por
+// el checklist de campos mínimos de guardarObjetivo() — un servicio
+// viejo con jurisdicción/localidad/puestos incompletos no debería
+// bloquear la asignación de un coordinador de cuenta.
+function guardarComisionesObjetivo(){
+  if(!objetivoEditIdLocal){toast('Guardá el servicio primero (con código y nombre) antes de asignar comisiones');return;}
+  const existente=getObjetivoByIdLocal(objetivoEditIdLocal);
+  if(!existente){toast('No se encontró el servicio');return;}
+  existente.comisiones=$('obj-paga-comision')?.checked?[...comisionesObjTemp]:[];
+  existente.modificadoPor=currentUser?.nombre||'';existente.modificadoEn=new Date().toISOString();
+  supaSync('objetivos',existente);
+  renderComisionesObjTemp();
+  toast('✓ Comisiones guardadas');
 }
 
 // Roles de responsables en formulario (parametrizables)
@@ -4212,12 +4235,39 @@ function getPersonasComisionUnicas(){
   }));
   return[...map.values()];
 }
+// Proyección del mes en curso — Requerimiento de sincronización
+// (04/08/2026), puntos 2/3: conecta valor de venta (Precios/Servicios)
+// y horas facturadas (Liquidación de horas) con el % del coordinador
+// para mostrar de entrada cuánto le correspondería cobrar, aunque
+// todavía no haya ninguna factura cobrada (el devengo real sólo nace
+// de facturas, ver sincronizarComisionesFactura — esto es una
+// estimación aparte, nunca se persiste como devengo).
+function proyeccionComisionServicio(obj,comision){
+  const hoy=new Date();
+  const mesActual=hoy.toISOString().slice(0,7);
+  const fechaHoyDMY=hoy.toLocaleDateString('es-AR');
+  let horas=0,montoBase=0,origenHoras='Abono mensual fijo';
+  if(obj.modeloPrecio==='Abono mensual fijo'){
+    montoBase=obj.valor||0;
+  } else {
+    const grilla=(DB.grillasLiq||[]).find(g=>g.periodo===mesActual&&g.objCodigo===obj.codigo);
+    if(grilla){horas=grilla.totalHorasFacturables||0;origenHoras='Horas facturables cargadas este mes';}
+    else {horas=obj.efts||0;origenHoras='EFT / horas contratadas (sin grilla de este mes todavía)';}
+    montoBase=Math.round(horas*(obj.valorHora||0));
+  }
+  const pct=pctVigenteComision(comision,fechaHoyDMY);
+  return{periodo:mesActual,horas,montoBase,pct,montoProyectado:Math.round(montoBase*pct/100),origenHoras};
+}
 function resumenPersonaComision(tipo,ref){
   const devs=DB.comisionesDevengos.filter(d=>d.personaTipo===tipo&&String(d.personaRef)===String(ref));
   const devengado=devs.filter(d=>d.estado==='Devengada').reduce((s,d)=>s+d.montoComision,0);
   const disponible=devs.filter(d=>d.estado==='Disponible').reduce((s,d)=>s+d.saldo,0);
   const pagado=(DB.comisionesPagos||[]).filter(p=>p.personaTipo===tipo&&String(p.personaRef)===String(ref)).reduce((s,p)=>s+p.monto,0);
-  return{devengado,disponible,pagado};
+  let proyectado=0;
+  DB.objetivos.forEach(o=>(o.comisiones||[]).forEach(c=>{
+    if(c.activa&&c.personaTipo===tipo&&String(c.personaRef)===String(ref)) proyectado+=proyeccionComisionServicio(o,c).montoProyectado;
+  }));
+  return{devengado,disponible,pagado,proyectado};
 }
 function renderComisiones(){
   const bg=($('buscar-comision-persona')||{value:''}).value.toLowerCase();
@@ -4240,12 +4290,13 @@ function renderComisiones(){
         <td style="font-weight:500;">${p.personaNombre}</td>
         <td>${p.personaTipo==='externo'?'<span class="badge badge-gris">Externo</span>':'<span class="badge badge-azul">Interno</span>'}</td>
         <td style="text-align:center;">${p.comisionesActivas}</td>
+        <td style="color:var(--azul);" title="Estimado con las horas/valor de este mes — todavía no facturado">$${Math.round(r.proyectado).toLocaleString('es-AR')}</td>
         <td style="color:var(--naranja);">$${Math.round(r.devengado).toLocaleString('es-AR')}</td>
         <td style="font-weight:700;color:var(--rojo);">$${Math.round(r.disponible).toLocaleString('es-AR')}</td>
         <td style="color:var(--verde);">$${Math.round(r.pagado).toLocaleString('es-AR')}</td>
         <td><button class="btn btn-secondary btn-xs" onclick="abrirComisionPersona('${p.personaTipo}','${p.personaRef}')">Ver detalle</button></td>
       </tr>`;
-    }).join('')||`<tr><td colspan="7"><div class="empty-state"><div class="icon">🤝</div><p>Sin personas con comisión asignada todavía</p></div></td></tr>`;
+    }).join('')||`<tr><td colspan="8"><div class="empty-state"><div class="icon">🤝</div><p>Sin personas con comisión asignada todavía</p></div></td></tr>`;
   }
   if($('st-com-disponible'))$('st-com-disponible').textContent='$'+Math.round(totalDisponible/1000)+'k';
   if($('st-com-devengado'))$('st-com-devengado').textContent='$'+Math.round(totalDevengado/1000)+'k';
@@ -4304,6 +4355,8 @@ function ensureModalComisionPersona(){
       <div class="modal-header"><h3 id="cp-titulo">🤝 Estado de cuenta</h3><button class="btn-close" onclick="cerrarModal('modal-comision-persona')">×</button></div>
       <div class="modal-body">
         <div class="info-grid" style="margin-bottom:14px;" id="cp-info-resumen"></div>
+        <div style="font-size:11px;font-weight:700;text-transform:uppercase;color:var(--texto-suave);margin-bottom:8px;">Proyección del mes en curso (estimado, todavía no facturado)</div>
+        <div id="cp-proyeccion-lista" style="margin-bottom:14px;display:flex;flex-direction:column;gap:6px;"></div>
         <div style="font-size:11px;font-weight:700;text-transform:uppercase;color:var(--texto-suave);margin-bottom:8px;">Comisiones (de más antigua a más nueva)</div>
         <div id="cp-devengos-lista" style="max-height:280px;overflow-y:auto;margin-bottom:14px;display:flex;flex-direction:column;gap:6px;"></div>
 
@@ -4347,6 +4400,20 @@ function renderDetalleComisionPersona(){
     <div class="info-item"><div class="key">Disponible para pagar</div><div class="val" style="font-weight:700;color:var(--rojo);">$${Math.round(r.disponible).toLocaleString('es-AR')}</div></div>
     <div class="info-item"><div class="key">Devengado (sin cobrar aún)</div><div class="val" style="color:var(--naranja);">$${Math.round(r.devengado).toLocaleString('es-AR')}</div></div>
     <div class="info-item"><div class="key">Pagado histórico</div><div class="val" style="color:var(--verde);">$${Math.round(r.pagado).toLocaleString('es-AR')}</div></div>`;
+  const comisionesActivas=[];
+  DB.objetivos.forEach(o=>(o.comisiones||[]).forEach(c=>{
+    if(c.activa&&c.personaTipo===tipo&&String(c.personaRef)===String(ref)) comisionesActivas.push({obj:o,comision:c});
+  }));
+  if($('cp-proyeccion-lista'))$('cp-proyeccion-lista').innerHTML=comisionesActivas.map(({obj,comision})=>{
+    const p=proyeccionComisionServicio(obj,comision);
+    return`<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 10px;background:#eff6ff;border-radius:var(--radio);border:1px solid #bfdbfe;font-size:12px;">
+      <div>
+        <strong>${obj.nombre}</strong> — ${comision.tipo}<br>
+        <span style="color:var(--texto-suave);">${p.origenHoras}${p.horas?` — ${p.horas}hs`:''} · ${p.pct}% de $${Math.round(p.montoBase).toLocaleString('es-AR')}</span>
+      </div>
+      <div style="text-align:right;font-weight:700;color:var(--azul);">$${Math.round(p.montoProyectado).toLocaleString('es-AR')}</div>
+    </div>`;
+  }).join('')||'<p class="text-muted" style="font-size:12px;">Sin comisiones activas en ningún servicio</p>';
   const estColor={'Devengada':'badge-naranja','Disponible':'badge-rojo','Pagada':'badge-verde'};
   if($('cp-devengos-lista'))$('cp-devengos-lista').innerHTML=devs.map(d=>`
     <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 10px;background:var(--fondo);border-radius:var(--radio);border:1px solid var(--borde);font-size:12px;">
@@ -12151,6 +12218,7 @@ window.toggleObjComExterno = toggleObjComExterno;
 window.toggleObjComPeriodos = toggleObjComPeriodos;
 window.agregarComisionObjetivoTemp = agregarComisionObjetivoTemp;
 window.eliminarComisionObjTemp = eliminarComisionObjTemp;
+window.guardarComisionesObjetivo = guardarComisionesObjetivo;
 // DELTA_comisiones_v1 — pantalla Comisiones
 window.tabComisiones = tabComisiones;
 window.renderComisiones = renderComisiones;

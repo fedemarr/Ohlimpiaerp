@@ -2608,6 +2608,7 @@
           <th>Persona</th>
           <th>Tipo</th>
           <th>Comisiones activas</th>
+          <th>Proyectado (mes actual)</th>
           <th>Devengado (sin cobrar)</th>
           <th>Disponible para pagar</th>
           <th>Pagado histórico</th>
@@ -5459,6 +5460,10 @@
               <button class="btn btn-secondary btn-sm" type="button" onclick="agregarComisionObjetivoTemp()">+ Agregar comisión</button>
             </div>
             <div id="obj-com-tope-aviso" style="display:none;font-size:11px;color:var(--rojo);margin-top:6px;font-weight:600;"></div>
+            <div id="obj-com-guardar-wrap" style="display:none;margin-top:10px;">
+              <button class="btn btn-primary btn-sm" type="button" onclick="guardarComisionesObjetivo()">💾 Guardar comisiones</button>
+              <span class="form-hint">Guarda solo las comisiones, sin pedir el resto de los campos del servicio</span>
+            </div>
           </div>
           <div class="form-group"><label>Modelo de precio *</label>
             <select id="obj-modelo-precio" onchange="toggleModeloPrecio()"></select>
