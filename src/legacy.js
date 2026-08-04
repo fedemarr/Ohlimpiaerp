@@ -263,10 +263,6 @@ function activarAgente(){
   DB.candidatos.filter(c=>c.estado==='Sin citar').forEach(c=>{c.estado='Citado';c.rrhh='Agente IA Ohlimpia';});
   cerrarModal('modal-agente');renderCandidatos();toast('🤖 Agente IA activado — Iniciando contacto por WhatsApp...',5000);
 }
-function simularRegistroPublico(){
-  DB.candidatos.push({id:Date.now(),nombre:'Candidato — Formulario web',dni:'',zona:'CABA',localidad:'',tel:'',medio:'Formulario web',estado:'Sin citar',fecha:'',hora:'',rrhh:'',asistio:'-',obs:'Ingresó por link público'});
-  cerrarModal('modal-form-publico');toast('✓ Registro recibido — aparece en la base de candidatos');
-}
 
 // ========== ÁREAS DE PERSONAL ==========
 // Estado de áreas — quién trabaja en cada área con permisos y nickname
@@ -12362,7 +12358,6 @@ window.setTipoAdmin = setTipoAdmin;
 window.setTipoHoraAsoc = setTipoHoraAsoc;
 window.setValorLiq = setValorLiq;
 window.setValoresPeriodo = setValoresPeriodo;
-window.simularRegistroPublico = simularRegistroPublico;
 window.solicitarCatAlt = solicitarCatAlt;
 window.asignarCategoriaLegajo = asignarCategoriaLegajo;
 window.tabCliModal = tabCliModal;

@@ -13,6 +13,19 @@ const ESTADO_DISPLAY = {
   'Psicotecnico': 'Psicotécnico',
 };
 
+// id_local se trunca a 9 dígitos al persistir (supaSync) y, al releer
+// desde Supabase, _toCamel reemplaza candidato.id por ese id_local
+// (src/shared/supabase.js). Cualquier referencia cruzada (turno →
+// candidato) armada con el id "vivo" de Date.now() (13 dígitos, sin
+// truncar) deja de matchear apenas se recarga la página — bug real
+// confirmado contra datos de producción (turnos.candidato_id con tres
+// formatos distintos según el alta: '', el id de 13 dígitos sin
+// truncar, o el id serial de Supabase). Se normaliza acá para que la
+// referencia sobreviva a un reload sin importar el origen.
+function idLocalCand(id) {
+  return String(id).slice(-9);
+}
+
 function formatearFechaISO(iso) {
   if (!iso) return '';
   const parts = iso.split('-');
@@ -254,7 +267,7 @@ function propagarCambioDniCandidato(dniAnterior, dniNuevo) {
   }
 }
 
-export function guardarCandidato() {
+export async function guardarCandidato() {
   if (!validarCampos([
     { id: 'c-apellido', label: 'Apellido' },
     { id: 'c-nombre', label: 'Nombre' },
@@ -320,6 +333,7 @@ export function guardarCandidato() {
     const c = getCandById(editId);
     if (!c) { toast('⚠️ Candidato no encontrado'); return; }
     const dniAnterior = c.dni;
+    const snapshot = { ...c };
     Object.assign(c, {
       apellido, nombre, dni, cuit, fecNac, estadoCivil, genero, nacionalidad,
       tel, email, calle, piso, zona, localidad,
@@ -328,7 +342,15 @@ export function guardarCandidato() {
       fechaCita: fechaCita || c.fechaCita || null,
       horaCita: horaCita || c.horaCita || null,
     });
-    supaSync('candidatos', c);
+    const ok = await supaSync('candidatos', c);
+    if (!ok) {
+      // No se pudo guardar en Supabase — revertir el cambio local para
+      // que la pantalla no muestre un dato que en realidad no persistió
+      // (antes se aplicaba igual y "desaparecía" recién al recargar).
+      Object.assign(c, snapshot);
+      toast('⚠️ No se pudo guardar el candidato en el servidor — reintentá o avisá a sistemas');
+      return;
+    }
     if (dniAnterior && dni !== dniAnterior) propagarCambioDniCandidato(dniAnterior, dni);
     delete modal.dataset.editId;
     toast('✓ Candidato actualizado');
@@ -345,15 +367,19 @@ export function guardarCandidato() {
       horaCita: horaCita || null,
       creadoPor,
     };
+    const okCand = await supaSync('candidatos', nuevo);
+    if (!okCand) {
+      toast('⚠️ No se pudo guardar el candidato en el servidor — reintentá o avisá a sistemas');
+      return;
+    }
     DB.candidatos.push(nuevo);
-    supaSync('candidatos', nuevo);
 
     // Crear turno si tiene fecha y hora
     if (fechaCita && horaCita) {
       const responsable = (DB.personalRrhh || []).find(p => p.id === rrhhId);
       const turno = {
         id: Date.now() + 1,
-        candidatoId: nuevo.id,
+        candidatoId: idLocalCand(nuevo.id),
         nombre: apellido + ' ' + nombre,
         fecha: fechaCita,
         hora: horaCita,
@@ -362,7 +388,8 @@ export function guardarCandidato() {
       };
       if (!DB.turnos) DB.turnos = [];
       DB.turnos.push(turno);
-      supaSync('turnos', turno);
+      const okTurno = await supaSync('turnos', turno);
+      if (!okTurno) toast('⚠️ El candidato se guardó, pero no se pudo registrar el turno — cargalo desde "Citar"');
     }
     toast('✓ Candidato guardado');
   }
@@ -473,22 +500,28 @@ export function abrirCitarPorId(id) {
   abrirModal('modal-citar-cand');
 }
 
-export function guardarCita() {
+export async function guardarCita() {
   const c = getCandById($('citar-idx').value);
   if (!c) { toast('⚠️ Candidato no encontrado'); return; }
   const fecha = $('citar-fecha').value;
   const hora = $('citar-hora').value;
   if (!fecha) { toast('⚠️ Ingresá la fecha'); return; }
   if (!hora) { toast('⚠️ Ingresá la hora'); return; }
+  const snapshot = { fechaCita: c.fechaCita, horaCita: c.horaCita, estado: c.estado };
   c.fechaCita = fecha;
   c.horaCita = hora;
   c.estado = 'Citado';
-  supaSync('candidatos', c);
+  const ok = await supaSync('candidatos', c);
+  if (!ok) {
+    Object.assign(c, snapshot);
+    toast('⚠️ No se pudo guardar la cita en el servidor — reintentá o avisá a sistemas');
+    return;
+  }
 
   // Crear turno en el calendario
   const turno = {
     id: Date.now(),
-    candidatoId: c.id,
+    candidatoId: idLocalCand(c.id),
     nombre: (c.apellido ? c.apellido + ' ' : '') + c.nombre,
     fecha: fecha,
     hora: hora,
@@ -497,7 +530,8 @@ export function guardarCita() {
   };
   if (!DB.turnos) DB.turnos = [];
   DB.turnos.push(turno);
-  supaSync('turnos', turno);
+  const okTurno = await supaSync('turnos', turno);
+  if (!okTurno) toast('⚠️ La cita se guardó en el candidato, pero no se pudo registrar en el calendario');
 
   cerrarModal('modal-citar-cand');
   renderCandidatos();
@@ -523,11 +557,12 @@ export function abrirResultadoPorId(id) {
   abrirModal('modal-resultado-cand');
 }
 
-export function guardarResultadoEntrevista() {
+export async function guardarResultadoEntrevista() {
   const c = getCandById($('resultado-idx').value);
   if (!c) { toast('⚠️ Error: candidato no encontrado'); return; }
   const asistio = document.querySelector('input[name="asistio-radio"]:checked');
   if (!asistio) { toast('⚠️ Indicá si asistió o no'); return; }
+  const snapshot = { asistio: c.asistio, estado: c.estado, motivoRechazo: c.motivoRechazo, obsEntrevista: c.obsEntrevista, fechaCita: c.fechaCita, horaCita: c.horaCita };
   c.asistio = asistio.value;
   if (c.asistio === 'si') {
     const res = $('resultado-valor').value;
@@ -543,55 +578,89 @@ export function guardarResultadoEntrevista() {
     c.estado = 'Sin citar';
     c.fechaCita = null;
     c.horaCita = null;
-    toast('ℹ️ No asistió — vuelve a Sin citar');
   }
-  supaSync('candidatos', c);
+  const ok = await supaSync('candidatos', c);
+  if (!ok) {
+    Object.assign(c, snapshot);
+    toast('⚠️ No se pudo guardar el resultado en el servidor — reintentá o avisá a sistemas');
+    return;
+  }
   cerrarModal('modal-resultado-cand');
   renderCandidatos();
-  toast('✓ Resultado registrado');
+  if (c.asistio === 'no') toast('ℹ️ No asistió — vuelve a Sin citar');
+  else toast('✓ Resultado registrado');
 }
 
 // ========== ACCIONES DE ESTADO ==========
 
-export function aprobarCandidatoPorId(id) {
+export async function aprobarCandidatoPorId(id) {
   const c = getCandById(id); if (!c) return;
+  const estadoAnterior = c.estado;
   c.estado = 'Aprobado';
-  supaSync('candidatos', c);
+  const ok = await supaSync('candidatos', c);
+  if (!ok) {
+    c.estado = estadoAnterior;
+    toast('⚠️ No se pudo aprobar en el servidor — reintentá o avisá a sistemas');
+    return;
+  }
   renderCandidatos();
   toast('✅ ' + c.nombre + ' aprobado');
 }
 
 export function rechazarCandidatoPorId(id) {
-  abrirModalInput({ titulo: 'Rechazar candidato', etiqueta: 'Motivo del rechazo' }, (motivo) => {
+  abrirModalInput({ titulo: 'Rechazar candidato', etiqueta: 'Motivo del rechazo' }, async (motivo) => {
     const c = getCandById(id); if (!c) return;
+    const estadoAnterior = c.estado, motivoAnterior = c.motivoRechazo;
     c.estado = 'Rechazado';
     c.motivoRechazo = motivo;
-    supaSync('candidatos', c);
+    const ok = await supaSync('candidatos', c);
+    if (!ok) {
+      c.estado = estadoAnterior; c.motivoRechazo = motivoAnterior;
+      toast('⚠️ No se pudo rechazar en el servidor — reintentá o avisá a sistemas');
+      return;
+    }
     renderCandidatos();
     toast('❌ Candidato rechazado');
   });
 }
 
-export function pasarAPsicoPorId(id) {
+export async function pasarAPsicoPorId(id) {
   const c = getCandById(id); if (!c) return;
-  if ((DB.psicos || []).find(p => p.candidatoId === c.id)) { toast('⚠️ Ya está en Psicotécnico'); return; }
+  // Match por DNI, no por candidatoId — mismo criterio ya establecido en
+  // este proyecto para conciliar entre etapas (ver CLAUDE.md, "Conciliación
+  // entre etapas por candidatoId truncado"): candidatoId puede truncarse
+  // o no según el alta y deja de matchear tras un reload; el DNI es el
+  // dato estable entre etapas.
+  if ((DB.psicos || []).find(p => p.dni && p.dni === c.dni)) { toast('⚠️ Ya está en Psicotécnico'); return; }
   const p = {
-    id: Date.now(), candidatoId: c.id, nombre: (c.apellido ? c.apellido + ' ' : '') + c.nombre, dni: c.dni, zona: c.zona, tel: c.tel, rrhh: (DB.personalRrhh || []).find(p => p.id === c.rrhhId)?.nombre || '',
+    id: Date.now(), candidatoId: idLocalCand(c.id), nombre: (c.apellido ? c.apellido + ' ' : '') + c.nombre, dni: c.dni, zona: c.zona, tel: c.tel, rrhh: (DB.personalRrhh || []).find(p => p.id === c.rrhhId)?.nombre || '',
     psicotecnico: 'Pendiente', prelaboral: 'Pendiente', antecedentes: 'No requerido', libretaSanitaria: 'No requerido',
     requiereAntecedentes: false, requiereLibreta: false, estado: 'En proceso',
     fecha: new Date().toLocaleDateString('es-AR'), obs: '',
   };
+  const okPsico = await supaSync('psicos', p);
+  if (!okPsico) { toast('⚠️ No se pudo enviar a Psicotécnico — reintentá o avisá a sistemas'); return; }
   if (!DB.psicos) DB.psicos = [];
   DB.psicos.push(p);
+  const estadoAnterior = c.estado;
   c.estado = 'Psicotecnico';
-  supaSync('candidatos', c);
-  supaSync('psicos', p);
+  const okCand = await supaSync('candidatos', c);
+  if (!okCand) {
+    // El registro de psicotécnico ya quedó creado — no se revierte para
+    // no perder ese trabajo, pero el candidato queda con estado
+    // desincronizado hasta reintentar (mejor avisar que fallar en silencio).
+    c.estado = estadoAnterior;
+    toast('⚠️ Se creó el registro de Psicotécnico pero no se pudo actualizar el estado del candidato — reintentá');
+    renderCandidatos();
+    return;
+  }
   renderCandidatos();
   toast('🧠 ' + c.nombre + ' enviado a Psicotécnico');
 }
 
-export function registrarAsistencia(id, valor) {
+export async function registrarAsistencia(id, valor) {
   const c = getCandById(id); if (!c) return;
+  const snapshot = { asistio: c.asistio, estado: c.estado, fechaCita: c.fechaCita, horaCita: c.horaCita };
   c.asistio = (valor === 'si' || valor === 'no') ? valor : null;
   if (valor === 'si') {
     c.estado = 'Entrevistado';
@@ -600,7 +669,13 @@ export function registrarAsistencia(id, valor) {
     c.fechaCita = null;
     c.horaCita = null;
   }
-  supaSync('candidatos', c);
+  const ok = await supaSync('candidatos', c);
+  if (!ok) {
+    Object.assign(c, snapshot);
+    renderCandidatos();
+    toast('⚠️ No se pudo registrar la asistencia en el servidor — reintentá o avisá a sistemas');
+    return;
+  }
   renderCandidatos();
   if (valor === 'si') toast('✅ Asistió — ahora podés Aprobar o Rechazar');
   else if (valor === 'no') toast('❌ No asistió — vuelve a Sin citar');

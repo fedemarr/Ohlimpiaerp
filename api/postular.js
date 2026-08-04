@@ -117,8 +117,7 @@ export default async function handler(req, res) {
       creado_por: 'Formulario público',
     };
 
-    const { data: candidatoCreado, error: errCand } = await supa
-      .from('candidatos').insert(nuevoCandidato).select('id').single();
+    const { error: errCand } = await supa.from('candidatos').insert(nuevoCandidato);
 
     if (errCand) {
       if (errCand.code === '23505') {
@@ -133,7 +132,12 @@ export default async function handler(req, res) {
     if (fecha && hora) {
       const nuevoTurno = {
         id_local: idLocal(1),
-        candidato_id: String(candidatoCreado.id),
+        // El front (candidatos.js) siempre lee/escribe candidato.id como
+        // el id_local truncado (ver _toCamel en shared/supabase.js, que
+        // reemplaza id por id_local al recargar) — usar acá el id
+        // serial de Supabase en vez de id_local rompía la relación
+        // turno→candidato apenas alguien recargaba la pantalla.
+        candidato_id: nuevoCandidato.id_local,
         nombre: apellido + ' ' + nombre,
         fecha,
         hora,
