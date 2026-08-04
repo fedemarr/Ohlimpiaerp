@@ -7,7 +7,7 @@ export {
   abrirCitarPorId, guardarCita,
   abrirResultadoPorId, guardarResultadoEntrevista,
   aprobarCandidatoPorId, rechazarCandidatoPorId, pasarAPsicoPorId,
-  registrarAsistencia,
+  registrarAsistencia, desmarcarAsistenciaPorId,
   getCandById, getIdxById,
   abrirDetalleCandidatoPorId,
 } from './candidatos.js';
@@ -81,7 +81,7 @@ import {
   abrirCitarPorId, guardarCita,
   abrirResultadoPorId, guardarResultadoEntrevista,
   aprobarCandidatoPorId, rechazarCandidatoPorId, pasarAPsicoPorId,
-  registrarAsistencia,
+  registrarAsistencia, desmarcarAsistenciaPorId,
   abrirDetalleCandidatoPorId,
 } from './candidatos.js';
 
@@ -118,6 +118,7 @@ window.aprobarCandidatoPorId = aprobarCandidatoPorId;
 window.rechazarCandidatoPorId = rechazarCandidatoPorId;
 window.pasarAPsicoPorId = pasarAPsicoPorId;
 window.registrarAsistencia = registrarAsistencia;
+window.desmarcarAsistenciaPorId = desmarcarAsistenciaPorId;
 window.abrirDetalleCandidatoPorId = abrirDetalleCandidatoPorId;
 
 // Calendario de entrevistas

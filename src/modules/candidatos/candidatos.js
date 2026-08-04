@@ -72,6 +72,7 @@ function bindTbodyEvents(tbody) {
     else if (action === 'psico') pasarAPsicoPorId(id);
     else if (action === 'editar') editarCandidatoPorId(id);
     else if (action === 'ver-detalle') abrirDetalleCandidatoPorId(id);
+    else if (action === 'desmarcar-asistencia') desmarcarAsistenciaPorId(id);
   };
   tbody.onchange = function (e) {
     const sel = e.target.closest('select[data-action="asistencia"]');
@@ -155,6 +156,10 @@ function renderFilaCand(c) {
     else if (c.estado === 'Entrevistado') {
       btns += '<button data-action="aprobar" data-id="' + cid + '" style="' + btnStyle + 'background:#16a34a;color:white;">✅ Aprobar</button>';
       btns += '<button data-action="rechazar" data-id="' + cid + '" style="' + btnStyle + 'background:#dc2626;color:white;">❌ Rechazar</button>';
+      // Sólo aparece en este estado (justo después de marcar "Sí asistió",
+      // antes de Aprobar/Rechazar) — corrige un click errado sin tener que
+      // deshacer pasos posteriores del proceso.
+      btns += '<button data-action="desmarcar-asistencia" data-id="' + cid + '" style="' + btnStyle + 'background:#fef3c7;color:#92400e;" title="La asistencia se marcó por error">↩️ Desmarcar asistencia</button>';
     } else if (c.estado === 'Aprobado')
       btns += '<button data-action="psico" data-id="' + cid + '" style="' + btnStyle + 'background:#7c3aed;color:white;">🧠 Psico</button>';
     btns += '<button data-action="editar" data-id="' + cid + '" style="' + btnStyle + 'background:#e2e8f0;color:#374151;">✏️</button>';
@@ -689,4 +694,32 @@ export async function registrarAsistencia(id, valor) {
   renderCandidatos();
   if (valor === 'si') toast('✅ Asistió — ahora podés Aprobar o Rechazar');
   else if (valor === 'no') toast('❌ No asistió — vuelve a Sin citar');
+}
+
+// Revierte una asistencia marcada por error (ticket RRHH 04/08/2026).
+// Deshace exactamente lo que hizo registrarAsistencia(id,'si') — vuelve
+// asistio a null y estado a 'Citado' — y nada más: no toca fechaCita,
+// horaCita, motivoRechazo, obs ni ningún otro dato del candidato. Sólo
+// se ofrece desde 'Entrevistado' (ver renderFilaCand): si el candidato
+// ya avanzó a Aprobado/Rechazado/Psicotécnico, deshacer la asistencia
+// dejaría esos pasos posteriores en un estado inconsistente, así que no
+// se expone ahí — hay que rechazarlo o revertir esos pasos primero.
+export async function desmarcarAsistenciaPorId(id) {
+  const c = getCandById(id); if (!c) return;
+  if (c.estado !== 'Entrevistado') { toast('⚠️ Sólo se puede desmarcar justo después de registrar la asistencia, antes de Aprobar/Rechazar'); return; }
+  const nombreCompleto = (c.apellido ? c.apellido + ', ' : '') + (c.nombre || '');
+  if (!confirm('¿Desmarcar la asistencia de ' + nombreCompleto + '? Vuelve a "Citado" para poder registrarla de nuevo.')) return;
+
+  const snapshot = { asistio: c.asistio, estado: c.estado };
+  c.asistio = null;
+  c.estado = 'Citado';
+  const ok = await supaSync('candidatos', c);
+  if (!ok) {
+    Object.assign(c, snapshot);
+    renderCandidatos();
+    toast('⚠️ No se pudo desmarcar la asistencia en el servidor — reintentá o avisá a sistemas');
+    return;
+  }
+  renderCandidatos();
+  toast('↩️ Asistencia desmarcada — ' + nombreCompleto + ' vuelve a "Citado"');
 }
