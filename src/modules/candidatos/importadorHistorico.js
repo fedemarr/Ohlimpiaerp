@@ -95,26 +95,47 @@ function normalizarHeader(h) {
 }
 
 // ========== PLANTILLA ==========
+// Se genera un .xlsx real (no CSV) — a diferencia de LEER un .xlsx
+// subido por el usuario (ver más abajo, ahí sí hay una vulnerabilidad
+// conocida sin parche en la librería), ESCRIBIR/generar un .xlsx para
+// descargar no toca ese código vulnerable y es un patrón ya usado en el
+// proyecto (ver exportarHistorialCategoriasExcel en el módulo
+// Categorías). Los encabezados son los mismos que ya usa la planilla
+// real de RRHH, así Gabi puede completar la plantilla y listo.
+const HEADERS_DISPLAY = {
+  fecha: 'Fecha', entrevistadora: 'Entrevistadora', modalidad: 'Modalidad de Entrevista',
+  apellidos: 'Apellidos', nombres: 'Nombres', dni: 'DNI', genero: 'Género',
+  telefono: 'Teléfono de Contacto', edad: 'Edad', localidad: 'Localidad',
+  zona: 'Zona de Residencia', disponibilidad: 'Disponibilidad Horaria',
+  experiencia: 'Experiencia Laboral en Maestranza',
+  presencia: 'Presencia', exp_verbal: 'Exp. Verbal', compr_consignas: 'Compr. consignas',
+  predisposicion: 'Predisposición', rel_interpersonal: 'Rel. Interpersonal',
+  evaluacion_final: 'EVALUACIÓN FINAL', observaciones: 'OBSERVACIONES',
+  medio: 'Medio de Convocatoria', detalle_convocatoria: 'Detalle Convocatoria',
+  correo_electronico: 'Correo Electrónico', posible_servicio: 'Posible Servicio',
+  fecha_psico: 'Fecha de Psico', psicotecnico: 'Psicotécnico',
+  fecha_ingreso: 'Fecha de Ingreso', obs_psicotecnico: 'OBS. DEL PSICOTECNICO',
+};
+const FILA_EJEMPLO = {
+  fecha: '28/07/2026', entrevistadora: 'Jimena', modalidad: 'Virtual',
+  apellidos: 'Calermo', nombres: 'Paula Nicole', dni: '46233485', genero: 'F',
+  telefono: '1168278327', edad: '18 a 25 años', localidad: 'Retiro',
+  zona: 'CABA', disponibilidad: 'Full time', experiencia: 'Baja',
+  presencia: 'B', exp_verbal: 'B', compr_consignas: 'B', predisposicion: 'B', rel_interpersonal: 'B',
+  evaluacion_final: 'Aprobado', observaciones: 'Poca experiencia lab. buena presencia, para hit',
+  medio: 'Red Social Facebook', detalle_convocatoria: 'Facebook',
+  correo_electronico: '', posible_servicio: '', fecha_psico: '', psicotecnico: '',
+  fecha_ingreso: '', obs_psicotecnico: '',
+};
 
-export function descargarPlantillaCandidatosHistorico() {
-  const encabezado = COLUMNAS_PLANTILLA.join(',');
-  const ejemplo = [
-    '28/07/2026', 'Jimena', 'Virtual', 'Calermo', 'Paula Nicole', '46233485', 'F',
-    '1168278327', '18 a 25 años', 'Retiro', 'CABA', 'Full time', 'Baja',
-    'B', 'B', 'B', 'B', 'B',
-    'Aprobado', 'Poca experiencia lab. buena presencia, para hit', 'Red Social Facebook', 'Facebook',
-    '', '', '', '',
-    '', '',
-  ].map(v => '"' + String(v).replace(/"/g, '""') + '"').join(',');
-  const csv = encabezado + '\n' + ejemplo + '\n';
-  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url; a.download = 'plantilla_candidatos_historico.csv';
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  URL.revokeObjectURL(url);
+export async function descargarPlantillaCandidatosHistorico() {
+  const XLSX = await import('xlsx');
+  const fila = {};
+  COLUMNAS_PLANTILLA.forEach(k => { fila[HEADERS_DISPLAY[k]] = FILA_EJEMPLO[k]; });
+  const hoja = XLSX.utils.json_to_sheet([fila], { header: COLUMNAS_PLANTILLA.map(k => HEADERS_DISPLAY[k]) });
+  const libro = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(libro, hoja, 'Entrevistas');
+  XLSX.writeFile(libro, 'plantilla_candidatos_historico.xlsx');
 }
 
 // ========== PARSER CSV (texto plano, sin librerías externas) ==========
