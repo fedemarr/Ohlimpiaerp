@@ -1242,7 +1242,17 @@ function persistirRelacionadosObjetivo(o){
   const oidl=idLocalTrunc(o.id);
   (o.responsables||[]).forEach(r=>{
     if(!r.id) r.id=Date.now()+Math.floor(Math.random()*10000);
-    supaSync('objetivoResponsables', {...r, objetivoIdLocal:oidl});
+    // objetivo_responsables.telefono es el único lugar del esquema que
+    // llama "telefono" a este dato — el resto de las tablas (candidatos,
+    // psicos, legajos...) lo llaman "tel", igual que el campo JS `r.tel`
+    // que se usa en toda la UI. Antes había un mapeo global tel→telefono
+    // en _toSnake que "arreglaba" esta tabla rompiendo a todas las demás
+    // (bug real en producción, 04/08/2026: candidatos dejó de poder
+    // guardarse porque candidatos.tel se mandaba como "telefono", columna
+    // que no existe ahí). Se saca del diccionario global y se traduce acá,
+    // puntual, para la única tabla que de verdad lo necesita.
+    const { tel, ...rSinTel } = r;
+    supaSync('objetivoResponsables', {...rSinTel, telefono:tel, objetivoIdLocal:oidl});
   });
   (o.adjuntos||[]).forEach(a=>{
     if(!a.id) a.id=Date.now()+Math.floor(Math.random()*10000);

@@ -353,11 +353,15 @@ export function _toSnake(obj) {
     fechaReactivacion: 'fecha_reactivacion', reactivadoPor: 'reactivado_por',
     personalHorario: 'personal_horario',
     aSatisfacer: 'a_satisfacer',
-    // objetivo_responsables.telefono — bug preexistente encontrado de paso
-    // (Delta v1.3): 'tel' nunca tenía mapeo, se mandaba tal cual a
-    // PostgREST contra una columna 'telefono' que no existe → todo el
-    // insert/update de ese responsable fallaba en silencio.
-    tel: 'telefono',
+    // NO mapear 'tel' acá (bug real en producción, 04/08/2026): hubo un
+    // "tel: 'telefono'" en este diccionario para arreglar
+    // objetivo_responsables (la única tabla que de verdad llama
+    // "telefono" a este campo), pero al ser un diccionario global rompía
+    // TODAS las demás tablas que sí llaman "tel" a su columna
+    // (candidatos, psicos, legajos...) — cada guardado de un candidato
+    // fallaba con "Could not find the 'telefono' column of 'candidatos'".
+    // La traducción puntual para objetivo_responsables ahora vive en
+    // persistirRelacionadosObjetivo() (legacy.js), no acá.
     // 2.3.2 (Delta Comercial v1.3)
     recibeFactura: 'recibe_factura',
     // V.1/A.1 (Delta Comercial v1.3) — Clientes. 'codigo' NO necesita
