@@ -10,6 +10,14 @@ export async function loginComoAdmin(page, perfil = 'Administrador total') {
   await page.evaluate(async (perfil) => {
     const { setCurrentUser } = await import('/src/shared/state.js');
     setCurrentUser({ nombre: 'Test E2E', perfil });
+    // iniciarSesion() real hace esto además de setCurrentUser (auth.js)
+    // — sin esto #app queda con la clase "hidden" y las pantallas de
+    // adentro no son "visible" para Playwright aunque su texto sí se
+    // actualice (toContainText no exige visibilidad, toBeVisible sí).
+    const loginScreen = document.getElementById('login-screen');
+    if (loginScreen) loginScreen.style.display = 'none';
+    const app = document.getElementById('app');
+    if (app) app.classList.remove('hidden');
   }, perfil);
 }
 

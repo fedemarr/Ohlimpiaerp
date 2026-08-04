@@ -144,6 +144,15 @@ export async function descargarPlantillaCandidatosHistorico() {
 // entre módulos por una función de 25 líneas sin estado.
 
 function parseCSV(texto) {
+  // Excel con configuración regional argentina exporta CSV separado por
+  // ';' (la coma queda reservada como separador decimal). Se detecta el
+  // delimitador real contando ocurrencias en la primera línea (cabecera),
+  // igual que _parsearLineaCSV en legacy.js — si no, con ';' cada fila
+  // completa cae en un solo campo y ninguna se reconoce como válida.
+  const finPrimeraLinea = texto.search(/\r\n|\r|\n/);
+  const cabecera = finPrimeraLinea === -1 ? texto : texto.slice(0, finPrimeraLinea);
+  const delim = cabecera.split(';').length > cabecera.split(',').length ? ';' : ',';
+
   const filas = [];
   let fila = [];
   let campo = '';
@@ -159,7 +168,7 @@ function parseCSV(texto) {
       }
     } else if (c === '"') {
       dentroComillas = true;
-    } else if (c === ',') {
+    } else if (c === delim) {
       fila.push(campo); campo = '';
     } else if (c === '\n' || c === '\r') {
       if (c === '\r' && texto[i + 1] === '\n') i++;
