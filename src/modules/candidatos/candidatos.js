@@ -1,7 +1,7 @@
 import { DB, LOCALIDADES_BA, BARRIOS_CABA, currentUser } from '@shared/state.js';
 import { $, toTitleCase, cleanText, validarCampos, hoyStr, badge } from '@shared/helpers.js';
 import { toast, abrirModal, cerrarModal, abrirModalInput } from '@shared/ui.js';
-import { supaSync } from '@shared/supabase.js';
+import { supaSync, getLastSupaSyncError } from '@shared/supabase.js';
 
 // ========== ESTADO INTERNO ==========
 
@@ -24,6 +24,28 @@ const ESTADO_DISPLAY = {
 // referencia sobreviva a un reload sin importar el origen.
 function idLocalCand(id) {
   return String(id).slice(-9);
+}
+
+// Traduce el último error real de Supabase (guardado por supaSync) a un
+// mensaje específico cuando se puede identificar la causa — "reintentá"
+// no sirve de nada si el problema es un DNI duplicado (no se arregla
+// reintentando) o la sesión sin permiso (hay que volver a loguearse).
+// Si no se reconoce el error, cae al mensaje genérico de siempre. Esto
+// salió de un caso real reportado por RRHH (04/08/2026): el toast
+// genérico de "no se pudo guardar" ya avisa que algo falló (antes
+// desaparecía en silencio), pero no decía por qué ni qué hacer.
+function mensajeErrorGuardado(generico) {
+  const err = getLastSupaSyncError();
+  if (!err) return generico;
+  const msg = (err.message || '').toLowerCase();
+  if (err.code === '23505' || msg.includes('duplicate key')) {
+    if (msg.includes('dni')) return '⚠️ Ya existe un candidato con ese DNI en el sistema (puede haberlo cargado otra persona) — revisá antes de reintentar, no se puede repetir el mismo DNI.';
+    return '⚠️ Ya existe un registro con ese dato — revisá antes de reintentar (reintentar tal cual no lo va a resolver).';
+  }
+  if (err.code === '42501' || msg.includes('row-level security') || msg.includes('permission denied')) {
+    return '⚠️ Tu sesión no tiene permiso para guardar ahora — cerrá sesión, volvé a entrar, y si sigue avisá a sistemas.';
+  }
+  return generico;
 }
 
 function formatearFechaISO(iso) {
@@ -361,7 +383,7 @@ export async function guardarCandidato() {
       // que la pantalla no muestre un dato que en realidad no persistió
       // (antes se aplicaba igual y "desaparecía" recién al recargar).
       Object.assign(c, snapshot);
-      toast('⚠️ No se pudo guardar el candidato en el servidor — reintentá o avisá a sistemas');
+      toast(mensajeErrorGuardado('⚠️ No se pudo guardar el candidato en el servidor — reintentá o avisá a sistemas'));
       return;
     }
     if (dniAnterior && dni !== dniAnterior) propagarCambioDniCandidato(dniAnterior, dni);
@@ -382,7 +404,7 @@ export async function guardarCandidato() {
     };
     const okCand = await supaSync('candidatos', nuevo);
     if (!okCand) {
-      toast('⚠️ No se pudo guardar el candidato en el servidor — reintentá o avisá a sistemas');
+      toast(mensajeErrorGuardado('⚠️ No se pudo guardar el candidato en el servidor — reintentá o avisá a sistemas'));
       return;
     }
     DB.candidatos.push(nuevo);
@@ -402,7 +424,7 @@ export async function guardarCandidato() {
       if (!DB.turnos) DB.turnos = [];
       DB.turnos.push(turno);
       const okTurno = await supaSync('turnos', turno);
-      if (!okTurno) toast('⚠️ El candidato se guardó, pero no se pudo registrar el turno — cargalo desde "Citar"');
+      if (!okTurno) toast(mensajeErrorGuardado('⚠️ El candidato se guardó, pero no se pudo registrar el turno — cargalo desde "Citar"'));
     }
     toast('✓ Candidato guardado');
   }
@@ -529,7 +551,7 @@ export async function guardarCita() {
   const ok = await supaSync('candidatos', c);
   if (!ok) {
     Object.assign(c, snapshot);
-    toast('⚠️ No se pudo guardar la cita en el servidor — reintentá o avisá a sistemas');
+    toast(mensajeErrorGuardado('⚠️ No se pudo guardar la cita en el servidor — reintentá o avisá a sistemas'));
     return;
   }
 
@@ -597,7 +619,7 @@ export async function guardarResultadoEntrevista() {
   const ok = await supaSync('candidatos', c);
   if (!ok) {
     Object.assign(c, snapshot);
-    toast('⚠️ No se pudo guardar el resultado en el servidor — reintentá o avisá a sistemas');
+    toast(mensajeErrorGuardado('⚠️ No se pudo guardar el resultado en el servidor — reintentá o avisá a sistemas'));
     return;
   }
   cerrarModal('modal-resultado-cand');
@@ -615,7 +637,7 @@ export async function aprobarCandidatoPorId(id) {
   const ok = await supaSync('candidatos', c);
   if (!ok) {
     c.estado = estadoAnterior;
-    toast('⚠️ No se pudo aprobar en el servidor — reintentá o avisá a sistemas');
+    toast(mensajeErrorGuardado('⚠️ No se pudo aprobar en el servidor — reintentá o avisá a sistemas'));
     return;
   }
   renderCandidatos();
@@ -631,7 +653,7 @@ export function rechazarCandidatoPorId(id) {
     const ok = await supaSync('candidatos', c);
     if (!ok) {
       c.estado = estadoAnterior; c.motivoRechazo = motivoAnterior;
-      toast('⚠️ No se pudo rechazar en el servidor — reintentá o avisá a sistemas');
+      toast(mensajeErrorGuardado('⚠️ No se pudo rechazar en el servidor — reintentá o avisá a sistemas'));
       return;
     }
     renderCandidatos();
@@ -654,7 +676,7 @@ export async function pasarAPsicoPorId(id) {
     fecha: new Date().toLocaleDateString('es-AR'), obs: '',
   };
   const okPsico = await supaSync('psicos', p);
-  if (!okPsico) { toast('⚠️ No se pudo enviar a Psicotécnico — reintentá o avisá a sistemas'); return; }
+  if (!okPsico) { toast(mensajeErrorGuardado('⚠️ No se pudo enviar a Psicotécnico — reintentá o avisá a sistemas')); return; }
   if (!DB.psicos) DB.psicos = [];
   DB.psicos.push(p);
   const estadoAnterior = c.estado;
@@ -665,7 +687,7 @@ export async function pasarAPsicoPorId(id) {
     // no perder ese trabajo, pero el candidato queda con estado
     // desincronizado hasta reintentar (mejor avisar que fallar en silencio).
     c.estado = estadoAnterior;
-    toast('⚠️ Se creó el registro de Psicotécnico pero no se pudo actualizar el estado del candidato — reintentá');
+    toast(mensajeErrorGuardado('⚠️ Se creó el registro de Psicotécnico pero no se pudo actualizar el estado del candidato — reintentá'));
     renderCandidatos();
     return;
   }
@@ -688,7 +710,7 @@ export async function registrarAsistencia(id, valor) {
   if (!ok) {
     Object.assign(c, snapshot);
     renderCandidatos();
-    toast('⚠️ No se pudo registrar la asistencia en el servidor — reintentá o avisá a sistemas');
+    toast(mensajeErrorGuardado('⚠️ No se pudo registrar la asistencia en el servidor — reintentá o avisá a sistemas'));
     return;
   }
   renderCandidatos();
@@ -717,7 +739,7 @@ export async function desmarcarAsistenciaPorId(id) {
   if (!ok) {
     Object.assign(c, snapshot);
     renderCandidatos();
-    toast('⚠️ No se pudo desmarcar la asistencia en el servidor — reintentá o avisá a sistemas');
+    toast(mensajeErrorGuardado('⚠️ No se pudo desmarcar la asistencia en el servidor — reintentá o avisá a sistemas'));
     return;
   }
   renderCandidatos();

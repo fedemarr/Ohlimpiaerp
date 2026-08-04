@@ -717,13 +717,24 @@ export function _toCamel(obj) {
   return r;
 }
 
+// Último error real de Supabase (código + mensaje), para que un llamador
+// que necesite dar feedback específico (ej. "ya existe ese DNI" en vez
+// de un genérico "no se pudo guardar") pueda leerlo después de un
+// `if (!(await supaSync(...)))`. Se pisa en cada llamada — no acumula
+// historial, es sólo "qué pasó la última vez".
+let _lastSupaSyncError = null;
+export function getLastSupaSyncError() { return _lastSupaSyncError; }
+
 // Guardar un registro en Supabase (upsert por id_local). Devuelve
 // true/false — la mayoría de los llamadores lo ignoran (fire-and-forget,
 // patrón histórico del proyecto), pero los que necesitan saber si
 // realmente persistió (ej. enviarSugerencia) pueden hacer
-// `if (!(await supaSync(...))) { ... avisar del fallo ... }`.
+// `if (!(await supaSync(...))) { ... avisar del fallo ... }`, y de paso
+// leer getLastSupaSyncError() para un mensaje más específico que el
+// genérico "no se pudo guardar".
 export async function supaSync(dbKey, obj) {
   const tabla = _SM[dbKey];
+  _lastSupaSyncError = null;
   if (!tabla || !obj) return false;
   try {
     const rawId = obj.nro || obj.id || Date.now();
@@ -736,16 +747,17 @@ export async function supaSync(dbKey, obj) {
     const { data: existe } = await SUPA.from(tabla).select('id').eq('id_local', idLocal).maybeSingle();
     if (existe) {
       const { error } = await SUPA.from(tabla).update(d).eq('id_local', idLocal);
-      if (error) { console.warn('supaSync update error:', tabla, error.message); return false; }
+      if (error) { console.warn('supaSync update error:', tabla, error.message); _lastSupaSyncError = error; return false; }
       console.log('✅ Actualizado en Supabase:', tabla, idLocal);
     } else {
       const { error } = await SUPA.from(tabla).insert(d);
-      if (error) { console.warn('supaSync insert error:', tabla, error.message); return false; }
+      if (error) { console.warn('supaSync insert error:', tabla, error.message); _lastSupaSyncError = error; return false; }
       console.log('✅ Guardado en Supabase:', tabla, idLocal);
     }
     return true;
   } catch (e) {
     console.warn('supaSync error:', tabla, e.message);
+    _lastSupaSyncError = e;
     return false;
   }
 }
