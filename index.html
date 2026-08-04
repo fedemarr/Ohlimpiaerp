@@ -157,6 +157,7 @@
       <button onclick="tabCandPrincipal('base')" id="tab-cand-base" style="padding:10px 20px;border:none;background:#1e3a8a;color:white;font-size:13px;font-weight:600;cursor:pointer;border-radius:8px 8px 0 0;">👥 Base de candidatos</button>
       <button onclick="tabCandPrincipal('calendario')" id="tab-cand-calendario" style="padding:10px 20px;border:none;background:#f1f5f9;color:#64748b;font-size:13px;font-weight:600;cursor:pointer;border-radius:8px 8px 0 0;">📅 Calendario de entrevistas</button>
       <button onclick="tabCandPrincipal('link')" id="tab-cand-link" style="padding:10px 20px;border:none;background:#f1f5f9;color:#64748b;font-size:13px;font-weight:600;cursor:pointer;border-radius:8px 8px 0 0;">🔗 Link público</button>
+      <button onclick="tabCandPrincipal('importar')" id="tab-cand-importar" style="padding:10px 20px;border:none;background:#f1f5f9;color:#64748b;font-size:13px;font-weight:600;cursor:pointer;border-radius:8px 8px 0 0;">📤 Importar histórico</button>
     </div>
   </div>
 
@@ -286,6 +287,32 @@
             <input type="text" id="cand-link-postulacion" readonly style="flex:1;padding:8px;border:1px solid #cbd5e1;border-radius:8px;font-size:12px;">
             <button class="btn btn-secondary btn-sm" onclick="copiarLinkPostulacion()">📋 Copiar</button>
             <a id="cand-link-postulacion-abrir" href="#" target="_blank" class="btn btn-secondary btn-sm">↗ Abrir</a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TAB: Importar histórico -->
+  <div id="cand-section-importar" style="display:none;">
+    <div style="margin:0 20px;">
+      <div class="card" style="max-width:900px;">
+        <div class="card-header"><h3>📤 Importar entrevistas históricas desde CSV</h3></div>
+        <div style="padding:20px;">
+          <div class="alerta alerta-info" style="margin-bottom:12px;">
+            Pensado para cargar de una vez candidatos ya entrevistados fuera del sistema (planilla histórica). Las columnas obligatorias son <strong>apellidos</strong>, <strong>nombres</strong> y <strong>dni</strong>; el resto queda vacío si no se completa.
+            Los datos de evaluación de la entrevista (presencia, experiencia, convocatoria, psicotécnico, etc.) que no tienen un campo propio en el sistema se guardan igual como texto en "Observaciones", para no perder nada de la planilla original.
+            Después de importar, marcá manualmente los que correspondan como Aprobado/Rechazado/etc. según haga falta.
+          </div>
+          <button type="button" class="btn btn-secondary" onclick="descargarPlantillaCandidatosHistorico()">⬇️ Descargar plantilla CSV</button>
+          <div class="form-group" style="margin-top:14px;">
+            <label>Archivo CSV (podés exportar tu planilla de Excel con Archivo → Guardar como → CSV UTF-8)</label>
+            <input type="file" id="imp-cand-file" accept=".csv,text/csv" onchange="seleccionarArchivoImportacionCandidatos()">
+          </div>
+          <div id="imp-cand-resumen" style="margin:8px 0;font-size:13px;font-weight:600;color:var(--texto-suave);"></div>
+          <div id="imp-cand-preview" style="max-height:360px;overflow-y:auto;border:1px solid var(--borde);border-radius:8px;"></div>
+          <div style="margin-top:14px;">
+            <button id="btn-confirmar-importacion-candidatos" class="btn btn-primary" style="display:none;" onclick="confirmarImportacionCandidatosHistorico()">✅ Confirmar importación</button>
           </div>
         </div>
       </div>
@@ -706,10 +733,17 @@
   <div id="cfg-tab-geografia" class="tab-content">
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:18px;">
       <div class="card">
-        <div class="card-header"><h3>📍 Zonas geográficas</h3><span class="text-muted">AMBA + futuras provincias</span></div>
+        <div class="card-header"><h3>📍 Zonas de residencia</h3><span class="text-muted">CABA + zonificación del conurbano</span></div>
         <div class="card-body">
           <div class="config-list" id="lista-zonas"></div>
-          <div class="config-add"><input type="text" id="nueva-zona" placeholder="Ej: Córdoba..."><button class="btn btn-primary btn-sm" onclick="agregarItem('zonas','nueva-zona','lista-zonas')">Agregar</button></div>
+          <div class="config-add"><input type="text" id="nueva-zona" placeholder="Ej: Zona Sur..."><button class="btn btn-primary btn-sm" onclick="agregarItem('zonas','nueva-zona','lista-zonas')">Agregar</button></div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-header"><h3>🕒 Disponibilidad horaria</h3><span class="text-muted">Opciones para el alta de candidatos</span></div>
+        <div class="card-body">
+          <div class="config-list" id="lista-disponibilidades-horarias"></div>
+          <div class="config-add"><input type="text" id="nueva-disponibilidad-horaria" placeholder="Ej: Turno noche..."><button class="btn btn-primary btn-sm" onclick="agregarItem('disponibilidadesHorarias','nueva-disponibilidad-horaria','lista-disponibilidades-horarias')">Agregar</button></div>
         </div>
       </div>
     </div>
@@ -4744,17 +4778,23 @@
         <div class="form-grid form-grid-3">
           <div class="form-group"><label>Calle y número *</label><input type="text" id="c-calle"></div>
           <div class="form-group"><label>Piso / Depto</label><input type="text" id="c-piso" placeholder="Ej: 3° B"></div>
-          <div class="form-group"><label>Provincia *</label>
+          <div class="form-group"><label>Zona de residencia *</label>
           <select id="c-zona" onchange="onChangeZonaCand()" style="width:100%;padding:8px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;">
             <option value="">Seleccionar...</option>
             <option value="CABA">CABA</option>
-            <option value="Buenos Aires">Provincia de Buenos Aires</option>
+            <option value="Zona Norte">Zona Norte</option>
+            <option value="Zona Sur">Zona Sur</option>
+            <option value="Zona Oeste">Zona Oeste</option>
           </select></div>
         </div>
-        <div class="form-grid form-grid-2">
+        <div class="form-grid form-grid-3">
           <div class="form-group"><label>Localidad</label>
           <select id="c-localidad" style="width:100%;padding:8px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;">
             <option value="">Seleccionar zona primero</option>
+          </select></div>
+          <div class="form-group"><label>Disponibilidad horaria</label>
+          <select id="c-dispo-horaria" style="width:100%;padding:8px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;">
+            <option value="">Seleccionar...</option>
           </select></div>
           <div class="form-group"><label>Estado</label><select id="c-estado-i" onchange="onChangeEstadoCand()"><option>Sin citar</option><option>Citado</option></select></div>
         </div>

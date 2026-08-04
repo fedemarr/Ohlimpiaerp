@@ -155,6 +155,7 @@ export function _toSnake(obj) {
     obsEntrevista: 'obs_entrevista',
     fecNac: 'fec_nac', fechaCita: 'fecha_cita', horaCita: 'hora_cita',
     nombreReferido: 'nombre_referido', rrhhId: 'rrhh_id',
+    disponibilidadHoraria: 'disponibilidad_horaria',
     anuladoPor: 'anulado_por', anuladoFecha: 'anulado_fecha', creadoPor: 'creado_por',
     cuentaBancaria: 'cuenta_bancaria',
     // Reasignaciones (v021)
@@ -459,6 +460,7 @@ export function _toCamel(obj) {
     obs_entrevista: 'obsEntrevista',
     fec_nac: 'fecNac', fecha_cita: 'fechaCita', hora_cita: 'horaCita',
     nombre_referido: 'nombreReferido', rrhh_id: 'rrhhId',
+    disponibilidad_horaria: 'disponibilidadHoraria',
     anulado_por: 'anuladoPor', anulado_fecha: 'anuladoFecha', creado_por: 'creadoPor',
     cuenta_bancaria: 'cuentaBancaria',
     // Reasignaciones (v021)

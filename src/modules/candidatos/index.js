@@ -20,12 +20,18 @@ export {
 
 export { renderLinkPublico, copiarLinkPostulacion } from './linkPublico.js';
 
-// ========== TAB PRINCIPAL (Base / Calendario / Link) ==========
+export {
+  abrirImportadorCandidatosHistorico, descargarPlantillaCandidatosHistorico,
+  seleccionarArchivoImportacionCandidatos, confirmarImportacionCandidatosHistorico,
+} from './importadorHistorico.js';
+
+// ========== TAB PRINCIPAL (Base / Calendario / Link / Importar) ==========
 
 import { $ } from '@shared/helpers.js';
 import { tabCandidatos } from './candidatos.js';
 import { renderCalendario } from './calendario.js';
 import { renderLinkPublico } from './linkPublico.js';
+import { abrirImportadorCandidatosHistorico } from './importadorHistorico.js';
 
 let _candPrincipalTab = 'base';
 
@@ -34,10 +40,12 @@ export function tabCandPrincipal(tab) {
   var sBase = $('cand-section-base');
   var sCal  = $('cand-section-calendario');
   var sLink = $('cand-section-link');
+  var sImp  = $('cand-section-importar');
   if (sBase) sBase.style.display = tab === 'base' ? 'block' : 'none';
   if (sCal)  sCal.style.display  = tab === 'calendario' ? 'block' : 'none';
   if (sLink) sLink.style.display = tab === 'link' ? 'block' : 'none';
-  ['base', 'calendario', 'link'].forEach(function (t) {
+  if (sImp)  sImp.style.display  = tab === 'importar' ? 'block' : 'none';
+  ['base', 'calendario', 'link', 'importar'].forEach(function (t) {
     var btn = $('tab-cand-' + t);
     if (btn) {
       btn.style.background = t === tab ? '#1e3a8a' : '#f1f5f9';
@@ -47,6 +55,7 @@ export function tabCandPrincipal(tab) {
   if (tab === 'base') tabCandidatos('activos');
   if (tab === 'calendario') { poblarSelectResponsable(); renderCalendario(); }
   if (tab === 'link') renderLinkPublico();
+  if (tab === 'importar') abrirImportadorCandidatosHistorico();
 }
 
 // ========== SCREEN CONFIG ==========
@@ -84,6 +93,11 @@ import {
 
 import { copiarLinkPostulacion } from './linkPublico.js';
 
+import {
+  descargarPlantillaCandidatosHistorico,
+  seleccionarArchivoImportacionCandidatos, confirmarImportacionCandidatosHistorico,
+} from './importadorHistorico.js';
+
 // Tab principal
 window.tabCandPrincipal = tabCandPrincipal;
 
@@ -115,3 +129,9 @@ window.agendarTurno = agendarTurno;
 
 // Link público de postulación
 window.copiarLinkPostulacion = copiarLinkPostulacion;
+
+// Importar histórico desde CSV
+window.abrirImportadorCandidatosHistorico = abrirImportadorCandidatosHistorico;
+window.descargarPlantillaCandidatosHistorico = descargarPlantillaCandidatosHistorico;
+window.seleccionarArchivoImportacionCandidatos = seleccionarArchivoImportacionCandidatos;
+window.confirmarImportacionCandidatosHistorico = confirmarImportacionCandidatosHistorico;

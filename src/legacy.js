@@ -33,6 +33,7 @@ export function poblarSelects(){
     'Agente IA Ohlimpia'
   ];
   fillSelect('c-medio',DB.medios);fillSelect('c-zona',DB.zonas);fillSelect('c-rrhh',nicksRRHH);
+  fillSelect('c-dispo-horaria',DB.disponibilidadesHorarias);
   fillDL('dl-loc',DB.localidades);fillDL('dl-loc2',DB.localidades);
   fillSelect('p-supervisor',DB.supervisores,['— Seleccionar —']);fillSelect('p-zona',DB.zonas);fillSelect('p-puesto',DB.categorias);
   fillDL('dl-serv',obtenerServiciosActivos());fillDL('dl-serv2',obtenerServiciosActivos());fillDL('dl-serv3',obtenerServiciosActivos());
@@ -92,6 +93,7 @@ export function poblarSelects(){
 // ========== CONFIGURACIÓN ==========
 function renderConfiguracion(){
   ['zonas','medios','categorias'].forEach(k=>renderConfigLista(k,'lista-'+k));
+  renderConfigLista('disponibilidadesHorarias','lista-disponibilidades-horarias');
   ['estadosLegales','tiposLegales','abogados'].forEach(k=>renderConfigLista(k,'lista-'+({estadosLegales:'estados-legales',tiposLegales:'tipos-legales',abogados:'abogados'}[k])));
   ['tiposMedicos','estadosMedicos','medicosCfg'].forEach(k=>renderConfigLista(k,'lista-'+({tiposMedicos:'tipos-medicos',estadosMedicos:'estados-medicos',medicosCfg:'medicos-cfg'}[k])));
   renderTablaPerfilesModulos();
@@ -118,7 +120,13 @@ function cfgTab(nombre, btn){
 // ========== BUSCADOR GLOBAL ==========
 function renderConfigLista(key,elId){
   const el=$(elId);if(!el)return;
-  el.innerHTML=DB[key].map((item,i)=>`<div class="config-item"><span style="font-size:13px;">${item}</span><button class="btn btn-danger btn-xs" onclick="eliminarItem('${key}',${i},'lista-${key}')">Eliminar</button></div>`).join('');
+  // El botón Eliminar debe re-renderizar el mismo elId que se le pasó a
+  // esta función — antes reconstruía 'lista-'+key a mano, que sólo
+  // coincide con elId cuando key es una sola palabra (zonas, medios,
+  // categorias); con una key camelCase (ej. disponibilidadesHorarias) y
+  // un elId con guiones (lista-disponibilidades-horarias) quedaban
+  // desincronizados y el botón no volvía a pintar la lista.
+  el.innerHTML=DB[key].map((item,i)=>`<div class="config-item"><span style="font-size:13px;">${item}</span><button class="btn btn-danger btn-xs" onclick="eliminarItem('${key}',${i},'${elId}')">Eliminar</button></div>`).join('');
 }
 function agregarItem(key,inputId,listId){
   const val=$(inputId).value.trim();if(!val)return;

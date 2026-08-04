@@ -9,7 +9,18 @@ export const DB = {
   // que todavía no tengan un objetivo creado (fallback, para no romper
   // legajos/datalists existentes mientras Comercial carga objetivos reales).
   servicios: ['HOSPITAL.CAMPANA', 'GYM.RECOLETA', 'HIT.LIBERTADOR.CEL', 'HIT.LIBERTADOR.8614', 'HACOAJ.TIGRE', 'LOS.PINOS', 'CENARD', 'ANAC', 'NEWSAN.CAMPANA', 'SULFOQUIMICA', 'COTO.GARIN', 'MIGUELETES.2423', 'TEKNOPOLIS', 'RETEN.GENERAL', 'ADMINISTRATIVO'],
-  zonas: ['CABA', 'Buenos Aires'],
+  // Zona de residencia/operativa — antes solo distinguía Provincia (CABA vs.
+  // Buenos Aires, un solo valor para todo el conurbano). A pedido de RRHH
+  // (04/08/2026) se amplía a zonificación real por dispersión geográfica —
+  // catálogo compartido por Candidatos, Pedidos, Altas, Reclamos y CRM, así
+  // que el cambio de vocabulario aplica parejo en todos esos módulos (son
+  // simples selects sobre este array, sin lógica propia por valor — la
+  // única rama con lógica especial por zona es onChangeZonaCand() en
+  // candidatos.js, que arma la cascada de localidad).
+  zonas: ['CABA', 'Zona Norte', 'Zona Sur', 'Zona Oeste'],
+  // Catálogo parametrizable (mismo patrón no-persistido que tiposCliente/
+  // tiposSitio) para el campo "Disponibilidad horaria" del candidato.
+  disponibilidadesHorarias: ['Full time', 'Part time', 'Turno mañana', 'Turno tarde', 'Turno noche', 'Fines de semana'],
   medios: ['WhatsApp', 'Formulario web', 'Referido', 'Instagram', 'Búsqueda activa'],
   categorias: ['Operario A', 'Operario B', 'Referente', 'Encargado A', 'Encargado B', 'Encargado C', 'Retén', 'Supervisor', 'Auxiliar administrativo', 'Coordinador de área'],
   // 2.1.1 (Delta Comercial v1.2) — antes hardcodeados en <option> de

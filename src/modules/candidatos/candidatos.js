@@ -196,6 +196,13 @@ export function poblarFiltrosColumnasCandidatos() {
 
 // ========== ZONA / ESTADO ==========
 
+// Zonas de residencia del conurbano (Norte/Sur/Oeste) — comparten el mismo
+// listado de partidos de LOCALIDADES_BA. No se particiona ese listado por
+// zona (no nos pidieron esa granularidad y hacerlo a ojo arriesga clasificar
+// mal un partido limítrofe) — el usuario elige zona operativa y localidad
+// por separado, ambos con su propio criterio.
+const ZONAS_CONURBANO = ['Zona Norte', 'Zona Sur', 'Zona Oeste'];
+
 export function onChangeZonaCand() {
   const zona = $('c-zona');
   const loc = $('c-localidad');
@@ -203,7 +210,7 @@ export function onChangeZonaCand() {
   if (zona.value === 'CABA') {
     loc.disabled = false; loc.style.opacity = '1';
     loc.innerHTML = '<option value="">Seleccionar barrio...</option>' + BARRIOS_CABA.map(b => '<option>' + b + '</option>').join('');
-  } else if (zona.value === 'Buenos Aires') {
+  } else if (ZONAS_CONURBANO.includes(zona.value)) {
     loc.disabled = false; loc.style.opacity = '1';
     loc.innerHTML = '<option value="">Seleccionar...</option>' + LOCALIDADES_BA.map(l => '<option>' + l + '</option>').join('');
   } else {
@@ -236,7 +243,7 @@ export function abrirNuevoCandidato() {
    'c-obs', 'c-nombre-referido', 'c-fecha', 'c-hora'].forEach(id => {
     const el = $(id); if (el) el.value = '';
   });
-  ['c-zona', 'c-medio', 'c-estado-civil', 'c-genero', 'c-nacionalidad', 'c-estado-i', 'c-rrhh'].forEach(id => {
+  ['c-zona', 'c-medio', 'c-estado-civil', 'c-genero', 'c-nacionalidad', 'c-estado-i', 'c-rrhh', 'c-dispo-horaria'].forEach(id => {
     const el = $(id); if (el) el.selectedIndex = 0;
   });
   poblarSelectRRHHCandidato();
@@ -274,7 +281,7 @@ export async function guardarCandidato() {
     { id: 'c-dni', label: 'DNI' },
     { id: 'c-tel', label: 'Teléfono' },
     { id: 'c-calle', label: 'Calle y número' },
-    { id: 'c-zona', label: 'Provincia' },
+    { id: 'c-zona', label: 'Zona de residencia' },
   ], toast)) return;
 
   const apellido = toTitleCase(($('c-apellido') || {}).value || '');
@@ -293,6 +300,7 @@ export async function guardarCandidato() {
   const locEl = $('c-localidad');
   const localidad = locEl ? cleanText(locEl.value) : '';
   const medio = cleanText(($('c-medio') || {}).value || '');
+  const disponibilidadHoraria = cleanText(($('c-dispo-horaria') || {}).value || '');
   const nombreReferido = cleanText(($('c-nombre-referido') || {}).value || '');
   const rrhhIdRaw = ($('c-rrhh') || {}).value || '';
   const rrhhIdNum = parseInt(rrhhIdRaw, 10);
@@ -336,7 +344,7 @@ export async function guardarCandidato() {
     const snapshot = { ...c };
     Object.assign(c, {
       apellido, nombre, dni, cuit, fecNac, estadoCivil, genero, nacionalidad,
-      tel, email, calle, piso, zona, localidad,
+      tel, email, calle, piso, zona, localidad, disponibilidadHoraria,
       medio, nombreReferido, rrhhId, obs,
       estado: estado || c.estado,
       fechaCita: fechaCita || c.fechaCita || null,
@@ -359,7 +367,7 @@ export async function guardarCandidato() {
     const nuevo = {
       id: Date.now(),
       apellido, nombre, dni, cuit, fecNac, estadoCivil, genero, nacionalidad,
-      tel, email, calle, piso, zona, localidad,
+      tel, email, calle, piso, zona, localidad, disponibilidadHoraria,
       medio, nombreReferido, rrhhId, obs,
       estado: estado || 'Sin citar',
       asistio: null,
@@ -413,6 +421,7 @@ function editarCandidato(id) {
   set('c-rrhh', c.rrhhId != null ? String(c.rrhhId) : '');
   set('c-obs', c.obs);
   set('c-medio', c.medio);
+  set('c-dispo-horaria', c.disponibilidadHoraria);
   set('c-nombre-referido', c.nombreReferido);
   const ecEl = $('c-estado-civil');
   if (ecEl) ecEl.value = c.estadoCivil || '';
@@ -478,8 +487,9 @@ export function abrirDetalleCandidatoPorId(id) {
     item('Teléfono', c.tel) +
     item('Email', c.email) +
     item('Domicilio', ((c.calle || '') + (c.piso ? ' ' + c.piso : '')).trim()) +
-    item('Provincia', c.zona) +
+    item('Zona de residencia', c.zona) +
     item('Localidad', c.localidad) +
+    item('Disponibilidad horaria', c.disponibilidadHoraria) +
     item('Medio de contacto', c.medio) +
     item('Referido por', c.nombreReferido) +
     item('Estado', ESTADO_DISPLAY[c.estado] || c.estado) +
