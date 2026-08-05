@@ -64,7 +64,10 @@ export function poblarFiltrosColumnasAltas() {
 // ========== POBLAR SELECTS ==========
 
 export function poblarSelectsAltas() {
-  fillSelect('alt-funcion', DB.categorias, ['— Seleccionar —']);
+  // Función: mismo catálogo base que Categoría + Runner/Franquero (propios
+  // de Función). No se agregan a DB.categorias para no colarlos también en
+  // el select de Categoría, que reutiliza la misma lista.
+  fillSelect('alt-funcion', [...DB.categorias, 'Runner', 'Franquero'], ['— Seleccionar —']);
   fillSelect('alt-categoria', DB.categorias, ['— Seleccionar —']);
   // Poblar servicios — mismo helper que usa el resto de los módulos
   // migrados (window.obtenerServiciosActivos, definido en src/legacy.js:
@@ -176,6 +179,8 @@ function crearHTMLModalAlta() {
             '<div class="form-group" style="grid-column:1/-1;"><label>Dirección *</label><input type="text" id="alt-direccion" onblur="applyTitleCase(\'alt-direccion\')"></div>',
             '<div class="form-group"><label>Provincia *</label><select id="alt-zona" onchange="onChangeZonaAlta()" style="width:100%;padding:8px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;"><option value="">Seleccionar...</option><option value="CABA">CABA</option><option value="Buenos Aires">Provincia de Buenos Aires</option></select></div>',
             '<div class="form-group"><label>Localidad</label><select id="alt-localidad" style="width:100%;padding:8px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;"><option value="">Seleccionar zona primero</option></select></div>',
+            '<div class="form-group"><label>Partido</label><input type="text" id="alt-partido" style="width:100%;padding:8px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;"></div>',
+            '<div class="form-group"><label>Código Postal</label><input type="text" id="alt-cod-postal" style="width:100%;padding:8px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;"></div>',
           '</div>',
         '</div>',
         // Tab 2 — Operativo
@@ -192,7 +197,7 @@ function crearHTMLModalAlta() {
         // Tab 3 — Uniforme
         '<div id="alta-section-3" style="display:none;">',
           '<div class="form-grid form-grid-2">',
-            '<div class="form-group"><label>Talle de ambo *</label><select id="alt-ambo" style="width:100%;padding:8px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;"><option value="">Seleccionar...</option><option>XS</option><option>S</option><option>M</option><option>L</option><option>XL</option><option>XXL</option></select></div>',
+            '<div class="form-group"><label>Talle de ambo *</label><select id="alt-ambo" style="width:100%;padding:8px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;"><option value="">Seleccionar...</option><option>S</option><option>M</option><option>L</option><option>XL</option><option>XXL</option><option>XXXL</option><option>4XL</option><option>5XL</option></select></div>',
             '<div class="form-group"><label>Talle de calzado *</label><input type="number" id="alt-calzado" min="34" max="48"></div>',
           '</div>',
         '</div>',
@@ -207,8 +212,11 @@ function crearHTMLModalAlta() {
         // Tab 5 — Seguros
         '<div id="alta-section-5" style="display:none;">',
           '<div class="form-grid form-grid-2">',
-            '<div class="form-group"><label>Seguro de vida *</label><select id="alt-seguro" style="width:100%;padding:8px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;"><option value="">Seleccionar...</option><option>Completo</option><option>Básico</option><option>Sin seguro</option></select></div>',
-            '<div class="form-group"><label>ART</label><input type="text" id="alt-art"></div>',
+            '<div class="form-group"><label>Seguro de vida *</label><select id="alt-seguro" style="width:100%;padding:8px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;"><option value="">Seleccionar...</option><option>Completo</option><option>Básico</option></select></div>',
+            // id renombrado a alt-poliza (antes alt-art) — el valor guardado
+            // sigue siendo legajo.art / columna art en Supabase, por
+            // compatibilidad con legajos existentes (ver confirmarAlta()).
+            '<div class="form-group"><label>Póliza</label><input type="text" id="alt-poliza"></div>',
             '<div class="form-group"><label>Obra social</label><input type="text" id="alt-obra-social"></div>',
           '</div>',
         '</div>',
@@ -228,7 +236,13 @@ function crearHTMLModalAlta() {
         '</div>',
         '<div>',
           '<button class="btn btn-secondary" onclick="cerrarModal(\'modal-alta-nuevo\')">Cancelar</button>',
-          '<button class="btn" style="background:#059669;color:white;" onclick="confirmarAlta()">✅ Confirmar Alta</button>',
+          // Texto y acción se setean dinámicamente en tabAlta(): "Siguiente →"
+          // en las tabs 0-5 (solo avanza) y "✅ Confirmar Alta" recién en la
+          // última tab (finaliza de verdad). Antes decía "Confirmar Alta" en
+          // las 7 tabs aunque clickearlo en cualquiera de ellas finalizaba el
+          // alta directamente — daba la falsa impresión de que confirmar era
+          // "otro paso más" durante una carga rápida.
+          '<button class="btn" id="alta-btn-cta" style="background:#059669;color:white;">✅ Confirmar Alta</button>',
         '</div>',
       '</div>',
     '</div>',
@@ -245,8 +259,9 @@ export function abrirModalAlta(psicoIdx, altaId) {
 
   // Limpiar todos los campos
   ['alt-nombre', 'alt-dni', 'alt-cuit', 'alt-clave-fiscal', 'alt-fecnac', 'alt-tel', 'alt-mail',
-   'alt-fec-ingreso', 'alt-reingresante-dni', 'alt-direccion', 'alt-banco', 'alt-cbu',
-   'alt-calzado', 'alt-integracion', 'alt-inaes', 'alt-art', 'alt-obra-social', 'alt-supervisor'].forEach(id => {
+   'alt-fec-ingreso', 'alt-reingresante-dni', 'alt-direccion', 'alt-partido', 'alt-cod-postal',
+   'alt-banco', 'alt-cbu', 'alt-calzado', 'alt-integracion', 'alt-inaes', 'alt-poliza',
+   'alt-obra-social', 'alt-supervisor'].forEach(id => {
     const el = $(id); if (el) el.value = '';
   });
   const nacEl = $('alt-nac'); if (nacEl) nacEl.value = 'Argentina';
@@ -343,6 +358,14 @@ export function tabAlta(idx) {
       btn.style.color = i === idx ? 'white' : '#374151';
     }
   }
+  // Botón principal del footer: "Siguiente" mientras queden tabs por
+  // delante, "Confirmar Alta" (finaliza de verdad) solo en la última.
+  const btnCta = $('alta-btn-cta');
+  if (btnCta) {
+    const esUltimoTab = idx === ALTA_TABS - 1;
+    btnCta.textContent = esUltimoTab ? '✅ Confirmar Alta' : 'Siguiente →';
+    btnCta.onclick = esUltimoTab ? confirmarAlta : tabAltaSiguiente;
+  }
 }
 
 export function tabAltaSiguiente() {
@@ -438,6 +461,8 @@ export function confirmarAlta() {
   const fechaIngreso = $('alt-fec-ingreso').value;
   const zona = ($('alt-zona') || {}).value || '';
   const localidad = ($('alt-localidad') || {}).value || '';
+  const partido = cleanText(($('alt-partido') || {}).value || '');
+  const codigoPostal = cleanText(($('alt-cod-postal') || {}).value || '');
   const banco = cleanText(($('alt-banco') || {}).value || '');
   const funcion = ($('alt-funcion') || {}).value || '';
   const servicio = ($('alt-servicio') || {}).value || '— Sin asignar';
@@ -457,7 +482,10 @@ export function confirmarAlta() {
   const direccion = cleanText(($('alt-direccion') || {}).value || '');
   const fecNac = ($('alt-fecnac') || {}).value || '';
   const cbu = cleanText(($('alt-cbu') || {}).value || '');
-  const art = cleanText(($('alt-art') || {}).value || '');
+  // Input id renombrado a alt-poliza (era alt-art) — la variable/propiedad
+  // se mantiene "art" a propósito, es lo que persiste en legajo.art /
+  // columna art de Supabase, para no romper legajos ya guardados.
+  const art = cleanText(($('alt-poliza') || {}).value || '');
   const obraSocial = cleanText(($('alt-obra-social') || {}).value || '');
   const formaPago = ($('alt-forma-pago') || {}).value || '';
   const integracion = parseInt(($('alt-integracion') || {}).value) || 0;
@@ -512,6 +540,8 @@ export function confirmarAlta() {
     legajoAnteriorNro: _legajoAnteriorEncontrado ? _legajoAnteriorEncontrado.nro : null,
     seguro,
     localidad,
+    partido,
+    codigoPostal,
     tel,
     mail,
     cuit,
@@ -563,7 +593,7 @@ export function confirmarAlta() {
       // Deja copia histórica de lo que se cargó en cada tab del modal — antes
       // se descartaba y solo quedaba lo que terminó en el legajo.
       altaReg.identificacion = { nombre, dni, cuit, tel, mail, estadoCivil, nac, genero, fecNac, fechaIngreso: fIngreso };
-      altaReg.domicilio = { direccion, zona, localidad };
+      altaReg.domicilio = { direccion, zona, localidad, partido, codigoPostal };
       altaReg.operativo = { funcion, servicio, supervisor, periodoPrueba, categoria };
       altaReg.uniforme = { ambo, calzado };
       altaReg.capital = { integracion, formaPago };
