@@ -287,6 +287,7 @@ export const BADGE_MAP = {
   'Alto': 'badge-rojo', 'Medio': 'badge-acento', 'Bajo': 'badge-verde', 'Activo': 'badge-verde', 'Completo': 'badge-verde',
   'Carta documento recibida': 'badge-naranja', 'Carta documento contestada': 'badge-acento', 'Conciliación SECLO': 'badge-rojo',
   'Conciliación interna': 'badge-naranja', 'Estado judicial': 'badge-rojo', 'Cerrado': 'badge-gris',
+  '1CD': 'badge-naranja', '2CD': 'badge-rojo', 'Exclusión': 'badge-rojo',
   'Activo — sin trabajar': 'badge-rojo', 'En tratamiento': 'badge-naranja', 'Alta médica': 'badge-verde',
   'No — en reposo médico': 'badge-rojo', 'Sí — alta médica confirmada': 'badge-verde',
 };
