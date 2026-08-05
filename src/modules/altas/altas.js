@@ -161,7 +161,7 @@ function crearHTMLModalAlta() {
             '<div class="form-group"><label>Género</label><select id="alt-genero" style="width:100%;padding:8px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;"><option value="">—</option><option>Femenino</option><option>Masculino</option><option>Otro</option></select></div>',
             '<div class="form-group"><label>Teléfono *</label><input type="text" id="alt-tel"></div>',
             '<div class="form-group"><label>Email</label><input type="email" id="alt-mail"></div>',
-            '<div class="form-group"><label>Fecha de ingreso *</label><input type="date" id="alt-fec-ingreso"></div>',
+            '<div class="form-group"><label>Fecha de ingreso *</label><input type="date" id="alt-fec-ingreso" onchange="recalcularInicioObraSocial()"></div>',
             '<div class="form-group"><label><input type="checkbox" id="alt-reingresante" onchange="toggleReingresante()"> ¿Es reingresante?</label></div>',
             '<div class="form-group" id="alt-fec-egreso-row" style="display:none;grid-column:1/-1;background:#f0f9ff;border:1px solid #bae6fd;border-radius:8px;padding:12px;">',
               '<label style="font-weight:600;color:#0369a1;">🔍 Buscar legajo anterior por DNI</label>',
@@ -213,11 +213,19 @@ function crearHTMLModalAlta() {
         '<div id="alta-section-5" style="display:none;">',
           '<div class="form-grid form-grid-2">',
             '<div class="form-group"><label>Seguro de vida *</label><select id="alt-seguro" style="width:100%;padding:8px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;"><option value="">Seleccionar...</option><option>Completo</option><option>Básico</option></select></div>',
-            // id renombrado a alt-poliza (antes alt-art) — el valor guardado
-            // sigue siendo legajo.art / columna art en Supabase, por
-            // compatibilidad con legajos existentes (ver confirmarAlta()).
-            '<div class="form-group"><label>Póliza</label><input type="text" id="alt-poliza"></div>',
             '<div class="form-group"><label>Obra social</label><input type="text" id="alt-obra-social"></div>',
+            '<div class="form-group"><label>Inicio de trámite (auto, ingreso +3 meses)</label><input type="date" id="alt-os-inicio"></div>',
+          '</div>',
+          // Pólizas: un asociado puede tener varias. Reemplaza el viejo
+          // input único (que guardaba en legajo.art / columna art — se
+          // mantiene esa columna solo por compatibilidad con legajos
+          // existentes, ver confirmarAlta()). Cada fila se agrega/saca del
+          // DOM directamente, sin manejar índices/contador — eliminarFilaPoliza
+          // usa closest() sobre el propio botón clickeado.
+          '<div class="form-group" style="margin-top:12px;">',
+            '<label>Pólizas</label>',
+            '<div id="alt-polizas-lista"></div>',
+            '<button type="button" class="btn btn-secondary btn-sm" onclick="agregarFilaPoliza()" style="margin-top:6px;">+ Agregar póliza</button>',
           '</div>',
         '</div>',
         // Tab 6 — Cuentas bancarias
@@ -260,10 +268,15 @@ export function abrirModalAlta(psicoIdx, altaId) {
   // Limpiar todos los campos
   ['alt-nombre', 'alt-dni', 'alt-cuit', 'alt-clave-fiscal', 'alt-fecnac', 'alt-tel', 'alt-mail',
    'alt-fec-ingreso', 'alt-reingresante-dni', 'alt-direccion', 'alt-partido', 'alt-cod-postal',
-   'alt-banco', 'alt-cbu', 'alt-calzado', 'alt-integracion', 'alt-inaes', 'alt-poliza',
+   'alt-banco', 'alt-cbu', 'alt-calzado', 'alt-integracion', 'alt-inaes', 'alt-os-inicio',
    'alt-obra-social', 'alt-supervisor'].forEach(id => {
     const el = $(id); if (el) el.value = '';
   });
+  // Pólizas: arranca con una fila vacía (no obliga a clickear "+" antes de
+  // poder cargar la primera).
+  const polizasCont = $('alt-polizas-lista');
+  if (polizasCont) polizasCont.innerHTML = '';
+  agregarFilaPoliza();
   const nacEl = $('alt-nac'); if (nacEl) nacEl.value = 'Argentina';
   const ppEl = $('alt-periodo-prueba'); if (ppEl) ppEl.value = '6';
   const reingEl = $('alt-reingresante'); if (reingEl) reingEl.checked = false;
@@ -413,6 +426,65 @@ export function buscarLegajoReingresante() {
   `).join('');
 }
 
+// ========== PÓLIZAS (múltiples, filas dinámicas) ==========
+
+// Agrega una fila de póliza al bloque de Seguros. Sin parámetros = fila
+// vacía nueva (botón "+ Agregar póliza"); con parámetros se usa para
+// precargar (no hay caso de uso hoy, pero deja la función reutilizable).
+export function agregarFilaPoliza(numero, vencimiento) {
+  const cont = $('alt-polizas-lista');
+  if (!cont) return;
+  const fila = document.createElement('div');
+  fila.className = 'alt-poliza-fila';
+  fila.style.cssText = 'display:flex;gap:8px;align-items:center;margin-bottom:6px;';
+  fila.innerHTML = [
+    '<input type="text" class="alt-poliza-numero" placeholder="N° de póliza" value="' + (numero || '') + '" style="flex:2;padding:8px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;">',
+    '<input type="date" class="alt-poliza-vencimiento" value="' + (vencimiento || '') + '" style="flex:1;padding:8px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;">',
+    '<button type="button" onclick="eliminarFilaPoliza(this)" style="padding:6px 10px;border:none;background:#fef2f2;color:#dc2626;border-radius:6px;cursor:pointer;font-size:13px;" title="Eliminar póliza">✕</button>',
+  ].join('');
+  cont.appendChild(fila);
+}
+
+// Saca la fila a la que pertenece el botón clickeado — no hace falta
+// manejar un índice/contador de filas.
+export function eliminarFilaPoliza(btn) {
+  const fila = btn.closest ? btn.closest('.alt-poliza-fila') : null;
+  if (fila) fila.remove();
+}
+
+// Junta las filas cargadas en un array [{numero, vencimiento}], descartando
+// las que quedaron totalmente vacías (no hace falta que el usuario las
+// borre a mano si no las llegó a usar).
+function leerPolizas() {
+  const filas = document.querySelectorAll('#alt-polizas-lista .alt-poliza-fila');
+  return [...filas]
+    .map(fila => ({
+      numero: cleanText((fila.querySelector('.alt-poliza-numero') || {}).value || ''),
+      vencimiento: (fila.querySelector('.alt-poliza-vencimiento') || {}).value || '',
+    }))
+    .filter(p => p.numero || p.vencimiento);
+}
+
+// ========== OBRA SOCIAL — INICIO DE TRÁMITE (auto, ingreso + 3 meses) ==========
+
+// Mismo patrón que recalcularVencAntec()/recalcularVencLibreta() en el
+// módulo Documentación de ingreso (aritmética con setMonth), pero acá el
+// campo destino queda editable — se recalcula al cambiar la fecha de
+// ingreso, y el usuario puede corregirlo a mano después si hace falta.
+export function recalcularInicioObraSocial() {
+  const fechaEl = $('alt-fec-ingreso');
+  const osEl = $('alt-os-inicio');
+  if (!fechaEl || !osEl) return;
+  const f = fechaEl.value;
+  if (!f) { osEl.value = ''; return; }
+  const d = new Date(f + 'T00:00:00');
+  d.setMonth(d.getMonth() + 3);
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const dd = String(d.getDate()).padStart(2, '0');
+  osEl.value = yyyy + '-' + mm + '-' + dd;
+}
+
 // ========== CONFIRMAR ALTA ==========
 
 export function confirmarAlta() {
@@ -448,6 +520,18 @@ export function confirmarAlta() {
     tabAlta(t.tab);
     if (!validarCampos(t.campos, toast)) return;
   }
+
+  // Pólizas duplicadas: dos filas con el mismo N° (no vacío) no tiene
+  // sentido, seguramente sea un error de carga. Las filas vacías no llegan
+  // acá — leerPolizas() ya las descarta.
+  const numerosPoliza = leerPolizas().map(p => p.numero).filter(Boolean);
+  const numeroRepetido = numerosPoliza.find((n, i) => numerosPoliza.indexOf(n) !== i);
+  if (numeroRepetido) {
+    toast(`⚠️ Hay más de una póliza cargada con el N° "${numeroRepetido}"`);
+    tabAlta(5);
+    return;
+  }
+
   tabAlta(0);
 
   const nombre = toTitleCase($('alt-nombre').value);
@@ -482,11 +566,9 @@ export function confirmarAlta() {
   const direccion = cleanText(($('alt-direccion') || {}).value || '');
   const fecNac = ($('alt-fecnac') || {}).value || '';
   const cbu = cleanText(($('alt-cbu') || {}).value || '');
-  // Input id renombrado a alt-poliza (era alt-art) — la variable/propiedad
-  // se mantiene "art" a propósito, es lo que persiste en legajo.art /
-  // columna art de Supabase, para no romper legajos ya guardados.
-  const art = cleanText(($('alt-poliza') || {}).value || '');
+  const polizas = leerPolizas();
   const obraSocial = cleanText(($('alt-obra-social') || {}).value || '');
+  const obraSocialInicioTramite = ($('alt-os-inicio') || {}).value || '';
   const formaPago = ($('alt-forma-pago') || {}).value || '';
   const integracion = parseInt(($('alt-integracion') || {}).value) || 0;
   const categoria = ($('alt-categoria') || {}).value || '';
@@ -561,8 +643,12 @@ export function confirmarAlta() {
     fecNac,
     zona,
     cbu,
-    art,
+    // "art" (columna vieja, 1 sola póliza) ya no se completa desde altas
+    // nuevas — reemplazada por "polizas" (jsonb, múltiples). Se deja la
+    // columna en Supabase por compatibilidad con legajos existentes.
+    polizas,
     obraSocial,
+    obraSocialInicioTramite,
     formaPago,
     integracion,
     categoria,
@@ -597,7 +683,7 @@ export function confirmarAlta() {
       altaReg.operativo = { funcion, servicio, supervisor, periodoPrueba, categoria };
       altaReg.uniforme = { ambo, calzado };
       altaReg.capital = { integracion, formaPago };
-      altaReg.seguros = { seguro, art, obraSocial };
+      altaReg.seguros = { seguro, polizas, obraSocial, obraSocialInicioTramite };
       altaReg.cuentaBancaria = { banco, cbu };
       altaReg.estado = 'Alta completada';
       supaSync('catAltPendientes', altaReg);

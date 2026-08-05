@@ -5,6 +5,7 @@ export {
   abrirModalAlta, confirmarAlta,
   tabAlta, tabAltaSiguiente, tabAltaAnterior,
   onChangeZonaAlta, onChangeServicioAlta, toggleReingresante, buscarLegajoReingresante,
+  agregarFilaPoliza, eliminarFilaPoliza, recalcularInicioObraSocial,
 } from './altas.js';
 
 // ========== SCREEN CONFIG ==========
@@ -26,6 +27,7 @@ import {
   filtrarAltas, confirmarAlta,
   tabAlta, tabAltaSiguiente, tabAltaAnterior,
   onChangeZonaAlta, onChangeServicioAlta, toggleReingresante, buscarLegajoReingresante,
+  agregarFilaPoliza, eliminarFilaPoliza, recalcularInicioObraSocial,
 } from './altas.js';
 
 import { applyTitleCase } from '@shared/helpers.js';
@@ -41,4 +43,7 @@ window.onChangeZonaAlta = onChangeZonaAlta;
 window.onChangeServicioAlta = onChangeServicioAlta;
 window.toggleReingresante = toggleReingresante;
 window.buscarLegajoReingresante = buscarLegajoReingresante;
+window.agregarFilaPoliza = agregarFilaPoliza;
+window.eliminarFilaPoliza = eliminarFilaPoliza;
+window.recalcularInicioObraSocial = recalcularInicioObraSocial;
 window.applyTitleCase = applyTitleCase;
