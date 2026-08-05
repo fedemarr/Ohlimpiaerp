@@ -8,6 +8,7 @@ export {
   abrirGestionDocum,
   guardarDocum,
   recalcularVencAntec,
+  recalcularVencLibreta,
   toggleSeccionLibreta,
   toggleSeccionCurso,
   actualizarBotonesDocum,
@@ -31,6 +32,7 @@ import {
   abrirGestionDocum,
   guardarDocum,
   recalcularVencAntec,
+  recalcularVencLibreta,
   toggleSeccionLibreta,
   toggleSeccionCurso,
   actualizarBotonesDocum,
@@ -62,6 +64,7 @@ window.poblarFiltrosColumnasDocum = poblarFiltrosColumnasDocum;
 window.abrirGestionDocum = abrirGestionDocum;
 window.guardarDocum = guardarDocum;
 window.recalcularVencAntec = recalcularVencAntec;
+window.recalcularVencLibreta = recalcularVencLibreta;
 window.toggleSeccionLibreta = toggleSeccionLibreta;
 window.toggleSeccionCurso = toggleSeccionCurso;
 window.actualizarBotonesDocum = actualizarBotonesDocum;

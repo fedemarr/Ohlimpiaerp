@@ -134,11 +134,13 @@ function crearHTMLModalDocum() {
         '<div class="form-group"><label style="display:flex;align-items:center;gap:6px;cursor:pointer;">',
           '<input type="checkbox" id="dc-libreta-aplica" onchange="toggleSeccionLibreta()"> ¿Requiere libreta sanitaria?</label></div>',
         '<div id="dc-libreta-campos" style="display:none;">',
+          '<div class="form-group"><label>Zona</label>',
+            '<input type="text" id="dc-libreta-zona" style="width:100%;padding:8px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;"></div>',
           '<div class="form-grid form-grid-2">',
-            '<div class="form-group"><label>Zona</label>',
-              '<input type="text" id="dc-libreta-zona" style="width:100%;padding:8px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;"></div>',
-            '<div class="form-group"><label>Vencimiento</label>',
-              '<input type="date" id="dc-libreta-vencimiento" style="width:100%;padding:8px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;"></div>',
+            '<div class="form-group"><label>Fecha de emisión</label>',
+              '<input type="date" id="dc-libreta-emision" onchange="recalcularVencLibreta()" style="width:100%;padding:8px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;"></div>',
+            '<div class="form-group"><label>Vence (auto, +1 año)</label>',
+              '<input type="date" id="dc-libreta-vencimiento" readonly style="width:100%;padding:8px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px;background:#f8fafc;"></div>',
           '</div>',
         '</div>',
         // ── Sección Curso de manipulación (condicional) ──
@@ -219,6 +221,30 @@ export function recalcularVencAntec() {
   pintarBadgeVencModal();
 }
 
+// Calcular el vencimiento de la libreta sanitaria: fecha de emisión + 1 año.
+// Mismo patrón que recalcularVencAntec() (setMonth para la aritmética de
+// fecha), solo cambia el offset (+12 en vez de +6). Nota sobre 29/02: como
+// acá también se usa setMonth (no un clamp manual de "último día del mes
+// destino"), un 29/02 de año bisiesto + 12 meses cae en 1/03 del año
+// siguiente si ese año no es bisiesto — es el comportamiento nativo de
+// Date en JS, y es el mismo que ya tenía (sin que nadie lo notara, porque
+// nunca se dispara) la lógica de antecedentes con +6 meses. Se mantiene
+// así a propósito para no divergir del patrón existente.
+export function recalcularVencLibreta() {
+  const fechaEl = $('dc-libreta-emision');
+  const vencEl = $('dc-libreta-vencimiento');
+  if (!fechaEl || !vencEl) return;
+  const f = fechaEl.value;
+  if (!f) { vencEl.value = ''; return; }
+  const d = new Date(f + 'T00:00:00');
+  d.setMonth(d.getMonth() + 12);
+  // Formato YYYY-MM-DD para el input date
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const dd = String(d.getDate()).padStart(2, '0');
+  vencEl.value = yyyy + '-' + mm + '-' + dd;
+}
+
 // Mostrar/ocultar los campos de Libreta según el checkbox
 export function toggleSeccionLibreta() {
   const aplica = ($('dc-libreta-aplica') || {}).checked;
@@ -251,6 +277,7 @@ export function abrirGestionDocum(id) {
   $('dc-antec-vencimiento').value = d.antecVencimiento || '';
   $('dc-libreta-aplica').checked = !!d.libretaAplica;
   $('dc-libreta-zona').value = d.libretaZona || '';
+  $('dc-libreta-emision').value = d.libretaEmision || '';
   $('dc-libreta-vencimiento').value = d.libretaVencimiento || '';
   $('dc-curso-tiene').checked = !!d.cursoTiene;
   $('dc-curso-vencimiento').value = d.cursoVencimiento || '';
@@ -285,6 +312,7 @@ export function guardarDocum() {
   // Libreta (solo si aplica; si no, se limpian)
   d.libretaAplica = ($('dc-libreta-aplica') || {}).checked || false;
   d.libretaZona = d.libretaAplica ? (($('dc-libreta-zona') || {}).value || '') : '';
+  d.libretaEmision = d.libretaAplica ? (($('dc-libreta-emision') || {}).value || null) : null;
   d.libretaVencimiento = d.libretaAplica ? (($('dc-libreta-vencimiento') || {}).value || null) : null;
   // Curso (solo si tiene; si no, se limpia)
   d.cursoTiene = ($('dc-curso-tiene') || {}).checked || false;

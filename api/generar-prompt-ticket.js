@@ -33,6 +33,26 @@ const SCHEMA = {
   additionalProperties: false,
 };
 
+// Saca surrogates UTF-16 huérfanos (típico al pegar texto con emojis mal
+// cortado desde WhatsApp/el celular al título o la descripción del ticket).
+// Un surrogate huérfano es "string" válido en JS y pasa JSON.stringify sin
+// problema, pero no tiene codificación UTF-8 válida — el body del fetch
+// queda mal formado y la API de Anthropic lo rechaza con un 400 genérico
+// "Invalid request data" sin decir qué campo falló. Array.from(s) separa el
+// string por code point: un par de surrogates válido (ej. un emoji) queda
+// junto en un solo elemento con codePointAt >= 0x10000; un surrogate suelto
+// queda solo en su elemento con codePointAt en el rango 0xD800-0xDFFF, así
+// que filtrarlo por ese rango saca justo los huérfanos y deja los emojis.
+function limpiarTexto(s) {
+  if (typeof s !== 'string') return s;
+  return Array.from(s)
+    .filter(ch => {
+      const code = ch.codePointAt(0);
+      return !(code >= 0xD800 && code <= 0xDFFF);
+    })
+    .join('');
+}
+
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
     res.status(405).json({ error: 'Método no permitido' });
@@ -75,10 +95,10 @@ export default async function handler(req, res) {
     const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
     const contexto = [
-      `Título: ${titulo}`,
-      descripcion ? `Descripción: ${descripcion}` : '',
-      tipo ? `Tipo: ${tipo}` : '',
-      modulo ? `Módulo del ERP: ${modulo}` : '',
+      `Título: ${limpiarTexto(titulo)}`,
+      descripcion ? `Descripción: ${limpiarTexto(descripcion)}` : '',
+      tipo ? `Tipo: ${limpiarTexto(tipo)}` : '',
+      modulo ? `Módulo del ERP: ${limpiarTexto(modulo)}` : '',
     ].filter(Boolean).join('\n');
 
     const message = await anthropic.messages.create({
