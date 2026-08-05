@@ -134,8 +134,6 @@ function crearHTMLModalDocum() {
         '<div class="form-group"><label style="display:flex;align-items:center;gap:6px;cursor:pointer;">',
           '<input type="checkbox" id="dc-libreta-aplica" onchange="toggleSeccionLibreta()"> ¿Requiere libreta sanitaria?</label></div>',
         '<div id="dc-libreta-campos" style="display:none;">',
-          '<div class="form-group"><label>Zona</label>',
-            '<input type="text" id="dc-libreta-zona" style="width:100%;padding:8px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;"></div>',
           '<div class="form-grid form-grid-2">',
             '<div class="form-group"><label>Fecha de emisión</label>',
               '<input type="date" id="dc-libreta-emision" onchange="recalcularVencLibreta()" style="width:100%;padding:8px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;"></div>',
@@ -276,7 +274,6 @@ export function abrirGestionDocum(id) {
   $('dc-antec-fecha').value = d.antecFecha || '';
   $('dc-antec-vencimiento').value = d.antecVencimiento || '';
   $('dc-libreta-aplica').checked = !!d.libretaAplica;
-  $('dc-libreta-zona').value = d.libretaZona || '';
   $('dc-libreta-emision').value = d.libretaEmision || '';
   $('dc-libreta-vencimiento').value = d.libretaVencimiento || '';
   $('dc-curso-tiene').checked = !!d.cursoTiene;
@@ -311,7 +308,6 @@ export function guardarDocum() {
   d.antecVencimiento = ($('dc-antec-vencimiento') || {}).value || null;
   // Libreta (solo si aplica; si no, se limpian)
   d.libretaAplica = ($('dc-libreta-aplica') || {}).checked || false;
-  d.libretaZona = d.libretaAplica ? (($('dc-libreta-zona') || {}).value || '') : '';
   d.libretaEmision = d.libretaAplica ? (($('dc-libreta-emision') || {}).value || null) : null;
   d.libretaVencimiento = d.libretaAplica ? (($('dc-libreta-vencimiento') || {}).value || null) : null;
   // Curso (solo si tiene; si no, se limpia)
