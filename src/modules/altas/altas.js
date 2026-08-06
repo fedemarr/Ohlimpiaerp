@@ -64,11 +64,15 @@ export function poblarFiltrosColumnasAltas() {
 // ========== POBLAR SELECTS ==========
 
 export function poblarSelectsAltas() {
-  // Función: mismo catálogo base que Categoría + Runner/Franquero (propios
-  // de Función). No se agregan a DB.categorias para no colarlos también en
-  // el select de Categoría, que reutiliza la misma lista.
-  fillSelect('alt-funcion', [...DB.categorias, 'Runner', 'Franquero'], ['— Seleccionar —']);
-  fillSelect('alt-categoria', DB.categorias, ['— Seleccionar —']);
+  // Función: se achica a solo estas 2 opciones (ticket Sistemas) — antes
+  // compartía la lista completa de DB.categorias + Runner/Franquero.
+  // Categoría se queda con el catálogo completo y ahora suma Runner y
+  // Franquero (se mudan acá desde Función). Legajos ya cargados con un
+  // valor de función viejo (p.ej. "Referente", "Encargado A") NO se
+  // migran ni se pierden — es texto libre en Supabase, sin enum/CHECK —
+  // solo cambia qué se puede elegir de acá en adelante.
+  fillSelect('alt-funcion', ['Operario/a', 'Administrativo'], ['— Seleccionar —']);
+  fillSelect('alt-categoria', [...DB.categorias, 'Runner', 'Franquero'], ['— Seleccionar —']);
   // Poblar servicios — mismo helper que usa el resto de los módulos
   // migrados (window.obtenerServiciosActivos, definido en src/legacy.js:
   // objetivos con estado 'Operativo' + fallback legacy DB.servicios).
