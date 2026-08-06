@@ -326,6 +326,58 @@ export const LOCALIDADES_BA = [
   'Tres de Febrero', 'Vicente López', 'Zárate',
 ];
 
+// Localidades reales dentro de cada partido — dataset pasado por RRHH
+// (05/08/2026) para el selector en cascada Partido → Localidad de
+// Candidatos (búsqueda de personal). Antes no existía esta granularidad:
+// LOCALIDADES_BA (arriba) es la lista de partidos, sin las localidades
+// de adentro. Ensenada y Mercedes no vinieron en el dataset — se dejan
+// con su propia cabecera como única localidad hasta que RRHH confirme el
+// resto. Solo se usa en Candidatos por ahora (ver onChangeZonaCand /
+// onChangePartidoCand) — Altas sigue con el campo Partido de texto libre.
+export const PARTIDOS_LOCALIDADES = {
+  'Almirante Brown': ['Adrogué', 'Burzaco', 'Claypole', 'Don Orione', 'Glew', 'Longchamps', 'Malvinas Argentinas', 'Rafael Calzada', 'San José'],
+  'Avellaneda': ['Avellaneda', 'Dock Sud', 'Gerli', 'Piñeyro', 'Sarandí', 'Villa Domínico', 'Wilde'],
+  'Berazategui': ['Berazategui', 'Berazategui Oeste', 'El Pato', 'Hudson', 'Juan María Gutiérrez', 'Pereyra', 'Plátanos', 'Ranelagh', 'Sourigues', 'Villa España'],
+  'Berisso': ['Berisso', 'Villa Argüello', 'Villa Zula', 'Los Talas'],
+  'Brandsen': ['Coronel Brandsen', 'Altamira', 'Gómez', 'Jeppener', 'Olea', 'Samborombón', 'Gándara'],
+  'Campana': ['Campana', 'Llompart', 'Río Luján'],
+  'Cañuelas': ['Cañuelas', 'Alejandro Petión', 'Uribelarrea', 'Máximo Paz', 'Vicente Casares'],
+  'Ensenada': ['Ensenada'],
+  'Escobar': ['Belén de Escobar', 'Garín', 'Ingeniero Maschwitz', 'Maquinista Savio', 'Matheu'],
+  'Esteban Echeverría': ['Monte Grande', 'El Jagüel', 'Luis Guillón', '9 de Abril'],
+  'Exaltación de la Cruz': ['Capilla del Señor', 'Los Cardales', 'Parada Robles'],
+  'Ezeiza': ['Ezeiza', 'Tristán Suárez', 'La Unión', 'Carlos Spegazzini', 'Canning'],
+  'Florencio Varela': ['Florencio Varela', 'Bosques', 'Zeballos', 'Gobernador Costa', 'Ingeniero Allan'],
+  'General Las Heras': ['General Las Heras', 'Plomer', 'Villars', 'La Choza'],
+  'General Rodríguez': ['General Rodríguez'],
+  'General San Martín': ['San Martín', 'Villa Ballester', 'José León Suárez', 'Billinghurst', 'Chilavert'],
+  'Hurlingham': ['Hurlingham', 'William Morris', 'Villa Tesei'],
+  'Ituzaingó': ['Ituzaingó', 'Villa Udaondo'],
+  'José C. Paz': ['José C. Paz'],
+  'La Matanza': ['San Justo', 'Ramos Mejía', 'Lomas del Mirador', 'La Tablada', 'Villa Madero', 'Tapiales', 'Aldo Bonzi', 'Ciudad Evita', 'González Catán', 'Gregorio de Laferrere', 'Isidro Casanova', 'Virrey del Pino', '20 de Junio', 'Villa Luzuriaga'],
+  'Lanús': ['Lanús Este', 'Lanús Oeste', 'Remedios de Escalada', 'Monte Chingolo', 'Valentín Alsina'],
+  'La Plata': ['La Plata', 'Los Hornos', 'City Bell', 'Villa Elisa', 'Tolosa', 'Melchor Romero', 'Gonnet', 'Ringuelet'],
+  'Lomas de Zamora': ['Lomas de Zamora', 'Banfield', 'Temperley', 'Llavallol', 'Turdera', 'Villa Fiorito', 'Ingeniero Budge'],
+  'Luján': ['Luján', 'Jáuregui', 'Open Door', 'Olivera', 'Carlos Keen'],
+  'Malvinas Argentinas': ['Los Polvorines', 'Grand Bourg', 'Tortuguitas', 'Ing. Adolfo Sourdeaux', 'Pablo Nogués'],
+  'Marcos Paz': ['Marcos Paz'],
+  'Mercedes': ['Mercedes'],
+  'Merlo': ['Merlo', 'San Antonio de Padua', 'Libertad', 'Mariano Acosta', 'Pontevedra'],
+  'Moreno': ['Moreno', 'Paso del Rey', 'Trujui', 'Cuartel V', 'La Reja', 'Francisco Álvarez'],
+  'Morón': ['Morón', 'Castelar', 'Haedo', 'El Palomar', 'Villa Sarmiento'],
+  'Pilar': ['Pilar', 'Del Viso', 'Derqui', 'Fátima', 'Manzanares', 'Manuel Alberti', 'Zelaya', 'Villa Rosa'],
+  'Presidente Perón': ['Guernica'],
+  'Quilmes': ['Quilmes', 'Bernal', 'Don Bosco', 'Ezpeleta', 'San Francisco Solano', 'Quilmes Oeste'],
+  'San Fernando': ['San Fernando', 'Virreyes', 'Victoria', 'Delta de San Fernando'],
+  'San Isidro': ['San Isidro', 'Beccar', 'Boulogne', 'Martínez', 'Acassuso'],
+  'San Miguel': ['San Miguel', 'Bella Vista', 'Muñiz', 'Campo de Mayo'],
+  'San Vicente': ['San Vicente', 'Alejandro Korn'],
+  'Tigre': ['Tigre', 'Rincón de Milberg', 'Don Torcuato', 'General Pacheco', 'Benavídez', 'El Talar', 'Dique Luján', 'Nordelta'],
+  'Tres de Febrero': ['Caseros', 'Ciudadela', 'Villa Bosch', 'Santos Lugares', 'Martín Coronado', 'Loma Hermosa', 'Pablo Podestá'],
+  'Vicente López': ['Vicente López', 'Olivos', 'Florida', 'La Lucila', 'Munro', 'Carapachay', 'Villa Martelli'],
+  'Zárate': ['Zárate', 'Lima'],
+};
+
 // ========== BARRIOS CABA ==========
 
 export const BARRIOS_CABA = [

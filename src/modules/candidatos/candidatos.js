@@ -1,4 +1,4 @@
-import { DB, LOCALIDADES_BA, BARRIOS_CABA, currentUser } from '@shared/state.js';
+import { DB, LOCALIDADES_BA, BARRIOS_CABA, PARTIDOS_LOCALIDADES, currentUser } from '@shared/state.js';
 import { $, toTitleCase, cleanText, validarCampos, hoyStr, badge } from '@shared/helpers.js';
 import { toast, abrirModal, cerrarModal, abrirModalInput } from '@shared/ui.js';
 import { supaSync, getLastSupaSyncError } from '@shared/supabase.js';
@@ -226,24 +226,50 @@ export function poblarFiltrosColumnasCandidatos() {
 // Zonas de residencia del conurbano (Norte/Sur/Oeste) — comparten el mismo
 // listado de partidos de LOCALIDADES_BA. No se particiona ese listado por
 // zona (no nos pidieron esa granularidad y hacerlo a ojo arriesga clasificar
-// mal un partido limítrofe) — el usuario elige zona operativa y localidad
-// por separado, ambos con su propio criterio.
+// mal un partido limítrofe) — el usuario elige zona operativa y partido
+// por separado, cada uno con su propio criterio.
 const ZONAS_CONURBANO = ['Zona Norte', 'Zona Sur', 'Zona Oeste'];
 
+// CABA no tiene partidos (Localidad = barrio directamente); Norte/Sur/Oeste
+// sí — ahí primero se elige Partido y recién eso habilita Localidad con las
+// localidades reales de ese partido (PARTIDOS_LOCALIDADES, dataset RRHH
+// 05/08/2026 — antes Localidad mostraba directamente la lista de partidos,
+// sin esta granularidad).
 export function onChangeZonaCand() {
   const zona = $('c-zona');
+  const part = $('c-partido');
   const loc = $('c-localidad');
-  if (!zona || !loc) return;
+  if (!zona || !part || !loc) return;
   if (zona.value === 'CABA') {
+    part.innerHTML = '<option value="">No aplica (CABA)</option>';
+    part.disabled = true; part.style.opacity = '0.6';
     loc.disabled = false; loc.style.opacity = '1';
     loc.innerHTML = '<option value="">Seleccionar barrio...</option>' + BARRIOS_CABA.map(b => '<option>' + b + '</option>').join('');
   } else if (ZONAS_CONURBANO.includes(zona.value)) {
-    loc.disabled = false; loc.style.opacity = '1';
-    loc.innerHTML = '<option value="">Seleccionar...</option>' + LOCALIDADES_BA.map(l => '<option>' + l + '</option>').join('');
+    part.disabled = false; part.style.opacity = '1';
+    part.innerHTML = '<option value="">Seleccionar...</option>' + LOCALIDADES_BA.map(l => '<option>' + l + '</option>').join('');
+    loc.innerHTML = '<option value="">Seleccionar partido primero</option>';
+    loc.disabled = true; loc.style.opacity = '0.6';
   } else {
+    part.innerHTML = '<option value="">Seleccionar zona primero</option>';
+    part.disabled = true; part.style.opacity = '0.6';
     loc.innerHTML = '<option value="">Seleccionar zona primero</option>';
     loc.disabled = true; loc.style.opacity = '0.6';
   }
+}
+
+export function onChangePartidoCand() {
+  const part = $('c-partido');
+  const loc = $('c-localidad');
+  if (!part || !loc) return;
+  const localidades = PARTIDOS_LOCALIDADES[part.value];
+  if (!localidades) {
+    loc.innerHTML = '<option value="">Seleccionar partido primero</option>';
+    loc.disabled = true; loc.style.opacity = '0.6';
+    return;
+  }
+  loc.disabled = false; loc.style.opacity = '1';
+  loc.innerHTML = '<option value="">Seleccionar...</option>' + localidades.map(l => '<option>' + l + '</option>').join('');
 }
 
 export function onChangeEstadoCand() {
@@ -324,6 +350,8 @@ export async function guardarCandidato() {
   const calle = cleanText(($('c-calle') || {}).value || '');
   const piso = cleanText(($('c-piso') || {}).value || '');
   const zona = cleanText($('c-zona').value);
+  const partEl = $('c-partido');
+  const partido = (partEl && !partEl.disabled) ? cleanText(partEl.value) : '';
   const locEl = $('c-localidad');
   const localidad = locEl ? cleanText(locEl.value) : '';
   const medio = cleanText(($('c-medio') || {}).value || '');
@@ -371,7 +399,7 @@ export async function guardarCandidato() {
     const snapshot = { ...c };
     Object.assign(c, {
       apellido, nombre, dni, cuit, fecNac, estadoCivil, genero, nacionalidad,
-      tel, email, calle, piso, zona, localidad, disponibilidadHoraria,
+      tel, email, calle, piso, zona, partido, localidad, disponibilidadHoraria,
       medio, nombreReferido, rrhhId, obs,
       estado: estado || c.estado,
       fechaCita: fechaCita || c.fechaCita || null,
@@ -394,7 +422,7 @@ export async function guardarCandidato() {
     const nuevo = {
       id: Date.now(),
       apellido, nombre, dni, cuit, fecNac, estadoCivil, genero, nacionalidad,
-      tel, email, calle, piso, zona, localidad, disponibilidadHoraria,
+      tel, email, calle, piso, zona, partido, localidad, disponibilidadHoraria,
       medio, nombreReferido, rrhhId, obs,
       estado: estado || 'Sin citar',
       asistio: null,
@@ -462,8 +490,29 @@ function editarCandidato(id) {
   set('c-hora', c.horaCita);
   const zEl = $('c-zona');
   if (zEl) { zEl.value = c.zona || ''; onChangeZonaCand(); }
+  const partEl = $('c-partido');
   const lEl = $('c-localidad');
-  if (lEl && c.localidad) lEl.value = c.localidad;
+  if (partEl && !partEl.disabled) {
+    if (c.partido) {
+      // Candidato ya cargado con el dato nuevo: precarga Partido y, a
+      // partir de ahí, la Localidad real dentro de ese partido.
+      partEl.value = c.partido;
+      onChangePartidoCand();
+      if (lEl && c.localidad) lEl.value = c.localidad;
+    } else if (PARTIDOS_LOCALIDADES[c.localidad]) {
+      // Compatibilidad con candidatos cargados antes de este cambio: el
+      // select viejo guardaba el nombre del PARTIDO en c.localidad (bajo
+      // el label "Localidad"). Si el valor guardado matchea un partido
+      // conocido, precargamos el Partido desde ahí — la Localidad real
+      // queda en blanco porque no hay forma de inferirla, hay que
+      // cargarla de nuevo.
+      partEl.value = c.localidad;
+      onChangePartidoCand();
+    }
+  } else if (lEl && c.localidad) {
+    // CABA: Localidad = barrio directo, sin partido de por medio.
+    lEl.value = c.localidad;
+  }
   const tit = $('modal-cand-titulo');
   if (tit) tit.textContent = 'Editar candidato — ' + (c.apellido || '') + (c.apellido && c.nombre ? ', ' : '') + (c.nombre || '');
   const modal = $('modal-candidato');
@@ -515,6 +564,7 @@ export function abrirDetalleCandidatoPorId(id) {
     item('Email', c.email) +
     item('Domicilio', ((c.calle || '') + (c.piso ? ' ' + c.piso : '')).trim()) +
     item('Zona de residencia', c.zona) +
+    item('Partido', c.partido) +
     item('Localidad', c.localidad) +
     item('Disponibilidad horaria', c.disponibilidadHoraria) +
     item('Medio de contacto', c.medio) +
