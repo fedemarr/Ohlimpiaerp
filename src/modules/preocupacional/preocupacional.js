@@ -1,7 +1,7 @@
 import { DB } from '@shared/state.js';
 import { $ } from '@shared/helpers.js';
 import { toast, cerrarModal } from '@shared/ui.js';
-import { supaSync } from '@shared/supabase.js';
+import { supaSync, getLastSupaSyncError } from '@shared/supabase.js';
 import { subirAdjunto, listarAdjuntos, obtenerUrlFirmada, borrarAdjunto } from '@shared/adjuntos.js';
 import { analizarDocumentoPDF, chequearIdentidadIA } from '@shared/iaDocumentos.js';
 
@@ -212,13 +212,28 @@ export async function guardarPreocup() {
       const mo = $('pr-motivo'); if (mo) mo.focus();
       return;
     }
-    p.motivo = motivo.trim();
   }
+  // Snapshot antes de mutar — si supaSync falla, se revierte (mismo patrón
+  // que guardarCandidato en candidatos.js). Antes esto no se chequeaba: el
+  // guardado era fire-and-forget, así que un fallo de Supabase (RLS, red,
+  // lo que sea) quedaba en silencio — la UI decía "guardado", cerraba el
+  // modal, y el dato nunca llegó al servidor. Al reabrir el registro, la
+  // selección "no había quedado" — la causa real detrás de "no permite
+  // seleccionar ni guardar las etapas" que reportó el usuario.
+  const snapshot = { ...p };
+  if (resultado === 'NO APTO') p.motivo = ($('pr-motivo') || {}).value.trim();
   p.prestador = ($('pr-prestador') || {}).value || '';
   p.fechaTurno = ($('pr-fecha-turno') || {}).value || null;
   p.resultado = resultado;
   p.obs = ($('pr-obs') || {}).value || '';
-  supaSync('preocupacionales', p);
+  const ok = await supaSync('preocupacionales', p);
+  if (!ok) {
+    Object.assign(p, snapshot);
+    const err = getLastSupaSyncError();
+    console.error('guardarPreocup: falló el guardado en Supabase', err);
+    toast('⚠️ No se pudo guardar en el servidor' + (err?.message ? ' (' + err.message + ')' : '') + ' — reintentá o avisá a sistemas');
+    return;
+  }
   cerrarModal('modal-preocup-gestion');
   renderPreocup();
   toast('💾 Pre-ocupacional guardado');
@@ -236,13 +251,25 @@ export async function aprobarPreocup() {
     return;
   }
   // Setear los campos inline (sin cerrar el modal, a diferencia de guardarPreocup)
+  const snapshot = { ...p };
   p.prestador = ($('pr-prestador') || {}).value || '';
   p.fechaTurno = ($('pr-fecha-turno') || {}).value || null;
   p.resultado = ($('pr-resultado') || {}).value || 'Pendiente';
   p.obs = ($('pr-obs') || {}).value || '';
   p.estado = 'Aprobado';
   p.fechaAprobacion = new Date().toLocaleDateString('es-AR');
-  supaSync('preocupacionales', p);
+  // Antes esto (y el supaSync de documentacionIngreso, abajo) era
+  // fire-and-forget: si fallaba, la UI igual decía "aprobado — enviado a
+  // Documentación de ingreso" y cerraba el modal, sin haber avanzado nada
+  // en el servidor de verdad. Ahora se espera y se revierte/avisa si falla.
+  const ok = await supaSync('preocupacionales', p);
+  if (!ok) {
+    Object.assign(p, snapshot);
+    const err = getLastSupaSyncError();
+    console.error('aprobarPreocup: falló el guardado en Supabase', err);
+    toast('⚠️ No se pudo aprobar — el servidor rechazó el guardado' + (err?.message ? ' (' + err.message + ')' : '') + ' — reintentá o avisá a sistemas');
+    return;
+  }
   // Crear el registro en Documentación de ingreso (el candidato pasa a documentación, no directo al Alta).
   // Guard de idempotencia: no crear una 2ª documentación si ya hay una viva para este DNI.
   const documVivoExistente = (DB.documentacionIngreso || []).some(d =>
@@ -258,9 +285,17 @@ export async function aprobarPreocup() {
       nombre: p.nombre, dni: p.dni, zona: p.zona, tel: p.tel, rrhh: p.rrhh || '',
       antecResultado: 'Pendiente', estado: 'En proceso',
     };
+    const okDocum = await supaSync('documentacionIngreso', docum);
+    if (!okDocum) {
+      const err = getLastSupaSyncError();
+      console.error('aprobarPreocup: preocupacional se aprobó pero falló crear documentacionIngreso', err);
+      toast('⚠️ El pre-ocupacional quedó aprobado, pero no se pudo crear el registro en Documentación de ingreso' + (err?.message ? ' (' + err.message + ')' : '') + ' — avisá a sistemas para que lo revise, no reintentes solo (podría duplicarlo).');
+      cerrarModal('modal-preocup-gestion');
+      renderPreocup();
+      return;
+    }
     if (!DB.documentacionIngreso) DB.documentacionIngreso = [];
     DB.documentacionIngreso.push(docum);
-    supaSync('documentacionIngreso', docum);
     toast('✅ ' + p.nombre + ' aprobado — enviado a Documentación de ingreso');
   }
   cerrarModal('modal-preocup-gestion');
@@ -268,7 +303,7 @@ export async function aprobarPreocup() {
 }
 
 // Baja: NO APTO da de baja al candidato (molde de rechazarPsico)
-export function bajaPreocup() {
+export async function bajaPreocup() {
   const id = parseInt($('preocup-gest-id').value);
   const p = getPreocupById(id);
   if (!p) return;
@@ -278,14 +313,24 @@ export function bajaPreocup() {
     const mo = $('pr-motivo'); if (mo) mo.focus();
     return;
   }
+  const snapshot = { ...p };
   p.prestador = ($('pr-prestador') || {}).value || '';
   p.fechaTurno = ($('pr-fecha-turno') || {}).value || null;
   p.resultado = 'NO APTO';
   p.motivo = motivo.trim();
   p.estado = 'Rechazado';
   p.fechaRechazo = new Date().toLocaleDateString('es-AR');
-  supaSync('preocupacionales', p);
-  // Dar de baja al candidato (molde de rechazarPsico)
+  const ok = await supaSync('preocupacionales', p);
+  if (!ok) {
+    Object.assign(p, snapshot);
+    const err = getLastSupaSyncError();
+    console.error('bajaPreocup: falló el guardado en Supabase', err);
+    toast('⚠️ No se pudo dar de baja — el servidor rechazó el guardado' + (err?.message ? ' (' + err.message + ')' : '') + ' — reintentá o avisá a sistemas');
+    return;
+  }
+  // Dar de baja al candidato (molde de rechazarPsico) — fire-and-forget
+  // intencional: el pre-ocupacional ya quedó guardado como Rechazado (lo
+  // crítico), esto es una propagación secundaria de estado.
   const cand = (DB.candidatos || []).find(c => p.dni && c.dni === p.dni);
   if (cand) {
     cand.estado = 'Rechazado';
@@ -368,7 +413,12 @@ export async function seleccionarArchivoPreocup() {
     await subirAdjunto({ dni: p.dni, etapa: 'preocupacional', tipo, file });
     toast('📎 Archivo subido');
   } catch (e) {
-    toast('⚠️ ' + (e.message || 'Error al subir el archivo'));
+    // Logueado en consola además del toast — si el error viene de Supabase
+    // (Storage o la tabla adjuntos) el mensaje de e.message ya lo trae
+    // subirAdjunto(), pero acá queda visible para diagnosticar sin
+    // depender de que alguien lea el toast a tiempo.
+    console.error('seleccionarArchivoPreocup: falló la subida', e);
+    toast('⚠️ ' + (e.message || 'Error al subir el archivo — reintentá o avisá a sistemas'), 6000);
   } finally {
     if (input) input.value = '';
   }
