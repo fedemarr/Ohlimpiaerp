@@ -20,7 +20,7 @@
 import { DB, currentUser } from '@shared/state.js';
 import { $, toTitleCase, cleanText } from '@shared/helpers.js';
 import { toast } from '@shared/ui.js';
-import { supaSync } from '@shared/supabase.js';
+import { supaSync, getLastSupaSyncError } from '@shared/supabase.js';
 import { renderCandidatos } from './candidatos.js';
 
 const COLUMNAS_PLANTILLA = [
@@ -215,6 +215,25 @@ export function seleccionarArchivoImportacionCandidatos() {
   reader.readAsText(file, 'UTF-8');
 }
 
+// ========== FECHA ==========
+
+// candidatos.fecha_cita es una columna `date` nativa en Supabase (no text
+// como buena parte de legajos/documentacion) — necesita YYYY-MM-DD. La
+// planilla de RRHH trae la fecha en formato argentino DD/MM/AAAA (ver
+// FILA_EJEMPLO más arriba). Sin esta conversión, Supabase rechazaba el
+// insert completo con "invalid input syntax for type date" apenas la fila
+// traía fecha — la causa real detrás del "no se puede guardar en el
+// servidor" que reportó RRHH al importar el histórico (bug real, no
+// hipotético: se reprodujo el error contra el esquema).
+// Formato no reconocido → null (mejor que romper el insert entero).
+function fechaCsvAISO(f) {
+  if (!f) return null;
+  const m = f.trim().match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if (!m) return null;
+  const [, d, mes, y] = m;
+  return y + '-' + mes.padStart(2, '0') + '-' + d.padStart(2, '0');
+}
+
 // ========== MAPEO evaluación final → estado del candidato ==========
 
 function mapearEstadoDesdeResultado(resultadoRaw) {
@@ -278,6 +297,12 @@ function renderPreviewImportacionCandidatos() {
       // zona vacía, para que Gabi la complete a mano después.
       f._zonaNoReconocida = f.zona;
     }
+    if (f.fecha && !fechaCsvAISO(f.fecha)) {
+      // Igual que la zona: no bloquea la fila (se importa sin fecha de
+      // cita) — solo avisa, así se ve en el preview en vez de recién
+      // enterarse después de un guardado fallido.
+      f._fechaNoReconocida = f.fecha;
+    }
 
     const { estado } = mapearEstadoDesdeResultado(f.evaluacion_final);
     f._estadoResultante = estado;
@@ -291,7 +316,11 @@ function renderPreviewImportacionCandidatos() {
       + '<td style="padding:5px 8px;font-size:12px;">' + (f.dni || '—') + '</td>'
       + '<td style="padding:5px 8px;font-size:12px;">' + (f.zona || '—') + (f._zonaNoReconocida ? ' <span style="color:#d97706;">(sin mapear)</span>' : '') + '</td>'
       + '<td style="padding:5px 8px;font-size:12px;">' + (f.evaluacion_final || '—') + ' → ' + estado + '</td>'
-      + '<td style="padding:5px 8px;font-size:11px;color:#dc2626;">' + (problemas.join(', ') || '✓') + '</td>'
+      + '<td style="padding:5px 8px;font-size:11px;">'
+        + '<span style="color:#dc2626;">' + problemas.join(', ') + '</span>'
+        + (f._fechaNoReconocida ? '<span style="color:#d97706;">' + (problemas.length ? ' — ' : '') + 'fecha "' + f._fechaNoReconocida + '" no reconocida, se importa sin fecha de cita</span>' : '')
+        + (!problemas.length && !f._fechaNoReconocida ? '✓' : '')
+      + '</td>'
       + '</tr>';
   }).join('');
 
@@ -313,11 +342,16 @@ function renderPreviewImportacionCandidatos() {
 // ========== CONFIRMAR IMPORTACIÓN ==========
 
 export async function confirmarImportacionCandidatosHistorico() {
-  const validas = _filasParseadas.filter(f => f._valido);
+  // f._yaImportado excluye filas que ya se guardaron bien en un intento
+  // anterior (ver más abajo) — si algunas filas fallaron y se reintenta
+  // sin volver a subir el archivo, no hay que reprocesar las que ya
+  // entraron (generaría un DNI duplicado contra el candidato recién creado).
+  const validas = _filasParseadas.filter(f => f._valido && !f._yaImportado);
   if (!validas.length) { toast('⚠️ No hay filas válidas para importar'); return; }
 
   const creadoPor = currentUser ? ((currentUser.nickname || currentUser.nombre) + ' (import histórico)') : 'Import histórico';
-  let importados = 0, fallidos = 0;
+  let importados = 0;
+  const fallos = []; // [{ dni, nombre, error }] — detalle real de cada fila que no se pudo guardar
 
   for (const f of validas) {
     const { estado, motivoRechazo } = mapearEstadoDesdeResultado(f.evaluacion_final);
@@ -346,20 +380,41 @@ export async function confirmarImportacionCandidatosHistorico() {
       estado,
       motivoRechazo,
       asistio: 'si', // vienen de una entrevista ya realizada
-      fechaCita: f.fecha || null,
+      // fecha_cita es date nativo en Supabase — la planilla trae DD/MM/AAAA,
+      // hay que convertirla a ISO o Supabase rechaza el insert entero
+      // (ver comentario de fechaCsvAISO más arriba — esta era la causa
+      // real del "no se puede guardar en el servidor").
+      fechaCita: fechaCsvAISO(f.fecha),
       horaCita: null,
       creadoPor,
     };
     const ok = await supaSync('candidatos', nuevo);
-    if (ok) { DB.candidatos.push(nuevo); importados++; }
-    else fallidos++;
+    if (ok) {
+      DB.candidatos.push(nuevo);
+      f._yaImportado = true;
+      importados++;
+    } else {
+      // getLastSupaSyncError() = el { code, message, details } real que
+      // devolvió Supabase (supaSync lo guarda en cada llamada) — antes acá
+      // solo se contaba "fallidos" sin decir cuál fila ni por qué.
+      const err = getLastSupaSyncError();
+      console.error('Import histórico — falló ' + f.dni + ' (' + f.apellidos + ', ' + f.nombres + '):', err);
+      fallos.push({ dni: f.dni, nombre: f.apellidos + ', ' + f.nombres, error: (err && err.message) || 'Error desconocido' });
+    }
   }
 
   renderCandidatos();
-  if (fallidos > 0) {
-    toast('⚠️ ' + importados + ' importado(s), ' + fallidos + ' no se pudieron guardar en el servidor — reintentá esas filas');
+  if (fallos.length > 0) {
+    const detalle = fallos.map(x => x.dni + ' (' + x.nombre + '): ' + x.error).join(' | ');
+    toast('⚠️ ' + importados + ' importado(s), ' + fallos.length + ' no se pudieron guardar — ' + detalle);
+    const resEl = $('imp-cand-resumen');
+    if (resEl) {
+      resEl.innerHTML = importados + ' importado(s) correctamente.<br>'
+        + '<span style="color:#dc2626;">' + fallos.length + ' con error del servidor:</span><br>'
+        + fallos.map(x => '• DNI ' + x.dni + ' (' + x.nombre + '): ' + x.error).join('<br>');
+    }
   } else {
     toast('✅ ' + importados + ' candidato(s) importado(s) correctamente');
+    abrirImportadorCandidatosHistorico();
   }
-  abrirImportadorCandidatosHistorico();
 }
