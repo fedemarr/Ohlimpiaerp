@@ -1,4 +1,4 @@
-import { DB, LOCALIDADES_BA, BARRIOS_CABA, PARTIDOS_LOCALIDADES, currentUser } from '@shared/state.js';
+import { DB, LOCALIDADES_BA, BARRIOS_CABA, PARTIDOS_LOCALIDADES, LOCALIDAD_A_PARTIDO, currentUser } from '@shared/state.js';
 import { $, toTitleCase, cleanText, validarCampos, badge } from '@shared/helpers.js';
 import { toast, abrirModal, cerrarModal, abrirModalInput } from '@shared/ui.js';
 import { supaSync, getLastSupaSyncError } from '@shared/supabase.js';
@@ -230,11 +230,17 @@ export function poblarFiltrosColumnasCandidatos() {
 // por separado, cada uno con su propio criterio.
 const ZONAS_CONURBANO = ['Zona Norte', 'Zona Sur', 'Zona Oeste'];
 
+// Todas las localidades del conurbano juntas (los 41 partidos), orden
+// alfabético — permite elegir la Localidad directamente sin tener que
+// saber antes a qué Partido pertenece; onChangeLocalidadCand() completa
+// el Partido solo a partir de eso (LOCALIDAD_A_PARTIDO). El camino
+// inverso (elegir Partido primero) sigue andando igual — angosta las
+// opciones de Localidad a solo las de ese partido.
+const TODAS_LAS_LOCALIDADES = Object.keys(LOCALIDAD_A_PARTIDO).sort((a, b) => a.localeCompare(b, 'es'));
+
 // CABA no tiene partidos (Localidad = barrio directamente); Norte/Sur/Oeste
-// sí — ahí primero se elige Partido y recién eso habilita Localidad con las
-// localidades reales de ese partido (PARTIDOS_LOCALIDADES, dataset RRHH
-// 05/08/2026 — antes Localidad mostraba directamente la lista de partidos,
-// sin esta granularidad).
+// sí — ahí se puede elegir Partido primero (angosta Localidad a las de ese
+// partido) o Localidad directamente (completa el Partido solo).
 export function onChangeZonaCand() {
   const zona = $('c-zona');
   const part = $('c-partido');
@@ -248,8 +254,8 @@ export function onChangeZonaCand() {
   } else if (ZONAS_CONURBANO.includes(zona.value)) {
     part.disabled = false; part.style.opacity = '1';
     part.innerHTML = '<option value="">Seleccionar...</option>' + LOCALIDADES_BA.map(l => '<option>' + l + '</option>').join('');
-    loc.innerHTML = '<option value="">Seleccionar partido primero</option>';
-    loc.disabled = true; loc.style.opacity = '0.6';
+    loc.disabled = false; loc.style.opacity = '1';
+    loc.innerHTML = '<option value="">Seleccionar...</option>' + TODAS_LAS_LOCALIDADES.map(l => '<option>' + l + '</option>').join('');
   } else {
     part.innerHTML = '<option value="">Seleccionar zona primero</option>';
     part.disabled = true; part.style.opacity = '0.6';
@@ -258,18 +264,28 @@ export function onChangeZonaCand() {
   }
 }
 
+// Elegiste la Localidad directamente (sin pasar por Partido primero) —
+// autocompleta el Partido a partir de LOCALIDAD_A_PARTIDO. Se asigna por
+// .value, no dispara el onchange de Partido, así que no re-angosta ni
+// resetea la Localidad recién elegida.
+export function onChangeLocalidadCand() {
+  const loc = $('c-localidad');
+  const part = $('c-partido');
+  if (!loc || !part || part.disabled) return; // CABA: no hay partido que completar
+  const partido = LOCALIDAD_A_PARTIDO[loc.value];
+  if (partido) part.value = partido;
+}
+
 export function onChangePartidoCand() {
   const part = $('c-partido');
   const loc = $('c-localidad');
   if (!part || !loc) return;
   const localidades = PARTIDOS_LOCALIDADES[part.value];
-  if (!localidades) {
-    loc.innerHTML = '<option value="">Seleccionar partido primero</option>';
-    loc.disabled = true; loc.style.opacity = '0.6';
-    return;
-  }
+  // Sin partido elegido (volvió a "Seleccionar..."): vuelve a mostrar
+  // todas las localidades del conurbano, no las deshabilita — se puede
+  // elegir la Localidad directamente sin pasar por Partido.
   loc.disabled = false; loc.style.opacity = '1';
-  loc.innerHTML = '<option value="">Seleccionar...</option>' + localidades.map(l => '<option>' + l + '</option>').join('');
+  loc.innerHTML = '<option value="">Seleccionar...</option>' + (localidades || TODAS_LAS_LOCALIDADES).map(l => '<option>' + l + '</option>').join('');
 }
 
 export function onChangeEstadoCand() {

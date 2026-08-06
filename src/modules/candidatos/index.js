@@ -3,7 +3,7 @@
 export {
   renderCandidatos, tabCandidatos, filtrarCandidatos, poblarFiltrosColumnasCandidatos,
   abrirNuevoCandidato, guardarCandidato, editarCandidatoPorId,
-  onChangeZonaCand, onChangePartidoCand, onChangeEstadoCand,
+  onChangeZonaCand, onChangePartidoCand, onChangeLocalidadCand, onChangeEstadoCand,
   abrirCitarPorId, guardarCita,
   abrirResultadoPorId, guardarResultadoEntrevista,
   aprobarCandidatoPorId, rechazarCandidatoPorId, pasarAPsicoPorId,
@@ -77,7 +77,7 @@ import {
   filtrarCandidatos, poblarFiltrosColumnasCandidatos,
   renderCandidatos,
   guardarCandidato, editarCandidatoPorId,
-  onChangeZonaCand, onChangePartidoCand, onChangeEstadoCand,
+  onChangeZonaCand, onChangePartidoCand, onChangeLocalidadCand, onChangeEstadoCand,
   abrirCitarPorId, guardarCita,
   abrirResultadoPorId, guardarResultadoEntrevista,
   aprobarCandidatoPorId, rechazarCandidatoPorId, pasarAPsicoPorId,
@@ -110,6 +110,7 @@ window.guardarCandidato = guardarCandidato;
 window.editarCandidatoPorId = editarCandidatoPorId;
 window.onChangeZonaCand = onChangeZonaCand;
 window.onChangePartidoCand = onChangePartidoCand;
+window.onChangeLocalidadCand = onChangeLocalidadCand;
 window.onChangeEstadoCand = onChangeEstadoCand;
 window.abrirCitarPorId = abrirCitarPorId;
 window.guardarCita = guardarCita;

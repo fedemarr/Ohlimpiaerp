@@ -30,7 +30,11 @@ export const DB = {
   // Catálogo parametrizable (mismo patrón no-persistido que tiposCliente/
   // tiposSitio) para el campo "Disponibilidad horaria" del candidato.
   disponibilidadesHorarias: ['Full time', 'Part time', 'Turno mañana', 'Turno tarde', 'Turno noche', 'Fines de semana'],
-  medios: ['WhatsApp', 'Formulario web', 'Referido', 'Instagram', 'Búsqueda activa'],
+  // Ticket "Medio de convocatoria": Instagram -> Redes sociales (más
+  // general) + Bolsa de trabajo y Otros nuevas. Candidatos ya guardados
+  // con 'Instagram' se migran a 'Redes sociales' por SQL (sql/v062) —
+  // mismo valor conceptual, no hace falta mantenerlo aparte.
+  medios: ['WhatsApp', 'Formulario web', 'Referido', 'Redes sociales', 'Búsqueda activa', 'Bolsa de trabajo', 'Otros'],
   categorias: ['Operario A', 'Operario B', 'Referente', 'Encargado A', 'Encargado B', 'Encargado C', 'Retén', 'Supervisor', 'Auxiliar administrativo', 'Coordinador de área'],
   // 2.1.1 (Delta Comercial v1.2) — antes hardcodeados en <option> de
   // index.html (cli-tipo/cf-cli-tipo/cli-arca), duplicados y sin fuente
@@ -377,6 +381,16 @@ export const PARTIDOS_LOCALIDADES = {
   'Vicente López': ['Vicente López', 'Olivos', 'Florida', 'La Lucila', 'Munro', 'Carapachay', 'Villa Martelli'],
   'Zárate': ['Zárate', 'Lima'],
 };
+
+// Índice inverso de PARTIDOS_LOCALIDADES (localidad -> partido) — permite
+// elegir directamente la Localidad en Candidatos sin tener que saber antes
+// a qué Partido pertenece (onChangeLocalidadCand la usa para autocompletar
+// el Partido solo). Se computa una sola vez acá en vez de duplicar a mano
+// los ~200 pares; los nombres de localidad no se repiten entre partidos
+// (verificado), así que el mapeo es 1 a 1 sin ambigüedad.
+export const LOCALIDAD_A_PARTIDO = Object.fromEntries(
+  Object.entries(PARTIDOS_LOCALIDADES).flatMap(([partido, locs]) => locs.map(loc => [loc, partido]))
+);
 
 // ========== BARRIOS CABA ==========
 
