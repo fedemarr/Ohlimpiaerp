@@ -45,8 +45,20 @@ function textoPsico(val) {
   return '<span style="color:' + color + ';font-size:12px;font-weight:600;">' + texto + '</span>';
 }
 
+// Bug "Histórico" (ticket RRHH): p.estado del psico solo refleja la etapa
+// PROPIA (En proceso/Aprobado/Rechazado) — nunca se vuelve a tocar cuando
+// el candidato sigue avanzando por Preocupacional/Documentación/Alta, así
+// que un "Aprobado" de hace meses, ya convertido en socio con legajo,
+// se seguía mostrando en Histórico para siempre. La señal real de "ya
+// ingresó" es catAltPendientes.estado === 'Alta completada' — mismo campo
+// que ya usan documentacion.js/altas.js para lo mismo. filtrarPsico()
+// arma su propia lista aparte de renderPsico() y también la aplica.
+function yaIngresadoPsico(dni) {
+  return (DB.catAltPendientes || []).some(a => dni && a.dni === dni && a.estado === 'Alta completada');
+}
+
 export function renderPsico(lista) {
-  const todos = DB.psicos || [];
+  const todos = (DB.psicos || []).filter(p => !yaIngresadoPsico(p.dni));
   const activos = todos.filter(p => p.estado === 'En proceso');
   const historico = todos.filter(p => p.estado !== 'En proceso');
 
@@ -106,6 +118,7 @@ export function filtrarPsico() {
   const estado = ($('psico-filtro-estado') || { value: '' }).value;
 
   renderPsico(DB.psicos.filter(p =>
+    !yaIngresadoPsico(p.dni) &&
     (!buscar || (p.nombre || '').toLowerCase().includes(buscar) || (p.dni || '').includes(buscar)) &&
     (!zona || p.zona === zona) &&
     (!estado || p.estado === estado)
