@@ -194,7 +194,11 @@ export function abrirGestionPreocup(id) {
 export async function guardarPreocup() {
   const id = parseInt($('preocup-gest-id').value);
   const p = getPreocupById(id);
-  if (!p) return;
+  if (!p) {
+    console.error('guardarPreocup: no se encontró el registro para id', id, '(preocup-gest-id.value =', $('preocup-gest-id')?.value, ')');
+    toast('⚠️ No se encontró el registro — cerrá el modal y volvé a abrirlo desde la lista');
+    return;
+  }
   // El apto médico (o la constancia de NO APTO) es obligatorio desde el
   // comienzo, no solo al aprobar — sin archivo cargado no se puede ni
   // guardar el registro.
@@ -243,7 +247,11 @@ export async function guardarPreocup() {
 export async function aprobarPreocup() {
   const id = parseInt($('preocup-gest-id').value);
   const p = getPreocupById(id);
-  if (!p) return;
+  if (!p) {
+    console.error('aprobarPreocup: no se encontró el registro para id', id, '(preocup-gest-id.value =', $('preocup-gest-id')?.value, ')');
+    toast('⚠️ No se encontró el registro — cerrá el modal y volvé a abrirlo desde la lista');
+    return;
+  }
   // El apto médico es obligatorio para aprobar (APTO / APTO B / APTO C).
   const aptos = await listarAdjuntos({ dni: p.dni, etapa: 'preocupacional', tipo: 'apto-medico' });
   if (!aptos.length) {
@@ -306,7 +314,11 @@ export async function aprobarPreocup() {
 export async function bajaPreocup() {
   const id = parseInt($('preocup-gest-id').value);
   const p = getPreocupById(id);
-  if (!p) return;
+  if (!p) {
+    console.error('bajaPreocup: no se encontró el registro para id', id, '(preocup-gest-id.value =', $('preocup-gest-id')?.value, ')');
+    toast('⚠️ No se encontró el registro — cerrá el modal y volvé a abrirlo desde la lista');
+    return;
+  }
   const motivo = ($('pr-motivo') || {}).value || '';
   if (!motivo.trim()) {
     toast('⚠️ El motivo es obligatorio para dar de baja');
