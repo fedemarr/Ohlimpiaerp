@@ -96,6 +96,7 @@ function crearHTMLModalPreocup() {
       '</div>',
       '<div class="modal-body">',
         '<input type="hidden" id="preocup-gest-id">',
+        '<input type="hidden" id="preocup-gest-dni">',
         '<div class="form-grid form-grid-2">',
           '<div class="form-group"><label>Prestador</label>',
             '<select id="pr-prestador" style="width:100%;padding:8px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;">',
@@ -141,6 +142,28 @@ function crearHTMLModalPreocup() {
 // Buscar un pre-ocupacional por id (no por índice — práctica correcta)
 const getPreocupById = (id) => (DB.preocupacionales || []).find(p => String(p.id) === String(id));
 
+// Encuentra el registro que está abierto en el modal — primero por id
+// (caso normal), y si no matchea, por DNI. Bug real reportado en vivo:
+// "Aprobar -> Alta" no hacía nada. Causa: el id que guarda el input
+// oculto (preocup-gest-id) es el que tenía p.id AL ABRIR el modal. Si
+// DB.preocupacionales se repobló desde Supabase mientras el modal seguía
+// abierto (_toCamel reemplaza id por id_local — 9 dígitos truncados —
+// al leer de la base, ver supabase.js), el id en memoria deja de
+// coincidir con el que quedó guardado en el input, y getPreocupById(id)
+// no encuentra nada — silencioso, sin tirar ningún error. Mismo patrón
+// de fondo que "Conciliación entre etapas por candidatoId truncado" (ver
+// CLAUDE.md), acá aplicado al lookup dentro de la propia colección en
+// vez de entre etapas distintas. El DNI no se trunca ni cambia, así que
+// sirve de respaldo confiable.
+function getPreocupAbierto() {
+  const idEl = $('preocup-gest-id');
+  const p = idEl ? getPreocupById(idEl.value) : null;
+  if (p) return p;
+  const dni = ($('preocup-gest-dni') || {}).value || '';
+  if (!dni) return null;
+  return (DB.preocupacionales || []).find(x => x.dni === dni && x.estado === 'En proceso') || null;
+}
+
 // Mostrar/ocultar el textarea de motivo según el resultado
 export function actualizarMotivoPreocup() {
   const res = ($('pr-resultado') || {}).value || '';
@@ -168,6 +191,7 @@ export function abrirGestionPreocup(id) {
     document.body.appendChild(m);
   }
   $('preocup-gest-id').value = p.id;
+  $('preocup-gest-dni').value = p.dni || '';
   $('preocup-gest-nombre').textContent = p.nombre || '';
   $('pr-prestador').value = p.prestador || '';
   $('pr-fecha-turno').value = p.fechaTurno || '';
@@ -192,10 +216,9 @@ export function abrirGestionPreocup(id) {
 
 // Guardar el pre-ocupacional (lee campos, valida, persiste por id)
 export async function guardarPreocup() {
-  const id = parseInt($('preocup-gest-id').value);
-  const p = getPreocupById(id);
+  const p = getPreocupAbierto();
   if (!p) {
-    console.error('guardarPreocup: no se encontró el registro para id', id, '(preocup-gest-id.value =', $('preocup-gest-id')?.value, ')');
+    console.error('guardarPreocup: no se encontró el registro ni por id ni por dni', { id: $('preocup-gest-id')?.value, dni: $('preocup-gest-dni')?.value });
     toast('⚠️ No se encontró el registro — cerrá el modal y volvé a abrirlo desde la lista');
     return;
   }
@@ -245,10 +268,9 @@ export async function guardarPreocup() {
 
 // Aprobar: el pre-ocupacional avanza a Documentación de ingreso (APTO / APTO B / APTO C)
 export async function aprobarPreocup() {
-  const id = parseInt($('preocup-gest-id').value);
-  const p = getPreocupById(id);
+  const p = getPreocupAbierto();
   if (!p) {
-    console.error('aprobarPreocup: no se encontró el registro para id', id, '(preocup-gest-id.value =', $('preocup-gest-id')?.value, ')');
+    console.error('aprobarPreocup: no se encontró el registro ni por id ni por dni', { id: $('preocup-gest-id')?.value, dni: $('preocup-gest-dni')?.value });
     toast('⚠️ No se encontró el registro — cerrá el modal y volvé a abrirlo desde la lista');
     return;
   }
@@ -312,10 +334,9 @@ export async function aprobarPreocup() {
 
 // Baja: NO APTO da de baja al candidato (molde de rechazarPsico)
 export async function bajaPreocup() {
-  const id = parseInt($('preocup-gest-id').value);
-  const p = getPreocupById(id);
+  const p = getPreocupAbierto();
   if (!p) {
-    console.error('bajaPreocup: no se encontró el registro para id', id, '(preocup-gest-id.value =', $('preocup-gest-id')?.value, ')');
+    console.error('bajaPreocup: no se encontró el registro ni por id ni por dni', { id: $('preocup-gest-id')?.value, dni: $('preocup-gest-dni')?.value });
     toast('⚠️ No se encontró el registro — cerrá el modal y volvé a abrirlo desde la lista');
     return;
   }
@@ -414,9 +435,12 @@ export async function seleccionarArchivoPreocup() {
   const input = $('pr-adjunto-file');
   const file = input && input.files && input.files[0];
   if (!file) return;
-  const id = $('preocup-gest-id').value;
-  const p = getPreocupById(id);
-  if (!p) { toast('⚠️ No se encontró el registro'); return; }
+  const p = getPreocupAbierto();
+  if (!p) {
+    console.error('seleccionarArchivoPreocup: no se encontró el registro ni por id ni por dni', { id: $('preocup-gest-id')?.value, dni: $('preocup-gest-dni')?.value });
+    toast('⚠️ No se encontró el registro — cerrá el modal y volvé a abrirlo desde la lista');
+    return;
+  }
   const res = ($('pr-resultado') || {}).value || '';
   const tipo = tipoEsperadoPreocup(res);
   const cont = $('pr-adjunto-lista');
@@ -450,9 +474,12 @@ export async function verAdjuntoPreocup(path) {
 let _iaAptoResultado = null;
 
 export async function analizarAptoMedicoIA() {
-  const id = $('preocup-gest-id').value;
-  const p = getPreocupById(id);
-  if (!p) return;
+  const p = getPreocupAbierto();
+  if (!p) {
+    console.error('analizarAptoMedicoIA: no se encontró el registro ni por id ni por dni', { id: $('preocup-gest-id')?.value, dni: $('preocup-gest-dni')?.value });
+    toast('⚠️ No se encontró el registro — cerrá el modal y volvé a abrirlo desde la lista');
+    return;
+  }
   const adjuntos = await listarAdjuntos({ dni: p.dni, etapa: 'preocupacional' });
   if (!adjuntos.length) { toast('⚠️ Subí el apto médico antes de analizarlo'); return; }
   const btn = $('btn-ia-apto');
