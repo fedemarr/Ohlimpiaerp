@@ -1,5 +1,5 @@
 import { DB, LOCALIDADES_BA, BARRIOS_CABA, PARTIDOS_LOCALIDADES, currentUser } from '@shared/state.js';
-import { $, toTitleCase, cleanText, validarCampos, hoyStr, badge } from '@shared/helpers.js';
+import { $, toTitleCase, cleanText, validarCampos, badge } from '@shared/helpers.js';
 import { toast, abrirModal, cerrarModal, abrirModalInput } from '@shared/ui.js';
 import { supaSync, getLastSupaSyncError } from '@shared/supabase.js';
 
@@ -367,8 +367,10 @@ export async function guardarCandidato() {
 
   if (estado === 'Citado') {
     if (!fechaCita) { toast('⚠️ Ingresá la fecha de la cita'); $('c-fecha').focus(); return; }
-    const hoy = new Date(); hoy.setHours(0, 0, 0, 0);
-    if (new Date(fechaCita) < hoy) { toast('⚠️ La fecha de la cita no puede ser anterior a hoy'); $('c-fecha').focus(); return; }
+    // Sin validación de "no anterior a hoy" (ticket "Fecha de citación") —
+    // a propósito se usa también para cargar candidatos que ya fueron
+    // citados/entrevistados con fecha pasada (carga de datos históricos),
+    // no solo para agendar una cita nueva a futuro.
     if (!horaCita) { toast('⚠️ Ingresá la hora de la cita'); $('c-hora').focus(); return; }
     if (!rrhhId) { toast('⚠️ Seleccioná quién citó al candidato'); $('c-rrhh').focus(); return; }
   }
@@ -583,7 +585,10 @@ export function abrirCitarPorId(id) {
   $('citar-nombre').textContent = (c.apellido ? c.apellido + ', ' : '') + c.nombre;
   $('citar-fecha').value = '';
   $('citar-hora').value = '';
-  $('citar-fecha').min = hoyStr();
+  // Sin min: la fecha de citación puede ser pasada (ticket "Fecha de
+  // citación") — se usa también para cargar candidatos que ya fueron
+  // citados/entrevistados antes de tener el sistema al día, no solo para
+  // agendar una cita nueva a futuro.
   abrirModal('modal-citar-cand');
 }
 
