@@ -13,6 +13,14 @@ const ESTADO_DISPLAY = {
   'Psicotecnico': 'Psicotécnico',
 };
 
+// Estados de salida alternativos a "Rechazado" (ticket Histórico). Agregados
+// al enum estado_candidato (sql/v063) — RRHH los elige a mano desde "Dar de
+// baja" (ver abrirBajaCandidatoPorId más abajo), no hay regla automática que
+// los derive, así que el sistema no infiere nada: sólo ofrece las 4 opciones
+// y guarda el detalle en motivoRechazo (mismo campo que ya se mostraba en la
+// columna "Motivo" para Rechazado).
+const ESTADOS_BAJA = ['Baja', 'Caducado', 'MT Social', 'MT con deuda'];
+
 // id_local se trunca a 9 dígitos al persistir (supaSync) y, al releer
 // desde Supabase, _toCamel reemplaza candidato.id por ese id_local
 // (src/shared/supabase.js). Cualquier referencia cruzada (turno →
@@ -93,6 +101,7 @@ function bindTbodyEvents(tbody) {
     else if (action === 'rechazar') rechazarCandidatoPorId(id);
     else if (action === 'psico') pasarAPsicoPorId(id);
     else if (action === 'editar') editarCandidatoPorId(id);
+    else if (action === 'dar-baja') abrirBajaCandidatoPorId(id);
     else if (action === 'ver-detalle') abrirDetalleCandidatoPorId(id);
     else if (action === 'desmarcar-asistencia') desmarcarAsistenciaPorId(id);
   };
@@ -122,7 +131,7 @@ export function renderCandidatos(lista) {
   const fZona = (($('cand-filtro-zona') || {}).value || '');
   const fEstado = (($('cand-filtro-estado') || {}).value || '');
 
-  const estadosHist = ['Rechazado', 'Psicotecnico'];
+  const estadosHist = ['Rechazado', 'Psicotecnico', ...ESTADOS_BAJA];
   const activos = todos.filter(c => !estadosHist.includes(c.estado));
   const hist = todos.filter(c => estadosHist.includes(c.estado));
   let lista2 = _candTab === 'historico' ? hist : activos;
@@ -162,7 +171,7 @@ export function renderCandidatos(lista) {
 }
 
 function renderFilaCand(c) {
-  const ec = { 'Sin citar': '#64748b', 'Citado': '#2563eb', 'Entrevistado': '#d97706', 'Aprobado': '#16a34a', 'Rechazado': '#dc2626', 'Psicotecnico': '#7c3aed' }[c.estado] || '#64748b';
+  const ec = { 'Sin citar': '#64748b', 'Citado': '#2563eb', 'Entrevistado': '#d97706', 'Aprobado': '#16a34a', 'Rechazado': '#dc2626', 'Psicotecnico': '#7c3aed', 'Baja': '#64748b', 'Caducado': '#b45309', 'MT Social': '#0891b2', 'MT con deuda': '#be123c' }[c.estado] || '#64748b';
   const cid = c.id;
   const nombreCompleto = (c.apellido || '') + (c.apellido && c.nombre ? ', ' : '') + (c.nombre || '');
   const fechaDisplay = formatearFechaISO(c.fechaCita);
@@ -185,6 +194,10 @@ function renderFilaCand(c) {
     } else if (c.estado === 'Aprobado')
       btns += '<button data-action="psico" data-id="' + cid + '" style="' + btnStyle + 'background:#7c3aed;color:white;">🧠 Psico</button>';
     btns += '<button data-action="editar" data-id="' + cid + '" style="' + btnStyle + 'background:#e2e8f0;color:#374151;">✏️</button>';
+    // Salida del proceso por un motivo distinto al rechazo en entrevista
+    // (Baja, Caducado, MT Social, MT con deuda) — disponible en cualquier
+    // estado activo, no sólo en Entrevistado como Rechazar.
+    btns += '<button data-action="dar-baja" data-id="' + cid + '" style="' + btnStyle + 'background:#f1f5f9;color:#475569;" title="Baja / Caducado / MT Social / MT con deuda">📁 Baja</button>';
   }
 
   return '<tr style="border-bottom:1px solid #e2e8f0;">'
@@ -815,4 +828,62 @@ export async function desmarcarAsistenciaPorId(id) {
   }
   renderCandidatos();
   toast('↩️ Asistencia desmarcada — ' + nombreCompleto + ' vuelve a "Citado"');
+}
+
+// ========== DAR DE BAJA (Baja / Caducado / MT Social / MT con deuda) ==========
+// Modal dinámico (mismo patrón que "Ver detalle" más arriba) — RRHH elige a
+// mano cuál de los 4 estados aplica, no hay cálculo automático (ver
+// ESTADOS_BAJA arriba).
+
+function crearHTMLModalBajaCand() {
+  return [
+    '<div class="modal" style="max-width:420px;">',
+      '<div class="modal-header"><h3>Dar de baja</h3><button class="btn-close" onclick="cerrarModal(\'modal-baja-cand\')">×</button></div>',
+      '<div class="modal-body">',
+        '<input type="hidden" id="baja-cand-id">',
+        '<div id="baja-cand-nombre" style="font-weight:600;margin-bottom:10px;"></div>',
+        '<div class="form-group"><label>Estado</label><select id="baja-cand-estado" style="width:100%;padding:8px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;">',
+          ESTADOS_BAJA.map(e => '<option>' + e + '</option>').join(''),
+        '</select></div>',
+        '<div class="form-group" style="margin-top:8px;"><label>Motivo / detalle</label><textarea id="baja-cand-motivo" rows="3" style="width:100%;padding:8px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;box-sizing:border-box;"></textarea></div>',
+      '</div>',
+      '<div class="modal-footer"><button class="btn btn-secondary" onclick="cerrarModal(\'modal-baja-cand\')">Cancelar</button><button class="btn btn-danger" onclick="confirmarBajaCandidato()">Confirmar</button></div>',
+    '</div>',
+  ].join('');
+}
+
+export function abrirBajaCandidatoPorId(id) {
+  const c = getCandById(id);
+  if (!c) { toast('⚠️ Candidato no encontrado'); return; }
+  if (!$('modal-baja-cand')) {
+    const m = document.createElement('div');
+    m.className = 'modal-overlay';
+    m.id = 'modal-baja-cand';
+    m.innerHTML = crearHTMLModalBajaCand();
+    document.body.appendChild(m);
+  }
+  $('baja-cand-id').value = id;
+  $('baja-cand-nombre').textContent = (c.apellido ? c.apellido + ', ' : '') + (c.nombre || '');
+  $('baja-cand-estado').selectedIndex = 0;
+  $('baja-cand-motivo').value = '';
+  abrirModal('modal-baja-cand');
+}
+
+export async function confirmarBajaCandidato() {
+  const c = getCandById($('baja-cand-id').value);
+  if (!c) { toast('⚠️ Candidato no encontrado'); return; }
+  const estadoNuevo = $('baja-cand-estado').value;
+  const motivo = cleanText($('baja-cand-motivo').value || '');
+  const snapshot = { estado: c.estado, motivoRechazo: c.motivoRechazo };
+  c.estado = estadoNuevo;
+  c.motivoRechazo = motivo;
+  const ok = await supaSync('candidatos', c);
+  if (!ok) {
+    Object.assign(c, snapshot);
+    toast(mensajeErrorGuardado('⚠️ No se pudo dar de baja en el servidor — reintentá o avisá a sistemas'));
+    return;
+  }
+  cerrarModal('modal-baja-cand');
+  renderCandidatos();
+  toast('📁 Candidato pasado a "' + estadoNuevo + '"');
 }
