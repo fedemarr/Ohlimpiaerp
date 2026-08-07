@@ -1,6 +1,6 @@
 import { DB } from '@shared/state.js';
 import { $ } from '@shared/helpers.js';
-import { toast, cerrarModal } from '@shared/ui.js';
+import { toast, cerrarModal, abrirModalInput } from '@shared/ui.js';
 import { supaSync, getLastSupaSyncError } from '@shared/supabase.js';
 import { subirAdjunto, listarAdjuntos, obtenerUrlFirmada, borrarAdjunto } from '@shared/adjuntos.js';
 import { analizarDocumentoPDF, chequearIdentidadIA } from '@shared/iaDocumentos.js';
@@ -133,6 +133,10 @@ function crearHTMLModalPreocup() {
           '<button class="btn btn-primary" onclick="guardarPreocup()">💾 Guardar</button>',
           '<button id="btn-aprobar-preocup" class="btn" style="background:#16a34a;color:white;display:none;" onclick="aprobarPreocup()">✅ Aprobar → Alta</button>',
           '<button id="btn-baja-preocup" class="btn" style="background:#dc2626;color:white;display:none;" onclick="bajaPreocup()">⛔ Dar de baja</button>',
+          // Rechazo libre — a diferencia de "Dar de baja" (atado a elegir NO
+          // APTO como resultado), este no depende de ningún campo del form,
+          // siempre visible. Pide motivo obligatorio en un modal aparte.
+          '<button class="btn" style="background:#991b1b;color:white;" onclick="rechazarPreocup()">❌ Rechazar</button>',
         '</div>',
       '</div>',
     '</div>',
@@ -330,6 +334,41 @@ export async function aprobarPreocup() {
   }
   cerrarModal('modal-preocup-gestion');
   renderPreocup();
+}
+
+// Rechazo libre — sale de la etapa sin importar el resultado marcado en el
+// form (a diferencia de bajaPreocup, atado a NO APTO). Motivo obligatorio
+// vía modal aparte (molde de rechazarPsico).
+export function rechazarPreocup() {
+  const p = getPreocupAbierto();
+  if (!p) {
+    console.error('rechazarPreocup: no se encontró el registro ni por id ni por dni', { id: $('preocup-gest-id')?.value, dni: $('preocup-gest-dni')?.value });
+    toast('⚠️ No se encontró el registro — cerrá el modal y volvé a abrirlo desde la lista');
+    return;
+  }
+  abrirModalInput({ titulo: 'Rechazar pre-ocupacional', etiqueta: 'Motivo del rechazo (obligatorio)' }, async (motivo) => {
+    const snapshot = { ...p };
+    p.estado = 'Rechazado';
+    p.motivo = motivo;
+    p.fechaRechazo = new Date().toLocaleDateString('es-AR');
+    const ok = await supaSync('preocupacionales', p);
+    if (!ok) {
+      Object.assign(p, snapshot);
+      const err = getLastSupaSyncError();
+      console.error('rechazarPreocup: falló el guardado en Supabase', err);
+      toast('⚠️ No se pudo rechazar — el servidor rechazó el guardado' + (err?.message ? ' (' + err.message + ')' : '') + ' — reintentá o avisá a sistemas');
+      return;
+    }
+    const cand = (DB.candidatos || []).find(c => p.dni && c.dni === p.dni);
+    if (cand) {
+      cand.estado = 'Rechazado';
+      cand.motivoRechazo = 'Rechazado en Pre-ocupacional: ' + motivo;
+      supaSync('candidatos', cand);
+    }
+    cerrarModal('modal-preocup-gestion');
+    renderPreocup();
+    toast('❌ ' + p.nombre + ' rechazado');
+  });
 }
 
 // Baja: NO APTO da de baja al candidato (molde de rechazarPsico)

@@ -1,7 +1,7 @@
 import { DB } from '@shared/state.js';
 import { $ } from '@shared/helpers.js';
-import { toast, cerrarModal } from '@shared/ui.js';
-import { supaSync } from '@shared/supabase.js';
+import { toast, cerrarModal, abrirModalInput } from '@shared/ui.js';
+import { supaSync, getLastSupaSyncError } from '@shared/supabase.js';
 import { subirAdjunto, listarAdjuntos, obtenerUrlFirmada, borrarAdjunto } from '@shared/adjuntos.js';
 import { analizarDocumentoPDF, chequearIdentidadIA } from '@shared/iaDocumentos.js';
 
@@ -161,6 +161,10 @@ function crearHTMLModalDocum() {
           '<button id="btn-aprobar-docum" class="btn" style="background:#16a34a;color:white;display:none;" onclick="aprobarDocum()">✅ Aprobar → Alta</button>',
           '<button id="btn-excepcion-docum" class="btn" style="background:#ea580c;color:white;display:none;" onclick="excepcionDocum()">🔓 Habilitar excepción</button>',
           '<button id="btn-baja-docum" class="btn" style="background:#dc2626;color:white;display:none;" onclick="bajaDocum()">⛔ Dar de baja</button>',
+          // Rechazo libre — a diferencia de "Dar de baja" (atado a marcar "Con
+          // antecedentes"), este no depende de ningún campo del form, siempre
+          // visible. Pide motivo obligatorio en un modal aparte.
+          '<button class="btn" style="background:#991b1b;color:white;" onclick="rechazarDocum()">❌ Rechazar</button>',
         '</div>',
       '</div>',
     '</div>',
@@ -435,6 +439,41 @@ export function excepcionDocum() {
   cerrarModal('modal-docum-gestion');
   renderDocum();
   if (creada) toast('🔓 ' + d.nombre + ' habilitado por excepción — enviado a Alta');
+}
+
+// Rechazo libre — sale de la etapa sin importar el resultado marcado en el
+// form (a diferencia de bajaDocum, atado a "Con antecedentes"). Motivo
+// obligatorio vía modal aparte (molde de rechazarPsico/rechazarPreocup).
+export function rechazarDocum() {
+  const d = getDocumAbierto();
+  if (!d) {
+    console.error('rechazarDocum: no se encontró el registro ni por id ni por dni', { id: $('docum-gest-id')?.value, dni: $('docum-gest-dni')?.value });
+    toast('⚠️ No se encontró el registro — cerrá el modal y volvé a abrirlo desde la lista');
+    return;
+  }
+  abrirModalInput({ titulo: 'Rechazar documentación de ingreso', etiqueta: 'Motivo del rechazo (obligatorio)' }, async (motivo) => {
+    const snapshot = { ...d };
+    d.estado = 'Rechazado';
+    d.motivo = motivo;
+    d.fechaRechazo = new Date().toLocaleDateString('es-AR');
+    const ok = await supaSync('documentacionIngreso', d);
+    if (!ok) {
+      Object.assign(d, snapshot);
+      const err = getLastSupaSyncError();
+      console.error('rechazarDocum: falló el guardado en Supabase', err);
+      toast('⚠️ No se pudo rechazar — el servidor rechazó el guardado' + (err?.message ? ' (' + err.message + ')' : '') + ' — reintentá o avisá a sistemas');
+      return;
+    }
+    const cand = (DB.candidatos || []).find(c => d.dni && c.dni === d.dni);
+    if (cand) {
+      cand.estado = 'Rechazado';
+      cand.motivoRechazo = 'Rechazado en Documentación de ingreso: ' + motivo;
+      supaSync('candidatos', cand);
+    }
+    cerrarModal('modal-docum-gestion');
+    renderDocum();
+    toast('❌ ' + d.nombre + ' rechazado');
+  });
 }
 
 // Dar de baja: Con antecedentes → candidato Rechazado

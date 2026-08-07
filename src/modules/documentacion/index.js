@@ -15,6 +15,7 @@ export {
   aprobarDocum,
   excepcionDocum,
   bajaDocum,
+  rechazarDocum,
   revertirDocum,
   cargarAdjuntoDocum,
   seleccionarArchivoDocum,
@@ -39,6 +40,7 @@ import {
   aprobarDocum,
   excepcionDocum,
   bajaDocum,
+  rechazarDocum,
   revertirDocum,
   cargarAdjuntoDocum,
   seleccionarArchivoDocum,
@@ -71,6 +73,7 @@ window.actualizarBotonesDocum = actualizarBotonesDocum;
 window.aprobarDocum = aprobarDocum;
 window.excepcionDocum = excepcionDocum;
 window.bajaDocum = bajaDocum;
+window.rechazarDocum = rechazarDocum;
 window.revertirDocum = revertirDocum;
 window.cargarAdjuntoDocum = cargarAdjuntoDocum;
 window.seleccionarArchivoDocum = seleccionarArchivoDocum;
