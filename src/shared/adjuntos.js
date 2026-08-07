@@ -23,6 +23,7 @@ export const TIPO_LEGIBLE = {
   'inaes':         'INAES',
   'certificado-capacitacion': 'Certificado Capacitacion',
   'entrevista':    'Entrevista',
+  'poliza-seguro': 'Poliza Seguro',
 };
 
 // Límite de tamaño (10 MB, igual que el bucket) y MIME types permitidos.

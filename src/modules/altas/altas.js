@@ -2,6 +2,7 @@ import { DB, LOCALIDADES_BA, BARRIOS_CABA } from '@shared/state.js';
 import { $, avatarEl, badge, cleanText, toTitleCase, validarCampos, fillSelect, applyTitleCase } from '@shared/helpers.js';
 import { toast, abrirModal, cerrarModal } from '@shared/ui.js';
 import { supaSync } from '@shared/supabase.js';
+import { subirAdjunto, listarAdjuntos, obtenerUrlFirmada, borrarAdjunto, MAX_SIZE } from '@shared/adjuntos.js';
 import { SECTORES_ADMIN } from '@modules/legajos/index.js';
 
 // ========== ESTADO INTERNO ==========
@@ -231,6 +232,19 @@ function crearHTMLModalAlta() {
             '<div id="alt-polizas-lista"></div>',
             '<button type="button" class="btn btn-secondary btn-sm" onclick="agregarFilaPoliza()" style="margin-top:6px;">+ Agregar póliza</button>',
           '</div>',
+          // PDF de la póliza (documento único, distinto de la lista de N°/
+          // vencimiento de arriba). Reutiliza el bucket privado + tabla
+          // `adjuntos` (src/shared/adjuntos.js), etapa 'alta', tipo
+          // 'poliza-seguro' (sql/v066). Se sube apenas se elige el archivo
+          // (no espera a "Confirmar Alta"), igual que el resto de los
+          // adjuntos del sistema — por eso alcanza con tener el DNI cargado
+          // (tab 0), no hace falta que el legajo ya exista.
+          '<div class="form-group" style="margin-top:12px;border:1px dashed #93c5fd;border-radius:8px;padding:12px;background:#eff6ff;">',
+            '<label style="font-weight:600;color:#1e3a8a;">📎 Póliza de seguro (PDF)</label>',
+            '<div id="alt-poliza-pdf-lista" style="margin-top:8px;font-size:13px;color:#64748b;">Sin PDF cargado</div>',
+            '<input type="file" id="alt-poliza-pdf-file" accept="application/pdf" style="display:none;" onchange="seleccionarArchivoPolizaAlta()">',
+            '<button type="button" class="btn btn-secondary btn-sm" onclick="document.getElementById(\'alt-poliza-pdf-file\').click()" style="margin-top:8px;">⬆️ Subir PDF de la póliza</button>',
+          '</div>',
         '</div>',
         // Tab 6 — Cuentas bancarias
         '<div id="alta-section-6" style="display:none;">',
@@ -351,6 +365,11 @@ export function abrirModalAlta(psicoIdx, altaId) {
     $('alta-nombre-display').textContent = 'Nuevo';
   }
 
+  // Póliza (PDF): se busca por el DNI que quedó cargado arriba (mismo dni
+  // sea alta nueva o reapertura de una "Pendiente de alta") — si ya se
+  // había subido antes, aparece de nuevo acá.
+  cargarAdjuntoPolizaAlta(($('alt-dni') || {}).value || '');
+
   // Calcular integración desde SMVM vigente
   const sv = (DB.smvm || []).find(s => s.vigente);
   if (sv) {
@@ -467,6 +486,82 @@ function leerPolizas() {
       vencimiento: (fila.querySelector('.alt-poliza-vencimiento') || {}).value || '',
     }))
     .filter(p => p.numero || p.vencimiento);
+}
+
+// ========== PÓLIZA DE SEGURO — PDF ==========
+// Documento único por asociado (a diferencia de la lista de N°/vencimiento
+// de arriba, que admite varias filas) — reutiliza el bucket privado + tabla
+// `adjuntos` (src/shared/adjuntos.js), etapa 'alta', tipo 'poliza-seguro'
+// (sql/v066). Subir uno nuevo invalida (vigente=false) el anterior — mismo
+// comportamiento que el resto de los tipos no-historial en subirAdjunto,
+// así que "reemplazar" es simplemente volver a subir.
+
+async function cargarAdjuntoPolizaAlta(dni) {
+  const cont = $('alt-poliza-pdf-lista');
+  if (!cont) return;
+  if (!dni) { cont.innerHTML = '<span style="color:#94a3b8;">Sin PDF cargado</span>'; return; }
+  cont.innerHTML = 'Cargando…';
+  const lista = await listarAdjuntos({ dni, etapa: 'alta', tipo: 'poliza-seguro' });
+  if (!lista.length) {
+    cont.innerHTML = '<span style="color:#94a3b8;">Sin PDF cargado</span>';
+    return;
+  }
+  const a = lista[0];
+  cont.innerHTML =
+    '<div style="display:flex;align-items:center;gap:8px;background:white;border:1px solid #e2e8f0;border-radius:6px;padding:6px 10px;">'
+    + '<span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">📄 ' + (a.nombreArchivo || 'Archivo') + '</span>'
+    + '<button type="button" class="btn btn-secondary" style="padding:4px 8px;font-size:12px;" onclick="verAdjuntoPolizaAlta(\'' + a.url + '\')">👁️ Ver</button>'
+    + '<button type="button" class="btn" style="background:#dc2626;color:white;padding:4px 8px;font-size:12px;" onclick="eliminarAdjuntoPolizaAlta(\'' + a.id + '\',\'' + dni + '\')">🗑️</button>'
+    + '</div>';
+}
+
+export async function seleccionarArchivoPolizaAlta() {
+  const input = $('alt-poliza-pdf-file');
+  const file = input && input.files && input.files[0];
+  if (!file) return;
+  const dni = cleanText(($('alt-dni') || {}).value || '');
+  if (!dni) {
+    toast('⚠️ Ingresá el DNI del asociado (tab Identificación) antes de subir la póliza');
+    if (input) input.value = '';
+    return;
+  }
+  // Validación rápida en cliente (tipo + tamaño) antes de intentar subir —
+  // subirAdjunto() la repite del lado seguro (no confiamos solo en el
+  // accept="application/pdf" del input, que no bloquea nada por sí solo).
+  if (file.type !== 'application/pdf') {
+    toast('⚠️ Solo se acepta PDF');
+    if (input) input.value = '';
+    return;
+  }
+  if (file.size > MAX_SIZE) {
+    toast('⚠️ El archivo (' + (file.size / 1024 / 1024).toFixed(1) + ' MB) supera el límite de 10 MB');
+    if (input) input.value = '';
+    return;
+  }
+  const cont = $('alt-poliza-pdf-lista');
+  if (cont) cont.innerHTML = 'Subiendo…';
+  try {
+    await subirAdjunto({ dni, etapa: 'alta', tipo: 'poliza-seguro', file });
+    toast('📎 Póliza subida');
+  } catch (e) {
+    toast('⚠️ ' + (e.message || 'Error al subir el archivo'));
+  } finally {
+    if (input) input.value = '';
+  }
+  cargarAdjuntoPolizaAlta(dni);
+}
+
+export async function verAdjuntoPolizaAlta(path) {
+  const url = await obtenerUrlFirmada(path);
+  if (!url) { toast('⚠️ No se pudo abrir el archivo'); return; }
+  window.open(url, '_blank');
+}
+
+export async function eliminarAdjuntoPolizaAlta(id, dni) {
+  if (!confirm('¿Eliminar el PDF de la póliza?')) return;
+  const ok = await borrarAdjunto(id);
+  toast(ok ? '🗑️ PDF eliminado' : '⚠️ No se pudo eliminar');
+  cargarAdjuntoPolizaAlta(dni);
 }
 
 // ========== OBRA SOCIAL — INICIO DE TRÁMITE (auto, ingreso + 3 meses) ==========
