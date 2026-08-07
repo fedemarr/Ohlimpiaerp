@@ -2,22 +2,33 @@
 
 export const DB = {
   rrhh: ['Jimena', 'Naara', 'Gabi'],
-  supervisores: ['Alvaro Uballes', 'Alejandro Cacciato', 'Claudia Cazenave', 'Claudio Gonzalez', 'Fabio Benvenuto', 'Matias Maidana', 'Marcelo Moure', 'Santiago Ayala', 'Richard Recalde', 'Alfredo Arispe', 'Lorena Unzain', 'Dario Lage'],
+  // + Patricia Scaglia, Maximiliano Poncino, Sandra Luna (08/2026):
+  // aparecen como supervisores asignados en la planilla "Selección y
+  // Reubicaciones" (ver SERVICIO_SUPERVISOR) y no estaban en esta lista.
+  supervisores: ['Alvaro Uballes', 'Alejandro Cacciato', 'Claudia Cazenave', 'Claudio Gonzalez', 'Fabio Benvenuto', 'Matias Maidana', 'Marcelo Moure', 'Santiago Ayala', 'Richard Recalde', 'Alfredo Arispe', 'Lorena Unzain', 'Dario Lage', 'Patricia Scaglia', 'Maximiliano Poncino', 'Sandra Luna'],
   // Deprecado (Clientes y Objetivos v1.1, v039) — no usar como fuente
   // directa. Usar window.obtenerServiciosActivos() (legacy.js), que
   // devuelve DB.objetivos.codigo (Operativos) + los códigos de esta lista
   // que todavía no tengan un objetivo creado (fallback, para no romper
   // legajos/datalists existentes mientras Comercial carga objetivos reales).
-  // Carga masiva RRHH (05/08/2026): 151 códigos de servicio nuevos, sin
-  // objetivo comercial creado todavía — igual que el resto de esta lista,
-  // son un puente hasta que Comercial los cargue como objetivos reales
-  // (con cliente/precio). Se pegaron tal cual los pasó RRHH, sin corregir
-  // espacios/ortografía — hay algunas inconsistencias visibles (p.ej.
-  // "JOSIMAR. BANFIELD" con espacio de más, "HURLINGHAN.VERGARA" vs.
-  // "HURLINGHAM.VILLEGAS" ya existente en la lista) que conviene que
-  // confirme RRHH en vez de que las adivine yo.
-  servicios: ['HOSPITAL.CAMPANA', 'GYM.RECOLETA', 'HIT.LIBERTADOR.CEL', 'HIT.LIBERTADOR.8614', 'HACOAJ.TIGRE', 'LOS.PINOS', 'CENARD', 'ANAC', 'NEWSAN.CAMPANA', 'SULFOQUIMICA', 'COTO.GARIN', 'MIGUELETES.2423', 'TEKNOPOLIS', 'RETEN.GENERAL', 'ADMINISTRATIVO',
-    'AGENCIA.FIBRA', 'AMERICAN.LOGISTIC', 'CLUB.VASCO', 'BILLINGHURST.2048', 'CIBRA', 'LIBERTADOR.260', 'BOULOGNE.662', 'E.LAMARCA.1679', 'LMC.46', 'MAURE.1560', 'OHIGGINS.1949', 'PALPA.2426', 'SALGUERO.2124', 'DISTR.VR', 'EMBA.CABILDO', 'EMBA.PAMPA', 'EMBA.PAMPA2', 'EMBA.CIUDAD', 'ZAPIOLA.GALERIA', 'GESNEXT', 'HIGHFLOW', 'LIBERTADOR.6343', 'HIT.LMC.877', 'ALTO.MOLINO', 'PAMPA.1391', 'HIT.MAIPU', 'HIT.TECNO', 'HIT.CHICLANA.3345', 'HIT.UGARTE.2110', 'IUTRACE.SAS', 'JOSIMAR.AVELLANEDA', 'JOSIMAR.CENTRO.DISTR', 'JOSIMAR.LANUS', 'JOSIMAR.LOMAS', 'JOSIMAR.MTE.GRANDE', 'JOSIMAR.BARRACAS', 'JOSIMAR.QUILMES', 'OFFICE.PARK', 'ROCAMORA', 'SAN.ANTONIO', 'REYLAT', 'GYM.CONGRESO', 'GYM.DEVOTO', 'GYM.CAÑITAS', 'GYM.PERON', 'TECTOOLS', 'TSOFT.CHICLANA', 'UML', 'JOSIMAR. BANFIELD', 'HIT.POLO', 'HIT.ALPARGATAS', 'NATIONAL.SHIPPING', 'MAURE.1601', 'GYM.CABALLITO', 'INDICOM', 'CONS.DELGADO', 'ASCENSORES', 'SKYGLASS', 'ALSINA.1609', 'LORETO.1510', 'ARCOS', 'CAZADORES', 'HIT.VILO', 'IOMA', 'ZUG.VERDI', 'ZUG.CAAMAÑO', 'LINCE', 'EVERNEX', 'MACSTATION', 'HIT.ARGUIBEL', 'GYM.NUÑEZ', 'ELDAR', 'HIT.GIGENA', 'LOTBA', 'CONEXA', 'OTIS', 'CONS.JUNCAL', 'BIOSINTESIS', 'CAMPANA.JOVEN', 'CAMPANA.BIBLOTECA', 'CAMPANA.CORAZONES ABIERTOS', 'CAMPANA.TEATRO', 'CHANGO. BROWN', 'CHANGO. LA TABLADA', 'CHANGO.3 DE FEBRERO', 'CHANGO.CASEROS', 'CHANGO.CATAN', 'CHANGO.LAFERRERE', 'CHANGO.MALVARG', 'CHANGO.MATADEROS', 'CHANGO.MORENO 1', 'CHANGO.MORENO 2', 'CHANGO.MORENO 3', 'CHANGO.MORÓN', 'CAMPANA.RECICLADO', 'CAMPANA.REFUGIO', 'CONS.OLLEROS', 'CHANGO.LANUS', 'CHANGO.CAMPANA', 'CAMPANA.ELECTROMECANICA', 'CAMPANA.RIOLUJAN', 'CAMPANA.CORRALON', 'CAMPANA.CIMOPU', 'CAMPANA.DIGITAL', 'CAMPANA.CBC', 'JOSIMAR.BERAZATEGUI', 'GYM.BCHINO', 'GYM.FLORES', 'CHANGO.PILAR', 'CHANGO.SANJUSTO', 'CHANGO.QUILMES', 'CHANGO.SARANDI', 'CHANGO.AVELLANEDA', 'GYM.VCRESPO', 'UNIVERSAL.MUSIC', 'GYM.BALVANERA', 'UPGAMING', 'CONS.CHICLANA', 'ADBLICK', 'CAMPANA.REGISTRO', 'CAMPANA.JUZGADO1', 'CAMPANA.JUZGADO.NIÑEZ', 'CAMPANA.JUZGADO.FALTAS', 'GYM.BELGRANO', 'CAJA.VALORES', 'GENOVESA.CENTRAL', 'RESIDENCIA.SMART', 'CAMPANA.DESARROLLO', 'CAMPANA.OBISPADO', 'CAMPANA.CEMENTERIO', 'CONS.RIVADAVIA', 'CHANGO.SVICENTE', 'CHANGO.CLAYPOLE', 'HURLINGHAM.VILLEGAS', 'CHANGO.TIGRE', 'CHANGO.LUJAN', 'CHANGO.TEMPERLEY', 'CHANGO.PERGAMINO', 'CHANGO.JUNIN', 'HURLINGHAN.VERGARA', 'CHANGO.JOSE C PAZ', 'CONS.TERRERO', 'POTIS', 'GRUPSA', 'CAPITALHUMANO.AUSTRIA', 'GYM.CASAMATRIZ', 'SUPPLYCHAIN', 'BRIGNONE', 'DONADO', 'HIT.PAMPA.OBRA', 'DADONE.MIGUELETES'],
+  //
+  // Reemplazado (08/2026) por la planilla oficial "Selección y
+  // Reubicaciones" de RRHH (Código + Supervisor asignado) — reemplaza a
+  // la carga masiva del 05/08/2026 completa, a pedido explícito de Fede
+  // ("elimines a todos y los reemplaces con esto"), no una fusión. Ver
+  // SERVICIO_SUPERVISOR más abajo para el supervisor de cada código —
+  // ese mapeo es la pieza nueva que faltaba para que Altas/Reasignaciones
+  // completen el supervisor solos en vez de dejarlo en blanco para
+  // cualquier código que no tuviera todavía un objetivo comercial.
+  //
+  // Códigos que SÍ estaban en la carga anterior y NO están en esta
+  // planilla (CENARD, RETEN.GENERAL, ANAC, NEWSAN.CAMPANA, SULFOQUIMICA,
+  // COTO.GARIN, TEKNOPOLIS, HACOAJ.TIGRE, ADMINISTRATIVO) quedaron afuera
+  // a propósito, confirmado con Fede — dejan de ofrecerse en el
+  // desplegable de Altas. No afecta a los legajos que ya tienen alguno de
+  // esos códigos cargado (servicio es texto libre en el legajo, no una
+  // referencia a esta lista).
+  servicios: ['AGENCIA.FIBRA', 'AMERICAN.LOGISTIC', 'CLUB.VASCO', 'BILLINGHURST.2048', 'CIBRA', 'LIBERTADOR.260', 'BOULOGNE.662', 'E.LAMARCA.1679', 'LMC.46', 'MAURE.1560', 'OHIGGINS.1949', 'PALPA.2426', 'SALGUERO.2124', 'DISTR.VR', 'EMBA.CABILDO', 'EMBA.PAMPA', 'EMBA.PAMPA2', 'EMBA.CIUDAD', 'ZAPIOLA.GALERIA', 'GESNEXT', 'HIGHFLOW', 'HIT.LIBERTADOR.CEL', 'HIT.LIBERTADOR.8614', 'LIBERTADOR.6343', 'HIT.LMC.877', 'MIGUELETES.2423', 'ALTO.MOLINO', 'PAMPA.1391', 'HIT.MAIPU', 'HIT.TECNO', 'HIT.CHICLANA.3345', 'HIT.UGARTE.2110', 'IUTRACE.SAS', 'JOSIMAR.AVELLANEDA', 'JOSIMAR.CENTRO.DISTR', 'JOSIMAR.LANUS', 'JOSIMAR.LOMAS', 'JOSIMAR.MTE.GRANDE', 'JOSIMAR.BARRACAS', 'JOSIMAR.QUILMES', 'LOS.PINOS', 'OFFICE.PARK', 'ROCAMORA', 'SAN.ANTONIO', 'REYLAT', 'GYM.CONGRESO', 'GYM.DEVOTO', 'GYM.CAÑITAS', 'GYM.PERON', 'GYM.RECOLETA', 'TECTOOLS', 'TSOFT.CHICLANA', 'UML', 'JOSIMAR. BANFIELD', 'HIT.POLO', 'HIT.ALPARGATAS', 'NATIONAL.SHIPPING', 'HOSPITAL.CAMPANA', 'MAURE.1601', 'GYM.CABALLITO', 'INDICOM', 'CONS.DELGADO', 'ASCENSORES', 'SKYGLASS', 'ALSINA.1609', 'LORETO.1510', 'ARCOS', 'CAZADORES', 'HIT.VILO', 'IOMA', 'ZUG.VERDI', 'ZUG.CAAMAÑO', 'LINCE', 'EVERNEX', 'MACSTATION', 'HIT.ARGUIBEL', 'GYM.NUÑEZ', 'ELDAR', 'HIT.GIGENA', 'LOTBA', 'CONEXA', 'OTIS', 'CONS.JUNCAL', 'BIOSINTESIS', 'CAMPANA.JOVEN', 'CAMPANA.BIBLOTECA', 'CAMPANA.CORAZONES ABIERTOS', 'CAMPANA.TEATRO', 'CHANGO. BROWN', 'CHANGO. LA TABLADA', 'CHANGO.3 DE FEBRERO', 'CHANGO.CASEROS', 'CHANGO.CATAN', 'CHANGO.LAFERRERE', 'CHANGO.MALVARG', 'CHANGO.MATADEROS', 'CHANGO.MORENO 1', 'CHANGO.MORENO 2', 'CHANGO.MORENO 3', 'CHANGO.MORÓN', 'CAMPANA.RECICLADO', 'CAMPANA.REFUGIO', 'CONS.OLLEROS', 'CHANGO.LANUS', 'CHANGO.CAMPANA', 'CAMPANA.ELECTROMECANICA', 'CAMPANA.RIOLUJAN', 'CAMPANA.CORRALON', 'CAMPANA.CIMOPU', 'CAMPANA.DIGITAL', 'CAMPANA.CBC', 'JOSIMAR.BERAZATEGUI', 'GYM.BCHINO', 'GYM.FLORES', 'CHANGO.PILAR', 'CHANGO.SANJUSTO', 'CHANGO.QUILMES', 'CHANGO.SARANDI', 'CHANGO.AVELLANEDA', 'GYM.VCRESPO', 'UNIVERSAL.MUSIC', 'GYM.BALVANERA', 'UPGAMING', 'CONS.CHICLANA', 'ADBLICK', 'CAMPANA.REGISTRO', 'CAMPANA.JUZGADO1', 'CAMPANA.JUZGADO.NIÑEZ', 'CAMPANA.JUZGADO.FALTAS', 'GYM.BELGRANO', 'CAJA.VALORES', 'GENOVESA.CENTRAL', 'RESIDENCIA.SMART', 'CAMPANA.DESARROLLO', 'CAMPANA.OBISPADO', 'CAMPANA.CEMENTERIO', 'CONS.RIVADAVIA', 'CHANGO.SVICENTE', 'CHANGO.CLAYPOLE', 'HURLINGHAM.VILLEGAS', 'CHANGO.TIGRE', 'CHANGO.LUJAN', 'CHANGO.TEMPERLEY', 'CHANGO.PERGAMINO', 'CHANGO.JUNIN', 'HURLINGHAN.VERGARA', 'CHANGO.JOSE C PAZ', 'CONS.TERRERO', 'POTIS', 'GRUPSA', 'CAPITALHUMANO.AUSTRIA', 'GYM.CASAMATRIZ', 'SUPPLYCHAIN', 'BRIGNONE', 'DONADO', 'HIT.PAMPA.OBRA', 'DADONE.MIGUELETES'],
   // Zona de residencia/operativa — antes solo distinguía Provincia (CABA vs.
   // Buenos Aires, un solo valor para todo el conurbano). A pedido de RRHH
   // (04/08/2026) se amplía a zonificación real por dispersión geográfica —
@@ -178,6 +189,77 @@ export const DB = {
   // del sistema (compartida, ver shared/notificaciones.js).
   vacaciones: [],
   notificacionesSistema: [],
+};
+
+// Código de servicio → supervisor asignado, según la planilla oficial
+// "Selección y Reubicaciones" de RRHH (08/2026) — mismo formato "Nombre
+// Apellido" que usan DB.supervisores y objetivo.supervisor, para poder
+// comparar/asignar sin conversión. Usado como fallback en
+// onChangeServicioAlta() (altas.js) cuando el código todavía no tiene un
+// objetivo comercial cargado en DB.objetivos (que es la fuente
+// prioritaria — este mapeo es "lo que dice RRHH" para lo que Comercial
+// no formalizó todavía, y así el supervisor se completa solo tanto para
+// servicios ya facturados como para los que son puente).
+//
+// 3 códigos vienen con 2 supervisores en la planilla (trabajo
+// compartido): CHANGO.SANJUSTO, CHANGO.SARANDI y CHANGO.AVELLANEDA
+// (Gonzalez, Claudio / Maidana, Matias) — se dejó el primero como
+// principal porque el campo sólo admite un valor; si en un caso puntual
+// corresponde el otro, se corrige a mano en el alta.
+export const SERVICIO_SUPERVISOR = {
+  'AGENCIA.FIBRA': 'Dario Lage', 'AMERICAN.LOGISTIC': 'Dario Lage', 'CLUB.VASCO': 'Maximiliano Poncino',
+  'BILLINGHURST.2048': 'Richard Recalde', 'CIBRA': 'Alejandro Cacciato', 'LIBERTADOR.260': 'Alejandro Cacciato',
+  'BOULOGNE.662': 'Matias Maidana', 'E.LAMARCA.1679': 'Matias Maidana', 'LMC.46': 'Fabio Benvenuto',
+  'MAURE.1560': 'Alfredo Arispe', 'OHIGGINS.1949': 'Santiago Ayala', 'PALPA.2426': 'Fabio Benvenuto',
+  'SALGUERO.2124': 'Fabio Benvenuto', 'DISTR.VR': 'Fabio Benvenuto', 'EMBA.CABILDO': 'Fabio Benvenuto',
+  'EMBA.PAMPA': 'Fabio Benvenuto', 'EMBA.PAMPA2': 'Fabio Benvenuto', 'EMBA.CIUDAD': 'Fabio Benvenuto',
+  'ZAPIOLA.GALERIA': 'Fabio Benvenuto', 'GESNEXT': 'Claudio Gonzalez', 'HIGHFLOW': 'Dario Lage',
+  'HIT.LIBERTADOR.CEL': 'Alvaro Uballes', 'HIT.LIBERTADOR.8614': 'Alvaro Uballes', 'LIBERTADOR.6343': 'Alvaro Uballes',
+  'HIT.LMC.877': 'Alejandro Cacciato', 'MIGUELETES.2423': 'Alejandro Cacciato', 'ALTO.MOLINO': 'Alejandro Cacciato',
+  'PAMPA.1391': 'Alvaro Uballes', 'HIT.MAIPU': 'Alvaro Uballes', 'HIT.TECNO': 'Claudio Gonzalez',
+  'HIT.CHICLANA.3345': 'Claudio Gonzalez', 'HIT.UGARTE.2110': 'Alejandro Cacciato', 'IUTRACE.SAS': 'Dario Lage',
+  'JOSIMAR.AVELLANEDA': 'Matias Maidana', 'JOSIMAR.CENTRO.DISTR': 'Matias Maidana', 'JOSIMAR.LANUS': 'Matias Maidana',
+  'JOSIMAR.LOMAS': 'Matias Maidana', 'JOSIMAR.MTE.GRANDE': 'Matias Maidana', 'JOSIMAR.BARRACAS': 'Matias Maidana',
+  'JOSIMAR.QUILMES': 'Matias Maidana', 'LOS.PINOS': 'Alejandro Cacciato', 'OFFICE.PARK': 'Alejandro Cacciato',
+  'ROCAMORA': 'Matias Maidana', 'SAN.ANTONIO': 'Matias Maidana', 'REYLAT': 'Claudio Gonzalez',
+  'GYM.CONGRESO': 'Alvaro Uballes', 'GYM.DEVOTO': 'Alvaro Uballes', 'GYM.CAÑITAS': 'Alvaro Uballes',
+  'GYM.PERON': 'Alvaro Uballes', 'GYM.RECOLETA': 'Alvaro Uballes', 'TECTOOLS': 'Patricia Scaglia',
+  'TSOFT.CHICLANA': 'Claudio Gonzalez', 'UML': 'Matias Maidana', 'JOSIMAR. BANFIELD': 'Matias Maidana',
+  'HIT.POLO': 'Alvaro Uballes', 'HIT.ALPARGATAS': 'Claudio Gonzalez', 'NATIONAL.SHIPPING': 'Alvaro Uballes',
+  'HOSPITAL.CAMPANA': 'Claudia Cazenave', 'MAURE.1601': 'Fabio Benvenuto', 'GYM.CABALLITO': 'Alvaro Uballes',
+  'INDICOM': 'Fabio Benvenuto', 'CONS.DELGADO': 'Claudia Cazenave', 'ASCENSORES': 'Alfredo Arispe',
+  'SKYGLASS': 'Alejandro Cacciato', 'ALSINA.1609': 'Alejandro Cacciato', 'LORETO.1510': 'Alvaro Uballes',
+  'ARCOS': 'Sandra Luna', 'CAZADORES': 'Alejandro Cacciato', 'HIT.VILO': 'Dario Lage',
+  'IOMA': 'Claudia Cazenave', 'ZUG.VERDI': 'Alejandro Cacciato', 'ZUG.CAAMAÑO': 'Alejandro Cacciato',
+  'LINCE': 'Claudia Cazenave', 'EVERNEX': 'Claudio Gonzalez', 'MACSTATION': 'Claudia Cazenave',
+  'HIT.ARGUIBEL': 'Alvaro Uballes', 'GYM.NUÑEZ': 'Alvaro Uballes', 'ELDAR': 'Claudio Gonzalez',
+  'HIT.GIGENA': 'Alfredo Arispe', 'LOTBA': 'Claudia Cazenave', 'CONEXA': 'Dario Lage',
+  'OTIS': 'Claudio Gonzalez', 'CONS.JUNCAL': 'Lorena Unzain', 'BIOSINTESIS': 'Alejandro Cacciato',
+  'CAMPANA.JOVEN': 'Claudia Cazenave', 'CAMPANA.BIBLOTECA': 'Claudia Cazenave', 'CAMPANA.CORAZONES ABIERTOS': 'Claudia Cazenave',
+  'CAMPANA.TEATRO': 'Claudia Cazenave', 'CHANGO. BROWN': 'Matias Maidana', 'CHANGO. LA TABLADA': 'Claudio Gonzalez',
+  'CHANGO.3 DE FEBRERO': 'Alejandro Cacciato', 'CHANGO.CASEROS': 'Lorena Unzain', 'CHANGO.CATAN': 'Lorena Unzain',
+  'CHANGO.LAFERRERE': 'Lorena Unzain', 'CHANGO.MALVARG': 'Alejandro Cacciato', 'CHANGO.MATADEROS': 'Claudio Gonzalez',
+  'CHANGO.MORENO 1': 'Alejandro Cacciato', 'CHANGO.MORENO 2': 'Alejandro Cacciato', 'CHANGO.MORENO 3': 'Alejandro Cacciato',
+  'CHANGO.MORÓN': 'Lorena Unzain', 'CAMPANA.RECICLADO': 'Claudia Cazenave', 'CAMPANA.REFUGIO': 'Claudia Cazenave',
+  'CONS.OLLEROS': 'Alvaro Uballes', 'CHANGO.LANUS': 'Matias Maidana', 'CHANGO.CAMPANA': 'Claudia Cazenave',
+  'CAMPANA.ELECTROMECANICA': 'Claudia Cazenave', 'CAMPANA.RIOLUJAN': 'Claudia Cazenave', 'CAMPANA.CORRALON': 'Claudia Cazenave',
+  'CAMPANA.CIMOPU': 'Claudia Cazenave', 'CAMPANA.DIGITAL': 'Claudia Cazenave', 'CAMPANA.CBC': 'Claudia Cazenave',
+  'JOSIMAR.BERAZATEGUI': 'Matias Maidana', 'GYM.BCHINO': 'Alvaro Uballes', 'GYM.FLORES': 'Alvaro Uballes',
+  'CHANGO.PILAR': 'Alejandro Cacciato', 'CHANGO.SANJUSTO': 'Claudio Gonzalez', 'CHANGO.QUILMES': 'Matias Maidana',
+  'CHANGO.SARANDI': 'Claudio Gonzalez', 'CHANGO.AVELLANEDA': 'Claudio Gonzalez', 'GYM.VCRESPO': 'Alvaro Uballes',
+  'UNIVERSAL.MUSIC': 'Alvaro Uballes', 'GYM.BALVANERA': 'Alvaro Uballes', 'UPGAMING': 'Claudio Gonzalez',
+  'CONS.CHICLANA': 'Claudio Gonzalez', 'ADBLICK': 'Alejandro Cacciato', 'CAMPANA.REGISTRO': 'Claudia Cazenave',
+  'CAMPANA.JUZGADO1': 'Claudia Cazenave', 'CAMPANA.JUZGADO.NIÑEZ': 'Claudia Cazenave', 'CAMPANA.JUZGADO.FALTAS': 'Claudia Cazenave',
+  'GYM.BELGRANO': 'Alvaro Uballes', 'CAJA.VALORES': 'Claudio Gonzalez', 'GENOVESA.CENTRAL': 'Matias Maidana',
+  'RESIDENCIA.SMART': 'Claudio Gonzalez', 'CAMPANA.DESARROLLO': 'Claudia Cazenave', 'CAMPANA.OBISPADO': 'Claudia Cazenave',
+  'CAMPANA.CEMENTERIO': 'Claudia Cazenave', 'CONS.RIVADAVIA': 'Alfredo Arispe', 'CHANGO.SVICENTE': 'Claudio Gonzalez',
+  'CHANGO.CLAYPOLE': 'Matias Maidana', 'HURLINGHAM.VILLEGAS': 'Alejandro Cacciato', 'CHANGO.TIGRE': 'Alejandro Cacciato',
+  'CHANGO.LUJAN': 'Dario Lage', 'CHANGO.TEMPERLEY': 'Matias Maidana', 'CHANGO.PERGAMINO': 'Lorena Unzain',
+  'CHANGO.JUNIN': 'Lorena Unzain', 'HURLINGHAN.VERGARA': 'Alejandro Cacciato', 'CHANGO.JOSE C PAZ': 'Alejandro Cacciato',
+  'CONS.TERRERO': 'Alfredo Arispe', 'POTIS': 'Alfredo Arispe', 'GRUPSA': 'Lorena Unzain',
+  'CAPITALHUMANO.AUSTRIA': 'Alfredo Arispe', 'GYM.CASAMATRIZ': 'Alvaro Uballes', 'SUPPLYCHAIN': 'Dario Lage',
+  'BRIGNONE': 'Alfredo Arispe', 'DONADO': 'Patricia Scaglia', 'HIT.PAMPA.OBRA': 'Dario Lage',
+  'DADONE.MIGUELETES': 'Alejandro Cacciato',
 };
 
 // ========== PERFILES Y ACCESOS ==========

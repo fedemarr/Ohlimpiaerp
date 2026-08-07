@@ -1,4 +1,4 @@
-import { DB, LOCALIDADES_BA, BARRIOS_CABA } from '@shared/state.js';
+import { DB, LOCALIDADES_BA, BARRIOS_CABA, SERVICIO_SUPERVISOR } from '@shared/state.js';
 import { $, avatarEl, badge, cleanText, toTitleCase, validarCampos, fillSelect, applyTitleCase } from '@shared/helpers.js';
 import { toast, abrirModal, cerrarModal } from '@shared/ui.js';
 import { supaSync } from '@shared/supabase.js';
@@ -101,8 +101,12 @@ export function onChangeServicioAlta() {
   const supEl = $('alt-supervisor');
   if (!supEl) return;
   if (!codigo || codigo === 'Administrativo') { supEl.value = ''; return; }
+  // Comercial (objetivo real, con cliente/precio) tiene prioridad — es la
+  // fuente autoritativa. Si el código todavía no tiene un objetivo
+  // cargado, cae a SERVICIO_SUPERVISOR (planilla "Selección y
+  // Reubicaciones" de RRHH, ver state.js) en vez de dejar el campo vacío.
   const obj = (DB.objetivos || []).find(o => o.codigo === codigo && o.estado === 'Operativo' && !o.anulado);
-  supEl.value = obj ? obj.supervisor : '';
+  supEl.value = obj ? obj.supervisor : (SERVICIO_SUPERVISOR[codigo] || '');
 }
 
 // ========== ZONA ==========
