@@ -1,0 +1,201 @@
+-- v067: tabla servicios_supervisor (código de servicio → supervisor asignado)
+--
+-- Reemplaza al mapeo hardcodeado SERVICIO_SUPERVISOR (state.js, agregado
+-- unas horas antes en esta misma sesión) por una tabla real editable desde
+-- la pantalla — Fede pidió poder ver/cargar más fácil la lista de códigos
+-- activos y tener import/export CSV para el futuro, en vez de que quede
+-- fija en el código fuente. Distinta de `objetivos` (Comercial → Servicios,
+-- que exige cliente/precio/contrato real) — esta es la lista puente
+-- liviana (código + supervisor) que ya usan Altas/Reasignaciones para
+-- autocompletar, ahora persistida y editable en vivo.
+--
+-- Semilla: los 157 códigos de la planilla "Selección y Reubicaciones" de
+-- RRHH (08/2026), mismos datos que ya estaban en SERVICIO_SUPERVISOR.
+
+BEGIN;
+
+CREATE TABLE servicios_supervisor (
+  id bigserial PRIMARY KEY,
+  id_local text UNIQUE,
+  codigo text NOT NULL UNIQUE,
+  supervisor text NOT NULL,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE TRIGGER set_updated_at_servicios_supervisor
+  BEFORE UPDATE ON public.servicios_supervisor
+  FOR EACH ROW EXECUTE FUNCTION public.tg_set_updated_at();
+
+ALTER TABLE servicios_supervisor ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Acceso total servicios_supervisor"
+  ON servicios_supervisor
+  FOR ALL
+  TO public
+  USING (true)
+  WITH CHECK (true);
+
+COMMENT ON TABLE servicios_supervisor IS
+  'Código de servicio (puente, sin objetivo comercial formal todavía) → supervisor asignado. Fuente para autocompletar supervisor en Altas/Reasignaciones cuando el código no tiene un objetivo real en la tabla objetivos.';
+
+INSERT INTO servicios_supervisor (id_local, codigo, supervisor) VALUES
+  ('000000001', 'AGENCIA.FIBRA', 'Dario Lage'),
+  ('000000002', 'AMERICAN.LOGISTIC', 'Dario Lage'),
+  ('000000003', 'CLUB.VASCO', 'Maximiliano Poncino'),
+  ('000000004', 'BILLINGHURST.2048', 'Richard Recalde'),
+  ('000000005', 'CIBRA', 'Alejandro Cacciato'),
+  ('000000006', 'LIBERTADOR.260', 'Alejandro Cacciato'),
+  ('000000007', 'BOULOGNE.662', 'Matias Maidana'),
+  ('000000008', 'E.LAMARCA.1679', 'Matias Maidana'),
+  ('000000009', 'LMC.46', 'Fabio Benvenuto'),
+  ('000000010', 'MAURE.1560', 'Alfredo Arispe'),
+  ('000000011', 'OHIGGINS.1949', 'Santiago Ayala'),
+  ('000000012', 'PALPA.2426', 'Fabio Benvenuto'),
+  ('000000013', 'SALGUERO.2124', 'Fabio Benvenuto'),
+  ('000000014', 'DISTR.VR', 'Fabio Benvenuto'),
+  ('000000015', 'EMBA.CABILDO', 'Fabio Benvenuto'),
+  ('000000016', 'EMBA.PAMPA', 'Fabio Benvenuto'),
+  ('000000017', 'EMBA.PAMPA2', 'Fabio Benvenuto'),
+  ('000000018', 'EMBA.CIUDAD', 'Fabio Benvenuto'),
+  ('000000019', 'ZAPIOLA.GALERIA', 'Fabio Benvenuto'),
+  ('000000020', 'GESNEXT', 'Claudio Gonzalez'),
+  ('000000021', 'HIGHFLOW', 'Dario Lage'),
+  ('000000022', 'HIT.LIBERTADOR.CEL', 'Alvaro Uballes'),
+  ('000000023', 'HIT.LIBERTADOR.8614', 'Alvaro Uballes'),
+  ('000000024', 'LIBERTADOR.6343', 'Alvaro Uballes'),
+  ('000000025', 'HIT.LMC.877', 'Alejandro Cacciato'),
+  ('000000026', 'MIGUELETES.2423', 'Alejandro Cacciato'),
+  ('000000027', 'ALTO.MOLINO', 'Alejandro Cacciato'),
+  ('000000028', 'PAMPA.1391', 'Alvaro Uballes'),
+  ('000000029', 'HIT.MAIPU', 'Alvaro Uballes'),
+  ('000000030', 'HIT.TECNO', 'Claudio Gonzalez'),
+  ('000000031', 'HIT.CHICLANA.3345', 'Claudio Gonzalez'),
+  ('000000032', 'HIT.UGARTE.2110', 'Alejandro Cacciato'),
+  ('000000033', 'IUTRACE.SAS', 'Dario Lage'),
+  ('000000034', 'JOSIMAR.AVELLANEDA', 'Matias Maidana'),
+  ('000000035', 'JOSIMAR.CENTRO.DISTR', 'Matias Maidana'),
+  ('000000036', 'JOSIMAR.LANUS', 'Matias Maidana'),
+  ('000000037', 'JOSIMAR.LOMAS', 'Matias Maidana'),
+  ('000000038', 'JOSIMAR.MTE.GRANDE', 'Matias Maidana'),
+  ('000000039', 'JOSIMAR.BARRACAS', 'Matias Maidana'),
+  ('000000040', 'JOSIMAR.QUILMES', 'Matias Maidana'),
+  ('000000041', 'LOS.PINOS', 'Alejandro Cacciato'),
+  ('000000042', 'OFFICE.PARK', 'Alejandro Cacciato'),
+  ('000000043', 'ROCAMORA', 'Matias Maidana'),
+  ('000000044', 'SAN.ANTONIO', 'Matias Maidana'),
+  ('000000045', 'REYLAT', 'Claudio Gonzalez'),
+  ('000000046', 'GYM.CONGRESO', 'Alvaro Uballes'),
+  ('000000047', 'GYM.DEVOTO', 'Alvaro Uballes'),
+  ('000000048', 'GYM.CAÑITAS', 'Alvaro Uballes'),
+  ('000000049', 'GYM.PERON', 'Alvaro Uballes'),
+  ('000000050', 'GYM.RECOLETA', 'Alvaro Uballes'),
+  ('000000051', 'TECTOOLS', 'Patricia Scaglia'),
+  ('000000052', 'TSOFT.CHICLANA', 'Claudio Gonzalez'),
+  ('000000053', 'UML', 'Matias Maidana'),
+  ('000000054', 'JOSIMAR. BANFIELD', 'Matias Maidana'),
+  ('000000055', 'HIT.POLO', 'Alvaro Uballes'),
+  ('000000056', 'HIT.ALPARGATAS', 'Claudio Gonzalez'),
+  ('000000057', 'NATIONAL.SHIPPING', 'Alvaro Uballes'),
+  ('000000058', 'HOSPITAL.CAMPANA', 'Claudia Cazenave'),
+  ('000000059', 'MAURE.1601', 'Fabio Benvenuto'),
+  ('000000060', 'GYM.CABALLITO', 'Alvaro Uballes'),
+  ('000000061', 'INDICOM', 'Fabio Benvenuto'),
+  ('000000062', 'CONS.DELGADO', 'Claudia Cazenave'),
+  ('000000063', 'ASCENSORES', 'Alfredo Arispe'),
+  ('000000064', 'SKYGLASS', 'Alejandro Cacciato'),
+  ('000000065', 'ALSINA.1609', 'Alejandro Cacciato'),
+  ('000000066', 'LORETO.1510', 'Alvaro Uballes'),
+  ('000000067', 'ARCOS', 'Sandra Luna'),
+  ('000000068', 'CAZADORES', 'Alejandro Cacciato'),
+  ('000000069', 'HIT.VILO', 'Dario Lage'),
+  ('000000070', 'IOMA', 'Claudia Cazenave'),
+  ('000000071', 'ZUG.VERDI', 'Alejandro Cacciato'),
+  ('000000072', 'ZUG.CAAMAÑO', 'Alejandro Cacciato'),
+  ('000000073', 'LINCE', 'Claudia Cazenave'),
+  ('000000074', 'EVERNEX', 'Claudio Gonzalez'),
+  ('000000075', 'MACSTATION', 'Claudia Cazenave'),
+  ('000000076', 'HIT.ARGUIBEL', 'Alvaro Uballes'),
+  ('000000077', 'GYM.NUÑEZ', 'Alvaro Uballes'),
+  ('000000078', 'ELDAR', 'Claudio Gonzalez'),
+  ('000000079', 'HIT.GIGENA', 'Alfredo Arispe'),
+  ('000000080', 'LOTBA', 'Claudia Cazenave'),
+  ('000000081', 'CONEXA', 'Dario Lage'),
+  ('000000082', 'OTIS', 'Claudio Gonzalez'),
+  ('000000083', 'CONS.JUNCAL', 'Lorena Unzain'),
+  ('000000084', 'BIOSINTESIS', 'Alejandro Cacciato'),
+  ('000000085', 'CAMPANA.JOVEN', 'Claudia Cazenave'),
+  ('000000086', 'CAMPANA.BIBLOTECA', 'Claudia Cazenave'),
+  ('000000087', 'CAMPANA.CORAZONES ABIERTOS', 'Claudia Cazenave'),
+  ('000000088', 'CAMPANA.TEATRO', 'Claudia Cazenave'),
+  ('000000089', 'CHANGO. BROWN', 'Matias Maidana'),
+  ('000000090', 'CHANGO. LA TABLADA', 'Claudio Gonzalez'),
+  ('000000091', 'CHANGO.3 DE FEBRERO', 'Alejandro Cacciato'),
+  ('000000092', 'CHANGO.CASEROS', 'Lorena Unzain'),
+  ('000000093', 'CHANGO.CATAN', 'Lorena Unzain'),
+  ('000000094', 'CHANGO.LAFERRERE', 'Lorena Unzain'),
+  ('000000095', 'CHANGO.MALVARG', 'Alejandro Cacciato'),
+  ('000000096', 'CHANGO.MATADEROS', 'Claudio Gonzalez'),
+  ('000000097', 'CHANGO.MORENO 1', 'Alejandro Cacciato'),
+  ('000000098', 'CHANGO.MORENO 2', 'Alejandro Cacciato'),
+  ('000000099', 'CHANGO.MORENO 3', 'Alejandro Cacciato'),
+  ('000000100', 'CHANGO.MORÓN', 'Lorena Unzain'),
+  ('000000101', 'CAMPANA.RECICLADO', 'Claudia Cazenave'),
+  ('000000102', 'CAMPANA.REFUGIO', 'Claudia Cazenave'),
+  ('000000103', 'CONS.OLLEROS', 'Alvaro Uballes'),
+  ('000000104', 'CHANGO.LANUS', 'Matias Maidana'),
+  ('000000105', 'CHANGO.CAMPANA', 'Claudia Cazenave'),
+  ('000000106', 'CAMPANA.ELECTROMECANICA', 'Claudia Cazenave'),
+  ('000000107', 'CAMPANA.RIOLUJAN', 'Claudia Cazenave'),
+  ('000000108', 'CAMPANA.CORRALON', 'Claudia Cazenave'),
+  ('000000109', 'CAMPANA.CIMOPU', 'Claudia Cazenave'),
+  ('000000110', 'CAMPANA.DIGITAL', 'Claudia Cazenave'),
+  ('000000111', 'CAMPANA.CBC', 'Claudia Cazenave'),
+  ('000000112', 'JOSIMAR.BERAZATEGUI', 'Matias Maidana'),
+  ('000000113', 'GYM.BCHINO', 'Alvaro Uballes'),
+  ('000000114', 'GYM.FLORES', 'Alvaro Uballes'),
+  ('000000115', 'CHANGO.PILAR', 'Alejandro Cacciato'),
+  ('000000116', 'CHANGO.SANJUSTO', 'Claudio Gonzalez'),
+  ('000000117', 'CHANGO.QUILMES', 'Matias Maidana'),
+  ('000000118', 'CHANGO.SARANDI', 'Claudio Gonzalez'),
+  ('000000119', 'CHANGO.AVELLANEDA', 'Claudio Gonzalez'),
+  ('000000120', 'GYM.VCRESPO', 'Alvaro Uballes'),
+  ('000000121', 'UNIVERSAL.MUSIC', 'Alvaro Uballes'),
+  ('000000122', 'GYM.BALVANERA', 'Alvaro Uballes'),
+  ('000000123', 'UPGAMING', 'Claudio Gonzalez'),
+  ('000000124', 'CONS.CHICLANA', 'Claudio Gonzalez'),
+  ('000000125', 'ADBLICK', 'Alejandro Cacciato'),
+  ('000000126', 'CAMPANA.REGISTRO', 'Claudia Cazenave'),
+  ('000000127', 'CAMPANA.JUZGADO1', 'Claudia Cazenave'),
+  ('000000128', 'CAMPANA.JUZGADO.NIÑEZ', 'Claudia Cazenave'),
+  ('000000129', 'CAMPANA.JUZGADO.FALTAS', 'Claudia Cazenave'),
+  ('000000130', 'GYM.BELGRANO', 'Alvaro Uballes'),
+  ('000000131', 'CAJA.VALORES', 'Claudio Gonzalez'),
+  ('000000132', 'GENOVESA.CENTRAL', 'Matias Maidana'),
+  ('000000133', 'RESIDENCIA.SMART', 'Claudio Gonzalez'),
+  ('000000134', 'CAMPANA.DESARROLLO', 'Claudia Cazenave'),
+  ('000000135', 'CAMPANA.OBISPADO', 'Claudia Cazenave'),
+  ('000000136', 'CAMPANA.CEMENTERIO', 'Claudia Cazenave'),
+  ('000000137', 'CONS.RIVADAVIA', 'Alfredo Arispe'),
+  ('000000138', 'CHANGO.SVICENTE', 'Claudio Gonzalez'),
+  ('000000139', 'CHANGO.CLAYPOLE', 'Matias Maidana'),
+  ('000000140', 'HURLINGHAM.VILLEGAS', 'Alejandro Cacciato'),
+  ('000000141', 'CHANGO.TIGRE', 'Alejandro Cacciato'),
+  ('000000142', 'CHANGO.LUJAN', 'Dario Lage'),
+  ('000000143', 'CHANGO.TEMPERLEY', 'Matias Maidana'),
+  ('000000144', 'CHANGO.PERGAMINO', 'Lorena Unzain'),
+  ('000000145', 'CHANGO.JUNIN', 'Lorena Unzain'),
+  ('000000146', 'HURLINGHAN.VERGARA', 'Alejandro Cacciato'),
+  ('000000147', 'CHANGO.JOSE C PAZ', 'Alejandro Cacciato'),
+  ('000000148', 'CONS.TERRERO', 'Alfredo Arispe'),
+  ('000000149', 'POTIS', 'Alfredo Arispe'),
+  ('000000150', 'GRUPSA', 'Lorena Unzain'),
+  ('000000151', 'CAPITALHUMANO.AUSTRIA', 'Alfredo Arispe'),
+  ('000000152', 'GYM.CASAMATRIZ', 'Alvaro Uballes'),
+  ('000000153', 'SUPPLYCHAIN', 'Dario Lage'),
+  ('000000154', 'BRIGNONE', 'Alfredo Arispe'),
+  ('000000155', 'DONADO', 'Patricia Scaglia'),
+  ('000000156', 'HIT.PAMPA.OBRA', 'Dario Lage'),
+  ('000000157', 'DADONE.MIGUELETES', 'Alejandro Cacciato');
+
+COMMIT;

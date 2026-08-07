@@ -36,6 +36,8 @@ import { gestionAdelantosScreenConfig } from './modules/gestion_adelantos/index.
 import { sugerenciasScreenConfig, mostrarBotonReporte, ocultarBotonReporte } from './modules/sugerencias/index.js';
 import { renderCampanaNotificaciones, fetchNotificacionesPendientes, toggleCampanaDropdown, marcarNotifLeidaYRefrescar } from '@shared/notificaciones.js';
 import './modules/personal_rrhh/index.js';
+import './modules/servicios_supervisor/index.js';
+import { sincronizarServiciosSupervisor } from './modules/servicios_supervisor/index.js';
 
 // ========== BIND SHARED A WINDOW (PRIMERO) ==========
 // Estas funciones las llama el HTML con onclick — deben estar en window
@@ -272,6 +274,11 @@ registerAuthCallbacks({
     // legacy.js sigue leyendo) desde la config real recién cargada, para
     // que no queden con el seed default hasta visitar Reasignaciones.
     sincronizarConfigReasignaciones();
+    // Refresca DB.servicios (array plano de códigos) desde
+    // DB.serviciosSupervisor recién cargado — mismo motivo que la línea de
+    // arriba: los 9+ consumidores de obtenerServiciosActivos() (legacy.js)
+    // siguen leyendo DB.servicios directamente.
+    sincronizarServiciosSupervisor();
     // v046: reconstruye las estructuras anidadas de Liq. Admin/Suplemento/
     // Retenes/Mantenimiento (DB.liqAdminHoras, DB.retenHoras, etc.) desde
     // los arrays planos que acaba de traer supaInit — se corre UNA sola vez

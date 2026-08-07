@@ -104,6 +104,7 @@ function renderConfiguracion(){
   renderConfigLista('movimientos','lista-movimientos');
   renderConfigComercial();
   if (window.renderPersonalRrhh) window.renderPersonalRrhh();
+  if (window.renderServiciosSupervisor) window.renderServiciosSupervisor();
   cfgTab('personal', document.querySelector('#screen-configuracion .tab-btn'));
 }
 

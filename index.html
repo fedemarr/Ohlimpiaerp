@@ -1097,11 +1097,70 @@
   <!-- TAB: SERVICIOS -->
   <div id="cfg-tab-servicios-cfg" class="tab-content">
     <div class="card">
-      <div class="card-header"><h3>🏢 Servicios / Clientes</h3><span class="badge badge-gris">Complementa a Servicios</span></div>
-      <div class="card-body">
-        <div class="alerta alerta-info" style="margin-bottom:10px;">Los códigos de servicio reales ahora se cargan como Servicios (Comercial → Servicios). Esta lista es solo un respaldo temporal para códigos legacy que todavía no tienen un servicio creado.</div>
-        <div class="config-add"><input type="text" id="nuevo-serv" placeholder="Código temporal (ej: HOSPITAL.CAMPANA)"><button class="btn btn-secondary btn-sm" onclick="agregarItem('servicios','nuevo-serv','lista-servicios-tmp')">Agregar temporal</button></div>
-        <div class="config-list" id="lista-servicios-tmp" style="margin-top:8px;"></div>
+      <div class="card-header">
+        <div>
+          <h3>🏢 Servicios (código → supervisor)</h3>
+          <div style="font-size:12px;color:var(--texto-suave);margin-top:2px;">
+            Lista puente para códigos que todavía no tienen un objetivo comercial cargado (Comercial → Servicios). Se usa para autocompletar el supervisor en Altas y Reasignaciones.
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+          <input type="text" id="ss-buscar" placeholder="🔍 Buscar código o supervisor..." oninput="filtrarServiciosSupervisor()" style="padding:7px 10px;border:1px solid var(--borde);border-radius:8px;font-size:13px;">
+          <button class="btn btn-secondary btn-sm" onclick="exportarServiciosSupervisorCSV()">⬇️ Exportar CSV</button>
+          <button class="btn btn-secondary btn-sm" onclick="abrirImportadorServiciosSupervisor()">📤 Importar CSV</button>
+          <button class="btn btn-primary btn-sm" onclick="abrirNuevoServicioSupervisor()">+ Nuevo código</button>
+        </div>
+      </div>
+      <div class="card-body" style="padding:0;">
+        <div style="padding:8px 12px;font-size:12px;color:var(--texto-suave);" id="ss-contador"></div>
+        <div style="overflow-x:auto;">
+          <table style="border-collapse:collapse;font-size:13px;width:100%;">
+            <thead>
+              <tr>
+                <th style="text-align:left;padding:10px 12px;border-bottom:1px solid var(--borde);">Código</th>
+                <th style="text-align:left;padding:10px 12px;border-bottom:1px solid var(--borde);">Supervisor</th>
+                <th style="text-align:left;padding:10px 12px;border-bottom:1px solid var(--borde);">Acciones</th>
+              </tr>
+            </thead>
+            <tbody id="tbody-servicios-supervisor"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: NUEVO/EDITAR CÓDIGO DE SERVICIO -->
+  <div class="modal-overlay" id="modal-servicio-supervisor">
+    <div class="modal" style="max-width:420px;">
+      <div class="modal-header"><h3 id="modal-servicio-supervisor-titulo">Nuevo código de servicio</h3><button class="btn-close" onclick="cerrarModal('modal-servicio-supervisor')">×</button></div>
+      <div class="modal-body">
+        <div class="form-group"><label>Código *</label><input type="text" id="ss-codigo" placeholder="Ej: HOSPITAL.CAMPANA" style="width:100%;padding:8px;border:1px solid var(--borde);border-radius:8px;font-size:13px;"></div>
+        <div class="form-group" style="margin-top:8px;"><label>Supervisor *</label><input type="text" id="ss-supervisor" list="dl-ss-supervisores" placeholder="Nombre Apellido" style="width:100%;padding:8px;border:1px solid var(--borde);border-radius:8px;font-size:13px;">
+        <datalist id="dl-ss-supervisores"></datalist></div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="cerrarModal('modal-servicio-supervisor')">Cancelar</button>
+        <button class="btn btn-primary" onclick="guardarServicioSupervisor()">Guardar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: IMPORTAR CSV (código, supervisor) -->
+  <div class="modal-overlay" id="modal-importar-servicios-supervisor">
+    <div class="modal" style="max-width:680px;">
+      <div class="modal-header" style="background:#1e3a8a;color:white;">
+        <h3 style="color:white;">📤 Importar servicios/supervisor desde CSV</h3>
+        <button class="btn-close" style="color:white;" onclick="cerrarModal('modal-importar-servicios-supervisor')">×</button>
+      </div>
+      <div class="modal-body">
+        <div class="alerta alerta-info" style="margin-bottom:12px;">Columnas: <strong>codigo</strong>, <strong>supervisor</strong>. Un código que ya existe actualiza su supervisor; uno nuevo se agrega.</div>
+        <div class="form-group"><label>Archivo CSV</label><input type="file" id="imp-ss-file" accept=".csv,text/csv" onchange="seleccionarArchivoImportacionSS()"></div>
+        <div id="imp-ss-resumen" style="margin:8px 0;font-size:13px;font-weight:600;color:var(--texto-suave);"></div>
+        <div id="imp-ss-preview" style="max-height:320px;overflow-y:auto;border:1px solid var(--borde);border-radius:8px;"></div>
+      </div>
+      <div class="modal-footer" style="justify-content:space-between;">
+        <button class="btn btn-secondary" onclick="cerrarModal('modal-importar-servicios-supervisor')">Cancelar</button>
+        <button id="btn-confirmar-importacion-ss" class="btn btn-primary" style="display:none;" onclick="confirmarImportacionServiciosSupervisor()">✅ Confirmar importación</button>
       </div>
     </div>
   </div>

@@ -2,9 +2,16 @@
 
 export const DB = {
   rrhh: ['Jimena', 'Naara', 'Gabi'],
+  // Código de servicio → supervisor, persistido en Supabase (sql/v067) —
+  // se carga solo vía supaInit(). Ver src/modules/servicios_supervisor/
+  // (pantalla en Configuración → Servicios) y
+  // sincronizarServiciosSupervisor() (mantiene DB.servicios en sync para
+  // los 9+ consumidores existentes de obtenerServiciosActivos()).
+  serviciosSupervisor: [],
   // + Patricia Scaglia, Maximiliano Poncino, Sandra Luna (08/2026):
   // aparecen como supervisores asignados en la planilla "Selección y
-  // Reubicaciones" (ver SERVICIO_SUPERVISOR) y no estaban en esta lista.
+  // Reubicaciones" (ver DB.serviciosSupervisor, sql/v067) y no estaban
+  // en esta lista.
   supervisores: ['Alvaro Uballes', 'Alejandro Cacciato', 'Claudia Cazenave', 'Claudio Gonzalez', 'Fabio Benvenuto', 'Matias Maidana', 'Marcelo Moure', 'Santiago Ayala', 'Richard Recalde', 'Alfredo Arispe', 'Lorena Unzain', 'Dario Lage', 'Patricia Scaglia', 'Maximiliano Poncino', 'Sandra Luna'],
   // Deprecado (Clientes y Objetivos v1.1, v039) — no usar como fuente
   // directa. Usar window.obtenerServiciosActivos() (legacy.js), que
@@ -16,10 +23,11 @@ export const DB = {
   // Reubicaciones" de RRHH (Código + Supervisor asignado) — reemplaza a
   // la carga masiva del 05/08/2026 completa, a pedido explícito de Fede
   // ("elimines a todos y los reemplaces con esto"), no una fusión. Ver
-  // SERVICIO_SUPERVISOR más abajo para el supervisor de cada código —
-  // ese mapeo es la pieza nueva que faltaba para que Altas/Reasignaciones
-  // completen el supervisor solos en vez de dejarlo en blanco para
-  // cualquier código que no tuviera todavía un objetivo comercial.
+  // la tabla servicios_supervisor (sql/v067, cargada en
+  // DB.serviciosSupervisor) para el supervisor de cada código — esa pieza
+  // nueva es la que faltaba para que Altas/Reasignaciones completen el
+  // supervisor solos en vez de dejarlo en blanco para cualquier código
+  // que no tuviera todavía un objetivo comercial.
   //
   // Códigos que SÍ estaban en la carga anterior y NO están en esta
   // planilla (CENARD, RETEN.GENERAL, ANAC, NEWSAN.CAMPANA, SULFOQUIMICA,
@@ -191,76 +199,9 @@ export const DB = {
   notificacionesSistema: [],
 };
 
-// Código de servicio → supervisor asignado, según la planilla oficial
-// "Selección y Reubicaciones" de RRHH (08/2026) — mismo formato "Nombre
-// Apellido" que usan DB.supervisores y objetivo.supervisor, para poder
-// comparar/asignar sin conversión. Usado como fallback en
-// onChangeServicioAlta() (altas.js) cuando el código todavía no tiene un
-// objetivo comercial cargado en DB.objetivos (que es la fuente
-// prioritaria — este mapeo es "lo que dice RRHH" para lo que Comercial
-// no formalizó todavía, y así el supervisor se completa solo tanto para
-// servicios ya facturados como para los que son puente).
-//
-// 3 códigos vienen con 2 supervisores en la planilla (trabajo
-// compartido): CHANGO.SANJUSTO, CHANGO.SARANDI y CHANGO.AVELLANEDA
-// (Gonzalez, Claudio / Maidana, Matias) — se dejó el primero como
-// principal porque el campo sólo admite un valor; si en un caso puntual
-// corresponde el otro, se corrige a mano en el alta.
-export const SERVICIO_SUPERVISOR = {
-  'AGENCIA.FIBRA': 'Dario Lage', 'AMERICAN.LOGISTIC': 'Dario Lage', 'CLUB.VASCO': 'Maximiliano Poncino',
-  'BILLINGHURST.2048': 'Richard Recalde', 'CIBRA': 'Alejandro Cacciato', 'LIBERTADOR.260': 'Alejandro Cacciato',
-  'BOULOGNE.662': 'Matias Maidana', 'E.LAMARCA.1679': 'Matias Maidana', 'LMC.46': 'Fabio Benvenuto',
-  'MAURE.1560': 'Alfredo Arispe', 'OHIGGINS.1949': 'Santiago Ayala', 'PALPA.2426': 'Fabio Benvenuto',
-  'SALGUERO.2124': 'Fabio Benvenuto', 'DISTR.VR': 'Fabio Benvenuto', 'EMBA.CABILDO': 'Fabio Benvenuto',
-  'EMBA.PAMPA': 'Fabio Benvenuto', 'EMBA.PAMPA2': 'Fabio Benvenuto', 'EMBA.CIUDAD': 'Fabio Benvenuto',
-  'ZAPIOLA.GALERIA': 'Fabio Benvenuto', 'GESNEXT': 'Claudio Gonzalez', 'HIGHFLOW': 'Dario Lage',
-  'HIT.LIBERTADOR.CEL': 'Alvaro Uballes', 'HIT.LIBERTADOR.8614': 'Alvaro Uballes', 'LIBERTADOR.6343': 'Alvaro Uballes',
-  'HIT.LMC.877': 'Alejandro Cacciato', 'MIGUELETES.2423': 'Alejandro Cacciato', 'ALTO.MOLINO': 'Alejandro Cacciato',
-  'PAMPA.1391': 'Alvaro Uballes', 'HIT.MAIPU': 'Alvaro Uballes', 'HIT.TECNO': 'Claudio Gonzalez',
-  'HIT.CHICLANA.3345': 'Claudio Gonzalez', 'HIT.UGARTE.2110': 'Alejandro Cacciato', 'IUTRACE.SAS': 'Dario Lage',
-  'JOSIMAR.AVELLANEDA': 'Matias Maidana', 'JOSIMAR.CENTRO.DISTR': 'Matias Maidana', 'JOSIMAR.LANUS': 'Matias Maidana',
-  'JOSIMAR.LOMAS': 'Matias Maidana', 'JOSIMAR.MTE.GRANDE': 'Matias Maidana', 'JOSIMAR.BARRACAS': 'Matias Maidana',
-  'JOSIMAR.QUILMES': 'Matias Maidana', 'LOS.PINOS': 'Alejandro Cacciato', 'OFFICE.PARK': 'Alejandro Cacciato',
-  'ROCAMORA': 'Matias Maidana', 'SAN.ANTONIO': 'Matias Maidana', 'REYLAT': 'Claudio Gonzalez',
-  'GYM.CONGRESO': 'Alvaro Uballes', 'GYM.DEVOTO': 'Alvaro Uballes', 'GYM.CAÑITAS': 'Alvaro Uballes',
-  'GYM.PERON': 'Alvaro Uballes', 'GYM.RECOLETA': 'Alvaro Uballes', 'TECTOOLS': 'Patricia Scaglia',
-  'TSOFT.CHICLANA': 'Claudio Gonzalez', 'UML': 'Matias Maidana', 'JOSIMAR. BANFIELD': 'Matias Maidana',
-  'HIT.POLO': 'Alvaro Uballes', 'HIT.ALPARGATAS': 'Claudio Gonzalez', 'NATIONAL.SHIPPING': 'Alvaro Uballes',
-  'HOSPITAL.CAMPANA': 'Claudia Cazenave', 'MAURE.1601': 'Fabio Benvenuto', 'GYM.CABALLITO': 'Alvaro Uballes',
-  'INDICOM': 'Fabio Benvenuto', 'CONS.DELGADO': 'Claudia Cazenave', 'ASCENSORES': 'Alfredo Arispe',
-  'SKYGLASS': 'Alejandro Cacciato', 'ALSINA.1609': 'Alejandro Cacciato', 'LORETO.1510': 'Alvaro Uballes',
-  'ARCOS': 'Sandra Luna', 'CAZADORES': 'Alejandro Cacciato', 'HIT.VILO': 'Dario Lage',
-  'IOMA': 'Claudia Cazenave', 'ZUG.VERDI': 'Alejandro Cacciato', 'ZUG.CAAMAÑO': 'Alejandro Cacciato',
-  'LINCE': 'Claudia Cazenave', 'EVERNEX': 'Claudio Gonzalez', 'MACSTATION': 'Claudia Cazenave',
-  'HIT.ARGUIBEL': 'Alvaro Uballes', 'GYM.NUÑEZ': 'Alvaro Uballes', 'ELDAR': 'Claudio Gonzalez',
-  'HIT.GIGENA': 'Alfredo Arispe', 'LOTBA': 'Claudia Cazenave', 'CONEXA': 'Dario Lage',
-  'OTIS': 'Claudio Gonzalez', 'CONS.JUNCAL': 'Lorena Unzain', 'BIOSINTESIS': 'Alejandro Cacciato',
-  'CAMPANA.JOVEN': 'Claudia Cazenave', 'CAMPANA.BIBLOTECA': 'Claudia Cazenave', 'CAMPANA.CORAZONES ABIERTOS': 'Claudia Cazenave',
-  'CAMPANA.TEATRO': 'Claudia Cazenave', 'CHANGO. BROWN': 'Matias Maidana', 'CHANGO. LA TABLADA': 'Claudio Gonzalez',
-  'CHANGO.3 DE FEBRERO': 'Alejandro Cacciato', 'CHANGO.CASEROS': 'Lorena Unzain', 'CHANGO.CATAN': 'Lorena Unzain',
-  'CHANGO.LAFERRERE': 'Lorena Unzain', 'CHANGO.MALVARG': 'Alejandro Cacciato', 'CHANGO.MATADEROS': 'Claudio Gonzalez',
-  'CHANGO.MORENO 1': 'Alejandro Cacciato', 'CHANGO.MORENO 2': 'Alejandro Cacciato', 'CHANGO.MORENO 3': 'Alejandro Cacciato',
-  'CHANGO.MORÓN': 'Lorena Unzain', 'CAMPANA.RECICLADO': 'Claudia Cazenave', 'CAMPANA.REFUGIO': 'Claudia Cazenave',
-  'CONS.OLLEROS': 'Alvaro Uballes', 'CHANGO.LANUS': 'Matias Maidana', 'CHANGO.CAMPANA': 'Claudia Cazenave',
-  'CAMPANA.ELECTROMECANICA': 'Claudia Cazenave', 'CAMPANA.RIOLUJAN': 'Claudia Cazenave', 'CAMPANA.CORRALON': 'Claudia Cazenave',
-  'CAMPANA.CIMOPU': 'Claudia Cazenave', 'CAMPANA.DIGITAL': 'Claudia Cazenave', 'CAMPANA.CBC': 'Claudia Cazenave',
-  'JOSIMAR.BERAZATEGUI': 'Matias Maidana', 'GYM.BCHINO': 'Alvaro Uballes', 'GYM.FLORES': 'Alvaro Uballes',
-  'CHANGO.PILAR': 'Alejandro Cacciato', 'CHANGO.SANJUSTO': 'Claudio Gonzalez', 'CHANGO.QUILMES': 'Matias Maidana',
-  'CHANGO.SARANDI': 'Claudio Gonzalez', 'CHANGO.AVELLANEDA': 'Claudio Gonzalez', 'GYM.VCRESPO': 'Alvaro Uballes',
-  'UNIVERSAL.MUSIC': 'Alvaro Uballes', 'GYM.BALVANERA': 'Alvaro Uballes', 'UPGAMING': 'Claudio Gonzalez',
-  'CONS.CHICLANA': 'Claudio Gonzalez', 'ADBLICK': 'Alejandro Cacciato', 'CAMPANA.REGISTRO': 'Claudia Cazenave',
-  'CAMPANA.JUZGADO1': 'Claudia Cazenave', 'CAMPANA.JUZGADO.NIÑEZ': 'Claudia Cazenave', 'CAMPANA.JUZGADO.FALTAS': 'Claudia Cazenave',
-  'GYM.BELGRANO': 'Alvaro Uballes', 'CAJA.VALORES': 'Claudio Gonzalez', 'GENOVESA.CENTRAL': 'Matias Maidana',
-  'RESIDENCIA.SMART': 'Claudio Gonzalez', 'CAMPANA.DESARROLLO': 'Claudia Cazenave', 'CAMPANA.OBISPADO': 'Claudia Cazenave',
-  'CAMPANA.CEMENTERIO': 'Claudia Cazenave', 'CONS.RIVADAVIA': 'Alfredo Arispe', 'CHANGO.SVICENTE': 'Claudio Gonzalez',
-  'CHANGO.CLAYPOLE': 'Matias Maidana', 'HURLINGHAM.VILLEGAS': 'Alejandro Cacciato', 'CHANGO.TIGRE': 'Alejandro Cacciato',
-  'CHANGO.LUJAN': 'Dario Lage', 'CHANGO.TEMPERLEY': 'Matias Maidana', 'CHANGO.PERGAMINO': 'Lorena Unzain',
-  'CHANGO.JUNIN': 'Lorena Unzain', 'HURLINGHAN.VERGARA': 'Alejandro Cacciato', 'CHANGO.JOSE C PAZ': 'Alejandro Cacciato',
-  'CONS.TERRERO': 'Alfredo Arispe', 'POTIS': 'Alfredo Arispe', 'GRUPSA': 'Lorena Unzain',
-  'CAPITALHUMANO.AUSTRIA': 'Alfredo Arispe', 'GYM.CASAMATRIZ': 'Alvaro Uballes', 'SUPPLYCHAIN': 'Dario Lage',
-  'BRIGNONE': 'Alfredo Arispe', 'DONADO': 'Patricia Scaglia', 'HIT.PAMPA.OBRA': 'Dario Lage',
-  'DADONE.MIGUELETES': 'Alejandro Cacciato',
-};
+// SERVICIO_SUPERVISOR (código de servicio → supervisor) se movió a la
+// tabla servicios_supervisor (sql/v067) — se carga en DB.serviciosSupervisor
+// vía supaInit(). Ver src/modules/servicios_supervisor/.
 
 // ========== PERFILES Y ACCESOS ==========
 

@@ -89,6 +89,7 @@ export const _SM = {
   liqSuplementoPeriodos: 'liq_suplemento_periodos',
   sugerencias: 'sugerencias',
   personalRrhh: 'personal_rrhh',
+  serviciosSupervisor: 'servicios_supervisor',
   adjuntos: 'adjuntos',
   tickets: 'tickets',
   vacaciones: 'vacaciones',
