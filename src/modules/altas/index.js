@@ -7,6 +7,7 @@ export {
   onChangeZonaAlta, onChangeServicioAlta, toggleReingresante, buscarLegajoReingresante,
   agregarFilaPoliza, eliminarFilaPoliza, recalcularInicioObraSocial,
   seleccionarArchivoPolizaAlta, verAdjuntoPolizaAlta, eliminarAdjuntoPolizaAlta,
+  seleccionarArchivoConstanciaMtAlta, verAdjuntoConstanciaMtAlta, eliminarAdjuntoConstanciaMtAlta,
 } from './altas.js';
 
 // ========== SCREEN CONFIG ==========
@@ -30,6 +31,7 @@ import {
   onChangeZonaAlta, onChangeServicioAlta, toggleReingresante, buscarLegajoReingresante,
   agregarFilaPoliza, eliminarFilaPoliza, recalcularInicioObraSocial,
   seleccionarArchivoPolizaAlta, verAdjuntoPolizaAlta, eliminarAdjuntoPolizaAlta,
+  seleccionarArchivoConstanciaMtAlta, verAdjuntoConstanciaMtAlta, eliminarAdjuntoConstanciaMtAlta,
 } from './altas.js';
 
 import { applyTitleCase } from '@shared/helpers.js';
@@ -51,4 +53,7 @@ window.recalcularInicioObraSocial = recalcularInicioObraSocial;
 window.seleccionarArchivoPolizaAlta = seleccionarArchivoPolizaAlta;
 window.verAdjuntoPolizaAlta = verAdjuntoPolizaAlta;
 window.eliminarAdjuntoPolizaAlta = eliminarAdjuntoPolizaAlta;
+window.seleccionarArchivoConstanciaMtAlta = seleccionarArchivoConstanciaMtAlta;
+window.verAdjuntoConstanciaMtAlta = verAdjuntoConstanciaMtAlta;
+window.eliminarAdjuntoConstanciaMtAlta = eliminarAdjuntoConstanciaMtAlta;
 window.applyTitleCase = applyTitleCase;

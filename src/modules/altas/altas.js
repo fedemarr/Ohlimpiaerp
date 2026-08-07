@@ -11,7 +11,7 @@ import { calcularFechaAltaObraSocialISO } from '@shared/obraSocial.js';
 // ========== ESTADO INTERNO ==========
 
 let _altaTabIdx = 0;
-const ALTA_TABS = 7;
+const ALTA_TABS = 8;
 let _legajoAnteriorEncontrado = null;
 
 // ========== RENDER ==========
@@ -159,6 +159,7 @@ function crearHTMLModalAlta() {
           '<button onclick="tabAlta(4)" id="alta-tab-btn-4" style="padding:6px 12px;border:none;background:#e2e8f0;color:#374151;font-size:12px;border-radius:6px;cursor:pointer;">💰 Capital</button>',
           '<button onclick="tabAlta(5)" id="alta-tab-btn-5" style="padding:6px 12px;border:none;background:#e2e8f0;color:#374151;font-size:12px;border-radius:6px;cursor:pointer;">🛡️ Seguros</button>',
           '<button onclick="tabAlta(6)" id="alta-tab-btn-6" style="padding:6px 12px;border:none;background:#e2e8f0;color:#374151;font-size:12px;border-radius:6px;cursor:pointer;">🏦 Cuentas bancarias</button>',
+          '<button onclick="tabAlta(7)" id="alta-tab-btn-7" style="padding:6px 12px;border:none;background:#e2e8f0;color:#374151;font-size:12px;border-radius:6px;cursor:pointer;">📄 Constancia MT</button>',
         '</div>',
         // Tab 0 — Identificación
         '<div id="alta-section-0">',
@@ -273,6 +274,20 @@ function crearHTMLModalAlta() {
             '<div class="form-group"><label>CBU</label><input type="text" id="alt-cbu"></div>',
           '</div>',
         '</div>',
+        // Tab 7 — Constancia MT (ticket "Constancia" 08/2026). Reutiliza el
+        // bucket privado + tabla `adjuntos` (src/shared/adjuntos.js), etapa
+        // 'alta', tipo 'monotributo' — ese tipo ya existía en el CHECK de
+        // la tabla desde v011 ("Etapa alta, obligatorio") pero nunca se
+        // había cableado en ningún lado del formulario: sin migración
+        // nueva acá, sólo hacía falta esta pantalla.
+        '<div id="alta-section-7" style="display:none;">',
+          '<div style="border:1px dashed #93c5fd;border-radius:8px;padding:12px;background:#eff6ff;">',
+            '<label style="font-weight:600;color:#1e3a8a;">📎 Constancia de alta de Monotributo (PDF)</label>',
+            '<div id="alt-mt-adjunto-lista" style="margin-top:8px;font-size:13px;color:#64748b;">Sin PDF cargado</div>',
+            '<input type="file" id="alt-mt-adjunto-file" accept="application/pdf" style="display:none;" onchange="seleccionarArchivoConstanciaMtAlta()">',
+            '<button type="button" class="btn btn-secondary btn-sm" onclick="document.getElementById(\'alt-mt-adjunto-file\').click()" style="margin-top:8px;">⬆️ Subir constancia</button>',
+          '</div>',
+        '</div>',
       '</div>',
       // Footer
       '<div class="modal-footer" style="justify-content:space-between;">',
@@ -283,10 +298,10 @@ function crearHTMLModalAlta() {
         '<div>',
           '<button class="btn btn-secondary" onclick="cerrarModal(\'modal-alta-nuevo\')">Cancelar</button>',
           // Texto y acción se setean dinámicamente en tabAlta(): "Siguiente →"
-          // en las tabs 0-5 (solo avanza) y "✅ Confirmar Alta" recién en la
-          // última tab (finaliza de verdad). Antes decía "Confirmar Alta" en
-          // las 7 tabs aunque clickearlo en cualquiera de ellas finalizaba el
-          // alta directamente — daba la falsa impresión de que confirmar era
+          // en todas las tabs salvo la última, "✅ Confirmar Alta" recién ahí
+          // (finaliza de verdad). Antes decía "Confirmar Alta" en todas las
+          // tabs aunque clickearlo en cualquiera de ellas finalizaba el alta
+          // directamente — daba la falsa impresión de que confirmar era
           // "otro paso más" durante una carga rápida.
           '<button class="btn" id="alta-btn-cta" style="background:#059669;color:white;">✅ Confirmar Alta</button>',
         '</div>',
@@ -386,10 +401,12 @@ export function abrirModalAlta(psicoIdx, altaId) {
     $('alta-nombre-display').textContent = 'Nuevo';
   }
 
-  // Póliza (PDF): se busca por el DNI que quedó cargado arriba (mismo dni
-  // sea alta nueva o reapertura de una "Pendiente de alta") — si ya se
-  // había subido antes, aparece de nuevo acá.
-  cargarAdjuntoPolizaAlta(($('alt-dni') || {}).value || '');
+  // Póliza + Constancia MT (PDF): se buscan por el DNI que quedó cargado
+  // arriba (mismo dni sea alta nueva o reapertura de una "Pendiente de
+  // alta") — si ya se habían subido antes, aparecen de nuevo acá.
+  const dniActual = ($('alt-dni') || {}).value || '';
+  cargarAdjuntoPolizaAlta(dniActual);
+  cargarAdjuntoConstanciaMtAlta(dniActual);
 
   // Calcular integración desde SMVM vigente
   const sv = (DB.smvm || []).find(s => s.vigente);
@@ -583,6 +600,82 @@ export async function eliminarAdjuntoPolizaAlta(id, dni) {
   const ok = await borrarAdjunto(id);
   toast(ok ? '🗑️ PDF eliminado' : '⚠️ No se pudo eliminar');
   cargarAdjuntoPolizaAlta(dni);
+}
+
+// ========== CONSTANCIA DE ALTA DE MONOTRIBUTO — PDF ==========
+// Mismo patrón que la póliza de seguro (arriba): documento único por
+// asociado, etapa 'alta', tipo 'monotributo' — ese tipo ya existía en el
+// CHECK de `adjuntos` desde v011 (estaba pensado para esto exactamente,
+// "Etapa alta, obligatorio") pero nunca se había cableado en el
+// formulario. Subir uno nuevo invalida (vigente=false) el anterior, así
+// que "reemplazar" es simplemente volver a subir.
+
+async function cargarAdjuntoConstanciaMtAlta(dni) {
+  const cont = $('alt-mt-adjunto-lista');
+  if (!cont) return;
+  if (!dni) { cont.innerHTML = '<span style="color:#94a3b8;">Sin PDF cargado</span>'; return; }
+  cont.innerHTML = 'Cargando…';
+  const lista = await listarAdjuntos({ dni, etapa: 'alta', tipo: 'monotributo' });
+  if (!lista.length) {
+    cont.innerHTML = '<span style="color:#94a3b8;">Sin PDF cargado</span>';
+    return;
+  }
+  const a = lista[0];
+  cont.innerHTML =
+    '<div style="display:flex;align-items:center;gap:8px;background:white;border:1px solid #e2e8f0;border-radius:6px;padding:6px 10px;">'
+    + '<span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">📄 ' + (a.nombreArchivo || 'Archivo') + '</span>'
+    + '<button type="button" class="btn btn-secondary" style="padding:4px 8px;font-size:12px;" onclick="verAdjuntoConstanciaMtAlta(\'' + a.url + '\')">👁️ Ver</button>'
+    + '<button type="button" class="btn" style="background:#dc2626;color:white;padding:4px 8px;font-size:12px;" onclick="eliminarAdjuntoConstanciaMtAlta(\'' + a.id + '\',\'' + dni + '\')">🗑️</button>'
+    + '</div>';
+}
+
+export async function seleccionarArchivoConstanciaMtAlta() {
+  const input = $('alt-mt-adjunto-file');
+  const file = input && input.files && input.files[0];
+  if (!file) return;
+  const dni = cleanText(($('alt-dni') || {}).value || '');
+  if (!dni) {
+    toast('⚠️ Ingresá el DNI del asociado (tab Identificación) antes de subir la constancia');
+    if (input) input.value = '';
+    return;
+  }
+  // Validación rápida en cliente (tipo + tamaño) antes de intentar subir —
+  // subirAdjunto() la repite del lado seguro (no confiamos solo en el
+  // accept="application/pdf" del input, que no bloquea nada por sí solo).
+  if (file.type !== 'application/pdf') {
+    toast('⚠️ Solo se acepta PDF');
+    if (input) input.value = '';
+    return;
+  }
+  if (file.size > MAX_SIZE) {
+    toast('⚠️ El archivo (' + (file.size / 1024 / 1024).toFixed(1) + ' MB) supera el límite de 10 MB');
+    if (input) input.value = '';
+    return;
+  }
+  const cont = $('alt-mt-adjunto-lista');
+  if (cont) cont.innerHTML = 'Subiendo…';
+  try {
+    await subirAdjunto({ dni, etapa: 'alta', tipo: 'monotributo', file });
+    toast('📎 Constancia de Monotributo subida');
+  } catch (e) {
+    toast('⚠️ ' + (e.message || 'Error al subir el archivo'));
+  } finally {
+    if (input) input.value = '';
+  }
+  cargarAdjuntoConstanciaMtAlta(dni);
+}
+
+export async function verAdjuntoConstanciaMtAlta(path) {
+  const url = await obtenerUrlFirmada(path);
+  if (!url) { toast('⚠️ No se pudo abrir el archivo'); return; }
+  window.open(url, '_blank');
+}
+
+export async function eliminarAdjuntoConstanciaMtAlta(id, dni) {
+  if (!confirm('¿Eliminar el PDF de la constancia de Monotributo?')) return;
+  const ok = await borrarAdjunto(id);
+  toast(ok ? '🗑️ PDF eliminado' : '⚠️ No se pudo eliminar');
+  cargarAdjuntoConstanciaMtAlta(dni);
 }
 
 // ========== OBRA SOCIAL — INICIO DE TRÁMITE (auto, ingreso + desfase) ==========
