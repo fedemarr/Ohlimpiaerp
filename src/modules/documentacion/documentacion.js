@@ -101,6 +101,7 @@ function crearHTMLModalDocum() {
       '</div>',
       '<div class="modal-body">',
         '<input type="hidden" id="docum-gest-id">',
+        '<input type="hidden" id="docum-gest-dni">',
         // ── Sección Antecedentes (obligatorio) ──
         '<h4 style="margin:0 0 8px;color:#1e3a8a;border-bottom:2px solid #e2e8f0;padding-bottom:4px;">📋 Antecedentes penales (obligatorio)</h4>',
         '<div class="form-group"><label>Resultado *</label>',
@@ -168,6 +169,24 @@ function crearHTMLModalDocum() {
 
 // Buscar un registro de documentación por id (nunca id_local — lección del proyecto)
 const getDocumById = (id) => (DB.documentacionIngreso || []).find(d => String(d.id) === String(id));
+
+// Lookup por id (caso normal) con fallback por DNI — mismo bug ya diagnosticado
+// y resuelto en preocupacional.js (ver getPreocupAbierto ahí): el id que
+// guarda el input oculto (docum-gest-id) es el que tenía d.id AL ABRIR el
+// modal. Si DB.documentacionIngreso se repobló desde Supabase mientras el
+// modal seguía abierto (_toCamel reemplaza id por id_local — 9 dígitos
+// truncados — al leer de la base, ver supabase.js), el id en memoria deja
+// de coincidir con el que quedó guardado en el input, y getDocumById(id)
+// no encuentra nada — silencioso, sin tirar ningún error ("Aprobar → Alta"
+// se queda quieto). El DNI no se trunca ni cambia, así que sirve de respaldo.
+function getDocumAbierto() {
+  const idEl = $('docum-gest-id');
+  const d = idEl ? getDocumById(idEl.value) : null;
+  if (d) return d;
+  const dni = ($('docum-gest-dni') || {}).value || '';
+  if (!dni) return null;
+  return (DB.documentacionIngreso || []).find(x => x.dni === dni && x.estado === 'En proceso') || null;
+}
 
 // Calcular estado visual del vencimiento de antecedentes (verde/amarillo/rojo)
 // Devuelve null si no hay fecha; si no, { color, bg, texto } para pintar un badge.
@@ -269,6 +288,7 @@ export function abrirGestionDocum(id) {
     document.body.appendChild(m);
   }
   $('docum-gest-id').value = d.id;
+  $('docum-gest-dni').value = d.dni || '';
   $('docum-gest-nombre').textContent = d.nombre || '';
   $('dc-antec-resultado').value = d.antecResultado || 'Pendiente';
   $('dc-antec-fecha').value = d.antecFecha || '';
@@ -299,9 +319,12 @@ export function abrirGestionDocum(id) {
 
 // Guardar la documentación (lee los 3 requisitos, persiste por id)
 export function guardarDocum() {
-  const id = parseInt($('docum-gest-id').value);
-  const d = getDocumById(id);
-  if (!d) return;
+  const d = getDocumAbierto();
+  if (!d) {
+    console.error('guardarDocum: no se encontró el registro ni por id ni por dni', { id: $('docum-gest-id')?.value, dni: $('docum-gest-dni')?.value });
+    toast('⚠️ No se encontró el registro — cerrá el modal y volvé a abrirlo desde la lista');
+    return;
+  }
   // Antecedentes
   d.antecResultado = ($('dc-antec-resultado') || {}).value || 'Pendiente';
   d.antecFecha = ($('dc-antec-fecha') || {}).value || null;
@@ -362,9 +385,12 @@ function _crearAltaDesdeDocum(d) {
 
 // Aprobar: Sin antecedentes → avanza al Alta
 export async function aprobarDocum() {
-  const id = parseInt($('docum-gest-id').value);
-  const d = getDocumById(id);
-  if (!d) return;
+  const d = getDocumAbierto();
+  if (!d) {
+    console.error('aprobarDocum: no se encontró el registro ni por id ni por dni', { id: $('docum-gest-id')?.value, dni: $('docum-gest-dni')?.value });
+    toast('⚠️ No se encontró el registro — cerrá el modal y volvé a abrirlo desde la lista');
+    return;
+  }
   // Obligatorio: al menos un certificado de antecedentes vigente antes de aprobar.
   const antec = await listarAdjuntos({ dni: d.dni, etapa: 'documentacion', tipo: 'antecedente' });
   if (!antec.length) {
@@ -385,9 +411,12 @@ export async function aprobarDocum() {
 
 // Habilitar excepción: Con antecedentes pero pasa igual (queda registrado)
 export function excepcionDocum() {
-  const id = parseInt($('docum-gest-id').value);
-  const d = getDocumById(id);
-  if (!d) return;
+  const d = getDocumAbierto();
+  if (!d) {
+    console.error('excepcionDocum: no se encontró el registro ni por id ni por dni', { id: $('docum-gest-id')?.value, dni: $('docum-gest-dni')?.value });
+    toast('⚠️ No se encontró el registro — cerrá el modal y volvé a abrirlo desde la lista');
+    return;
+  }
   const motivo = ($('dc-antec-motivo-excepcion') || {}).value || '';
   if (!motivo.trim()) {
     toast('⚠️ El motivo de la excepción es obligatorio');
@@ -410,9 +439,12 @@ export function excepcionDocum() {
 
 // Dar de baja: Con antecedentes → candidato Rechazado
 export function bajaDocum() {
-  const id = parseInt($('docum-gest-id').value);
-  const d = getDocumById(id);
-  if (!d) return;
+  const d = getDocumAbierto();
+  if (!d) {
+    console.error('bajaDocum: no se encontró el registro ni por id ni por dni', { id: $('docum-gest-id')?.value, dni: $('docum-gest-dni')?.value });
+    toast('⚠️ No se encontró el registro — cerrá el modal y volvé a abrirlo desde la lista');
+    return;
+  }
   d.antecResultado = 'Con antecedentes';
   d.antecExcepcion = false;
   d.estado = 'Rechazado';
@@ -454,9 +486,12 @@ export async function seleccionarArchivoDocum() {
   const input = $('dc-antec-adjunto-file');
   const file = input && input.files && input.files[0];
   if (!file) return;
-  const id = $('docum-gest-id').value;
-  const d = getDocumById(id);
-  if (!d) { toast('⚠️ No se encontró el registro'); return; }
+  const d = getDocumAbierto();
+  if (!d) {
+    console.error('seleccionarArchivoDocum: no se encontró el registro ni por id ni por dni', { id: $('docum-gest-id')?.value, dni: $('docum-gest-dni')?.value });
+    toast('⚠️ No se encontró el registro — cerrá el modal y volvé a abrirlo desde la lista');
+    return;
+  }
   // Vencimiento del adjunto = fecha del certificado + 6 meses (misma lógica del badge).
   // Si no hay fecha de certificado cargada, queda null (no obligamos a cargarla antes).
   const fechaCert = ($('dc-antec-fecha') || {}).value || '';
@@ -492,9 +527,12 @@ export async function verAdjuntoDocum(path) {
 let _iaAntecResultado = null;
 
 export async function analizarAntecedentesIA() {
-  const id = $('docum-gest-id').value;
-  const d = getDocumById(id);
-  if (!d) return;
+  const d = getDocumAbierto();
+  if (!d) {
+    console.error('analizarAntecedentesIA: no se encontró el registro ni por id ni por dni', { id: $('docum-gest-id')?.value, dni: $('docum-gest-dni')?.value });
+    toast('⚠️ No se encontró el registro — cerrá el modal y volvé a abrirlo desde la lista');
+    return;
+  }
   const adjuntos = await listarAdjuntos({ dni: d.dni, etapa: 'documentacion', tipo: 'antecedente' });
   if (!adjuntos.length) { toast('⚠️ Subí un certificado antes de analizarlo'); return; }
   const btn = $('btn-ia-antec');
