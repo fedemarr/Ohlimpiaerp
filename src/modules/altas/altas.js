@@ -6,6 +6,7 @@ import { supaSync } from '@shared/supabase.js';
 import { subirAdjunto, listarAdjuntos, obtenerUrlFirmada, borrarAdjunto, MAX_SIZE } from '@shared/adjuntos.js';
 import { SECTORES_ADMIN } from '@modules/legajos/index.js';
 import { TALLES_POR_PRENDA } from '@modules/uniformes/catalogos.js';
+import { calcularFechaAltaObraSocialISO } from '@shared/obraSocial.js';
 
 // ========== ESTADO INTERNO ==========
 
@@ -584,24 +585,21 @@ export async function eliminarAdjuntoPolizaAlta(id, dni) {
   cargarAdjuntoPolizaAlta(dni);
 }
 
-// ========== OBRA SOCIAL — INICIO DE TRÁMITE (auto, ingreso + 3 meses) ==========
+// ========== OBRA SOCIAL — INICIO DE TRÁMITE (auto, ingreso + desfase) ==========
 
 // Mismo patrón que recalcularVencAntec()/recalcularVencLibreta() en el
 // módulo Documentación de ingreso (aritmética con setMonth), pero acá el
 // campo destino queda editable — se recalcula al cambiar la fecha de
 // ingreso, y el usuario puede corregirlo a mano después si hace falta.
+// El desfase en sí (+3 meses) vive centralizado en shared/obraSocial.js —
+// también lo usa la columna "Mes de alta" del listado de Legajos.
 export function recalcularInicioObraSocial() {
   const fechaEl = $('alt-fec-ingreso');
   const osEl = $('alt-os-inicio');
   if (!fechaEl || !osEl) return;
   const f = fechaEl.value;
   if (!f) { osEl.value = ''; return; }
-  const d = new Date(f + 'T00:00:00');
-  d.setMonth(d.getMonth() + 3);
-  const yyyy = d.getFullYear();
-  const mm = String(d.getMonth() + 1).padStart(2, '0');
-  const dd = String(d.getDate()).padStart(2, '0');
-  osEl.value = yyyy + '-' + mm + '-' + dd;
+  osEl.value = calcularFechaAltaObraSocialISO(f);
 }
 
 // ========== CONFIRMAR ALTA ==========

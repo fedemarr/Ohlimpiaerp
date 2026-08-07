@@ -7,6 +7,7 @@ export {
   editarLegajoActual, guardarEdicionLegajo, eliminarLegajoActual,
   imprimirLegajo,
   verAdjuntoLegajo,
+  toggleAltaObraSocial,
   SECTORES_ADMIN, toggleSeccionVacacionesLegajo,
 } from './legajos.js';
 
@@ -36,6 +37,7 @@ import {
   editarLegajoActual, guardarEdicionLegajo, eliminarLegajoActual,
   imprimirLegajo,
   verAdjuntoLegajo,
+  toggleAltaObraSocial,
   toggleSeccionVacacionesLegajo,
 } from './legajos.js';
 
@@ -51,6 +53,7 @@ window.tabLeg = tabLeg;
 window.editarLegajoActual = editarLegajoActual;
 window.guardarEdicionLegajo = guardarEdicionLegajo;
 window.eliminarLegajoActual = eliminarLegajoActual;
+window.toggleAltaObraSocial = toggleAltaObraSocial;
 window.imprimirLegajo = imprimirLegajo;
 window.verAdjuntoLegajo = verAdjuntoLegajo;
 window.toggleSeccionVacacionesLegajo = toggleSeccionVacacionesLegajo;

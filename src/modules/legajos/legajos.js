@@ -3,6 +3,7 @@ import { $, avatarEl, badge, fillSelect } from '@shared/helpers.js';
 import { toast, abrirModal, cerrarModal } from '@shared/ui.js';
 import { supaSync, supaDel, getLastSupaSyncError } from '@shared/supabase.js';
 import { TALLES_POR_PRENDA } from '@modules/uniformes/catalogos.js';
+import { calcularFechaAltaObraSocial, formatearMesAnio } from '@shared/obraSocial.js';
 import { listarAdjuntos, obtenerUrlFirmada, TIPO_LEGIBLE } from '@shared/adjuntos.js';
 import { calcularEstadoVencimiento } from '../documentacion/documentacion.js';
 
@@ -12,6 +13,23 @@ import { calcularEstadoVencimiento } from '../documentacion/documentacion.js';
 function _antecedentesDelLegajo(dni) {
   const docs = (DB.documentacionIngreso || []).filter(d => d.dni === dni && d.antecVencimiento);
   return docs.length ? docs[docs.length - 1] : null;
+}
+
+// legajo.ingreso se guarda en formato argentino DD/MM/AAAA (display), no
+// ISO — hay que convertirlo antes de pasarlo a calcularFechaAltaObraSocial().
+function _ingresoAISO(l) {
+  const m = (l.ingreso || '').match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if (!m) return '';
+  const [, d, mes, y] = m;
+  return y + '-' + mes.padStart(2, '0') + '-' + d.padStart(2, '0');
+}
+
+// "Mes de alta" de obra social para el listado — se calcula siempre desde
+// legajo.ingreso (nunca falta, es obligatorio), no desde
+// obraSocialInicioTramite (puede estar vacío en legajos viejos o
+// importados por CSV) — así la columna se ve completa para todos.
+function _mesAltaObraSocial(l) {
+  return formatearMesAnio(calcularFechaAltaObraSocial(_ingresoAISO(l)));
 }
 
 // ========== ESTADO INTERNO ==========
@@ -62,9 +80,38 @@ export function renderLegajos(lista) {
       <td style="font-size:12px;color:var(--texto-suave);">${l.fechaBaja || '—'}</td>
       <td style="font-size:12px;color:${l.fechaReincorp ? 'var(--verde)' : 'var(--texto-muy-suave)'};">${l.fechaReincorp || '—'}</td>
       <td>${l.estadoMedico ? `<span class="badge badge-naranja" style="font-size:10px;">🏥 ${l.estadoMedico.split(' ')[0]}</span>` : ''}${badge(l.seguro === 'Completo' ? 'Completo' : 'Pendiente')}</td>
+      <td style="font-size:12px;">${l.obraSocial || '<span class="text-muted">—</span>'}</td>
+      <td style="font-size:12px;" onclick="event.stopPropagation();">
+        <label style="display:flex;align-items:center;gap:6px;cursor:pointer;white-space:nowrap;" title="${l.altaObraSocialFecha ? 'Tildado el ' + new Date(l.altaObraSocialFecha).toLocaleDateString('es-AR') : 'Corresponde a partir de ' + _mesAltaObraSocial(l)}">
+          <input type="checkbox" ${l.altaObraSocial ? 'checked' : ''} onchange="toggleAltaObraSocial(${l.nro}, this.checked)">
+          ${_mesAltaObraSocial(l) || '<span class="text-muted">—</span>'}
+        </label>
+      </td>
       <td><button class="btn btn-secondary btn-sm" onclick="event.stopPropagation();verLegajo(${l.nro})">Ver legajo</button></td>
     </tr>`;
   }).join('');
+}
+
+// Checkbox "Mes de alta OS" del listado — persiste que RRHH efectivamente
+// tramitó el alta de obra social, con marca de tiempo (sql/v068). Revierte
+// el checkbox visualmente si el guardado falla, mismo patrón que el resto
+// de los toggles ya endurecidos este mes (candidatos.js, preocupacional.js).
+export async function toggleAltaObraSocial(nro, checked) {
+  const l = DB.legajos.find(x => x.nro === nro);
+  if (!l) return;
+  const snapshot = { altaObraSocial: l.altaObraSocial, altaObraSocialFecha: l.altaObraSocialFecha };
+  l.altaObraSocial = checked;
+  l.altaObraSocialFecha = checked ? new Date().toISOString() : null;
+  const ok = await supaSync('legajos', l);
+  if (!ok) {
+    Object.assign(l, snapshot);
+    const err = getLastSupaSyncError();
+    toast('⚠️ No se pudo guardar' + (err?.message ? ' (' + err.message + ')' : '') + ' — reintentá');
+    renderLegajos();
+    return;
+  }
+  renderLegajos();
+  toast(checked ? '✓ Alta de obra social registrada — ' + l.nombre : '↩️ Alta de obra social destildada — ' + l.nombre);
 }
 
 // ========== FILTROS ==========
