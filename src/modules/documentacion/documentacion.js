@@ -4,6 +4,7 @@ import { toast, cerrarModal, abrirModalInput } from '@shared/ui.js';
 import { supaSync, getLastSupaSyncError } from '@shared/supabase.js';
 import { subirAdjunto, listarAdjuntos, obtenerUrlFirmada, borrarAdjunto } from '@shared/adjuntos.js';
 import { analizarDocumentoPDF, chequearIdentidadIA } from '@shared/iaDocumentos.js';
+import { TALLES_POR_PRENDA } from '@modules/uniformes/catalogos.js';
 
 let _documTab = 'activos';
 
@@ -150,6 +151,23 @@ function crearHTMLModalDocum() {
           '<div class="form-group"><label>Vencimiento</label>',
             '<input type="date" id="dc-curso-vencimiento" style="width:100%;padding:8px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;"></div>',
         '</div>',
+        // ── Uniforme (ticket "Uniforme" 08/2026) ──
+        // Se carga acá para que Logística tenga los talles listos apenas se
+        // confirme el alta — se copia solo a cat_alt_pendientes.uniforme al
+        // aprobar/habilitar por excepción, y de ahí al legajo al confirmar
+        // (ver _crearAltaDesdeDocum más abajo). Mismos 7 campos y mismo
+        // catálogo (TALLES_POR_PRENDA) que la tab Uniforme de Altas — una
+        // sola fuente de verdad de talles en todo el proyecto.
+        '<h4 style="margin:16px 0 8px;color:#1e3a8a;border-bottom:2px solid #e2e8f0;padding-bottom:4px;">👕 Uniforme</h4>',
+        '<div class="form-grid form-grid-2">',
+          '<div class="form-group"><label>Talle de ambo</label><select id="dc-uni-ambo" style="width:100%;padding:8px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;"><option value="">Seleccionar...</option><option>S</option><option>M</option><option>L</option><option>XL</option><option>XXL</option><option>XXXL</option><option>4XL</option><option>5XL</option></select></div>',
+          '<div class="form-group"><label>Talle de calzado</label><input type="number" id="dc-uni-calzado" min="34" max="48" style="width:100%;padding:8px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;"></div>',
+          '<div class="form-group"><label>Talle de chomba</label><select id="dc-uni-chomba" style="width:100%;padding:8px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;"><option value="">Seleccionar...</option>' + TALLES_POR_PRENDA.Chomba.map(t => '<option>' + t + '</option>').join('') + '</select></div>',
+          '<div class="form-group"><label>Talle de pantalón (grafa)</label><select id="dc-uni-grafa" style="width:100%;padding:8px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;"><option value="">Seleccionar...</option>' + TALLES_POR_PRENDA.Grafa.map(t => '<option>' + t + '</option>').join('') + '</select></div>',
+          '<div class="form-group"><label>Talle de buzo</label><select id="dc-uni-buzo" style="width:100%;padding:8px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;"><option value="">Seleccionar...</option>' + TALLES_POR_PRENDA.Buzo.map(t => '<option>' + t + '</option>').join('') + '</select></div>',
+          '<div class="form-group"><label>Talle de campera</label><select id="dc-uni-campera" style="width:100%;padding:8px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;"><option value="">Seleccionar...</option>' + TALLES_POR_PRENDA.Campera.map(t => '<option>' + t + '</option>').join('') + '</select></div>',
+          '<div class="form-group"><label>Gorra</label><select id="dc-uni-gorra" style="width:100%;padding:8px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;"><option value="">Seleccionar...</option>' + TALLES_POR_PRENDA.Gorra.map(t => '<option>' + t + '</option>').join('') + '</select></div>',
+        '</div>',
         // ── Observaciones ──
         '<div class="form-group" style="margin-top:16px;"><label>Observaciones</label>',
           '<textarea id="dc-obs" rows="2" style="width:100%;padding:8px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;resize:vertical;"></textarea></div>',
@@ -169,6 +187,33 @@ function crearHTMLModalDocum() {
       '</div>',
     '</div>',
   ].join('');
+}
+
+// ========== UNIFORME ==========
+// Objeto plano {ambo, calzado, chomba, grafa, buzo, campera, gorra} — se
+// guarda tal cual en documentacionIngreso.tallesUniforme y se copia igual
+// a catAltPendientes.uniforme al aprobar. No hace falta que coincida con
+// la forma final de legajos (ambo/calzado top-level + tallesUniforme para
+// el resto): cuando Altas confirma el alta, lee sus propios campos de
+// formulario (ya precargados desde este objeto, ver abrirModalAlta en
+// altas.js) y arma legajo con su propia estructura — este objeto es sólo
+// el "carrier" intermedio entre Documentación y Altas.
+const CAMPOS_UNIFORME_DOCUM = [['dc-uni-ambo', 'ambo'], ['dc-uni-calzado', 'calzado'], ['dc-uni-chomba', 'chomba'], ['dc-uni-grafa', 'grafa'], ['dc-uni-buzo', 'buzo'], ['dc-uni-campera', 'campera'], ['dc-uni-gorra', 'gorra']];
+
+function _leerUniformeDocum() {
+  const u = {};
+  CAMPOS_UNIFORME_DOCUM.forEach(([id, key]) => {
+    const v = ($(id) || { value: '' }).value;
+    if (v) u[key] = v;
+  });
+  return u;
+}
+
+function _precargarUniformeDocum(d) {
+  const u = d.tallesUniforme || {};
+  CAMPOS_UNIFORME_DOCUM.forEach(([id, key]) => {
+    const el = $(id); if (el) el.value = u[key] || '';
+  });
 }
 
 // Buscar un registro de documentación por id (nunca id_local — lección del proyecto)
@@ -303,6 +348,7 @@ export function abrirGestionDocum(id) {
   $('dc-curso-tiene').checked = !!d.cursoTiene;
   $('dc-curso-vencimiento').value = d.cursoVencimiento || '';
   $('dc-obs').value = d.obs || '';
+  _precargarUniformeDocum(d);
   toggleSeccionLibreta();
   toggleSeccionCurso();
   actualizarBotonesDocum();
@@ -342,6 +388,8 @@ export function guardarDocum() {
   d.cursoVencimiento = d.cursoTiene ? (($('dc-curso-vencimiento') || {}).value || null) : null;
   // Observaciones
   d.obs = ($('dc-obs') || {}).value || '';
+  // Uniforme (ticket "Uniforme" 08/2026)
+  d.tallesUniforme = _leerUniformeDocum();
   supaSync('documentacionIngreso', d);
   cerrarModal('modal-docum-gestion');
   renderDocum();
@@ -379,7 +427,7 @@ function _crearAltaDesdeDocum(d) {
     id: Date.now(), psicoId: d.psicoId, candidatoId: d.candidatoId,
     nombre: d.nombre, dni: d.dni, zona: d.zona, tel: d.tel, rrhh: d.rrhh || '',
     estado: 'Pendiente de alta', fecha: new Date().toLocaleDateString('es-AR'),
-    identificacion: {}, domicilio: {}, operativo: {}, uniforme: {}, capital: {}, seguros: {},
+    identificacion: {}, domicilio: {}, operativo: {}, uniforme: d.tallesUniforme || {}, capital: {}, seguros: {},
   };
   if (!DB.catAltPendientes) DB.catAltPendientes = [];
   DB.catAltPendientes.push(alta);
@@ -406,6 +454,7 @@ export async function aprobarDocum() {
   d.antecVencimiento = ($('dc-antec-vencimiento') || {}).value || null;
   d.estado = 'Aprobado';
   d.fechaAprobacion = new Date().toLocaleDateString('es-AR');
+  d.tallesUniforme = _leerUniformeDocum();
   supaSync('documentacionIngreso', d);
   const creada = _crearAltaDesdeDocum(d);
   cerrarModal('modal-docum-gestion');
@@ -434,6 +483,7 @@ export function excepcionDocum() {
   d.antecVencimiento = ($('dc-antec-vencimiento') || {}).value || null;
   d.estado = 'Aprobado';
   d.fechaAprobacion = new Date().toLocaleDateString('es-AR');
+  d.tallesUniforme = _leerUniformeDocum();
   supaSync('documentacionIngreso', d);
   const creada = _crearAltaDesdeDocum(d);
   cerrarModal('modal-docum-gestion');

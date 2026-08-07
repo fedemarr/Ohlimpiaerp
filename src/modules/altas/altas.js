@@ -455,6 +455,18 @@ export function abrirModalAlta(psicoIdx, altaId) {
         lEl.value = cand.localidad;
       }
     }
+
+    // Tab 3 — Uniforme, cargado en Documentación de ingreso (ticket
+    // "Uniforme" 08/2026) — altaReg.uniforme es el único snapshot de tab
+    // que hoy se precarga al reabrir una alta pendiente (el resto,
+    // identificacion/domicilio/operativo/capital/seguros, se sigue
+    // completando desde cand como siempre, no desde el snapshot). altaReg
+    // solo existe si se vino con altaId (no si src es un psico p suelto).
+    const uniformePrevio = (altaReg && altaReg.uniforme) || {};
+    [['alt-ambo', 'ambo'], ['alt-calzado', 'calzado'], ['alt-talle-chomba', 'chomba'], ['alt-talle-grafa', 'grafa'],
+     ['alt-talle-buzo', 'buzo'], ['alt-talle-campera', 'campera'], ['alt-talle-gorra', 'gorra']].forEach(([id, key]) => {
+      const el = $(id); if (el && uniformePrevio[key]) el.value = uniformePrevio[key];
+    });
   } else {
     $('alta-idx').value = '';
     delete $('modal-alta-nuevo').dataset.altaId;

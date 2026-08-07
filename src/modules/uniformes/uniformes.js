@@ -637,10 +637,21 @@ export async function crearEntregaUniformeDesdeAlta(legajo) {
   DB.pedidosUniformes.push(p);
   await supaSync('pedidosUniformes', p);
 
-  // Pre-cargar Ambo/Zapatos si el alta ya trajo esos talles.
+  // Pre-cargar el kit inicial completo si el alta ya trajo esos talles —
+  // antes solo tomaba Ambo/Zapatos (columnas propias del legajo); desde el
+  // ticket "Uniforme" (08/2026) también hay Chomba/Grafa/Buzo/Campera/
+  // Gorra, cargados en Documentación de ingreso y llevados hasta acá vía
+  // legajo.tallesUniforme (mismo objeto que ya usa talleSugerido() en
+  // uniformes/catalogos.js).
+  const tu = legajo.tallesUniforme || {};
   const prendasIniciales = [];
   if (legajo.ambo) prendasIniciales.push({ prenda: 'Ambo', talle: legajo.ambo, cantidad: 1 });
   if (legajo.calzado) prendasIniciales.push({ prenda: 'Zapatos', talle: String(legajo.calzado), cantidad: 1 });
+  if (tu.chomba) prendasIniciales.push({ prenda: 'Chomba', talle: tu.chomba, cantidad: 1 });
+  if (tu.grafa) prendasIniciales.push({ prenda: 'Grafa', talle: tu.grafa, cantidad: 1 });
+  if (tu.buzo) prendasIniciales.push({ prenda: 'Buzo', talle: tu.buzo, cantidad: 1 });
+  if (tu.campera) prendasIniciales.push({ prenda: 'Campera', talle: tu.campera, cantidad: 1 });
+  if (tu.gorra) prendasIniciales.push({ prenda: 'Gorra', talle: tu.gorra, cantidad: 1 });
   for (const pr of prendasIniciales) {
     const obj = { id: Date.now() + Math.floor(Math.random() * 1000), pedidoIdLocal: idLocalTrunc(p.id), ...pr };
     if (!DB.pedidoUniformePrendas) DB.pedidoUniformePrendas = [];
