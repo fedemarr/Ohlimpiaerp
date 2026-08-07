@@ -160,7 +160,8 @@ export function abrirImportadorLegajos() {
   const prevEl = $('imp-leg-preview'); if (prevEl) prevEl.innerHTML = '';
   const resEl = $('imp-leg-resumen'); if (resEl) resEl.textContent = '';
   const avisoEl = $('imp-leg-aviso-encoding'); if (avisoEl) avisoEl.style.display = 'none';
-  const btn = $('btn-confirmar-importacion'); if (btn) btn.style.display = 'none';
+  const btn = $('btn-confirmar-importacion');
+  if (btn) { btn.style.display = 'none'; btn.disabled = false; btn.textContent = '✅ Confirmar importación'; }
   abrirModal('modal-importar-legajos');
 }
 
@@ -394,18 +395,38 @@ function renderPreviewImportacion() {
 
 // ========== CONFIRMAR IMPORTACIÓN ==========
 
+// Reentrancia: con ~500 filas (2 idas y vueltas a Supabase c/u) esto tarda
+// bastante y antes no daba ninguna señal de que seguía corriendo — RRHH
+// volvía a apretar "Confirmar" pensando que no había pasado nada, lo que
+// lanzaba una segunda pasada en paralelo sobre las mismas filas: cuando
+// las dos llegaban a la misma fila casi al mismo tiempo, una insertaba
+// bien y la otra chocaba contra el unique constraint de id_local (409,
+// bug real reportado — la base se protegió sola, no llegó a duplicar
+// nada, pero el error de la segunda pasada confundía porque esa fila en
+// realidad sí se había guardado). Se ataja con guard + botón deshabilitado
+// + progreso visible, así no hay margen para el doble click.
+let _importando = false;
+
 export async function confirmarImportacionLegajos() {
+  if (_importando) return;
   // f._yaImportado excluye filas que ya se guardaron bien en un intento
   // anterior — si algunas fallan y se reintenta sin volver a subir el
   // archivo, no hay que reprocesar las que ya entraron.
   const validas = _filasParseadas.filter(f => f._valido && !f._yaImportado);
   if (!validas.length) { toast('⚠️ No hay filas válidas para importar'); return; }
 
+  _importando = true;
+  const btn = $('btn-confirmar-importacion');
+  if (btn) { btn.disabled = true; btn.textContent = 'Importando 0 / ' + validas.length + '…'; }
+  const resEl = $('imp-leg-resumen');
+
   const hoy = new Date().toISOString().slice(0, 10);
   let importados = 0;
   const fallos = []; // [{ nro, dni, nombre, error }]
 
-  for (const f of validas) {
+  for (const [i, f] of validas.entries()) {
+    if (btn) btn.textContent = 'Importando ' + (i + 1) + ' / ' + validas.length + '…';
+    if (resEl) resEl.textContent = 'Importando ' + (i + 1) + ' / ' + validas.length + '…';
     const direccion = cleanText([f.calle, f.numero].filter(Boolean).join(' ') + (f.piso ? ' ' + f.piso : '') + (f.dpto ? ' ' + f.dpto : ''));
     const genero = /^f/i.test(f.genero) ? 'Femenino' : /^m/i.test(f.genero) ? 'Masculino' : (f.genero ? 'Otro' : '');
     const tallesUniforme = {};
@@ -468,14 +489,16 @@ export async function confirmarImportacionLegajos() {
   if (fallos.length > 0) {
     const detalle = fallos.map(x => 'N°' + x.nro + ' ' + x.nombre + ': ' + x.error).join(' | ');
     toast('⚠️ ' + importados + ' importado(s), ' + fallos.length + ' no se pudieron guardar — ' + detalle);
-    const resEl = $('imp-leg-resumen');
     if (resEl) {
       resEl.innerHTML = importados + ' importado(s) correctamente.<br>'
         + '<span style="color:#dc2626;">' + fallos.length + ' con error del servidor:</span><br>'
         + fallos.map(x => '• N° ' + x.nro + ' — ' + x.nombre + ' (DNI ' + x.dni + '): ' + x.error).join('<br>');
     }
+    if (btn) { btn.disabled = false; btn.textContent = '✅ Confirmar importación'; }
+    _importando = false;
   } else {
     toast('✅ ' + importados + ' legajo(s) importado(s) correctamente');
+    _importando = false;
     abrirImportadorLegajos();
   }
 }
