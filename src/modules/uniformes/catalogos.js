@@ -20,15 +20,27 @@ export const ESTADOS_UNIFORMES = [
 
 export const ESTADOS_FINALES = ['Cerrado', 'Rechazado por RRHH', 'Cancelado por Solicitante', 'Descuento aplicado por incumplimiento'];
 
-export const PRENDAS = ['Chomba', 'Grafa', 'Ambo', 'Polar', 'Campera', 'Zapatos'];
+// + Buzo, Gorra (ticket "Uniforme" de Altas, 08/2026): faltaban en el
+// catálogo — el resto de las prendas pedidas (Chomba, Grafa/pantalón,
+// Campera) ya estaban acá.
+export const PRENDAS = ['Chomba', 'Grafa', 'Ambo', 'Polar', 'Campera', 'Zapatos', 'Buzo', 'Gorra'];
 
 export const TALLES_POR_PRENDA = {
   Chomba: ['S', 'M', 'L', 'XL', 'XXL', 'XXXL', 'XXXXL'],
   Ambo: ['S', 'M', 'L', 'XL', 'XXL', 'XXXL', 'XXXXL'],
   Polar: ['S', 'M', 'L', 'XL', 'XXL', 'XXXL', 'XXXXL'],
   Campera: ['S', 'M', 'L', 'XL', 'XXL', 'XXXL', 'XXXXL'],
+  Buzo: ['S', 'M', 'L', 'XL', 'XXL', 'XXXL', 'XXXXL'],
+  // Grafa ya venía de 2 en 2 desde antes de este ticket (era la duda que
+  // planteaba: "verificar si van de 2 en 2 o de 1 en 1") — se mantiene
+  // el mismo criterio ya usado acá, no uno nuevo.
   Grafa: ['36', '38', '40', '42', '44', '46', '48', '50', '52', '54', '56', '58', '60', '62'],
   Zapatos: ['35', '36', '37', '38', '39', '40', '41', '42', '43', '44', '45', '46'],
+  // Talle único: se modela como una lista de una sola opción (en vez de
+  // un caso especial en cada pantalla que lee TALLES_POR_PRENDA) — así
+  // Gorra funciona igual que cualquier otra prenda en los selects
+  // existentes (Uniformes → Precios/Pedidos) sin código nuevo ahí.
+  Gorra: ['Único'],
 };
 
 export const MOTIVOS_SIN_DESCUENTO = ['Ingreso', 'Segunda muda', 'Renovación', 'Reubicación', 'Robo con denuncia', 'Camperas-Polar-Calzado inicial'];

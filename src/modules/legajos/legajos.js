@@ -2,6 +2,7 @@ import { DB, currentUser } from '@shared/state.js';
 import { $, avatarEl, badge, fillSelect } from '@shared/helpers.js';
 import { toast, abrirModal, cerrarModal } from '@shared/ui.js';
 import { supaSync, supaDel, getLastSupaSyncError } from '@shared/supabase.js';
+import { TALLES_POR_PRENDA } from '@modules/uniformes/catalogos.js';
 import { listarAdjuntos, obtenerUrlFirmada, TIPO_LEGIBLE } from '@shared/adjuntos.js';
 import { calcularEstadoVencimiento } from '../documentacion/documentacion.js';
 
@@ -188,6 +189,8 @@ export function verLegajo(nro) {
       <div class="info-item"><div class="key">Fecha baja</div><div class="val">${l.fechaBaja || '—'}</div></div>
       <div class="info-item"><div class="key">Estado legal</div><div class="val">${l.estadoLegal ? badge(l.estadoLegal) : 'Sin situación legal'}</div></div>
       <div class="info-item"><div class="key">Seguro</div><div class="val">${badge(l.seguro === 'Completo' ? 'Completo' : 'Pendiente')}</div></div>
+      <div class="info-item"><div class="key">Ambo / Calzado</div><div class="val">${l.ambo || '—'} / ${l.calzado || '—'}</div></div>
+      <div class="info-item"><div class="key">Uniforme (chomba/grafa/buzo/campera/gorra)</div><div class="val">${['chomba', 'grafa', 'buzo', 'campera', 'gorra'].map(k => (l.tallesUniforme || {})[k] || '—').join(' / ')}</div></div>
     </div>
     <div style="margin-top:16px;">
       <div class="form-section">💸 Descuentos por uniforme</div>
@@ -395,6 +398,17 @@ export function editarLegajoActual() {
   $('edit-supervisor').value = l.supervisor;
   $('edit-estado').value = l.estado;
   $('edit-calzado').value = l.calzado || '';
+  // Chomba/Grafa(pantalón)/Buzo/Campera/Gorra (ticket "Uniforme" 08/2026)
+  // — viven en l.tallesUniforme (jsonb), clave en minúscula. Igual que
+  // edit-funcion/edit-sector, las opciones se pueblan acá con
+  // TALLES_POR_PRENDA en vez de quedar fijas en el HTML, para no
+  // mantener 2 listas de talles por prenda en el proyecto.
+  const tu = l.tallesUniforme || {};
+  [['edit-talle-chomba', 'Chomba', 'chomba'], ['edit-talle-grafa', 'Grafa', 'grafa'], ['edit-talle-buzo', 'Buzo', 'buzo'],
+   ['edit-talle-campera', 'Campera', 'campera'], ['edit-talle-gorra', 'Gorra', 'gorra']].forEach(([id, prenda, key]) => {
+    fillSelect(id, TALLES_POR_PRENDA[prenda]);
+    const el = $(id); if (el) el.value = tu[key] || '';
+  });
   const fechaBajaEl = $('edit-fecha-baja');
   if (fechaBajaEl) fechaBajaEl.value = l.fechaBaja ? l.fechaBaja.split('/').reverse().join('-') : '';
   const estLegalEl = $('edit-estado-legal');
@@ -451,6 +465,17 @@ export function guardarEdicionLegajo() {
   l.estado = $('edit-estado').value;
   l.calzado = parseInt($('edit-calzado').value) || l.calzado;
   l.ambo = $('edit-ambo').value;
+  // Chomba/Grafa(pantalón)/Buzo/Campera/Gorra — a diferencia de
+  // confirmarAlta() (altas.js), acá SÍ puede haber un valor previo
+  // (edición de un legajo ya cargado): un select vacío borra la clave en
+  // vez de dejarla con el dato viejo colgado.
+  l.tallesUniforme = { ...(l.tallesUniforme || {}) };
+  [['edit-talle-chomba', 'chomba'], ['edit-talle-grafa', 'grafa'], ['edit-talle-buzo', 'buzo'],
+   ['edit-talle-campera', 'campera'], ['edit-talle-gorra', 'gorra']].forEach(([id, key]) => {
+    const v = ($(id) || { value: '' }).value;
+    if (v) l.tallesUniforme[key] = v;
+    else delete l.tallesUniforme[key];
+  });
   l.seguro = $('edit-seguro').value === 'Completo' ? 'Completo' : 'Pendiente';
   const fb = $('edit-fecha-baja');
   if (fb && fb.value) { l.fechaBaja = new Date(fb.value).toLocaleDateString('es-AR'); }

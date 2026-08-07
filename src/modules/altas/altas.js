@@ -5,6 +5,7 @@ import { toast, abrirModal, cerrarModal } from '@shared/ui.js';
 import { supaSync } from '@shared/supabase.js';
 import { subirAdjunto, listarAdjuntos, obtenerUrlFirmada, borrarAdjunto, MAX_SIZE } from '@shared/adjuntos.js';
 import { SECTORES_ADMIN } from '@modules/legajos/index.js';
+import { TALLES_POR_PRENDA } from '@modules/uniformes/catalogos.js';
 
 // ========== ESTADO INTERNO ==========
 
@@ -210,6 +211,19 @@ function crearHTMLModalAlta() {
             '<div class="form-group"><label>Talle de ambo *</label><select id="alt-ambo" style="width:100%;padding:8px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;"><option value="">Seleccionar...</option><option>S</option><option>M</option><option>L</option><option>XL</option><option>XXL</option><option>XXXL</option><option>4XL</option><option>5XL</option></select></div>',
             '<div class="form-group"><label>Talle de calzado *</label><input type="number" id="alt-calzado" min="34" max="48"></div>',
           '</div>',
+          // Chomba/Grafa(pantalón)/Buzo/Campera/Gorra (ticket "Uniforme"
+          // 08/2026) — opcionales (a diferencia de ambo/calzado, que ya
+          // eran obligatorios antes de este ticket y se dejan igual).
+          // Talles vía TALLES_POR_PRENDA (uniformes/catalogos.js), mismo
+          // catálogo que usa el módulo Uniformes — una sola fuente de
+          // verdad en vez de repetir listas de talles acá.
+          '<div class="form-grid form-grid-2" style="margin-top:8px;">',
+            '<div class="form-group"><label>Talle de chomba</label><select id="alt-talle-chomba" style="width:100%;padding:8px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;"><option value="">Seleccionar...</option>' + TALLES_POR_PRENDA.Chomba.map(t => '<option>' + t + '</option>').join('') + '</select></div>',
+            '<div class="form-group"><label>Talle de pantalón (grafa)</label><select id="alt-talle-grafa" style="width:100%;padding:8px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;"><option value="">Seleccionar...</option>' + TALLES_POR_PRENDA.Grafa.map(t => '<option>' + t + '</option>').join('') + '</select></div>',
+            '<div class="form-group"><label>Talle de buzo</label><select id="alt-talle-buzo" style="width:100%;padding:8px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;"><option value="">Seleccionar...</option>' + TALLES_POR_PRENDA.Buzo.map(t => '<option>' + t + '</option>').join('') + '</select></div>',
+            '<div class="form-group"><label>Talle de campera</label><select id="alt-talle-campera" style="width:100%;padding:8px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;"><option value="">Seleccionar...</option>' + TALLES_POR_PRENDA.Campera.map(t => '<option>' + t + '</option>').join('') + '</select></div>',
+            '<div class="form-group"><label>Gorra</label><select id="alt-talle-gorra" style="width:100%;padding:8px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;"><option value="">Seleccionar...</option>' + TALLES_POR_PRENDA.Gorra.map(t => '<option>' + t + '</option>').join('') + '</select></div>',
+          '</div>',
         '</div>',
         // Tab 4 — Capital
         '<div id="alta-section-4" style="display:none;">',
@@ -309,7 +323,8 @@ export function abrirModalAlta(psicoIdx, altaId) {
 
   // Resetear selects
   ['alt-estado-civil', 'alt-genero', 'alt-nac', 'alt-zona', 'alt-localidad', 'alt-funcion', 'alt-categoria',
-   'alt-servicio', 'alt-sector', 'alt-ambo', 'alt-forma-pago', 'alt-seguro'].forEach(id => {
+   'alt-servicio', 'alt-sector', 'alt-ambo', 'alt-forma-pago', 'alt-seguro',
+   'alt-talle-chomba', 'alt-talle-grafa', 'alt-talle-buzo', 'alt-talle-campera', 'alt-talle-gorra'].forEach(id => {
     const el = $(id); if (el) el.selectedIndex = 0;
   });
   // Poblar selects de función y categoría
@@ -665,6 +680,23 @@ export function confirmarAlta() {
   const periodoPrueba = parseInt(($('alt-periodo-prueba') || {}).value) || 6;
   const calzado = parseInt(($('alt-calzado') || {}).value) || 0;
   const ambo = ($('alt-ambo') || {}).value || '';
+  // Chomba/Grafa(pantalón)/Buzo/Campera/Gorra (ticket "Uniforme" 08/2026)
+  // — opcionales, se guardan en legajo.tallesUniforme (jsonb) con clave
+  // en minúscula, mismo formato que ya lee talleSugerido() en
+  // uniformes/catalogos.js. Sólo se agrega la clave si el talle se
+  // cargó — así un legajo viejo sin estos campos sigue viendo
+  // tallesUniforme sin claves basura en blanco.
+  const tallesUniforme = {};
+  const talleChomba = ($('alt-talle-chomba') || {}).value || '';
+  const talleGrafa = ($('alt-talle-grafa') || {}).value || '';
+  const talleBuzo = ($('alt-talle-buzo') || {}).value || '';
+  const talleCampera = ($('alt-talle-campera') || {}).value || '';
+  const talleGorra = ($('alt-talle-gorra') || {}).value || '';
+  if (talleChomba) tallesUniforme.chomba = talleChomba;
+  if (talleGrafa) tallesUniforme.grafa = talleGrafa;
+  if (talleBuzo) tallesUniforme.buzo = talleBuzo;
+  if (talleCampera) tallesUniforme.campera = talleCampera;
+  if (talleGorra) tallesUniforme.gorra = talleGorra;
   const seguro = ($('alt-seguro') || {}).value || 'Pendiente';
   // Campos agregados (v005): leer del modal para persistir en el legajo
   const direccion = cleanText(($('alt-direccion') || {}).value || '');
@@ -739,6 +771,11 @@ export function confirmarAlta() {
     banco,
     calzado,
     ambo,
+    // Sólo se manda la clave si hay al menos un talle cargado — no pisa
+    // con {} un tallesUniforme que ya pueda existir en otro flujo (no
+    // aplica hoy en altas nuevas, pero deja la puerta abierta sin
+    // sorpresas si en el futuro se precarga desde otro lado).
+    ...(Object.keys(tallesUniforme).length ? { tallesUniforme } : {}),
     periodoPrueba,
     fechaIngresoPrueba: fechaIngreso,
     adjuntosLegal: [],
@@ -785,7 +822,7 @@ export function confirmarAlta() {
       altaReg.identificacion = { nombre, dni, cuit, tel, mail, estadoCivil, nac, genero, fecNac, fechaIngreso: fIngreso };
       altaReg.domicilio = { direccion, zona, localidad, partido, codigoPostal };
       altaReg.operativo = { funcion, servicio, supervisor, periodoPrueba, categoria };
-      altaReg.uniforme = { ambo, calzado };
+      altaReg.uniforme = { ambo, calzado, ...tallesUniforme };
       altaReg.capital = { integracion, formaPago };
       altaReg.seguros = { seguro, polizas, obraSocial, obraSocialInicioTramite };
       altaReg.cuentaBancaria = { banco, cbu };
