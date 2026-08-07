@@ -770,14 +770,23 @@ export async function supaSync(dbKey, obj) {
   }
 }
 
-// Eliminar un registro por id_local
+// Eliminar un registro por id_local. Devuelve true/false — igual que
+// supaSync, la mayoría de los llamadores históricos lo ignoran
+// (fire-and-forget), pero los que necesitan confirmar un borrado
+// destructivo (ej. eliminarLegajoActual) pueden chequear el resultado y
+// leer getLastSupaSyncError() para un mensaje específico.
 export async function supaDel(dbKey, idLocal) {
   const tabla = _SM[dbKey];
-  if (!tabla) return;
+  _lastSupaSyncError = null;
+  if (!tabla) return false;
   try {
-    await SUPA.from(tabla).delete().eq('id_local', String(idLocal));
+    const { error } = await SUPA.from(tabla).delete().eq('id_local', String(idLocal));
+    if (error) { console.warn('supaDel error:', tabla, error.message); _lastSupaSyncError = error; return false; }
+    return true;
   } catch (e) {
-    console.warn('supaDel error:', e.message);
+    console.warn('supaDel error:', tabla, e.message);
+    _lastSupaSyncError = e;
+    return false;
   }
 }
 

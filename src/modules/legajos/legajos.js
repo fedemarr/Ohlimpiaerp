@@ -1,7 +1,7 @@
 import { DB, currentUser } from '@shared/state.js';
 import { $, avatarEl, badge, fillSelect } from '@shared/helpers.js';
 import { toast, abrirModal, cerrarModal } from '@shared/ui.js';
-import { supaSync } from '@shared/supabase.js';
+import { supaSync, supaDel, getLastSupaSyncError } from '@shared/supabase.js';
 import { listarAdjuntos, obtenerUrlFirmada, TIPO_LEGIBLE } from '@shared/adjuntos.js';
 import { calcularEstadoVencimiento } from '../documentacion/documentacion.js';
 
@@ -479,6 +479,42 @@ export function guardarEdicionLegajo() {
   cerrarModal('modal-editar-legajo');
   renderLegajos();
   toast('✓ Legajo actualizado');
+}
+
+// ========== ELIMINAR ==========
+// Borrado real (no "dar de baja" — eso ya existe vía Editar → Estado y es
+// la acción correcta para un asociado que deja la cooperativa; esto es
+// para sacar del sistema un legajo que no debería existir, ej. un error
+// de carga o un duplicado del importador CSV). Pide confirmación con
+// nombre y N° de socio de por medio porque no tiene vuelta atrás.
+//
+// No borra en cascada reasignaciones/capacitaciones/sanciones/casos
+// legales o médicos/adjuntos vinculados por dni o N° de socio — quedan
+// huérfanos (referencian un legajo que ya no existe) pero no rompen nada
+// porque esos módulos ya toleran no encontrar el legajo. Si hace falta
+// una limpieza completa en cascada, es un pedido aparte.
+export async function eliminarLegajoActual() {
+  const l = DB.legajos.find(x => x.nro === legajoActualNro);
+  if (!l) return;
+  if (!confirm(
+    '¿Eliminar definitivamente el legajo N° ' + l.nro + ' — ' + l.nombre + ' (DNI ' + l.dni + ')?\n\n'
+    + 'Esto borra el legajo del sistema, no es lo mismo que dar de baja. No se puede deshacer.\n'
+    + 'Si lo que querés es registrar que dejó la cooperativa, cancelá esto y usá "Editar → Estado: Baja" en su lugar.'
+  )) return;
+
+  const idLocal = String(l.nro);
+  const ok = await supaDel('legajos', idLocal);
+  if (!ok) {
+    const err = getLastSupaSyncError();
+    toast('⚠️ No se pudo eliminar en el servidor' + (err?.message ? ' (' + err.message + ')' : '') + ' — reintentá o avisá a sistemas');
+    return;
+  }
+  const idx = DB.legajos.findIndex(x => x.nro === legajoActualNro);
+  if (idx >= 0) DB.legajos.splice(idx, 1);
+  legajoActualNro = null;
+  cerrarModal('modal-legajo');
+  renderLegajos();
+  toast('🗑️ Legajo eliminado');
 }
 
 // ========== IMPRIMIR ==========

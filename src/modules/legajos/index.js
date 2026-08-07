@@ -4,7 +4,7 @@ export {
   calcularPrueba,
   renderLegajos, filtrarLegajos,
   verLegajo, tabLeg,
-  editarLegajoActual, guardarEdicionLegajo,
+  editarLegajoActual, guardarEdicionLegajo, eliminarLegajoActual,
   imprimirLegajo,
   verAdjuntoLegajo,
   SECTORES_ADMIN, toggleSeccionVacacionesLegajo,
@@ -33,7 +33,7 @@ export const legajosScreenConfig = {
 
 import {
   filtrarLegajos, verLegajo, tabLeg,
-  editarLegajoActual, guardarEdicionLegajo,
+  editarLegajoActual, guardarEdicionLegajo, eliminarLegajoActual,
   imprimirLegajo,
   verAdjuntoLegajo,
   toggleSeccionVacacionesLegajo,
@@ -50,6 +50,7 @@ window.verLegajo = verLegajo;
 window.tabLeg = tabLeg;
 window.editarLegajoActual = editarLegajoActual;
 window.guardarEdicionLegajo = guardarEdicionLegajo;
+window.eliminarLegajoActual = eliminarLegajoActual;
 window.imprimirLegajo = imprimirLegajo;
 window.verAdjuntoLegajo = verAdjuntoLegajo;
 window.toggleSeccionVacacionesLegajo = toggleSeccionVacacionesLegajo;
