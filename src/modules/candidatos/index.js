@@ -10,7 +10,7 @@ export {
   registrarAsistencia, desmarcarAsistenciaPorId,
   getCandById, getIdxById,
   abrirDetalleCandidatoPorId,
-  abrirBajaCandidatoPorId, confirmarBajaCandidato,
+  abrirBajaCandidatoPorId, confirmarBajaCandidato, onChangeEstadoBajaCand,
 } from './candidatos.js';
 
 export {
@@ -84,7 +84,7 @@ import {
   aprobarCandidatoPorId, rechazarCandidatoPorId, pasarAPsicoPorId,
   registrarAsistencia, desmarcarAsistenciaPorId,
   abrirDetalleCandidatoPorId,
-  abrirBajaCandidatoPorId, confirmarBajaCandidato,
+  abrirBajaCandidatoPorId, confirmarBajaCandidato, onChangeEstadoBajaCand,
 } from './candidatos.js';
 
 import {
@@ -126,6 +126,7 @@ window.desmarcarAsistenciaPorId = desmarcarAsistenciaPorId;
 window.abrirDetalleCandidatoPorId = abrirDetalleCandidatoPorId;
 window.abrirBajaCandidatoPorId = abrirBajaCandidatoPorId;
 window.confirmarBajaCandidato = confirmarBajaCandidato;
+window.onChangeEstadoBajaCand = onChangeEstadoBajaCand;
 
 // Calendario de entrevistas
 window.renderCalendario = renderCalendario;

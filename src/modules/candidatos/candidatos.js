@@ -1,5 +1,5 @@
 import { DB, LOCALIDADES_BA, BARRIOS_CABA, PARTIDOS_LOCALIDADES, LOCALIDAD_A_PARTIDO, currentUser } from '@shared/state.js';
-import { $, toTitleCase, cleanText, validarCampos, badge } from '@shared/helpers.js';
+import { $, toTitleCase, cleanText, validarCampos, badge, hoyStr } from '@shared/helpers.js';
 import { toast, abrirModal, cerrarModal, abrirModalInput } from '@shared/ui.js';
 import { supaSync, getLastSupaSyncError } from '@shared/supabase.js';
 
@@ -20,6 +20,12 @@ const ESTADO_DISPLAY = {
 // y guarda el detalle en motivoRechazo (mismo campo que ya se mostraba en la
 // columna "Motivo" para Rechazado).
 const ESTADOS_BAJA = ['Baja', 'Caducado', 'MT Social', 'MT con deuda'];
+
+// Categorías del motivo — sólo aplican al estado "Baja" puntual (ticket
+// "Histórico 2"): Caducado/MT Social/MT con deuda ya son categorías en sí
+// mismas, no necesitan esta sub-clasificación. CHECK en sql/v064 en vez de
+// enum nuevo — agregar una opción a futuro es un ALTER TABLE simple.
+const TIPOS_MOTIVO_BAJA = ['Consiguió trabajo', 'Rechazó propuesta', 'No se presentó a instancia del proceso', 'Otro'];
 
 // id_local se trunca a 9 dígitos al persistir (supaSync) y, al releer
 // desde Supabase, _toCamel reemplaza candidato.id por ese id_local
@@ -200,6 +206,19 @@ function renderFilaCand(c) {
     btns += '<button data-action="dar-baja" data-id="' + cid + '" style="' + btnStyle + 'background:#f1f5f9;color:#475569;" title="Baja / Caducado / MT Social / MT con deuda">📁 Baja</button>';
   }
 
+  // Columna "Motivo": para Baja se muestra el tipo + fecha (ticket "Histórico
+  // 2") en vez del texto libre crudo — el detalle aclaratorio (motivoRechazo)
+  // queda como tooltip al pasar el mouse, así no satura la tabla ni rompe el
+  // layout con textos largos. Para los demás estados sigue igual que antes.
+  let motivoColor = '#dc2626';
+  let motivoCell = c.motivoRechazo || '—';
+  if (c.estado === 'Baja' && c.tipoMotivoBaja) {
+    motivoColor = '#475569';
+    const fechaBajaDisplay = formatearFechaISO(c.fechaBaja);
+    const tooltip = c.motivoRechazo ? c.motivoRechazo.replace(/"/g, '&quot;') : '';
+    motivoCell = '<span title="' + tooltip + '">🏷️ ' + c.tipoMotivoBaja + (fechaBajaDisplay ? ' · ' + fechaBajaDisplay : '') + '</span>';
+  }
+
   return '<tr style="border-bottom:1px solid #e2e8f0;">'
     + '<td style="padding:8px 12px;font-size:13px;"><strong>' + nombreCompleto + '</strong></td>'
     + '<td style="padding:8px;font-size:12px;color:#64748b;">' + (c.dni || '—') + '</td>'
@@ -216,7 +235,7 @@ function renderFilaCand(c) {
         + '</select>'
       : (c.asistio === 'si' ? '✅' : c.asistio === 'no' ? '❌' : '—')) + '</td>'
     + '<td style="padding:8px;text-align:center;"><span style="font-size:11px;font-weight:600;color:' + ec + '">' + estadoDisplay + '</span></td>'
-    + '<td style="padding:8px;font-size:12px;color:#dc2626;">' + (c.motivoRechazo || '—') + '</td>'
+    + '<td style="padding:8px;font-size:12px;color:' + motivoColor + ';">' + motivoCell + '</td>'
     + '<td style="padding:8px;text-align:center;">' + btns + '</td>'
     + '</tr>';
 }
@@ -601,6 +620,8 @@ export function abrirDetalleCandidatoPorId(id) {
     item('Medio de contacto', c.medio) +
     item('Referido por', c.nombreReferido) +
     item('Estado', ESTADO_DISPLAY[c.estado] || c.estado) +
+    (c.estado === 'Baja' ? item('Motivo de baja', c.tipoMotivoBaja + (c.fechaBaja ? ' — ' + formatearFechaISO(c.fechaBaja) : '')) : '') +
+    (c.estado === 'Baja' && c.motivoRechazo ? item('Detalle del motivo', c.motivoRechazo) : '') +
     item('Observaciones', c.obs);
   abrirModal('modal-ver-candidato');
 }
@@ -842,14 +863,29 @@ function crearHTMLModalBajaCand() {
       '<div class="modal-body">',
         '<input type="hidden" id="baja-cand-id">',
         '<div id="baja-cand-nombre" style="font-weight:600;margin-bottom:10px;"></div>',
-        '<div class="form-group"><label>Estado</label><select id="baja-cand-estado" style="width:100%;padding:8px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;">',
+        '<div class="form-group"><label>Estado</label><select id="baja-cand-estado" onchange="onChangeEstadoBajaCand()" style="width:100%;padding:8px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;">',
           ESTADOS_BAJA.map(e => '<option>' + e + '</option>').join(''),
         '</select></div>',
+        // Sólo se muestra para estado "Baja" (ver onChangeEstadoBajaCand) —
+        // Caducado/MT Social/MT con deuda ya son la categoría en sí.
+        '<div id="baja-cand-tipo-row" style="display:none;">',
+          '<div class="form-group" style="margin-top:8px;"><label>Tipo de motivo</label><select id="baja-cand-tipo" style="width:100%;padding:8px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;"><option value="">Seleccionar...</option>',
+            TIPOS_MOTIVO_BAJA.map(t => '<option>' + t + '</option>').join(''),
+          '</select></div>',
+          '<div class="form-group" style="margin-top:8px;"><label>Fecha</label><input type="date" id="baja-cand-fecha" style="width:100%;padding:8px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;box-sizing:border-box;"></div>',
+        '</div>',
         '<div class="form-group" style="margin-top:8px;"><label>Motivo / detalle</label><textarea id="baja-cand-motivo" rows="3" style="width:100%;padding:8px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;box-sizing:border-box;"></textarea></div>',
       '</div>',
       '<div class="modal-footer"><button class="btn btn-secondary" onclick="cerrarModal(\'modal-baja-cand\')">Cancelar</button><button class="btn btn-danger" onclick="confirmarBajaCandidato()">Confirmar</button></div>',
     '</div>',
   ].join('');
+}
+
+export function onChangeEstadoBajaCand() {
+  const sel = $('baja-cand-estado');
+  const row = $('baja-cand-tipo-row');
+  if (!sel || !row) return;
+  row.style.display = sel.value === 'Baja' ? 'block' : 'none';
 }
 
 export function abrirBajaCandidatoPorId(id) {
@@ -865,7 +901,10 @@ export function abrirBajaCandidatoPorId(id) {
   $('baja-cand-id').value = id;
   $('baja-cand-nombre').textContent = (c.apellido ? c.apellido + ', ' : '') + (c.nombre || '');
   $('baja-cand-estado').selectedIndex = 0;
+  $('baja-cand-tipo').value = c.tipoMotivoBaja || '';
+  $('baja-cand-fecha').value = c.fechaBaja || hoyStr();
   $('baja-cand-motivo').value = '';
+  onChangeEstadoBajaCand();
   abrirModal('modal-baja-cand');
 }
 
@@ -874,9 +913,21 @@ export async function confirmarBajaCandidato() {
   if (!c) { toast('⚠️ Candidato no encontrado'); return; }
   const estadoNuevo = $('baja-cand-estado').value;
   const motivo = cleanText($('baja-cand-motivo').value || '');
-  const snapshot = { estado: c.estado, motivoRechazo: c.motivoRechazo };
+
+  let tipoMotivoBaja = null;
+  let fechaBaja = null;
+  if (estadoNuevo === 'Baja') {
+    tipoMotivoBaja = $('baja-cand-tipo').value || '';
+    if (!tipoMotivoBaja) { toast('⚠️ Seleccioná el tipo de motivo'); return; }
+    fechaBaja = $('baja-cand-fecha').value || '';
+    if (!fechaBaja) { toast('⚠️ Ingresá la fecha'); return; }
+  }
+
+  const snapshot = { estado: c.estado, motivoRechazo: c.motivoRechazo, tipoMotivoBaja: c.tipoMotivoBaja, fechaBaja: c.fechaBaja };
   c.estado = estadoNuevo;
   c.motivoRechazo = motivo;
+  c.tipoMotivoBaja = tipoMotivoBaja;
+  c.fechaBaja = fechaBaja;
   const ok = await supaSync('candidatos', c);
   if (!ok) {
     Object.assign(c, snapshot);
