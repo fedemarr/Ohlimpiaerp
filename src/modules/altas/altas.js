@@ -1,4 +1,4 @@
-import { DB, LOCALIDADES_BA, BARRIOS_CABA } from '@shared/state.js';
+import { DB, LOCALIDADES_BA, BARRIOS_CABA, PARTIDOS_LOCALIDADES, LOCALIDAD_A_PARTIDO } from '@shared/state.js';
 import { getSupervisorDeCodigo } from '@modules/servicios_supervisor/index.js';
 import { $, avatarEl, badge, cleanText, toTitleCase, validarCampos, fillSelect, applyTitleCase } from '@shared/helpers.js';
 import { toast, abrirModal, cerrarModal } from '@shared/ui.js';
@@ -114,20 +114,64 @@ export function onChangeServicioAlta() {
 
 // ========== ZONA ==========
 
+// Ticket "Corrección" (08/2026): el select "Localidad" mostraba
+// LOCALIDADES_BA — que a pesar del nombre es la lista de los 41 PARTIDOS
+// de la provincia (ver el comentario en state.js, arriba de
+// PARTIDOS_LOCALIDADES) — mientras que "Partido" era un input de texto
+// libre sin ninguna relación con eso. En los hechos: se estaba mostrando
+// el partido adentro del campo Localidad, y Localidad (la ciudad/barrio
+// real dentro del partido) no se pedía en ningún lado.
+//
+// Mismo cascade Zona → Partido → Localidad que ya se armó para Candidatos
+// (candidatos.js, onChangeZonaCand/onChangePartidoCand/onChangeLocalidadCand)
+// — se replica acá en vez de compartir función porque los ids de los
+// campos son distintos (alt-* vs c-*) y el de Candidatos ya tiene su
+// propia lógica de zonas de residencia (Norte/Sur/Oeste) que Altas no usa
+// (acá "Provincia" es solo CABA / Buenos Aires).
+const TODAS_LAS_LOCALIDADES_ALTA = Object.keys(LOCALIDAD_A_PARTIDO).sort((a, b) => a.localeCompare(b, 'es'));
+
 export function onChangeZonaAlta() {
   const zona = $('alt-zona');
+  const part = $('alt-partido');
   const loc = $('alt-localidad');
-  if (!zona || !loc) return;
+  if (!zona || !part || !loc) return;
   if (zona.value === 'CABA') {
+    part.innerHTML = '<option value="">No aplica (CABA)</option>';
+    part.disabled = true; part.style.opacity = '0.6';
     loc.disabled = false; loc.style.opacity = '1';
     loc.innerHTML = '<option value="">Seleccionar barrio...</option>' + BARRIOS_CABA.map(b => '<option>' + b + '</option>').join('');
   } else if (zona.value === 'Buenos Aires') {
+    part.disabled = false; part.style.opacity = '1';
+    part.innerHTML = '<option value="">Seleccionar...</option>' + LOCALIDADES_BA.map(l => '<option>' + l + '</option>').join('');
     loc.disabled = false; loc.style.opacity = '1';
-    loc.innerHTML = '<option value="">Seleccionar...</option>' + LOCALIDADES_BA.map(l => '<option>' + l + '</option>').join('');
+    loc.innerHTML = '<option value="">Seleccionar...</option>' + TODAS_LAS_LOCALIDADES_ALTA.map(l => '<option>' + l + '</option>').join('');
   } else {
+    part.innerHTML = '<option value="">Seleccionar zona primero</option>';
+    part.disabled = true; part.style.opacity = '0.6';
     loc.innerHTML = '<option value="">Seleccionar zona primero</option>';
     loc.disabled = true; loc.style.opacity = '0.6';
   }
+}
+
+// Elegiste la Localidad directamente (sin pasar por Partido primero) —
+// autocompleta el Partido a partir de LOCALIDAD_A_PARTIDO.
+export function onChangeLocalidadAlta() {
+  const loc = $('alt-localidad');
+  const part = $('alt-partido');
+  if (!loc || !part || part.disabled) return; // CABA: no hay partido que completar
+  const partido = LOCALIDAD_A_PARTIDO[loc.value];
+  if (partido) part.value = partido;
+}
+
+export function onChangePartidoAlta() {
+  const part = $('alt-partido');
+  const loc = $('alt-localidad');
+  if (!part || !loc) return;
+  const localidades = PARTIDOS_LOCALIDADES[part.value];
+  // Sin partido elegido (volvió a "Seleccionar..."): vuelve a mostrar
+  // todas las localidades del conurbano, no las deshabilita.
+  loc.disabled = false; loc.style.opacity = '1';
+  loc.innerHTML = '<option value="">Seleccionar...</option>' + (localidades || TODAS_LAS_LOCALIDADES_ALTA).map(l => '<option>' + l + '</option>').join('');
 }
 
 // ========== MODAL DINÁMICO ==========
@@ -191,8 +235,8 @@ function crearHTMLModalAlta() {
           '<div class="form-grid form-grid-2">',
             '<div class="form-group" style="grid-column:1/-1;"><label>Dirección *</label><input type="text" id="alt-direccion" onblur="applyTitleCase(\'alt-direccion\')"></div>',
             '<div class="form-group"><label>Provincia *</label><select id="alt-zona" onchange="onChangeZonaAlta()" style="width:100%;padding:8px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;"><option value="">Seleccionar...</option><option value="CABA">CABA</option><option value="Buenos Aires">Provincia de Buenos Aires</option></select></div>',
-            '<div class="form-group"><label>Localidad</label><select id="alt-localidad" style="width:100%;padding:8px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;"><option value="">Seleccionar zona primero</option></select></div>',
-            '<div class="form-group"><label>Partido</label><input type="text" id="alt-partido" style="width:100%;padding:8px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;"></div>',
+            '<div class="form-group"><label>Partido</label><select id="alt-partido" onchange="onChangePartidoAlta()" style="width:100%;padding:8px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;"><option value="">Seleccionar zona primero</option></select></div>',
+            '<div class="form-group"><label>Localidad</label><select id="alt-localidad" onchange="onChangeLocalidadAlta()" style="width:100%;padding:8px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;"><option value="">Seleccionar zona primero</option></select></div>',
             '<div class="form-group"><label>Código Postal</label><input type="text" id="alt-cod-postal" style="width:100%;padding:8px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;"></div>',
           '</div>',
         '</div>',
@@ -320,7 +364,7 @@ export function abrirModalAlta(psicoIdx, altaId) {
 
   // Limpiar todos los campos
   ['alt-nombre', 'alt-dni', 'alt-cuit', 'alt-clave-fiscal', 'alt-fecnac', 'alt-tel', 'alt-mail',
-   'alt-fec-ingreso', 'alt-reingresante-dni', 'alt-direccion', 'alt-partido', 'alt-cod-postal',
+   'alt-fec-ingreso', 'alt-reingresante-dni', 'alt-direccion', 'alt-cod-postal',
    'alt-banco', 'alt-cbu', 'alt-calzado', 'alt-integracion', 'alt-inaes', 'alt-os-inicio',
    'alt-obra-social', 'alt-supervisor'].forEach(id => {
     const el = $(id); if (el) el.value = '';
@@ -343,6 +387,9 @@ export function abrirModalAlta(psicoIdx, altaId) {
    'alt-talle-chomba', 'alt-talle-grafa', 'alt-talle-buzo', 'alt-talle-campera', 'alt-talle-gorra'].forEach(id => {
     const el = $(id); if (el) el.selectedIndex = 0;
   });
+  // Partido/Localidad al estado "sin zona elegida todavía" — se
+  // reconstruyen de nuevo más abajo si src trae una zona precargada.
+  onChangeZonaAlta();
   // Poblar selects de función y categoría
   poblarSelectsAltas();
 
@@ -384,15 +431,28 @@ export function abrirModalAlta(psicoIdx, altaId) {
     const nacAltEl = $('alt-nac');
     if (nacAltEl && cand && cand.nacionalidad) nacAltEl.value = cand.nacionalidad;
 
-    // Tab 1 — Domicilio (zona y localidad del candidato)
+    // Tab 1 — Domicilio (zona/partido/localidad del candidato) — mismo
+    // criterio de precarga que editarCandidato() en candidatos.js.
     const zona = src.zona || (cand && cand.zona) || '';
     if (zona) {
       const zEl = $('alt-zona');
       if (zEl) { zEl.value = zona; onChangeZonaAlta(); }
-      const localidad = cand && cand.localidad;
-      if (localidad) {
-        const lEl = $('alt-localidad');
-        if (lEl) lEl.value = localidad;
+      const partEl = $('alt-partido');
+      const lEl = $('alt-localidad');
+      if (partEl && !partEl.disabled) {
+        if (cand && cand.partido) {
+          partEl.value = cand.partido;
+          onChangePartidoAlta();
+          if (lEl && cand.localidad) lEl.value = cand.localidad;
+        } else if (cand && PARTIDOS_LOCALIDADES[cand.localidad]) {
+          // Compat con candidatos cargados antes del selector en cascada:
+          // el valor guardado en "localidad" era en realidad el partido.
+          partEl.value = cand.localidad;
+          onChangePartidoAlta();
+        }
+      } else if (lEl && cand && cand.localidad) {
+        // CABA: Localidad = barrio directo, sin partido de por medio.
+        lEl.value = cand.localidad;
       }
     }
   } else {

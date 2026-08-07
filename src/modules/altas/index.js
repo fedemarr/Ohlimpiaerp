@@ -4,7 +4,7 @@ export {
   renderAltas, filtrarAltas, poblarFiltrosColumnasAltas, poblarSelectsAltas,
   abrirModalAlta, confirmarAlta,
   tabAlta, tabAltaSiguiente, tabAltaAnterior,
-  onChangeZonaAlta, onChangeServicioAlta, toggleReingresante, buscarLegajoReingresante,
+  onChangeZonaAlta, onChangePartidoAlta, onChangeLocalidadAlta, onChangeServicioAlta, toggleReingresante, buscarLegajoReingresante,
   agregarFilaPoliza, eliminarFilaPoliza, recalcularInicioObraSocial,
   seleccionarArchivoPolizaAlta, verAdjuntoPolizaAlta, eliminarAdjuntoPolizaAlta,
   seleccionarArchivoConstanciaMtAlta, verAdjuntoConstanciaMtAlta, eliminarAdjuntoConstanciaMtAlta,
@@ -28,7 +28,7 @@ export const altasScreenConfig = {
 import {
   filtrarAltas, confirmarAlta,
   tabAlta, tabAltaSiguiente, tabAltaAnterior,
-  onChangeZonaAlta, onChangeServicioAlta, toggleReingresante, buscarLegajoReingresante,
+  onChangeZonaAlta, onChangePartidoAlta, onChangeLocalidadAlta, onChangeServicioAlta, toggleReingresante, buscarLegajoReingresante,
   agregarFilaPoliza, eliminarFilaPoliza, recalcularInicioObraSocial,
   seleccionarArchivoPolizaAlta, verAdjuntoPolizaAlta, eliminarAdjuntoPolizaAlta,
   seleccionarArchivoConstanciaMtAlta, verAdjuntoConstanciaMtAlta, eliminarAdjuntoConstanciaMtAlta,
@@ -44,6 +44,8 @@ window.tabAlta = tabAlta;
 window.tabAltaSiguiente = tabAltaSiguiente;
 window.tabAltaAnterior = tabAltaAnterior;
 window.onChangeZonaAlta = onChangeZonaAlta;
+window.onChangePartidoAlta = onChangePartidoAlta;
+window.onChangeLocalidadAlta = onChangeLocalidadAlta;
 window.onChangeServicioAlta = onChangeServicioAlta;
 window.toggleReingresante = toggleReingresante;
 window.buscarLegajoReingresante = buscarLegajoReingresante;
