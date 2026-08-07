@@ -11,6 +11,7 @@ export {
   getCandById, getIdxById,
   abrirDetalleCandidatoPorId,
   abrirBajaCandidatoPorId, confirmarBajaCandidato, onChangeEstadoBajaCand,
+  seleccionarArchivoEntrevistaCand, verAdjuntoEntrevistaCand, eliminarAdjuntoEntrevistaCand,
 } from './candidatos.js';
 
 export {
@@ -85,6 +86,7 @@ import {
   registrarAsistencia, desmarcarAsistenciaPorId,
   abrirDetalleCandidatoPorId,
   abrirBajaCandidatoPorId, confirmarBajaCandidato, onChangeEstadoBajaCand,
+  seleccionarArchivoEntrevistaCand, verAdjuntoEntrevistaCand, eliminarAdjuntoEntrevistaCand,
 } from './candidatos.js';
 
 import {
@@ -127,6 +129,9 @@ window.abrirDetalleCandidatoPorId = abrirDetalleCandidatoPorId;
 window.abrirBajaCandidatoPorId = abrirBajaCandidatoPorId;
 window.confirmarBajaCandidato = confirmarBajaCandidato;
 window.onChangeEstadoBajaCand = onChangeEstadoBajaCand;
+window.seleccionarArchivoEntrevistaCand = seleccionarArchivoEntrevistaCand;
+window.verAdjuntoEntrevistaCand = verAdjuntoEntrevistaCand;
+window.eliminarAdjuntoEntrevistaCand = eliminarAdjuntoEntrevistaCand;
 
 // Calendario de entrevistas
 window.renderCalendario = renderCalendario;

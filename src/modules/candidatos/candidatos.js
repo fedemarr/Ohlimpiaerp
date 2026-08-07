@@ -2,6 +2,7 @@ import { DB, LOCALIDADES_BA, BARRIOS_CABA, PARTIDOS_LOCALIDADES, LOCALIDAD_A_PAR
 import { $, toTitleCase, cleanText, validarCampos, badge, hoyStr } from '@shared/helpers.js';
 import { toast, abrirModal, cerrarModal, abrirModalInput } from '@shared/ui.js';
 import { supaSync, getLastSupaSyncError } from '@shared/supabase.js';
+import { subirAdjunto, listarAdjuntos, obtenerUrlFirmada, borrarAdjunto, MAX_SIZE } from '@shared/adjuntos.js';
 
 // ========== ESTADO INTERNO ==========
 
@@ -584,7 +585,18 @@ function crearHTMLModalVerCandidato() {
   return [
     '<div class="modal" style="max-width:640px;">',
       '<div class="modal-header"><h3 id="ver-cand-titulo">Candidato</h3><button class="btn-close" onclick="cerrarModal(\'modal-ver-candidato\')">×</button></div>',
-      '<div class="modal-body"><div id="ver-cand-body" class="info-grid"></div></div>',
+      '<div class="modal-body">',
+        '<div id="ver-cand-body" class="info-grid"></div>',
+        '<input type="hidden" id="ver-cand-dni">',
+        '<div id="ver-cand-adjunto-box" style="margin-top:14px;border:1px dashed #93c5fd;border-radius:8px;padding:12px;background:#eff6ff;">',
+          '<label style="font-weight:600;color:#1e3a8a;">📎 Entrevista (PDF)</label>',
+          '<div id="ver-cand-adjunto-lista" style="margin-top:8px;font-size:13px;color:#64748b;">Cargando…</div>',
+          '<input type="file" id="ver-cand-adjunto-file" accept="application/pdf" style="display:none;" onchange="seleccionarArchivoEntrevistaCand()">',
+          '<div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap;">',
+            '<button type="button" class="btn btn-secondary" onclick="document.getElementById(\'ver-cand-adjunto-file\').click()">⬆️ Subir PDF de la entrevista</button>',
+          '</div>',
+        '</div>',
+      '</div>',
       '<div class="modal-footer"><button class="btn btn-secondary" onclick="cerrarModal(\'modal-ver-candidato\')">Cerrar</button></div>',
     '</div>',
   ].join('');
@@ -623,7 +635,80 @@ export function abrirDetalleCandidatoPorId(id) {
     (c.estado === 'Baja' ? item('Motivo de baja', c.tipoMotivoBaja + (c.fechaBaja ? ' — ' + formatearFechaISO(c.fechaBaja) : '')) : '') +
     (c.estado === 'Baja' && c.motivoRechazo ? item('Detalle del motivo', c.motivoRechazo) : '') +
     item('Observaciones', c.obs);
+  $('ver-cand-dni').value = c.dni || '';
+  cargarAdjuntoEntrevistaCand(c.dni);
   abrirModal('modal-ver-candidato');
+}
+
+// ========== ADJUNTO: PDF de la entrevista ==========
+// Reutiliza el bucket privado + tabla `adjuntos` que ya usan Psicotécnico/
+// Preocupacional/Documentación/Alta (src/shared/adjuntos.js) — etapa
+// 'candidatos', tipo 'entrevista' (sql/v065). Subir un PDF nuevo invalida
+// automáticamente el anterior (mismo comportamiento que el resto de los
+// tipos no-historial en subirAdjunto), así que "reemplazar" es simplemente
+// volver a subir.
+
+async function cargarAdjuntoEntrevistaCand(dni) {
+  const cont = $('ver-cand-adjunto-lista');
+  if (!cont) return;
+  cont.innerHTML = 'Cargando…';
+  const lista = await listarAdjuntos({ dni, etapa: 'candidatos', tipo: 'entrevista' });
+  if (!lista.length) {
+    cont.innerHTML = '<span style="color:#94a3b8;">Sin PDF de entrevista cargado</span>';
+    return;
+  }
+  cont.innerHTML = lista.map(a =>
+    '<div style="display:flex;align-items:center;gap:8px;background:white;border:1px solid #e2e8f0;border-radius:6px;padding:6px 10px;margin-top:4px;">'
+    + '<span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">📄 ' + (a.nombreArchivo || 'Archivo') + '</span>'
+    + '<button type="button" class="btn btn-secondary" style="padding:4px 8px;font-size:12px;" onclick="verAdjuntoEntrevistaCand(\'' + a.url + '\')">👁️ Ver</button>'
+    + '<button type="button" class="btn" style="background:#dc2626;color:white;padding:4px 8px;font-size:12px;" onclick="eliminarAdjuntoEntrevistaCand(\'' + a.id + '\',\'' + dni + '\')">🗑️</button>'
+    + '</div>'
+  ).join('');
+}
+
+export async function seleccionarArchivoEntrevistaCand() {
+  const input = $('ver-cand-adjunto-file');
+  const file = input && input.files && input.files[0];
+  if (!file) return;
+  const dni = ($('ver-cand-dni') || {}).value || '';
+  if (!dni) { toast('⚠️ No se encontró el DNI del candidato'); if (input) input.value = ''; return; }
+  // Validación rápida en cliente (tipo + tamaño) antes de intentar subir —
+  // subirAdjunto() la repite del lado seguro (no confiamos solo en el
+  // accept="application/pdf" del input, que no bloquea nada por sí solo).
+  if (file.type !== 'application/pdf') {
+    toast('⚠️ Solo se acepta PDF');
+    if (input) input.value = '';
+    return;
+  }
+  if (file.size > MAX_SIZE) {
+    toast('⚠️ El archivo (' + (file.size / 1024 / 1024).toFixed(1) + ' MB) supera el límite de 10 MB');
+    if (input) input.value = '';
+    return;
+  }
+  const cont = $('ver-cand-adjunto-lista');
+  if (cont) cont.innerHTML = 'Subiendo…';
+  try {
+    await subirAdjunto({ dni, etapa: 'candidatos', tipo: 'entrevista', file });
+    toast('📎 PDF de la entrevista subido');
+  } catch (e) {
+    toast('⚠️ ' + (e.message || 'Error al subir el archivo'));
+  } finally {
+    if (input) input.value = '';
+  }
+  cargarAdjuntoEntrevistaCand(dni);
+}
+
+export async function verAdjuntoEntrevistaCand(path) {
+  const url = await obtenerUrlFirmada(path);
+  if (!url) { toast('⚠️ No se pudo abrir el archivo'); return; }
+  window.open(url, '_blank');
+}
+
+export async function eliminarAdjuntoEntrevistaCand(id, dni) {
+  if (!confirm('¿Eliminar el PDF de la entrevista?')) return;
+  const ok = await borrarAdjunto(id);
+  toast(ok ? '🗑️ PDF eliminado' : '⚠️ No se pudo eliminar');
+  cargarAdjuntoEntrevistaCand(dni);
 }
 
 // ========== CITAS ==========
