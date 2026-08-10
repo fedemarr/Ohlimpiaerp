@@ -1675,7 +1675,7 @@ function renderObjetivos(lista){
   const rows=(lista||DB.objetivos).filter(o=>!o.anulado&&(!estadoTab||o.estado===estadoTab));
   const todosActivos=DB.objetivos.filter(o=>o.estado==='Operativo'&&!o.anulado);
   const eftsTotal=todosActivos.reduce((s,o)=>s+(o.efts||0),0);
-  const factTotal=todosActivos.reduce((s,o)=>s+(o.valor||0),0);
+  const factTotal=todosActivos.reduce((s,o)=>s+(calcularFacturacionMensualObjetivo(o)||0),0);
   const hoy=new Date();
   const vencen=todosActivos.filter(o=>{
     if(!o.fechaFin) return false;
@@ -1700,7 +1700,7 @@ function renderObjetivos(lista){
       <td><span class="chip" style="font-size:11px;">${o.tipo}</span></td>
       <td style="font-size:12px;color:var(--texto-suave);">${o.tipoSitio||'—'}</td>
       <td><span class="badge ${modColor[o.modeloPrecio]||'badge-gris'}" style="font-size:10px;">${(o.modeloPrecio||'').split('(')[0].trim()}</span></td>
-      <td style="font-weight:700;color:var(--azul);">$${(o.valor||0).toLocaleString('es-AR')}</td>
+      <td style="font-weight:700;color:var(--azul);">${(()=>{const f=calcularFacturacionMensualObjetivo(o);return f!=null?'$'+f.toLocaleString('es-AR')+(o.modeloPrecio==='Por horas variables'?' (est.)':''):'<span style="color:var(--texto-suave);font-weight:400;">— (depende de horas)</span>';})()}</td>
       <td style="font-size:12px;">${o.supervisorAsignado||'—'}</td>
       <td>${badgeEstadoObjetivo(o.estado)}</td>
       <td>
