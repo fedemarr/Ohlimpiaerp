@@ -38,6 +38,7 @@ import { renderCampanaNotificaciones, fetchNotificacionesPendientes, toggleCampa
 import './modules/personal_rrhh/index.js';
 import './modules/servicios_supervisor/index.js';
 import { sincronizarServiciosSupervisor } from './modules/servicios_supervisor/index.js';
+import './modules/comercial_importador/index.js';
 
 // ========== BIND SHARED A WINDOW (PRIMERO) ==========
 // Estas funciones las llama el HTML con onclick — deben estar en window
