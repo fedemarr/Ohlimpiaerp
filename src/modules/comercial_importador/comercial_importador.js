@@ -358,7 +358,7 @@ export async function confirmarImportacionComercial() {
       registro = existente;
     } else {
       registro = {
-        id: Date.now() + hecho, clienteId: cliente.id, clienteIdLocal: String(cliente.id).slice(-9),
+        id: Date.now() + hecho, clienteIdLocal: String(cliente.id).slice(-9),
         codigo: o.codigo, nombre: o.nombre, tipo: o.tipo, dir: o.dir, jurisdiccion: o.jurisdiccion, localidad: o.localidad,
         supervisorAsignado: o.supervisorAsignado, modeloPrecio: o.modeloPrecio, valor: o.valor, valorHora: o.valorHora, efts: o.efts,
         productos: o.productos, logProductos: o.logProductos,
