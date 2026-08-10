@@ -1819,9 +1819,14 @@ function agregarRespObjetivo(){
 // tablas relacionales propias (objetivo_responsables/objetivo_adjuntos) ni
 // historialPrecios (Etapa 4, diferida) — enviarlos generaría un error
 // silencioso de PostgREST por columna inexistente (mismo bug que se
-// encontró y corrigió en guardarCliente()).
+// encontró y corrigió en guardarCliente()). clienteId tampoco es columna
+// real (solo cliente_id_local) — reconciliarClienteIdObjetivos() lo
+// reconstruye en memoria para que otras pantallas lo lean, así que en
+// cuanto un objetivo pasa por esa reconciliación (basta con haber
+// visitado Objetivos/Clientes antes) el objeto ya lo tiene pegado y
+// rompía cualquier guardado posterior (ticket importador Comercial 08/2026).
 function objetivoParaGuardar(o){
-  const {responsables,adjuntos,historialPrecios,supervisor,...resto}=o;
+  const {responsables,adjuntos,historialPrecios,supervisor,clienteId,...resto}=o;
   return resto;
 }
 // 2.2.1 (Delta Comercial v1.2) — el modelo de precio del objetivo queda

@@ -292,6 +292,23 @@ function renderPreviewImportacionComercial() {
   if (btn) btn.style.display = (clientes.length || objetivos.length) ? 'inline-flex' : 'none';
 }
 
+// Campos que existen en el objeto JS en memoria pero NO son columnas
+// reales de la tabla `objetivos` (viven en tablas relacionales propias o
+// se reconstruyen en runtime — ver objetivoParaGuardar() en legacy.js,
+// mismo criterio acá). El más traicionero es clienteId: no es una
+// columna, pero reconciliarClienteIdObjetivos() lo reconstruye sobre el
+// objeto EN MEMORIA para que otras pantallas lo puedan leer — si el
+// usuario ya visitó Objetivos/Clientes antes de importar (lo normal),
+// el objeto "existente" que se reutiliza acá YA lo tiene pegado, y
+// mandarlo tal cual a supaSync rompía el insert/update con "column
+// cliente_id does not exist" en el 100% de los updates.
+const CAMPOS_NO_PERSISTIDOS_OBJETIVO = ['clienteId', 'responsables', 'adjuntos', 'historialPrecios', 'supervisor'];
+function limpiarObjetivoParaGuardar(o) {
+  const copia = { ...o };
+  CAMPOS_NO_PERSISTIDOS_OBJETIVO.forEach(k => delete copia[k]);
+  return copia;
+}
+
 // ========== CONFIRMAR ==========
 
 export async function confirmarImportacionComercial() {
@@ -368,7 +385,7 @@ export async function confirmarImportacionComercial() {
         cargadoPor: (currentUser && currentUser.nombre) || 'Import Comercial', fechaCarga: new Date().toLocaleDateString('es-AR'),
       };
     }
-    const ok = await supaSync('objetivos', registro);
+    const ok = await supaSync('objetivos', limpiarObjetivoParaGuardar(registro));
     if (ok) { if (!existente) { if (!DB.objetivos) DB.objetivos = []; DB.objetivos.push(registro); } }
     else fallos.push('Objetivo ' + o.codigo + ': ' + ((getLastSupaSyncError() || {}).message || 'error desconocido'));
   }
