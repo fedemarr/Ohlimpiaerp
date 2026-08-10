@@ -17,7 +17,7 @@
 // texto legible en "obs", así no se pierde nada de la planilla original
 // aunque no quede como dato estructurado.
 
-import { DB, currentUser } from '@shared/state.js';
+import { DB, currentUser, LOCALIDAD_A_PARTIDO } from '@shared/state.js';
 import { $, toTitleCase, cleanText } from '@shared/helpers.js';
 import { toast } from '@shared/ui.js';
 import { supaSync, getLastSupaSyncError } from '@shared/supabase.js';
@@ -81,6 +81,66 @@ const ALIAS_HEADERS = {
 // sólo mapeamos automático si coincide exactamente — si Gabi cargó un
 // valor que no reconocemos, se deja vacío en vez de adivinar mal).
 const ZONAS_VALIDAS = ['CABA', 'Zona Norte', 'Zona Sur', 'Zona Oeste'];
+
+// ========== LOCALIDAD → PARTIDO (autocompletar, ticket "Importe
+// histórico" 08/2026) ==========
+// La planilla trae Localidad pero nunca Partido — antes quedaba en blanco
+// siempre, aunque la localidad fuera reconocible (ej. "Jose.C.Paz",
+// "JOSE C PAZ", "José C. Paz" son la misma localidad con formato distinto
+// según quién cargó la fila a mano). Se arma un índice normalizado (sin
+// acentos, sin puntos/guiones, minúscula) de las localidades reales
+// (LOCALIDAD_A_PARTIDO, mismo dataset que usa el selector en cascada de
+// Candidatos) una sola vez al cargar el módulo, y se usa para reconocer
+// la localidad pase lo que pase con el formato de la celda. Si NO
+// reconoce la localidad, no inventa nada: la deja tal cual vino y el
+// Partido queda vacío, igual que antes.
+function normalizarClaveLocalidad(s) {
+  return (s || '')
+    .trim()
+    .normalize('NFD').replace(/[̀-ͯ]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim();
+}
+const LOCALIDADES_NORMALIZADAS = Object.fromEntries(
+  Object.keys(LOCALIDAD_A_PARTIDO).map(loc => [normalizarClaveLocalidad(loc), loc])
+);
+
+// Devuelve { localidad, partido } — localidad canónica (formato prolijo,
+// ej. "José C. Paz") + su partido si la reconoce; si no, { localidad:
+// cleanText(raw), partido: '' } tal cual se comportaba antes.
+function resolverLocalidadYPartido(rawLocalidad) {
+  const raw = cleanText(rawLocalidad || '');
+  if (!raw) return { localidad: '', partido: '' };
+  const canonica = LOCALIDADES_NORMALIZADAS[normalizarClaveLocalidad(raw)];
+  if (canonica) return { localidad: canonica, partido: LOCALIDAD_A_PARTIDO[canonica] || '' };
+  return { localidad: raw, partido: '' };
+}
+
+// ========== EMAIL (validar antes de guardar como email) ==========
+// Encontrado en datos reales: la celda de "Correo Electrónico" a veces
+// tiene un link de Google Drive pegado por error (foto del DNI, etc.) en
+// vez de un mail — guardarlo tal cual en el campo Email es peor que
+// dejarlo vacío (se ve como un mail roto). Si no tiene forma de email, se
+// preserva igual en observaciones (no se pierde el dato) pero no se
+// fuerza en el campo Email.
+function pareceEmail(s) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test((s || '').trim());
+}
+
+// ========== REFERIDO POR (desde "Detalle Convocatoria") ==========
+// "Detalle Convocatoria" es un campo genérico que según el Medio significa
+// cosas distintas — cuando el medio es una red social suele decir el
+// nombre de la red ("Facebook"), cuando es referido de alguien suele
+// tener el nombre de esa persona ("Nahuel, amigo trabaja en Ohlimpia").
+// Sólo se copia a "Referido por" cuando el Medio indica explícitamente
+// que fue por referencia/recomendación — para los demás casos (redes,
+// búsqueda activa, etc.) sería un dato inventado/incorrecto, así que ahí
+// se deja como estaba: solo texto libre en Observaciones.
+function pareceReferido(medioRaw) {
+  const m = normalizarHeader(medioRaw);
+  return m.includes('referid') || m.includes('recomend');
+}
 
 let _filasParseadas = [];
 
@@ -248,7 +308,10 @@ function mapearEstadoDesdeResultado(resultadoRaw) {
   return { estado: 'Entrevistado', motivoRechazo: '' };
 }
 
-function armarObservaciones(f) {
+// referidoExtraido: true cuando "Detalle convocatoria" ya se copió a
+// nombreReferido (ver resolverReferido más abajo) — evita duplicar la
+// misma línea en Observaciones cuando ya quedó como dato estructurado.
+function armarObservaciones(f, referidoExtraido) {
   const partes = ['[Importado de planilla histórica de entrevistas]'];
   if (f.modalidad) partes.push('Modalidad: ' + f.modalidad);
   if (f.edad) partes.push('Edad: ' + f.edad);
@@ -263,12 +326,18 @@ function armarObservaciones(f) {
   ].filter(Boolean);
   if (evalItems.length) partes.push('Evaluación — ' + evalItems.join(', '));
   if (f.evaluacion_final) partes.push('Evaluación final (planilla): ' + f.evaluacion_final);
-  if (f.detalle_convocatoria) partes.push('Detalle convocatoria: ' + f.detalle_convocatoria);
+  if (f.detalle_convocatoria && !referidoExtraido) partes.push('Detalle convocatoria: ' + f.detalle_convocatoria);
   if (f.posible_servicio) partes.push('Posible servicio: ' + f.posible_servicio);
   if (f.fecha_psico || f.psicotecnico) partes.push('Psicotécnico: ' + (f.psicotecnico || '—') + (f.fecha_psico ? ' (' + f.fecha_psico + ')' : ''));
   if (f.fecha_ingreso) partes.push('Fecha de ingreso (planilla): ' + f.fecha_ingreso);
   if (f.obs_psicotecnico) partes.push('Obs. del psicotécnico: ' + f.obs_psicotecnico);
   if (f.observaciones) partes.push('Observaciones: ' + f.observaciones);
+  // Email con formato inválido (ej. un link de Google Drive pegado por
+  // error en la celda) no se pierde: no entra al campo Email pero queda
+  // legible acá, en vez de desaparecer silenciosamente.
+  if (f.correo_electronico && !pareceEmail(f.correo_electronico)) {
+    partes.push('Correo electrónico (formato no reconocido, revisar a mano): ' + f.correo_electronico);
+  }
   return partes.join('\n');
 }
 
@@ -307,6 +376,11 @@ function renderPreviewImportacionCandidatos() {
     const { estado } = mapearEstadoDesdeResultado(f.evaluacion_final);
     f._estadoResultante = estado;
 
+    const { localidad, partido } = resolverLocalidadYPartido(f.localidad);
+    const localidadHtml = f.localidad
+      ? (partido ? localidad + ' <span style="color:#16a34a;">(' + partido + ')</span>' : localidad + ' <span style="color:#d97706;">(partido no reconocido)</span>')
+      : '—';
+
     const ok = problemas.length === 0;
     if (ok) validos++; else invalidos++;
     f._valido = ok;
@@ -315,6 +389,7 @@ function renderPreviewImportacionCandidatos() {
       + '<td style="padding:5px 8px;font-size:12px;">' + (f.apellidos || '—') + ', ' + (f.nombres || '—') + '</td>'
       + '<td style="padding:5px 8px;font-size:12px;">' + (f.dni || '—') + '</td>'
       + '<td style="padding:5px 8px;font-size:12px;">' + (f.zona || '—') + (f._zonaNoReconocida ? ' <span style="color:#d97706;">(sin mapear)</span>' : '') + '</td>'
+      + '<td style="padding:5px 8px;font-size:12px;">' + localidadHtml + '</td>'
       + '<td style="padding:5px 8px;font-size:12px;">' + (f.evaluacion_final || '—') + ' → ' + estado + '</td>'
       + '<td style="padding:5px 8px;font-size:11px;">'
         + '<span style="color:#dc2626;">' + problemas.join(', ') + '</span>'
@@ -329,6 +404,7 @@ function renderPreviewImportacionCandidatos() {
     + '<th style="padding:6px 8px;text-align:left;font-size:12px;">Candidato</th>'
     + '<th style="padding:6px 8px;text-align:left;font-size:12px;">DNI</th>'
     + '<th style="padding:6px 8px;text-align:left;font-size:12px;">Zona</th>'
+    + '<th style="padding:6px 8px;text-align:left;font-size:12px;">Localidad (Partido)</th>'
     + '<th style="padding:6px 8px;text-align:left;font-size:12px;">Resultado → Estado</th>'
     + '<th style="padding:6px 8px;text-align:left;font-size:12px;">Estado</th>'
     + '</tr></thead><tbody>' + filasHtml + '</tbody></table>';
@@ -356,27 +432,36 @@ export async function confirmarImportacionCandidatosHistorico() {
   for (const f of validas) {
     const { estado, motivoRechazo } = mapearEstadoDesdeResultado(f.evaluacion_final);
     const zona = f.zona && ZONAS_VALIDAS.includes(f.zona) ? f.zona : '';
+    const { localidad, partido } = resolverLocalidadYPartido(f.localidad);
+    const email = pareceEmail(f.correo_electronico) ? cleanText(f.correo_electronico).toLowerCase() : '';
+    const referido = pareceReferido(f.medio) ? cleanText(f.detalle_convocatoria || '') : '';
     const nuevo = {
       id: Date.now() + importados,
       apellido: toTitleCase(f.apellidos),
       nombre: toTitleCase(f.nombres),
       dni: f.dni,
+      // CUIT, Fecha de nacimiento, Estado civil, Nacionalidad y Domicilio
+      // (calle/piso) NO tienen columna en la planilla histórica de
+      // entrevistas (ver ALIAS_HEADERS/HEADERS_DISPLAY arriba) — quedan
+      // en blanco a propósito, no es un dato que se esté perdiendo por un
+      // mapeo incompleto. Gabi los completa a mano si hace falta.
       cuit: '',
       fecNac: null,
       estadoCivil: '',
       genero: /^f/i.test(f.genero) ? 'Femenino' : /^m/i.test(f.genero) ? 'Masculino' : (f.genero ? 'Otro' : null),
       nacionalidad: null,
       tel: cleanText(f.telefono || ''),
-      email: cleanText(f.correo_electronico || ''),
+      email,
       calle: '',
       piso: '',
       zona,
-      localidad: cleanText(f.localidad || ''),
+      partido,
+      localidad,
       disponibilidadHoraria: cleanText(f.disponibilidad || ''),
       medio: cleanText(f.medio || ''),
-      nombreReferido: '',
+      nombreReferido: referido,
       rrhhId: null,
-      obs: armarObservaciones(f),
+      obs: armarObservaciones(f, !!referido),
       estado,
       motivoRechazo,
       asistio: 'si', // vienen de una entrevista ya realizada
