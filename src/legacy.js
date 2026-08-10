@@ -1402,10 +1402,10 @@ function renderClientes(lista){
       </td>
       <td style="font-family:'DM Mono',monospace;font-size:12px;">${c.cuit}</td>
       <td><span class="chip" style="font-size:11px;">${c.tipo}</span></td>
-      <td style="font-size:12px;">${c.iva}</td>
+      <td style="font-size:12px;">${c.iva||'—'}</td>
       <td style="text-align:center;font-weight:700;color:var(--azul);">${objCount}</td>
-      <td style="font-size:12px;">${c.condPago}</td>
-      <td style="font-size:12px;">${c.formaPago}</td>
+      <td style="font-size:12px;">${c.condPago||'—'}</td>
+      <td style="font-size:12px;">${c.formaPago||'—'}</td>
       <td style="font-family:'DM Mono',monospace;font-size:11px;color:var(--texto-suave);">${c.codigo||'—'}</td>
       <td>${badge(c.estado==='Activo'?'Activo':c.estado==='Inactivo'?'Baja':'Pendiente')}</td>
       <td>
@@ -1445,10 +1445,10 @@ function verCliente(idLocal){
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:16px;">
     <div class="info-grid">
       <div class="info-item"><div class="key">Código interno</div><div class="val" style="font-family:'DM Mono',monospace;">${c.codigo||'—'}</div></div>
-      <div class="info-item"><div class="key">Condición pago</div><div class="val">${c.condPago}</div></div>
-      <div class="info-item"><div class="key">Forma de pago</div><div class="val">${c.formaPago}</div></div>
+      <div class="info-item"><div class="key">Condición pago</div><div class="val">${c.condPago||'—'}</div></div>
+      <div class="info-item"><div class="key">Forma de pago</div><div class="val">${c.formaPago||'—'}</div></div>
       <div class="info-item"><div class="key">Código Tango (ref. externa)</div><div class="val" style="font-family:'DM Mono',monospace;">${c.codigoTango||'—'}</div></div>
-      <div class="info-item"><div class="key">Período facturación</div><div class="val">${c.periodoFact}</div></div>
+      <div class="info-item"><div class="key">Período facturación</div><div class="val">${c.periodoFact||'—'}</div></div>
       <div class="info-item"><div class="key">Tipo de contrato</div><div class="val">${c.tipoContrato||'—'}</div></div>
       <div class="info-item"><div class="key">Ingresos brutos</div><div class="val">${c.ingresosBrutos||'—'}</div></div>
       <div class="info-item"><div class="key">Jurisdicción IIBB</div><div class="val">${c.jurisdiccionIibb||'—'}</div></div>
