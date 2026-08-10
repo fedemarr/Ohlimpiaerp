@@ -261,32 +261,69 @@ function renderPreviewImportacionSS() {
   if (!_ssFilasParseadas.length) { cont.innerHTML = '<p style="padding:10px;">Sin filas para importar</p>'; return; }
 
   const existentes = new Map((DB.serviciosSupervisor || []).map(s => [s.codigo, s]));
-  const vistos = new Set();
+
+  // Normalizar primero y agrupar por código para resolver repetidos
+  // DENTRO del mismo archivo (ej. la planilla real de Ventas trae un
+  // servicio dos veces con sub-códigos que colapsan al mismo código acá).
+  // Antes esto invalidaba las DOS filas y ninguna se importaba — ahora
+  // gana la ÚLTIMA fila del archivo con ese código (mismo criterio
+  // "última fila por persona" ya usado en el importador de Legajos) y
+  // las anteriores quedan marcadas como reemplazadas, en amarillo, no
+  // como error bloqueante — así Fede/Gabi ven exactamente qué se
+  // sobreescribió antes de confirmar.
+  const normalizadas = _ssFilasParseadas.map(f => ({
+    codigo: (f.codigo || '').toUpperCase().trim(),
+    supervisor: (f.supervisor || '').trim(),
+    fila: f,
+  }));
+  const porCodigo = new Map();
+  normalizadas.forEach((n, i) => {
+    if (!n.codigo) return;
+    if (!porCodigo.has(n.codigo)) porCodigo.set(n.codigo, []);
+    porCodigo.get(n.codigo).push(i);
+  });
+
   let nuevos = 0, actualizan = 0, invalidos = 0;
 
-  const filasHtml = _ssFilasParseadas.map(f => {
-    const codigo = (f.codigo || '').toUpperCase().trim();
-    const supervisor = (f.supervisor || '').trim();
+  const filasHtml = normalizadas.map((n, i) => {
+    const { codigo, supervisor, fila: f } = n;
     const problemas = [];
     if (!codigo) problemas.push('falta código');
     if (!supervisor) problemas.push('falta supervisor');
-    if (codigo && vistos.has(codigo)) problemas.push('código repetido en el archivo');
-    if (codigo) vistos.add(codigo);
 
-    const ok = problemas.length === 0;
+    const apariciones = codigo ? porCodigo.get(codigo) : [];
+    const esUltima = !apariciones.length || i === apariciones[apariciones.length - 1];
+    let aviso = '';
+    if (apariciones.length > 1) {
+      const supervisorFinal = normalizadas[apariciones[apariciones.length - 1]].supervisor;
+      if (!esUltima) {
+        aviso = supervisorFinal === supervisor
+          ? 'repetido en el archivo (mismo supervisor) — se toma 1 sola vez'
+          : 'repetido en el archivo — reemplazado por "' + supervisorFinal + '" (última fila con este código)';
+      } else if (apariciones.slice(0, -1).some(idx => normalizadas[idx].supervisor !== supervisor)) {
+        aviso = 'código repetido con otro supervisor más arriba en el archivo — se usa este (el último)';
+      }
+    }
+
+    const ok = problemas.length === 0 && esUltima;
     f._valido = ok;
     f._codigo = codigo;
     f._supervisor = supervisor;
     let accion = '—';
     if (ok) {
-      if (existentes.has(codigo)) { accion = 'actualiza supervisor'; actualizan++; }
-      else { accion = 'nuevo'; nuevos++; }
+      accion = existentes.has(codigo) ? 'actualiza supervisor' : 'nuevo';
+      if (existentes.has(codigo)) actualizan++; else nuevos++;
     } else invalidos++;
 
-    return '<tr style="' + (ok ? '' : 'background:#fef2f2;') + '">'
+    const celdaAccion = problemas.length
+      ? '<span style="color:#dc2626;">' + problemas.join(', ') + '</span>'
+      : (aviso ? '<span style="color:#b45309;">' + (ok ? accion + ' — ' : '') + aviso + '</span>' : accion);
+
+    const bg = problemas.length ? 'background:#fef2f2;' : (aviso ? 'background:#fffbeb;' : '');
+    return '<tr style="' + bg + '">'
       + '<td style="padding:5px 8px;font-size:12px;font-family:\'DM Mono\',monospace;">' + (codigo || '—') + '</td>'
       + '<td style="padding:5px 8px;font-size:12px;">' + (supervisor || '—') + '</td>'
-      + '<td style="padding:5px 8px;font-size:11px;">' + (problemas.length ? '<span style="color:#dc2626;">' + problemas.join(', ') + '</span>' : accion) + '</td>'
+      + '<td style="padding:5px 8px;font-size:11px;">' + celdaAccion + '</td>'
       + '</tr>';
   }).join('');
 

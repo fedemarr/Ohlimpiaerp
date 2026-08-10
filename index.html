@@ -1155,7 +1155,7 @@
         <button class="btn-close" style="color:white;" onclick="cerrarModal('modal-importar-servicios-supervisor')">×</button>
       </div>
       <div class="modal-body">
-        <div class="alerta alerta-info" style="margin-bottom:12px;">Columnas: <strong>codigo</strong>, <strong>supervisor</strong>. Un código que ya existe actualiza su supervisor; uno nuevo se agrega.</div>
+        <div class="alerta alerta-info" style="margin-bottom:12px;">Columnas: <strong>codigo</strong> (o <strong>servicio</strong>), <strong>supervisor</strong>. Un código que ya existe actualiza su supervisor; uno nuevo se agrega. Si el código se repite dentro del mismo archivo, se usa la última fila.</div>
         <div class="form-group"><label>Archivo CSV</label><input type="file" id="imp-ss-file" accept=".csv,text/csv" onchange="seleccionarArchivoImportacionSS()"></div>
         <div id="imp-ss-resumen" style="margin:8px 0;font-size:13px;font-weight:600;color:var(--texto-suave);"></div>
         <div id="imp-ss-preview" style="max-height:320px;overflow-y:auto;border:1px solid var(--borde);border-radius:8px;"></div>
