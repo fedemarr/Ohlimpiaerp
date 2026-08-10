@@ -218,7 +218,12 @@ function parseCSV(texto) {
 function normalizarHeader(h) {
   return (h || '').trim().toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
 }
-const ALIAS_HEADERS = { codigo: 'codigo', código: 'codigo', supervisor: 'supervisor', supervisor_asignado: 'supervisor' };
+// "servicio" agregado para aceptar la planilla real de Ventas
+// (SERVICIOS_ACTIVOS_*.csv) tal cual la exportan, sin que Gabi/Fede
+// tengan que armar un CSV aparte con solo 2 columnas — esa planilla
+// tiene muchas más columnas (CLIENTE, TIPO, VALOR HORA, etc.), pero acá
+// solo se leen "codigo" y "supervisor"; el resto del header se ignora.
+const ALIAS_HEADERS = { codigo: 'codigo', código: 'codigo', servicio: 'codigo', supervisor: 'supervisor', supervisor_asignado: 'supervisor' };
 
 export function abrirImportadorServiciosSupervisor() {
   _ssFilasParseadas = [];
