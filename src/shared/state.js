@@ -235,15 +235,17 @@ export const MENU = [
     { key: 'legajos', icon: '📁', label: 'Legajos', perfiles: ['Administrador total', 'RRHH', 'Operaciones', 'Finanzas', 'Supervisor', 'Comercial', 'Logística'] },
     { key: 'reasignaciones', icon: '🔄', label: 'Reasignaciones', badge: 'reas', perfiles: ['Administrador total', 'RRHH', 'Operaciones'] },
     { key: 'monotributos', icon: '💸', label: 'Monotributos', perfiles: ['Administrador total', 'RRHH', 'Finanzas'] },
+    // Uniformes aparece ACÁ (para RRHH, en el mismo contexto donde ya
+    // trabaja el alta — confirmarAlta() crea el pedido en Borrador y
+    // alguien de RRHH tiene que "elevarlo" para que arranque la cadena
+    // de notificaciones hacia Logística) Y TAMBIÉN en la sección
+    // Logística más abajo (mismo screen, misma pantalla, dos accesos —
+    // ver corrección del ticket "Módulo Logística" 08/2026, día 2).
+    { key: 'uniformes', icon: '👕', label: 'Uniformes', perfiles: ['Administrador total', 'RRHH', 'Operaciones', 'Supervisor', 'Logística'] },
     { key: 'retenciones', icon: '🔒', label: 'Retenciones', perfiles: ['Administrador total', 'RRHH', 'Finanzas'] },
   ]},
-  // Uniformes vivía bajo "Ingreso" — se mueve a su propia sección acá
-  // (ticket "Módulo Logística" 08/2026). El perfil "Logística" ya
-  // existía desde antes con acceso a legajos+uniformes+sugerencias; esto
-  // solo reorganiza el menú para que se vea como una sección propia, no
-  // agrega permisos nuevos. "Stock" (deshabilitado, "Próximamente") se
-  // suma acá también porque temáticamente es parte de este mismo módulo
-  // cuando se construya.
+  // "Stock" (nuevo, ticket "Módulo Logística" 08/2026) vive solo acá —
+  // es dominio exclusivo de Logística, no tiene sentido en Ingreso.
   { section: 'Logística', items: [
     { key: 'uniformes', icon: '👕', label: 'Uniformes', perfiles: ['Administrador total', 'RRHH', 'Operaciones', 'Supervisor', 'Logística'] },
     { key: 'stock', icon: '📦', label: 'Stock', perfiles: ['Administrador total', 'Logística'] },
