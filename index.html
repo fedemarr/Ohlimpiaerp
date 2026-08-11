@@ -326,7 +326,7 @@
       <div class="filtros-bar">
         <input type="text" placeholder="🔍 Buscar..." oninput="filtrarPedidos()">
         <select onchange="filtrarPedidos()"><option value="">Todos los estados</option><option>Pendiente</option><option>En búsqueda</option><option>Cubierto</option><option>Cancelado</option></select>
-        <button class="btn btn-primary btn-sm" onclick="abrirModal('modal-pedido')">+ Nuevo pedido</button>
+        <button class="btn btn-primary btn-sm" onclick="renderPerfilInputs();abrirModal('modal-pedido')">+ Nuevo pedido</button>
       </div>
     </div>
     <div class="tabla-wrap"><table>
@@ -336,6 +336,7 @@
         <th>Servicio / Cliente<input type="text" placeholder="🔍" style="display:block;width:100%;font-size:10px;padding:2px 4px;border:1px solid var(--borde-fuerte);border-radius:5px;margin-top:4px;outline:none;" oninput="filtrarPedidos()" id="cf-ped-serv"></th>
         <th>Zona<select style="display:block;width:100%;font-size:10px;padding:2px 4px;border:1px solid var(--borde-fuerte);border-radius:5px;margin-top:4px;outline:none;" onchange="filtrarPedidos()" id="cf-ped-zona"><option value="">Todas</option></select></th>
         <th>Puesto<select style="display:block;width:100%;font-size:10px;padding:2px 4px;border:1px solid var(--borde-fuerte);border-radius:5px;margin-top:4px;outline:none;" onchange="filtrarPedidos()" id="cf-ped-puesto"><option value="">Todos</option></select></th>
+        <th>Perfil</th>
         <th>Horario<input type="text" placeholder="🔍" style="display:block;width:100%;font-size:10px;padding:2px 4px;border:1px solid var(--borde-fuerte);border-radius:5px;margin-top:4px;outline:none;" oninput="filtrarPedidos()" id="cf-ped-hor"></th>
         <th>Urgencia<select style="display:block;width:100%;font-size:10px;padding:2px 4px;border:1px solid var(--borde-fuerte);border-radius:5px;margin-top:4px;outline:none;" onchange="filtrarPedidos()" id="cf-ped-urg"><option value="">Todas</option><option>Alto</option><option>Medio</option><option>Bajo</option></select></th>
         <th>Estado<select style="display:block;width:100%;font-size:10px;padding:2px 4px;border:1px solid var(--borde-fuerte);border-radius:5px;margin-top:4px;outline:none;" onchange="filtrarPedidos()" id="cf-ped-est"><option value="">Todos</option><option>Pendiente</option><option>En búsqueda</option><option>Cubierto</option><option>Cancelado</option><option>Pausado</option></select></th>
@@ -5008,14 +5009,12 @@
         </div>
         <div class="form-grid form-grid-3">
           <div class="form-group"><label>Zona</label><select id="p-zona"></select></div>
-          <div class="form-group"><label>Género</label><select><option>F/M</option><option>Femenino</option><option>Masculino</option></select></div>
           <div class="form-group"><label>Puesto *</label><select id="p-puesto"></select></div>
+          <div class="form-group"><label>Horario</label><input type="text" id="p-horario" placeholder="Ej: Lunes a viernes 14 a 22hs"></div>
         </div>
-        <div class="form-group"><label>Horario</label><input type="text" id="p-horario" placeholder="Ej: Lunes a viernes 14 a 22hs"></div>
-        <div class="form-grid form-grid-2">
-          <div class="form-group"><label>Urgencia</label><select id="p-urgencia"><option>Alto</option><option>Medio</option><option>Bajo</option></select></div>
-          <div class="form-group"><label>Experiencia</label><select><option>Sin experiencia específica</option><option>Con experiencia requerida</option></select></div>
-        </div>
+        <div class="form-section" style="margin-bottom:4px;">Perfil del personal</div>
+        <div id="p-perfil" class="form-grid form-grid-3"></div>
+        <div class="form-group"><label>Urgencia</label><select id="p-urgencia"><option>Alto</option><option>Medio</option><option>Bajo</option></select></div>
         <div class="form-group"><label>Observaciones</label><textarea id="p-obs"></textarea></div>
       </div>
     </div>

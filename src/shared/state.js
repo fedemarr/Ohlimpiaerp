@@ -2,6 +2,9 @@
 
 export const DB = {
   rrhh: ['Jimena', 'Naara', 'Gabi'],
+  // Catálogo de atributos del perfil solicitado en Pedidos de personal
+  // (sql/v073). Se carga solo vía supaInit() — no hay ABM todavía.
+  perfilPersonalAtributos: [],
   // Código de servicio → supervisor, persistido en Supabase (sql/v067) —
   // se carga solo vía supaInit(). Ver src/modules/servicios_supervisor/
   // (pantalla en Configuración → Servicios) y

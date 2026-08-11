@@ -11,6 +11,7 @@ export const SUPA = createClient(
 export const _SM = {
   legajos: 'legajos',
   pedidos: 'pedidos',
+  perfilPersonalAtributos: 'perfil_personal_atributos',
   candidatos: 'candidatos',
   psicos: 'psicos',
   preocupacionales: 'preocupacionales',
