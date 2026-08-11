@@ -9,6 +9,7 @@ export {
   verAdjuntoLegajo,
   toggleAltaObraSocial,
   SECTORES_ADMIN, toggleSeccionVacacionesLegajo,
+  toggleLegajoSelection, toggleAllLegajosSelection, viewSelectedLegajos,
 } from './legajos.js';
 
 export {
@@ -39,6 +40,7 @@ import {
   verAdjuntoLegajo,
   toggleAltaObraSocial,
   toggleSeccionVacacionesLegajo,
+  toggleLegajoSelection, toggleAllLegajosSelection, viewSelectedLegajos,
 } from './legajos.js';
 
 import {
@@ -61,3 +63,6 @@ window.abrirImportadorLegajos = abrirImportadorLegajos;
 window.descargarPlantillaLegajos = descargarPlantillaLegajos;
 window.seleccionarArchivoImportacion = seleccionarArchivoImportacion;
 window.confirmarImportacionLegajos = confirmarImportacionLegajos;
+window.toggleLegajoSelection = toggleLegajoSelection;
+window.toggleAllLegajosSelection = toggleAllLegajosSelection;
+window.viewSelectedLegajos = viewSelectedLegajos;

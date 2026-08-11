@@ -490,10 +490,12 @@
         <input type="text" placeholder="🔍 Nombre, DNI, N° socio..." id="buscar-leg" oninput="filtrarLegajos()">
         <select id="f-est-l" onchange="filtrarLegajos()"><option value="">Todos</option><option>Activo</option><option>Baja</option></select>
         <select id="f-fun-l" onchange="filtrarLegajos()"><option value="">Todas las funciones</option><option>Operario</option><option>Referente</option><option>Encargado</option><option>Retén</option><option>Supervisor</option><option>Auxiliar</option></select>
+        <button class="btn btn-secondary btn-sm" onclick="viewSelectedLegajos()" title="Muestra en la tabla solo los legajos tildados">Ver seleccionados</button>
       </div>
     </div>
     <div class="tabla-wrap"><table>
       <thead><tr>
+        <th style="text-align:center;"><input type="checkbox" id="select-all-legajos" onchange="toggleAllLegajosSelection(this.checked)" title="Seleccionar todos los visibles"></th>
         <th>N° Socio<input type="text" placeholder="🔍" style="display:block;width:55px;font-size:10px;padding:2px 4px;border:1px solid var(--borde-fuerte);border-radius:5px;margin-top:4px;outline:none;" oninput="filtrarLegajos()" id="cf-leg-nro"></th>
         <th>Asociado<input type="text" placeholder="🔍" style="display:block;width:100%;font-size:10px;padding:2px 4px;border:1px solid var(--borde-fuerte);border-radius:5px;margin-top:4px;outline:none;" oninput="filtrarLegajos()" id="cf-leg-nombre"></th>
         <th>DNI<input type="text" placeholder="🔍" style="display:block;width:80px;font-size:10px;padding:2px 4px;border:1px solid var(--borde-fuerte);border-radius:5px;margin-top:4px;outline:none;" oninput="filtrarLegajos()" id="cf-dni"></th>

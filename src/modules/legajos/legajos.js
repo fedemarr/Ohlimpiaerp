@@ -36,6 +36,46 @@ function _mesAltaObraSocial(l) {
 
 let legajoActualNro = null;
 
+// ========== SELECCIÓN MÚLTIPLE ==========
+// Selección persiste entre filtros (Set de N° socio). "Seleccionar todo"
+// opera solo sobre lo que está visible en la tabla en ese momento — para
+// saber qué está visible sin depender del DOM, se guarda la última lista
+// que renderLegajos() efectivamente pintó.
+let selectedLegajos = new Set();
+let _ultimaListaLegajos = [];
+
+export function toggleLegajoSelection(nro, checked) {
+  if (checked) selectedLegajos.add(String(nro));
+  else selectedLegajos.delete(String(nro));
+  actualizarCheckboxSeleccionarTodo();
+}
+
+export function toggleAllLegajosSelection(checked) {
+  _ultimaListaLegajos.forEach(l => {
+    if (checked) selectedLegajos.add(String(l.nro));
+    else selectedLegajos.delete(String(l.nro));
+  });
+  renderLegajos(_ultimaListaLegajos);
+}
+
+function actualizarCheckboxSeleccionarTodo() {
+  const cb = $('select-all-legajos');
+  if (!cb) return;
+  const visibles = _ultimaListaLegajos.length;
+  const seleccionadosVisibles = _ultimaListaLegajos.filter(l => selectedLegajos.has(String(l.nro))).length;
+  cb.checked = visibles > 0 && seleccionadosVisibles === visibles;
+  cb.indeterminate = seleccionadosVisibles > 0 && seleccionadosVisibles < visibles;
+}
+
+// "Ver seleccionados": filtra la tabla a solo los legajos tildados,
+// reusando el mismo render — no inventa una vista/modal nueva. Si más
+// adelante hace falta otra acción (exportar, imprimir en lote, etc.),
+// es un pedido aparte.
+export function viewSelectedLegajos() {
+  if (!selectedLegajos.size) { toast('⚠️ No hay legajos seleccionados'); return; }
+  renderLegajos(DB.legajos.filter(l => selectedLegajos.has(String(l.nro))));
+}
+
 // ========== HELPER — PERÍODO DE PRUEBA ==========
 
 export function calcularPrueba(l) {
@@ -52,6 +92,7 @@ export function calcularPrueba(l) {
 
 export function renderLegajos(lista) {
   const rows = lista || DB.legajos;
+  _ultimaListaLegajos = rows;
   const tbody = $('tbody-legajos');
   if (!tbody) return;
   tbody.innerHTML = rows.map(l => {
@@ -66,6 +107,9 @@ export function renderLegajos(lista) {
       ? `<span style="display:inline-block;padding:2px 6px;border-radius:4px;font-size:10px;font-weight:600;background:${estAntec.bg};color:${estAntec.color};">${estAntec.texto}</span>`
       : '<span class="text-muted">—</span>';
     return `<tr onclick="verLegajo(${l.nro})">
+      <td style="text-align:center;" onclick="event.stopPropagation();">
+        <input type="checkbox" class="legajo-checkbox" ${selectedLegajos.has(String(l.nro)) ? 'checked' : ''} onchange="toggleLegajoSelection(${l.nro}, this.checked)">
+      </td>
       <td style="font-family:'DM Mono',monospace;font-weight:700;color:var(--azul);">${l.nro}</td>
       <td><div style="display:flex;align-items:center;gap:10px;">${avatarEl(l.nombre)}<div style="font-weight:500;">${l.nombre}</div></div></td>
       <td style="font-family:'DM Mono',monospace;font-size:12px;">${l.dni}</td>
@@ -90,6 +134,7 @@ export function renderLegajos(lista) {
       <td><button class="btn btn-secondary btn-sm" onclick="event.stopPropagation();verLegajo(${l.nro})">Ver legajo</button></td>
     </tr>`;
   }).join('');
+  actualizarCheckboxSeleccionarTodo();
 }
 
 // Checkbox "Mes de alta OS" del listado — persiste que RRHH efectivamente
