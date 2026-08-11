@@ -17,6 +17,10 @@ export {
   seleccionarArchivoImportacion, confirmarImportacionLegajos,
 } from './importador.js';
 
+export {
+  abrirImportarCbu, seleccionarArchivoCbu, confirmarImportarCbu,
+} from './importarCbu.js';
+
 // ========== SCREEN CONFIG ==========
 
 import { renderLegajos } from './legajos.js';
@@ -48,6 +52,10 @@ import {
   seleccionarArchivoImportacion, confirmarImportacionLegajos,
 } from './importador.js';
 
+import {
+  abrirImportarCbu, seleccionarArchivoCbu, confirmarImportarCbu,
+} from './importarCbu.js';
+
 window.renderLegajos = renderLegajos;
 window.filtrarLegajos = filtrarLegajos;
 window.verLegajo = verLegajo;
@@ -63,6 +71,9 @@ window.abrirImportadorLegajos = abrirImportadorLegajos;
 window.descargarPlantillaLegajos = descargarPlantillaLegajos;
 window.seleccionarArchivoImportacion = seleccionarArchivoImportacion;
 window.confirmarImportacionLegajos = confirmarImportacionLegajos;
+window.abrirImportarCbu = abrirImportarCbu;
+window.seleccionarArchivoCbu = seleccionarArchivoCbu;
+window.confirmarImportarCbu = confirmarImportarCbu;
 window.toggleLegajoSelection = toggleLegajoSelection;
 window.toggleAllLegajosSelection = toggleAllLegajosSelection;
 window.viewSelectedLegajos = viewSelectedLegajos;

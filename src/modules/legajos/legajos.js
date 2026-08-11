@@ -1,5 +1,5 @@
 import { DB, currentUser } from '@shared/state.js';
-import { $, avatarEl, badge, fillSelect } from '@shared/helpers.js';
+import { $, avatarEl, badge, fillSelect, cbuValido } from '@shared/helpers.js';
 import { toast, abrirModal, cerrarModal } from '@shared/ui.js';
 import { supaSync, supaDel, getLastSupaSyncError } from '@shared/supabase.js';
 import { TALLES_POR_PRENDA } from '@modules/uniformes/catalogos.js';
@@ -118,7 +118,7 @@ export function renderLegajos(lista) {
       <td style="font-size:12px;">${l.supervisor}</td>
       <td style="font-size:12px;color:var(--texto-suave);">${l.ingreso}</td>
       <td>${pruebaEl}</td>
-      <td>${badge(l.estado)}</td>
+      <td>${badge(l.estado)}${!l.cbu ? '<span class="badge badge-acento" style="font-size:10px;margin-left:4px;" title="CBU no cargado">🏦 Sin CBU</span>' : ''}</td>
       <td>${l.estadoLegal ? badge(l.estadoLegal) + '<br>' + adjLegal : '<span class="text-muted">—</span>'}</td>
       <td>${antecEl}</td>
       <td style="font-size:12px;color:var(--texto-suave);">${l.fechaBaja || '—'}</td>
@@ -241,6 +241,33 @@ export function verLegajo(nro) {
   const descUniDelAsoc = (DB.descuentosUniformePendientes || []).filter(d => !d.anulado && String(d.legajoIdLocal) === String(l.nro))
     .sort((a, b) => new Date(b.fechaGenerado) - new Date(a.fechaGenerado));
 
+  // Tab "💰 Cuenta corriente" (tema 1 del relevamiento 10/08): junta
+  // adelantos aprobados (formales e informales), préstamos con su plan de
+  // cuotas y las cuotas de uniformes ya calculadas arriba — es la MISMA
+  // fuente que va a leer Liquidación (tema 5) para descontar del retiro,
+  // así que se arma agregando las tablas reales, sin crear una tabla nueva.
+  // Visible solo para los perfiles que manejan plata del asociado.
+  const puedeVerCC = ['Administrador total', 'RRHH', 'Finanzas'].includes(currentUser?.perfil);
+  const adelantosDelAsoc = puedeVerCC ? [
+    ...(DB.planillasAdelantos || []).flatMap(p => (p.items || [])
+      .filter(i => String(i.nroSocio) === String(l.nro) && i.estado === 'Aprobado')
+      .map(i => ({ ...i, tipo: 'Adelanto formal', fecha: p.fechaResolucion || p.fechaEnvio || p.fechaCreacion || '' }))),
+    ...(DB.adelantosInformales || [])
+      .filter(a => String(a.nroSocio) === String(l.nro) && a.estado === 'Aprobado')
+      .map(a => ({ ...a, tipo: 'Adelanto informal', fecha: a.fechaResolucion || a.fecha || '' })),
+  ].sort((a, b) => (b.fecha || '').localeCompare(a.fecha || '')) : [];
+  const prestamosDelAsoc = puedeVerCC
+    ? (DB.prestamos || []).filter(p => String(p.nroSocio) === String(l.nro))
+      .sort((a, b) => (b.fechaOtorgamiento || '').localeCompare(a.fechaOtorgamiento || ''))
+    : [];
+
+  // Tab "📋 Documentación": vencimientos de antecedentes/libreta/curso que
+  // ya se cargan en el módulo Documentación (documentacionIngreso, por
+  // DNI) — acá solo se agregan y se muestran con el mismo semáforo de
+  // alerta previa al vencimiento que usa ese módulo.
+  const docsDelAsoc = (DB.documentacionIngreso || []).filter(d => !d.anulado && d.dni === l.dni)
+    .sort((a, b) => (b.id || 0) - (a.id || 0));
+
   $('legajo-body').innerHTML = `
     <div style="display:flex;align-items:center;gap:14px;margin-bottom:18px;">
       ${avatarEl(l.nombre, 56)}
@@ -248,6 +275,7 @@ export function verLegajo(nro) {
       <div style="display:flex;gap:6px;margin-top:5px;flex-wrap:wrap;">${badge(l.estado)}<span class="chip">${l.funcion}</span>${l.estadoLegal ? badge(l.estadoLegal) : ''}<span class="chip">N° ${l.nro}</span></div></div>
     </div>
     ${pr.enPrueba ? `<div class="alerta alerta-warn" style="margin-bottom:14px;"><strong>Período de prueba:</strong> Día ${pr.diasPasados} de ${pr.diasTotales} (${pr.pct}% completado — ${pr.diasTotales - pr.diasPasados} días restantes)</div>` : ''}
+    ${!l.cbu ? `<div class="alerta alerta-warn" style="margin-bottom:14px;"><strong>🏦 Falta el CBU:</strong> ${l.nombre} no tiene CBU cargado. Completalo desde "Editar legajo" o usá "🏦 Importar CBU desde archivo" en el listado.</div>` : ''}
     ${l.estadoLegal ? `<div class="alerta alerta-danger" style="margin-bottom:14px;"><strong>⚖️ Situación legal activa:</strong> ${l.estadoLegal}</div>` : ''}
     <div class="tabs">
       <button class="tab-btn active" onclick="tabLeg(0,this)">Datos personales</button>
@@ -259,6 +287,8 @@ export function verLegajo(nro) {
       <button class="tab-btn" onclick="tabLeg(6,this)">⚠️ Antecedentes ${sancionesDelAsoc.length > 0 ? `<span class="badge badge-rojo" style="font-size:10px;margin-left:4px;">${sancionesDelAsoc.length}</span>` : ''}</button>
       ${puedeVerLegal ? `<button class="tab-btn" onclick="tabLeg(7,this)">⚖️ Legal ${casosLegalesDelAsoc.length > 0 ? `<span class="badge badge-naranja" style="font-size:10px;margin-left:4px;">${casosLegalesDelAsoc.length}</span>` : ''}</button>` : ''}
       ${puedeVerMedico ? `<button class="tab-btn" onclick="tabLeg(8,this)">🏥 Historial médico ${casosMedicosDelAsoc.some(c => c.estado === 'Abierto') ? '<span class="badge badge-rojo" style="font-size:10px;margin-left:4px;">En tratamiento</span>' : ''}</button>` : ''}
+      ${puedeVerCC ? `<button class="tab-btn" onclick="tabLeg(9,this)">💰 Cuenta corriente ${(adelantosDelAsoc.length + prestamosDelAsoc.filter(p => p.estado === 'Activo').length + descUniDelAsoc.filter(d => d.estado !== 'Terminado' && d.estado !== 'Cancelado').length) > 0 ? `<span class="badge badge-azul" style="font-size:10px;margin-left:4px;">${adelantosDelAsoc.length + prestamosDelAsoc.filter(p => p.estado === 'Activo').length + descUniDelAsoc.filter(d => d.estado !== 'Terminado' && d.estado !== 'Cancelado').length}</span>` : ''}</button>` : ''}
+      <button class="tab-btn" onclick="tabLeg(10,this)">📋 Documentación ${docsDelAsoc.some(d => calcularEstadoVencimiento(d.antecVencimiento)?.texto.includes('🔴') || calcularEstadoVencimiento(d.libretaVencimiento)?.texto.includes('🔴')) ? '<span class="badge badge-rojo" style="font-size:10px;margin-left:4px;">Vencido</span>' : ''}</button>
     </div>
     <div id="leg-tab-0" class="tab-content active"><div class="info-grid">
       <div class="info-item"><div class="key">DNI</div><div class="val">${l.dni}</div></div>
@@ -271,6 +301,7 @@ export function verLegajo(nro) {
       <div class="info-item"><div class="key">Celular</div><div class="val">${l.tel || '—'}</div></div>
       <div class="info-item"><div class="key">Mail</div><div class="val">${l.mail || '—'}</div></div>
       <div class="info-item"><div class="key">Banco</div><div class="val">${l.banco || '—'}</div></div>
+      <div class="info-item"><div class="key">CBU</div><div class="val" style="font-family:'DM Mono',monospace;font-size:12px;">${l.cbu || '<span style="font-family:inherit;color:var(--naranja);font-weight:600;">Sin CBU</span>'}</div></div>
     </div></div>
     <div id="leg-tab-1" class="tab-content"><div class="info-grid">
       <div class="info-item"><div class="key">Función</div><div class="val">${l.funcion}</div></div>
@@ -326,6 +357,9 @@ export function verLegajo(nro) {
     <div id="leg-tab-3" class="tab-content"><div class="timeline">
       <div class="tl-item"><div class="tl-dot"></div><div class="tl-content"><h4>Alta como asociado</h4><p>${l.ingreso} — ${l.servicio}</p></div></div>
       ${reasDelAsoc.map(r => `<div class="tl-item"><div class="tl-dot" style="background:var(--azul-medio);"></div><div class="tl-content"><h4>Reasignación: ${r.servicioOrigen} → ${r.servicioDestino}</h4><p>${r.fechaEfectiva} · ${r.motivo}</p></div></div>`).join('')}
+      ${sancionesDelAsoc.map(s => `<div class="tl-item"><div class="tl-dot" style="background:var(--naranja);"></div><div class="tl-content"><h4>${s.nivel === 0 ? 'Registro informal' : 'Sanción nivel ' + s.nivel + ' — ' + s.nombreNivel}: ${s.nombreInfraccion}</h4><p>${s.fechaHecho} · ${s.estado}</p></div></div>`).join('')}
+      ${puedeVerCC ? adelantosDelAsoc.map(a => `<div class="tl-item"><div class="tl-dot" style="background:var(--verde);"></div><div class="tl-content"><h4>${a.tipo}: $${(a.monto || 0).toLocaleString('es-AR')}</h4><p>${a.fecha || '—'}</p></div></div>`).join('') : ''}
+      ${puedeVerCC ? prestamosDelAsoc.map(p => `<div class="tl-item"><div class="tl-dot" style="background:var(--verde);"></div><div class="tl-content"><h4>Préstamo otorgado: $${(p.monto || 0).toLocaleString('es-AR')} en ${p.cuotas} cuotas</h4><p>${p.fechaOtorgamiento || '—'} · ${p.estado}</p></div></div>`).join('') : ''}
       ${l.estadoLegal ? `<div class="tl-item"><div class="tl-dot rojo"></div><div class="tl-content"><h4>Situación legal: ${l.estadoLegal}</h4><p>Registrada en el sistema</p></div></div>` : ''}
       ${l.fechaBaja ? `<div class="tl-item"><div class="tl-dot rojo"></div><div class="tl-content"><h4>Baja registrada</h4><p>${l.fechaBaja}</p></div></div>` : ''}
       ${l.fechaReincorp ? `<div class="tl-item"><div class="tl-dot" style="background:var(--verde);"></div><div class="tl-content"><h4>Reincorporación</h4><p>${l.fechaReincorp}${l.legajoAnteriorNro ? ' · Legajo anterior N° ' + l.legajoAnteriorNro : ''}</p></div></div>` : ''}
@@ -408,6 +442,70 @@ export function verLegajo(nro) {
             </div>`).join('')}
         </div>`}
     </div>` : ''}
+    ${puedeVerCC ? `
+    <div id="leg-tab-9" class="tab-content">
+      <div class="form-section">💵 Adelantos</div>
+      ${adelantosDelAsoc.length === 0 ? '<p style="opacity:.6;font-size:12.5px;">Sin adelantos aprobados</p>' : `
+        <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:16px;">
+          ${adelantosDelAsoc.map(a => `
+            <div style="display:flex;justify-content:space-between;align-items:center;background:var(--fondo);border:1px solid var(--borde);border-radius:var(--radio);padding:8px 12px;font-size:12.5px;">
+              <div><span class="chip" style="font-size:10px;">${a.tipo}</span> <span style="color:var(--texto-suave);margin-left:6px;">${a.fecha || '—'}</span></div>
+              <div style="font-weight:700;color:var(--verde);">$${(a.monto || 0).toLocaleString('es-AR')}</div>
+            </div>`).join('')}
+        </div>`}
+      <div class="form-section">🏦 Préstamos</div>
+      ${prestamosDelAsoc.length === 0 ? '<p style="opacity:.6;font-size:12.5px;">Sin préstamos</p>' : `
+        <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:16px;">
+          ${prestamosDelAsoc.map(p => {
+            const pagado = (p.pagos || []).reduce((s, x) => s + (x.monto || 0), 0);
+            const cuotasPagadas = (p.pagos || []).length;
+            return `
+            <div style="background:var(--fondo);border:1px solid var(--borde);border-radius:var(--radio);padding:8px 12px;font-size:12.5px;">
+              <div style="display:flex;justify-content:space-between;align-items:center;">
+                <div>${p.fechaOtorgamiento || '—'} · ${cuotasPagadas}/${p.cuotas} cuotas de $${(p.montoCuota || 0).toLocaleString('es-AR')}</div>
+                <span class="badge ${p.estado === 'Pagado' ? 'badge-verde' : p.estado === 'Cancelado' ? 'badge-gris' : 'badge-acento'}">${p.estado}</span>
+              </div>
+              <div style="color:var(--texto-suave);font-size:11px;margin-top:2px;">Otorgado $${(p.monto || 0).toLocaleString('es-AR')} · Pagado $${pagado.toLocaleString('es-AR')} · Saldo $${Math.max((p.monto || 0) - pagado, 0).toLocaleString('es-AR')}</div>
+            </div>`;
+          }).join('')}
+        </div>`}
+      <div class="form-section">👕 Cuotas de uniforme</div>
+      ${descUniDelAsoc.length === 0 ? '<p style="opacity:.6;font-size:12.5px;">Sin descuentos pendientes ni aplicados</p>' : `
+        <div style="display:flex;flex-direction:column;gap:6px;">
+          ${descUniDelAsoc.map(d => `
+            <div style="display:flex;justify-content:space-between;align-items:center;background:var(--fondo);border:1px solid var(--borde);border-radius:var(--radio);padding:8px 12px;font-size:12.5px;">
+              <div>
+                <div>${d.motivoGeneracion || '—'}</div>
+                <div style="color:var(--texto-suave);font-size:11px;">${(d.fechaGenerado || '').slice(0, 10)} · $${(d.montoTotal || 0).toLocaleString('es-AR')} en ${d.cuotasTotales} cuota(s), ${d.cuotasCobradas}/${d.cuotasTotales} cobradas</div>
+              </div>
+              <span class="badge ${d.estado === 'Terminado' ? 'badge-verde' : d.estado === 'Cancelado' ? 'badge-gris' : 'badge-acento'}">${d.estado}</span>
+            </div>`).join('')}
+        </div>`}
+      <p style="margin-top:14px;font-size:11px;color:var(--texto-muy-suave);">Retenciones: se suman acá cuando esté el módulo Retenciones (tema 4 del relevamiento).</p>
+    </div>` : ''}
+    <div id="leg-tab-10" class="tab-content">
+      ${docsDelAsoc.length === 0 ? '<div class="empty-state"><div class="icon">📋</div><p>Sin documentación de ingreso registrada para este DNI</p></div>' : docsDelAsoc.map(d => {
+        const items = [
+          { label: 'Antecedentes penales', venc: d.antecVencimiento },
+          d.libretaAplica ? { label: 'Libreta sanitaria', venc: d.libretaVencimiento } : null,
+          d.cursoTiene ? { label: 'Curso/capacitación', venc: d.cursoVencimiento } : null,
+        ].filter(Boolean);
+        return `
+        <div style="background:var(--fondo);border:1px solid var(--borde);border-radius:var(--radio);padding:12px 14px;margin-bottom:10px;">
+          <div style="display:flex;flex-direction:column;gap:6px;">
+            ${items.map(it => {
+              const est = calcularEstadoVencimiento(it.venc);
+              return `<div style="display:flex;justify-content:space-between;align-items:center;font-size:12.5px;">
+                <span>${it.label}</span>
+                ${est ? `<span style="background:${est.bg};color:${est.color};font-size:10px;padding:2px 8px;border-radius:10px;font-weight:600;">${est.texto}</span>` : '<span style="color:var(--texto-muy-suave);font-size:11px;">Sin vencimiento cargado</span>'}
+              </div>`;
+            }).join('')}
+          </div>
+        </div>`;
+      }).join('')}
+      <div class="form-section">📎 Archivos adjuntos</div>
+      <p style="font-size:11px;color:var(--texto-suave);">Ver también la solapa "📎 Adjuntos" para el detalle de cada archivo escaneado.</p>
+    </div>
   `;
   abrirModal('modal-legajo');
   cargarAdjuntosLegajo(l.dni);
@@ -484,6 +582,7 @@ export function editarLegajoActual() {
   $('edit-tel').value = l.tel || '';
   $('edit-mail').value = l.mail || '';
   $('edit-banco').value = l.banco || '';
+  if ($('edit-cbu')) $('edit-cbu').value = l.cbu || '';
   $('edit-localidad').value = l.localidad || '';
   $('edit-nac').value = l.nac || '';
   $('edit-servicio').value = l.servicio;
@@ -549,6 +648,12 @@ export function guardarEdicionLegajo() {
   l.tel = $('edit-tel').value;
   l.mail = $('edit-mail').value;
   l.banco = $('edit-banco').value;
+  const cbu = ($('edit-cbu') || { value: '' }).value;
+  if (cbu && !cbuValido(cbu)) {
+    toast('⚠️ El CBU debe tener exactamente 22 dígitos numéricos');
+    return;
+  }
+  l.cbu = cbu;
   l.localidad = $('edit-localidad').value;
   l.nac = $('edit-nac').value;
   l.funcion = $('edit-funcion').value;
