@@ -101,6 +101,10 @@ export const _SM = {
   preciosUniformes: 'precios_uniformes',
   descuentosUniformePendientes: 'descuentos_uniforme_pendientes',
   devolucionesPorBaja: 'devoluciones_por_baja',
+  stockUniformes: 'stock_uniformes',
+  stockUniformesMovimientos: 'stock_uniformes_movimientos',
+  comprasUniformes: 'compras_uniformes',
+  stockConteosUniformes: 'stock_conteos_uniformes',
   objetivos: 'objetivos',
   objetivoResponsables: 'objetivo_responsables',
   objetivoAdjuntos: 'objetivo_adjuntos',
@@ -419,6 +423,8 @@ export function _toSnake(obj) {
     fechaDisponible: 'fecha_disponible', montoPagado: 'monto_pagado',
     periodosTotal: 'periodos_total', periodosConsumidos: 'periodos_consumidos',
     tramosPct: 'tramos_pct', registradoEn: 'registrado_en',
+    // v071 — Stock de uniformes
+    refTipo: 'ref_tipo', refIdLocal: 'ref_id_local',
   };
   const r = {};
   for (const [k, v] of Object.entries(obj)) {
@@ -714,6 +720,8 @@ export function _toCamel(obj) {
     fecha_disponible: 'fechaDisponible', monto_pagado: 'montoPagado',
     periodos_total: 'periodosTotal', periodos_consumidos: 'periodosConsumidos',
     tramos_pct: 'tramosPct', registrado_en: 'registradoEn',
+    // v071 — Stock de uniformes
+    ref_tipo: 'refTipo', ref_id_local: 'refIdLocal',
   };
   const r = {};
   for (const [k, v] of Object.entries(obj)) {

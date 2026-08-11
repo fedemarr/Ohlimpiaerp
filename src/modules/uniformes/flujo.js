@@ -14,6 +14,7 @@ import { crearNotificacion } from '@shared/notificaciones.js';
 import { nombresPorPerfil } from './permisos.js';
 import { obtenerPrecioVigente } from './precios.js';
 import { crearDescuentoPendiente, crearDescuentoPorFaltante } from './descuentos.js';
+import { descontarStockPorPedido } from './stock.js';
 
 export function getPedidoById(id) {
   return (DB.pedidosUniformes || []).find(p => String(p.id) === String(id));
@@ -122,6 +123,10 @@ export async function logisticaRecibe(idLocal) {
   p.logisticaRecibePor = currentUser?.nombre || '';
   await supaSync('pedidosUniformes', p);
   await registrarEvento(p, estadoDesde, p.estado);
+  // Stock (ticket "Módulo Logística" 08/2026): se descuenta acá, no al
+  // entregar — así dos pedidos no pueden "reservar de palabra" la misma
+  // prenda mientras Logística arma el paquete.
+  await descontarStockPorPedido(p, prendasDelPedido(p.id));
   toast('📥 Marcado como recibido — armando el pedido');
 }
 

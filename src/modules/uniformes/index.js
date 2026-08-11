@@ -34,6 +34,15 @@ export {
 
 export { chequearAlertas24hs, chequear15Dias } from './vencimientos.js';
 
+export {
+  cambiarTabStockUniformes, renderStock,
+  filtrarStockUniformes,
+  abrirNuevaCompra, agregarItemCompra, quitarItemCompra,
+  cambiarPrendaItemCompra, cambiarTalleItemCompra, cambiarCantidadItemCompra, cambiarCostoItemCompra,
+  guardarCompraUniformes,
+  abrirConteoFisico, cambiarCantidadContadaConteo, guardarConteoFisico,
+} from './stock.js';
+
 // ========== TABS ==========
 
 import { renderPendientesUniformes, poblarSelectsUniformesTab, renderTodosUniformes } from './uniformes.js';
@@ -76,6 +85,12 @@ export const uniformesScreenConfig = {
     fn: () => window.abrirNuevaEntregaUniforme(),
     render: renderUniformesInicial,
   },
+  stock: {
+    title: 'Stock de uniformes',
+    btn: '+ Nueva compra',
+    fn: () => window.abrirNuevaCompra(),
+    render: () => window.renderStock(),
+  },
 };
 
 // ========== WINDOW BINDINGS ==========
@@ -100,6 +115,13 @@ import {
 } from './precios.js';
 import { filtrarDescuentosUniformes, exportarDescuentosUniformesExcel } from './descuentos.js';
 import { filtrarDevolucionesBaja, abrirGenerarOrdenManual, abrirCierreDevolucion, confirmarCierreDevolucion, generarOrdenDevolucionUniformes } from './devoluciones.js';
+import {
+  cambiarTabStockUniformes, renderStock, filtrarStockUniformes,
+  abrirNuevaCompra, agregarItemCompra, quitarItemCompra,
+  cambiarPrendaItemCompra, cambiarTalleItemCompra, cambiarCantidadItemCompra, cambiarCostoItemCompra,
+  guardarCompraUniformes,
+  abrirConteoFisico, cambiarCantidadContadaConteo, guardarConteoFisico,
+} from './stock.js';
 
 window.cambiarTabUniformes = cambiarTabUniformes;
 window.filtrarPendientesUniformes = filtrarPendientesUniformes;
@@ -150,3 +172,18 @@ window.abrirGenerarOrdenManual = abrirGenerarOrdenManual;
 window.abrirCierreDevolucion = abrirCierreDevolucion;
 window.confirmarCierreDevolucion = confirmarCierreDevolucion;
 window.generarOrdenDevolucionUniformes = generarOrdenDevolucionUniformes;
+
+window.cambiarTabStockUniformes = cambiarTabStockUniformes;
+window.renderStock = renderStock;
+window.filtrarStockUniformes = filtrarStockUniformes;
+window.abrirNuevaCompra = abrirNuevaCompra;
+window.agregarItemCompra = agregarItemCompra;
+window.quitarItemCompra = quitarItemCompra;
+window.cambiarPrendaItemCompra = cambiarPrendaItemCompra;
+window.cambiarTalleItemCompra = cambiarTalleItemCompra;
+window.cambiarCantidadItemCompra = cambiarCantidadItemCompra;
+window.cambiarCostoItemCompra = cambiarCostoItemCompra;
+window.guardarCompraUniformes = guardarCompraUniformes;
+window.abrirConteoFisico = abrirConteoFisico;
+window.cambiarCantidadContadaConteo = cambiarCantidadContadaConteo;
+window.guardarConteoFisico = guardarConteoFisico;

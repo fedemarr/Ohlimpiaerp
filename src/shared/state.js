@@ -206,13 +206,13 @@ export const DB = {
 // ========== PERFILES Y ACCESOS ==========
 
 export const PERFILES = {
-  'Administrador total': { color: 'badge-rojo', modulos: ['inicio', 'candidatos', 'pedidos', 'psicotecnico', 'preocupacional', 'documentacion', 'altas', 'legajos', 'reasignaciones', 'legal', 'enfermos', 'capacitaciones', 'vacaciones', 'descansos', 'competencia', 'clientes', 'objetivos', 'precios', 'paritarias', 'categorias', 'crm', 'reclamos', 'cobros', 'comisiones', 'liquidacion', 'feriados', 'liq_admin', 'liquidaciones', 'retenes', 'mantenimiento', 'configuracion', 'smvm', 'monotributos', 'uniformes', 'retenciones', 'sanciones', 'adelantos', 'pedidos_adelantos', 'gestion_adelantos', 'sugerencias'], desc: 'Acceso completo.' },
+  'Administrador total': { color: 'badge-rojo', modulos: ['inicio', 'candidatos', 'pedidos', 'psicotecnico', 'preocupacional', 'documentacion', 'altas', 'legajos', 'reasignaciones', 'legal', 'enfermos', 'capacitaciones', 'vacaciones', 'descansos', 'competencia', 'clientes', 'objetivos', 'precios', 'paritarias', 'categorias', 'crm', 'reclamos', 'cobros', 'comisiones', 'liquidacion', 'feriados', 'liq_admin', 'liquidaciones', 'retenes', 'mantenimiento', 'configuracion', 'smvm', 'monotributos', 'uniformes', 'stock', 'retenciones', 'sanciones', 'adelantos', 'pedidos_adelantos', 'gestion_adelantos', 'sugerencias'], desc: 'Acceso completo.' },
   'RRHH': { color: 'badge-azul', modulos: ['inicio', 'candidatos', 'psicotecnico', 'preocupacional', 'documentacion', 'altas', 'legajos', 'reasignaciones', 'capacitaciones', 'vacaciones', 'descansos', 'competencia', 'reclamos', 'paritarias', 'categorias', 'liquidacion', 'liq_admin', 'liquidaciones', 'retenes', 'monotributos', 'uniformes', 'retenciones', 'sanciones', 'adelantos', 'pedidos_adelantos', 'gestion_adelantos', 'sugerencias'], desc: 'RRHH, legajos, capacitaciones.' },
   'Operaciones': { color: 'badge-verde', modulos: ['inicio', 'pedidos', 'legajos', 'reasignaciones', 'capacitaciones', 'vacaciones', 'descansos', 'competencia', 'clientes', 'objetivos', 'precios', 'paritarias', 'crm', 'reclamos', 'cobros', 'comisiones', 'liquidacion', 'retenes', 'mantenimiento', 'feriados', 'uniformes', 'sanciones', 'pedidos_adelantos', 'sugerencias'], desc: 'Operaciones y ventas.' },
   'Finanzas': { color: 'badge-acento', modulos: ['inicio', 'legajos', 'smvm', 'cobros', 'comisiones', 'paritarias', 'liquidacion', 'liq_admin', 'liquidaciones', 'retenes', 'mantenimiento', 'monotributos', 'retenciones', 'adelantos', 'gestion_adelantos', 'sugerencias'], desc: 'Finanzas y liquidación.' },
   'Supervisor': { color: 'badge-gris', modulos: ['inicio', 'pedidos', 'legajos', 'descansos', 'competencia', 'liquidacion', 'liquidaciones', 'adelantos', 'pedidos_adelantos', 'uniformes', 'sanciones', 'sugerencias'], desc: 'Pedidos, legajos, descansos, competencia y liquidación de horas.' },
   'Comercial': { color: 'badge-naranja', modulos: ['inicio', 'clientes', 'objetivos', 'precios', 'crm', 'reclamos', 'comisiones', 'sugerencias'], desc: 'Clientes, objetivos, precios, CRM, reclamos y comisiones.' },
-  'Logística': { color: 'badge-gris', modulos: ['inicio', 'legajos', 'uniformes', 'sugerencias'], desc: 'Consulta de legajos y gestión de pedidos de uniformes.' },
+  'Logística': { color: 'badge-gris', modulos: ['inicio', 'legajos', 'uniformes', 'stock', 'sugerencias'], desc: 'Consulta de legajos, gestión de pedidos de uniformes y stock.' },
   'Asociado': { color: 'badge-verde', modulos: ['mis_adelantos', 'sugerencias'], desc: 'Portal del asociado — pedidos de adelanto y préstamo.' },
   'DEVELOPER': { color: 'badge-azul', modulos: ['dev_inicio', 'dev_tickets', 'dev_proyeccion', 'dev_seguridad'], desc: 'Panel de desarrollo — tickets, roadmap y seguridad.' },
 };
@@ -246,7 +246,7 @@ export const MENU = [
   // cuando se construya.
   { section: 'Logística', items: [
     { key: 'uniformes', icon: '👕', label: 'Uniformes', perfiles: ['Administrador total', 'RRHH', 'Operaciones', 'Supervisor', 'Logística'] },
-    { key: 'stock', icon: '📦', label: 'Stock', disabled: true, perfiles: [] },
+    { key: 'stock', icon: '📦', label: 'Stock', perfiles: ['Administrador total', 'Logística'] },
   ]},
   { section: 'Operaciones', items: [
     { key: 'liquidacion', icon: '📋', label: 'Liquidación de horas', badge: 'liqh', perfiles: ['Administrador total', 'RRHH', 'Operaciones', 'Finanzas', 'Supervisor'] },
