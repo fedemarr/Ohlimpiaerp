@@ -12,6 +12,7 @@ export {
   abrirDetalleCandidatoPorId,
   abrirBajaCandidatoPorId, confirmarBajaCandidato, onChangeEstadoBajaCand,
   seleccionarArchivoEntrevistaCand, verAdjuntoEntrevistaCand, eliminarAdjuntoEntrevistaCand,
+  seleccionarArchivoProcesoCand, verAdjuntoProcesoCand, eliminarAdjuntoProcesoCand,
 } from './candidatos.js';
 
 export {
@@ -87,6 +88,7 @@ import {
   abrirDetalleCandidatoPorId,
   abrirBajaCandidatoPorId, confirmarBajaCandidato, onChangeEstadoBajaCand,
   seleccionarArchivoEntrevistaCand, verAdjuntoEntrevistaCand, eliminarAdjuntoEntrevistaCand,
+  seleccionarArchivoProcesoCand, verAdjuntoProcesoCand, eliminarAdjuntoProcesoCand,
 } from './candidatos.js';
 
 import {
@@ -132,6 +134,9 @@ window.onChangeEstadoBajaCand = onChangeEstadoBajaCand;
 window.seleccionarArchivoEntrevistaCand = seleccionarArchivoEntrevistaCand;
 window.verAdjuntoEntrevistaCand = verAdjuntoEntrevistaCand;
 window.eliminarAdjuntoEntrevistaCand = eliminarAdjuntoEntrevistaCand;
+window.seleccionarArchivoProcesoCand = seleccionarArchivoProcesoCand;
+window.verAdjuntoProcesoCand = verAdjuntoProcesoCand;
+window.eliminarAdjuntoProcesoCand = eliminarAdjuntoProcesoCand;
 
 // Calendario de entrevistas
 window.renderCalendario = renderCalendario;

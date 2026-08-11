@@ -24,6 +24,7 @@ export const TIPO_LEGIBLE = {
   'certificado-capacitacion': 'Certificado Capacitacion',
   'entrevista':    'Entrevista',
   'poliza-seguro': 'Poliza Seguro',
+  'proceso':       'Documento del proceso',
 };
 
 // Límite de tamaño (10 MB, igual que el bucket) y MIME types permitidos.

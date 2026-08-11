@@ -596,6 +596,14 @@ function crearHTMLModalVerCandidato() {
             '<button type="button" class="btn btn-secondary" onclick="document.getElementById(\'ver-cand-adjunto-file\').click()">⬆️ Subir PDF de la entrevista</button>',
           '</div>',
         '</div>',
+        '<div id="ver-cand-proceso-box" style="display:none;margin-top:14px;border:1px dashed #86efac;border-radius:8px;padding:12px;background:#f0fdf4;">',
+          '<label style="font-weight:600;color:#166534;">📄 Documento del proceso (PDF)</label>',
+          '<div id="ver-cand-proceso-lista" style="margin-top:8px;font-size:13px;color:#64748b;">Cargando…</div>',
+          '<input type="file" id="ver-cand-proceso-file" accept="application/pdf" style="display:none;" onchange="seleccionarArchivoProcesoCand()">',
+          '<div id="ver-cand-proceso-acciones" style="display:none;gap:8px;margin-top:8px;flex-wrap:wrap;">',
+            '<button type="button" class="btn btn-secondary" onclick="document.getElementById(\'ver-cand-proceso-file\').click()">⬆️ Subir PDF del proceso</button>',
+          '</div>',
+        '</div>',
       '</div>',
       '<div class="modal-footer"><button class="btn btn-secondary" onclick="cerrarModal(\'modal-ver-candidato\')">Cerrar</button></div>',
     '</div>',
@@ -637,6 +645,11 @@ export function abrirDetalleCandidatoPorId(id) {
     item('Observaciones', c.obs);
   $('ver-cand-dni').value = c.dni || '';
   cargarAdjuntoEntrevistaCand(c.dni);
+  // Documento del proceso: la carga se habilita recién cuando el candidato
+  // está aprobado. Si ya existe un archivo (o pasó a Psicotécnico), la
+  // sección se muestra igual para poder verlo/descargarlo, pero sin las
+  // acciones de subir/eliminar salvo en estado Aprobado.
+  cargarAdjuntoProcesoCand(c.dni, c.estado === 'Aprobado');
   abrirModal('modal-ver-candidato');
 }
 
@@ -709,6 +722,77 @@ export async function eliminarAdjuntoEntrevistaCand(id, dni) {
   const ok = await borrarAdjunto(id);
   toast(ok ? '🗑️ PDF eliminado' : '⚠️ No se pudo eliminar');
   cargarAdjuntoEntrevistaCand(dni);
+}
+
+// ========== ADJUNTO: PDF del proceso ==========
+// Misma infraestructura que el de entrevista (tabla `adjuntos` + bucket
+// privado ohlimpia-adjuntos, src/shared/adjuntos.js) — etapa 'candidatos',
+// tipo 'proceso' (sql/v074). Solo se habilita la carga cuando el candidato
+// está Aprobado; el archivo ya subido se puede ver en cualquier estado
+// posterior. Subir uno nuevo invalida el anterior (reemplazo).
+
+async function cargarAdjuntoProcesoCand(dni, puedeSubir) {
+  const cont = $('ver-cand-proceso-lista');
+  const box = $('ver-cand-proceso-box');
+  const acciones = $('ver-cand-proceso-acciones');
+  if (!cont || !box) return;
+  cont.innerHTML = 'Cargando…';
+  const lista = await listarAdjuntos({ dni, etapa: 'candidatos', tipo: 'proceso' });
+  box.style.display = (puedeSubir || lista.length) ? 'block' : 'none';
+  if (acciones) acciones.style.display = puedeSubir ? 'flex' : 'none';
+  if (!lista.length) {
+    cont.innerHTML = '<span style="color:#94a3b8;">Sin documento del proceso cargado</span>';
+    return;
+  }
+  cont.innerHTML = lista.map(a =>
+    '<div style="display:flex;align-items:center;gap:8px;background:white;border:1px solid #e2e8f0;border-radius:6px;padding:6px 10px;margin-top:4px;">'
+    + '<span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">📄 ' + (a.nombreArchivo || 'Archivo') + '</span>'
+    + '<button type="button" class="btn btn-secondary" style="padding:4px 8px;font-size:12px;" onclick="verAdjuntoProcesoCand(\'' + a.url + '\')">👁️ Ver</button>'
+    + (puedeSubir ? '<button type="button" class="btn" style="background:#dc2626;color:white;padding:4px 8px;font-size:12px;" onclick="eliminarAdjuntoProcesoCand(\'' + a.id + '\',\'' + dni + '\')">🗑️</button>' : '')
+    + '</div>'
+  ).join('');
+}
+
+export async function seleccionarArchivoProcesoCand() {
+  const input = $('ver-cand-proceso-file');
+  const file = input && input.files && input.files[0];
+  if (!file) return;
+  const dni = ($('ver-cand-dni') || {}).value || '';
+  if (!dni) { toast('⚠️ No se encontró el DNI del candidato'); if (input) input.value = ''; return; }
+  if (file.type !== 'application/pdf') {
+    toast('⚠️ Solo se acepta PDF');
+    if (input) input.value = '';
+    return;
+  }
+  if (file.size > MAX_SIZE) {
+    toast('⚠️ El archivo (' + (file.size / 1024 / 1024).toFixed(1) + ' MB) supera el límite de 10 MB');
+    if (input) input.value = '';
+    return;
+  }
+  const cont = $('ver-cand-proceso-lista');
+  if (cont) cont.innerHTML = 'Subiendo…';
+  try {
+    await subirAdjunto({ dni, etapa: 'candidatos', tipo: 'proceso', file });
+    toast('📄 Documento del proceso subido');
+  } catch (e) {
+    toast('⚠️ ' + (e.message || 'Error al subir el archivo'));
+  } finally {
+    if (input) input.value = '';
+  }
+  cargarAdjuntoProcesoCand(dni, true);
+}
+
+export async function verAdjuntoProcesoCand(path) {
+  const url = await obtenerUrlFirmada(path);
+  if (!url) { toast('⚠️ No se pudo abrir el archivo'); return; }
+  window.open(url, '_blank');
+}
+
+export async function eliminarAdjuntoProcesoCand(id, dni) {
+  if (!confirm('¿Eliminar el documento del proceso?')) return;
+  const ok = await borrarAdjunto(id);
+  toast(ok ? '🗑️ Documento eliminado' : '⚠️ No se pudo eliminar');
+  cargarAdjuntoProcesoCand(dni, true);
 }
 
 // ========== CITAS ==========
