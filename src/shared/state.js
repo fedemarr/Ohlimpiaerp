@@ -235,8 +235,18 @@ export const MENU = [
     { key: 'legajos', icon: '📁', label: 'Legajos', perfiles: ['Administrador total', 'RRHH', 'Operaciones', 'Finanzas', 'Supervisor', 'Comercial', 'Logística'] },
     { key: 'reasignaciones', icon: '🔄', label: 'Reasignaciones', badge: 'reas', perfiles: ['Administrador total', 'RRHH', 'Operaciones'] },
     { key: 'monotributos', icon: '💸', label: 'Monotributos', perfiles: ['Administrador total', 'RRHH', 'Finanzas'] },
-    { key: 'uniformes', icon: '👕', label: 'Uniformes', perfiles: ['Administrador total', 'RRHH', 'Operaciones', 'Supervisor', 'Logística'] },
     { key: 'retenciones', icon: '🔒', label: 'Retenciones', perfiles: ['Administrador total', 'RRHH', 'Finanzas'] },
+  ]},
+  // Uniformes vivía bajo "Ingreso" — se mueve a su propia sección acá
+  // (ticket "Módulo Logística" 08/2026). El perfil "Logística" ya
+  // existía desde antes con acceso a legajos+uniformes+sugerencias; esto
+  // solo reorganiza el menú para que se vea como una sección propia, no
+  // agrega permisos nuevos. "Stock" (deshabilitado, "Próximamente") se
+  // suma acá también porque temáticamente es parte de este mismo módulo
+  // cuando se construya.
+  { section: 'Logística', items: [
+    { key: 'uniformes', icon: '👕', label: 'Uniformes', perfiles: ['Administrador total', 'RRHH', 'Operaciones', 'Supervisor', 'Logística'] },
+    { key: 'stock', icon: '📦', label: 'Stock', disabled: true, perfiles: [] },
   ]},
   { section: 'Operaciones', items: [
     { key: 'liquidacion', icon: '📋', label: 'Liquidación de horas', badge: 'liqh', perfiles: ['Administrador total', 'RRHH', 'Operaciones', 'Finanzas', 'Supervisor'] },
@@ -280,7 +290,6 @@ export const MENU = [
     { key: 'sugerencias', icon: '💬', label: 'Reportes y sugerencias', perfiles: ['Administrador total', 'RRHH', 'Operaciones', 'Finanzas', 'Supervisor', 'Comercial', 'Logística', 'Asociado'] },
   ]},
   { section: 'Próximamente', items: [
-    { key: 'stock', icon: '📦', label: 'Stock', disabled: true, perfiles: [] },
     { key: 'maquinas', icon: '🔧', label: 'Máquinas', disabled: true, perfiles: [] },
   ]},
   { section: 'Desarrollador', items: [
