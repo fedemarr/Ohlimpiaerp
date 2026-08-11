@@ -1760,7 +1760,7 @@ function verObjetivo(idLocal){
           const esFirme=o.modeloPrecio==='Por EFT';
           const etiqueta=esFirme?'Monto a facturar por mes':'Monto estimado a facturar por mes';
           return fact!=null
-            ?`<div class="info-item"><div class="key">${etiqueta}</div><div class="val" style="font-weight:700;color:${esFirme?'var(--azul)':'var(--verde)'};">$${fact.toLocaleString('es-AR')}${esFirme?'':' (estimado)'}</div></div>`
+            ?`<div class="info-item"><div class="key">${etiqueta}</div><div class="val" style="font-weight:700;color:${esFirme?'var(--azul)':'var(--verde)'};">$${Math.round(fact).toLocaleString('es-AR')}${esFirme?'':' (estimado)'}</div></div>`
             :`<div class="info-item"><div class="key">${etiqueta}</div><div class="val">Depende de horas trabajadas (Liquidación de horas)</div></div>`;
         })()
     }
@@ -10404,9 +10404,32 @@ function renderGrillasLiq(){
     const params=DB.parametrosServicio[obj.codigo]||{diasSemana:[1,2,3,4,5],horasPorDia:8};
     const expandido=_grillasExpandidas.has(obj.codigo);
 
+    // Bug #12 relevamiento: si el servicio está expandido pero todavía no
+    // tiene grilla del mes, había que auto-crearla (más abajo, en el bloque
+    // de detalle) ANTES de poder mostrar las horas reales — pero la fila
+    // de encabezado (resumen) se calculaba primero, con la grilla vieja
+    // (null), así que quedaba mostrando la estimación en vez de las horas
+    // reales recién cargadas. Adelantamos la auto-creación acá para que
+    // encabezado y detalle usen la misma grilla ya real en el mismo render.
+    if(expandido&&!grilla){
+      crearGrillaDesdeObj(obj.codigo, mes);
+      grilla=DB.grillasLiq.find(g=>g.periodo===mes&&g.objCodigo===obj.codigo);
+    }
+
     // Calcular totales de la fila resumen
     let totalHsObj=0,totalFactObj=0,totalPagarObj=0;
     const horasPorDia={};
+    // Sin grilla (servicio aún no expandido/creado este mes): estimar horas
+    // esperadas del día repartiendo o.efts (que ya es la cantidad de horas
+    // TOTAL contratada por mes, no una cantidad de personas — ver comentario
+    // en calcularFacturacionMensualObjetivo) entre los días hábiles del mes,
+    // en vez de multiplicarlo de nuevo por horasPorDia (eso duplicaba la
+    // magnitud: 2.204,1hs/mes × 8 = 17.632,8 en vez de repartir esas 2.204,1
+    // horas a lo largo del mes). Si no hay o.efts cargado, no se inventa nada.
+    const diasHabilesObj=grilla?0:(dias.filter(dia=>{
+      const dow=new Date(dia.iso+'T12:00:00').getDay();
+      return params.diasSemana.includes(dow)&&(params.trabajaFeriados||!dia.esFeriado)&&(params.trabajaFinde||!dia.esFinde);
+    }).length||1);
     dias.forEach(dia=>{
       let sumDia=0;
       if(grilla){
@@ -10420,7 +10443,7 @@ function renderGrillasLiq(){
         // Sin grilla: mostrar horas esperadas según parámetros
         const dow=new Date(dia.iso+'T12:00:00').getDay();
         const ok=params.diasSemana.includes(dow)&&(params.trabajaFeriados||!dia.esFeriado)&&(params.trabajaFinde||!dia.esFinde);
-        sumDia=ok?(obj.efts||1)*params.horasPorDia:0;
+        sumDia=ok?(obj.efts||0)/diasHabilesObj:0;
       }
       horasPorDia[dia.iso]=sumDia;
       totalHsObj+=sumDia;
@@ -10460,11 +10483,11 @@ function renderGrillasLiq(){
       <td style="padding:6px 8px;border:1px solid #6b7280;font-size:11px;color:rgba(255,255,255,.8);">${obj.supervisor||'—'}</td>
       <td style="padding:6px 8px;border:1px solid #6b7280;"></td>
       ${dias.map(dia=>{
-        const h=horasPorDia[dia.iso]||0;
+        const h=Math.round((horasPorDia[dia.iso]||0)*10)/10;
         const bg='';
         return`<td class="liq-celda-dia" style="border:1px solid #6b7280;${bg}color:${h>0?'white':'rgba(255,255,255,.35)'};">${h||''}</td>`;
       }).join('')}
-      <td style="padding:6px 8px;border:1px solid #6b7280;text-align:right;font-weight:700;color:white;">${totalHsObj}hs</td>
+      <td style="padding:6px 8px;border:1px solid #6b7280;text-align:right;font-weight:700;color:white;">${Math.round(totalHsObj*10)/10}hs</td>
       <td style="padding:6px 8px;border:1px solid #6b7280;"></td>
       <td style="padding:6px 8px;border:1px solid #6b7280;text-align:right;font-size:11px;color:rgba(255,255,255,.8);">${totalFactObj}hs</td>
       <td style="padding:6px 8px;border:1px solid #6b7280;text-align:right;font-weight:700;color:#86efac;">$${(totalPagarObj||0).toLocaleString('es-AR')}</td>
@@ -10473,7 +10496,9 @@ function renderGrillasLiq(){
 
     // FILAS DETALLE (visibles solo cuando expandido)
     if(expandido){
-      // Auto-crear grilla si no existe, precargando los asociados asignados
+      // Red de seguridad: la auto-creación real ya se adelantó arriba (antes
+      // de calcular la fila resumen) para que encabezado y detalle usen la
+      // misma grilla; esto solo cubre el caso defensivo de que haya fallado.
       if(!grilla){
         crearGrillaDesdeObj(obj.codigo, mes);
         grilla=DB.grillasLiq.find(g=>g.periodo===mes&&g.objCodigo===obj.codigo);
