@@ -1,12 +1,28 @@
-import { DB } from '@shared/state.js';
+import { DB, currentUser } from '@shared/state.js';
 import { $, avatarEl, badge } from '@shared/helpers.js';
 import { toast, cerrarModal, abrirModal } from '@shared/ui.js';
 import { supaSync } from '@shared/supabase.js';
 
+// Tema 11 del relevamiento (10/08): un supervisor solo ve pedidos de SUS
+// servicios activos, no los de toda la cooperativa. Mismo criterio que ya
+// usa Liquidación de horas para "esSupervisor" (renderGrillasLiq en
+// legacy.js): matchea por nombre de supervisor o por función, y también
+// por si tiene algún legajo activo en ese servicio (cubre pedidos cuyo
+// campo "servicio" coincide con uno de los suyos aunque el nombre de
+// supervisor cargado no coincida exacto).
+function pedidosVisiblesParaUsuario(lista) {
+  if (currentUser?.perfil !== 'Supervisor') return lista;
+  return lista.filter(p =>
+    p.supervisor === currentUser.nombre ||
+    p.supervisor === currentUser.funcion ||
+    (DB.legajos || []).some(l => l.servicio === p.servicio && l.supervisor === currentUser.nombre)
+  );
+}
+
 // ========== RENDER ==========
 
 export function renderPedidos(lista) {
-  const datos = lista || DB.pedidos;
+  const datos = pedidosVisiblesParaUsuario(lista || DB.pedidos);
   $('tbody-pedidos').innerHTML = datos.map(p => `<tr onclick="verDetallePedido(${p.id})">
     <td style="font-size:12px;color:var(--texto-suave);">${p.fecha}</td>
     <td style="font-weight:500;">${p.supervisor}</td>
