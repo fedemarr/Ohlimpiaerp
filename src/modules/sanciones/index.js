@@ -11,7 +11,7 @@ export {
   abrirNuevaSancion, seleccionarSancionadoModal, cambiarCategoriaModal, cambiarInfraccionModal,
   recalcularNuevaSancion, confirmarNuevaSancion,
   elevarNivel2PorId, aprobarPrimeraInstanciaPorId, aprobarSegundaInstanciaPorId, ejecutarNivel2PorId,
-  abrirRechazarSancion, abrirRevertirNivel1, abrirDetalleSancion,
+  abrirRechazarSancion, abrirRevertirNivel1, abrirDetalleSancion, imprimirSancion,
 } from './sanciones.js';
 
 export {
@@ -74,7 +74,7 @@ import {
   filtrarPendientesSanciones, filtrarActivasSanciones, filtrarHistorialSanciones, exportarSancionesExcel,
   seleccionarSancionadoModal, cambiarCategoriaModal, cambiarInfraccionModal, recalcularNuevaSancion, confirmarNuevaSancion,
   elevarNivel2PorId, aprobarPrimeraInstanciaPorId, aprobarSegundaInstanciaPorId, ejecutarNivel2PorId,
-  abrirRechazarSancion, abrirRevertirNivel1, abrirDetalleSancion,
+  abrirRechazarSancion, abrirRevertirNivel1, abrirDetalleSancion, imprimirSancion,
 } from './sanciones.js';
 import {
   activarDesactivarInfraccionPorId, anularInfraccionPorId,
@@ -101,6 +101,7 @@ window.ejecutarNivel2PorId = ejecutarNivel2PorId;
 window.abrirRechazarSancion = abrirRechazarSancion;
 window.abrirRevertirNivel1 = abrirRevertirNivel1;
 window.abrirDetalleSancion = abrirDetalleSancion;
+window.imprimirSancion = imprimirSancion;
 
 window.activarDesactivarInfraccionPorId = activarDesactivarInfraccionPorId;
 window.anularInfraccionPorId = anularInfraccionPorId;

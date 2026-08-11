@@ -388,7 +388,10 @@ function ensureModalDetalleSancion() {
     <div class="modal" style="max-width:560px;">
       <div class="modal-header"><h3>⚠️ Detalle de la sanción</h3><button class="btn-close" onclick="cerrarModal('modal-sanc-detalle')">×</button></div>
       <div class="modal-body" id="sd-detalle-cuerpo"></div>
-      <div class="modal-footer"><button class="btn btn-secondary" onclick="cerrarModal('modal-sanc-detalle')">Cerrar</button></div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="cerrarModal('modal-sanc-detalle')">Cerrar</button>
+        <button class="btn btn-primary" id="sd-btn-imprimir">🖨 Imprimir</button>
+      </div>
     </div>`;
   document.body.appendChild(m);
 }
@@ -411,5 +414,88 @@ export function abrirDetalleSancion(idLocal) {
     <div class="form-section">Historial</div>
     ${eventos.map(e => `<div style="font-size:12px;padding:4px 0;border-bottom:1px solid var(--borde);">${(e.ejecutadoEn || '').slice(0, 16).replace('T', ' ')} — ${e.ejecutadoPor}: ${e.estadoDesde ? e.estadoDesde + ' → ' : ''}${e.estadoHasta}${e.observaciones ? ' (' + e.observaciones + ')' : ''}</div>`).join('') || '<p style="opacity:.5;">Sin eventos registrados</p>'}
   `;
+  $('sd-btn-imprimir').onclick = () => imprimirSancion(s.id);
   abrirModal('modal-sanc-detalle');
+}
+
+// ========== IMPRIMIR ==========
+
+function fmtFechaImpresion(iso) {
+  if (!iso) return '—';
+  const d = String(iso).slice(0, 10).split('-');
+  return d.length === 3 ? `${d[2]}/${d[1]}/${d[0]}` : iso;
+}
+
+export function imprimirSancion(idLocal) {
+  const s = getSancionById(idLocal);
+  if (!s) return;
+  const w = window.open('', '_blank', 'width=800,height=700');
+  if (!w) return;
+  const nro = String(s.id).slice(-9);
+  const firmaBloque = (titulo) => `
+    <div class="firma-block">
+      <div style="font-weight:700;margin-bottom:6px;">${titulo}</div>
+      <div>Firma: <span class="firma-line"></span></div>
+      <div>Aclaración: <span class="firma-line"></span></div>
+      <div>Fecha: <span class="firma-line"></span></div>
+    </div>`;
+  const aprobaciones = [
+    s.aprobadaPorLegajo ? `<div class="item"><div class="key">Aprobación 1</div><div class="val">${s.aprobadaPorLegajo} — ${fmtFechaImpresion(s.fechaAprobacion)}</div></div>` : '',
+    s.aprobacionSecundariaLegajo ? `<div class="item"><div class="key">Aprobación 2 (RRHH)</div><div class="val">${s.aprobacionSecundariaLegajo} — ${fmtFechaImpresion(s.fechaAprobacionSecundaria)}</div></div>` : '',
+  ].join('');
+  w.document.write(`<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><title>Sanción — ${s.nombreSancionado}</title>
+<style>
+  body{font-family:Arial,sans-serif;font-size:13px;padding:32px;max-width:720px;margin:0 auto;color:#222;}
+  .header{display:flex;justify-content:space-between;align-items:flex-start;padding-bottom:16px;border-bottom:3px solid #0f2d6b;margin-bottom:16px;}
+  .logo{font-size:24px;font-weight:800;color:#0f2d6b;letter-spacing:.5px;}
+  h1{font-size:20px;margin:6px 0 2px;}
+  h2{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#1b4fa8;border-bottom:1px solid #1b4fa8;padding-bottom:4px;margin:18px 0 10px;}
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:8px 24px;}
+  .item .key{font-size:10px;color:#888;text-transform:uppercase;letter-spacing:.5px;}
+  .item .val{font-size:13px;font-weight:600;}
+  .descripcion{line-height:1.5;margin-top:8px;}
+  .firmas{display:grid;grid-template-columns:1fr 1fr;gap:40px;margin-top:56px;padding-top:16px;border-top:2px solid #333;}
+  .firma-line{display:inline-block;width:130px;height:16px;border-bottom:1px solid #333;vertical-align:bottom;}
+</style></head><body>
+  <div class="header">
+    <div><div class="logo">Cooperativa Ohlimpia</div><div style="font-size:12px;color:#666;margin-top:2px;">Sanción disciplinaria — N° ${nro}</div></div>
+    <div style="text-align:right;font-size:12px;color:#666;">${new Date().toLocaleDateString('es-AR')}</div>
+  </div>
+  <h1>${s.nombreNivel}</h1>
+  <h2>Sancionado</h2>
+  <div class="grid">
+    <div class="item"><div class="key">Nombre</div><div class="val">${s.nombreSancionado}</div></div>
+    <div class="item"><div class="key">N° de socio</div><div class="val">${s.nroSocio || '—'}</div></div>
+    <div class="item"><div class="key">Tipo</div><div class="val">${s.tipoSancionado || '—'}</div></div>
+    <div class="item"><div class="key">Servicio</div><div class="val">${s.servicio || '—'}</div></div>
+    <div class="item"><div class="key">Supervisor</div><div class="val">${s.supervisor || '—'}</div></div>
+  </div>
+  <h2>Infracción</h2>
+  <div class="grid">
+    <div class="item"><div class="key">Infracción</div><div class="val">${s.nombreInfraccion || '—'}</div></div>
+    <div class="item"><div class="key">Categoría</div><div class="val">${s.categoriaInfraccion || '—'}</div></div>
+    <div class="item"><div class="key">Gravedad</div><div class="val">${s.gravedad || '—'}</div></div>
+    <div class="item"><div class="key">Nivel</div><div class="val">${s.nivel} — ${s.nombreNivel}</div></div>
+  </div>
+  <h2>Detalle del hecho</h2>
+  <div class="grid">
+    <div class="item"><div class="key">Fecha del hecho</div><div class="val">${fmtFechaImpresion(s.fechaHecho)}</div></div>
+    <div class="item"><div class="key">Fecha de detección</div><div class="val">${fmtFechaImpresion(s.fechaDeteccion)}</div></div>
+  </div>
+  <div class="descripcion">${s.descripcionHecho || '—'}</div>
+  <h2>Proceso</h2>
+  <div class="grid">
+    <div class="item"><div class="key">Estado</div><div class="val">${s.estado}</div></div>
+    <div class="item"><div class="key">Propuesta por</div><div class="val">${s.propuestaPorLegajo || '—'}</div></div>
+    <div class="item"><div class="key">Fecha de iniciación</div><div class="val">${fmtFechaImpresion(s.fechaIniciacion)}</div></div>
+    ${aprobaciones}
+  </div>
+  ${s.descargoIdLocal ? `<div style="margin-top:16px;border:1px solid #888;padding:12px;border-radius:4px;"><strong>Descargo presentado</strong><div style="margin-top:4px;">Registrado en el sistema — N° ${s.descargoIdLocal}</div></div>` : ''}
+  ${s.motivoRechazo ? `<div style="margin-top:16px;"><strong>Motivo (${s.estado}):</strong> ${s.motivoRechazo}</div>` : ''}
+  <div class="firmas">
+    ${firmaBloque('Sancionado')}
+    ${firmaBloque(s.supervisor || 'Responsable')}
+  </div>
+  <script>window.onload=()=>window.print();<\/script></body></html>`);
+  w.document.close();
 }
