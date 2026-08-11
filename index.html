@@ -373,6 +373,7 @@
   <div style="margin:12px 20px;display:flex;gap:8px;flex-wrap:wrap;">
     <input type="text" id="psico-buscar" placeholder="🔍 Buscar nombre o DNI..." oninput="filtrarPsico()" style="padding:7px 12px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;width:220px;">
     <select id="psico-filtro-zona" onchange="filtrarPsico()" style="padding:7px 10px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;"><option value="">Todas las zonas</option></select>
+    <select id="psico-filtro-localidad" onchange="filtrarPsico()" style="padding:7px 10px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;"><option value="">Todas las localidades</option></select>
     <select id="psico-filtro-estado" onchange="filtrarPsico()" style="padding:7px 10px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;"><option value="">Todos los estados</option><option>En proceso</option><option>Aprobado</option><option>Rechazado</option></select>
   </div>
 
@@ -383,6 +384,7 @@
           <th style="padding:10px 12px;text-align:left;">Nombre</th>
           <th style="padding:10px 8px;text-align:left;">DNI</th>
           <th style="padding:10px 8px;text-align:left;">Zona</th>
+          <th style="padding:10px 8px;text-align:left;">Localidad</th>
           <th style="padding:10px 8px;text-align:center;">🧠 Psicotécnico</th>
           <th style="padding:10px 8px;text-align:center;">Estado</th>
           <th style="padding:10px 8px;text-align:center;">Acciones</th>
@@ -492,6 +494,7 @@
         <select id="f-est-l" onchange="filtrarLegajos()"><option value="">Todos</option><option>Activo</option><option>Baja</option></select>
         <select id="f-fun-l" onchange="filtrarLegajos()"><option value="">Todas las funciones</option><option>Operario</option><option>Referente</option><option>Encargado</option><option>Retén</option><option>Supervisor</option><option>Auxiliar</option></select>
         <button class="btn btn-secondary btn-sm" onclick="viewSelectedLegajos()" title="Muestra en la tabla solo los legajos tildados">Ver seleccionados</button>
+        <button class="btn btn-secondary btn-sm" onclick="abrirImportarCbu()" title="Actualizar el CBU de varios asociados desde un archivo CSV del banco">🏦 Importar CBU desde archivo</button>
       </div>
     </div>
     <div class="tabla-wrap"><table>
@@ -5233,9 +5236,10 @@
           <div class="form-group"><label>CUIT</label><input type="text" id="edit-cuit"></div>
           <div class="form-group"><label>Celular</label><input type="text" id="edit-tel"></div>
         </div>
-        <div class="form-grid form-grid-2">
+        <div class="form-grid form-grid-3">
           <div class="form-group"><label>Mail</label><input type="email" id="edit-mail"></div>
           <div class="form-group"><label>Banco</label><input type="text" id="edit-banco"></div>
+          <div class="form-group"><label>CBU</label><input type="text" id="edit-cbu" maxlength="22" inputmode="numeric" placeholder="22 dígitos"></div>
         </div>
         <div class="form-grid form-grid-2">
           <div class="form-group"><label>Clave fiscal (ARCA)</label><input type="text" id="edit-clave-fiscal"></div>

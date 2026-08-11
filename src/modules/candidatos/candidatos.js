@@ -3,10 +3,114 @@ import { $, toTitleCase, cleanText, validarCampos, badge, hoyStr } from '@shared
 import { toast, abrirModal, cerrarModal, abrirModalInput } from '@shared/ui.js';
 import { supaSync, getLastSupaSyncError } from '@shared/supabase.js';
 import { subirAdjunto, listarAdjuntos, obtenerUrlFirmada, borrarAdjunto, MAX_SIZE } from '@shared/adjuntos.js';
+import { guardarBorrador, guardarBorradorAhora, leerBorrador, limpiarBorrador } from '@shared/autosave.js';
 
 // ========== ESTADO INTERNO ==========
 
 let _candTab = 'activos';
+
+// ========== AUTOGUARDADO (borrador local) ==========
+// Ticket "Autoguardado": la carga del formulario de candidato se guarda en
+// localStorage ante cada cambio (con debounce) y se ofrece restaurarla al
+// volver a abrir el modal — así no se pierde ante recarga, cierre de pestaña
+// o bloqueo del navegador. Utilidad genérica en src/shared/autosave.js.
+// Claves: "candidatos:nuevo" para el alta y "candidatos:edit:<id_local>"
+// para edición (id_local = truncado a 9 dígitos, estable entre recargas).
+const DRAFT_KEY_NUEVO = 'candidatos:nuevo';
+const draftKeyEdit = (id) => 'candidatos:edit:' + idLocalCand(id);
+let _candDraftKey = null;
+
+function recolectarFormularioCandidato() {
+  const val = (id) => { const el = $(id); return el ? el.value : ''; };
+  return {
+    apellido: val('c-apellido'), nombre: val('c-nombre'), dni: val('c-dni'),
+    cuit: val('c-cuit'), fecNac: val('c-fecnac'), tel: val('c-tel'), email: val('c-email'),
+    calle: val('c-calle'), piso: val('c-piso'), obs: val('c-obs'),
+    nombreReferido: val('c-nombre-referido'), fechaCita: val('c-fecha'), horaCita: val('c-hora'),
+    zona: val('c-zona'), partido: val('c-partido'), localidad: val('c-localidad'),
+    medio: val('c-medio'), dispoHoraria: val('c-dispo-horaria'), estado: val('c-estado-i'),
+    nacionalidad: val('c-nacionalidad'), genero: val('c-genero'), estadoCivil: val('c-estado-civil'),
+    rrhh: val('c-rrhh'),
+  };
+}
+
+function aplicarFormularioCandidato(d) {
+  if (!d) return;
+  const set = (id, v) => { const el = $(id); if (el) el.value = v != null ? v : ''; };
+  set('c-apellido', d.apellido); set('c-nombre', d.nombre); set('c-dni', d.dni);
+  set('c-cuit', d.cuit); set('c-fecnac', d.fecNac); set('c-tel', d.tel); set('c-email', d.email);
+  set('c-calle', d.calle); set('c-piso', d.piso); set('c-obs', d.obs);
+  set('c-nombre-referido', d.nombreReferido);
+  set('c-estado-civil', d.estadoCivil); set('c-genero', d.genero); set('c-nacionalidad', d.nacionalidad);
+  set('c-medio', d.medio); set('c-dispo-horaria', d.dispoHoraria);
+  // Cadena zona → partido → localidad (misma lógica que editarCandidato)
+  const zEl = $('c-zona');
+  if (zEl) { zEl.value = d.zona || ''; onChangeZonaCand(); }
+  const partEl = $('c-partido');
+  const lEl = $('c-localidad');
+  if (partEl && !partEl.disabled) {
+    if (d.partido) {
+      partEl.value = d.partido;
+      onChangePartidoCand();
+      if (lEl && d.localidad) lEl.value = d.localidad;
+    } else if (lEl && d.localidad) {
+      lEl.value = d.localidad;
+    }
+  } else if (lEl && d.localidad) {
+    lEl.value = d.localidad;
+  }
+  set('c-estado-i', d.estado || '');
+  onChangeEstadoCand();
+  set('c-fecha', d.fechaCita); set('c-hora', d.horaCita);
+  set('c-rrhh', d.rrhh);
+}
+
+function onCandFormChange(e) {
+  if (!_candDraftKey) return;
+  const data = recolectarFormularioCandidato();
+  if (e.type === 'change') guardarBorradorAhora(_candDraftKey, data);
+  else guardarBorrador(_candDraftKey, data, 500);
+}
+
+function registrarAutosaveCandidato() {
+  const modal = $('modal-candidato');
+  if (!modal || modal.dataset.autosaveCand) return;
+  modal.dataset.autosaveCand = '1';
+  modal.addEventListener('input', onCandFormChange);
+  modal.addEventListener('change', onCandFormChange);
+}
+
+function ensureCandDraftBanner() {
+  let banner = $('cand-draft-banner');
+  if (banner) return banner;
+  const body = document.querySelector('#modal-candidato .modal-body');
+  if (!body) return null;
+  banner = document.createElement('div');
+  banner.id = 'cand-draft-banner';
+  banner.style.cssText = 'display:none;align-items:center;gap:10px;flex-wrap:wrap;background:#fffbeb;border:1px solid #fcd34d;border-radius:8px;padding:10px 12px;margin-bottom:12px;font-size:13px;color:#92400e;';
+  banner.innerHTML =
+    '<span>💾 Se encontró una carga sin guardar.</span>'
+    + '<button type="button" class="btn btn-primary" id="cand-draft-restaurar" style="padding:4px 10px;font-size:12px;">Restaurar</button>'
+    + '<button type="button" class="btn btn-secondary" id="cand-draft-descartar" style="padding:4px 10px;font-size:12px;">Descartar</button>';
+  body.prepend(banner);
+  $('cand-draft-restaurar').onclick = () => {
+    aplicarFormularioCandidato(leerBorrador(_candDraftKey));
+    banner.style.display = 'none';
+    toast('✓ Borrador restaurado');
+  };
+  $('cand-draft-descartar').onclick = () => {
+    limpiarBorrador(_candDraftKey);
+    banner.style.display = 'none';
+    toast('🗑️ Borrador descartado');
+  };
+  return banner;
+}
+
+function ofrecerRestaurarCandidato() {
+  const banner = ensureCandDraftBanner();
+  const hay = !!leerBorrador(_candDraftKey);
+  if (banner) banner.style.display = hay ? 'flex' : 'none';
+}
 
 // ========== HELPERS ==========
 
@@ -353,6 +457,9 @@ export function abrirNuevoCandidato() {
   const tit = $('modal-cand-titulo'); if (tit) tit.textContent = 'Nuevo candidato';
   const modal = $('modal-candidato'); if (modal) delete modal.dataset.editId;
   onChangeEstadoCand();
+  _candDraftKey = DRAFT_KEY_NUEVO;
+  registrarAutosaveCandidato();
+  ofrecerRestaurarCandidato();
   abrirModal('modal-candidato');
 }
 
@@ -507,6 +614,10 @@ export async function guardarCandidato() {
     }
     toast('✓ Candidato guardado');
   }
+  // Guardado exitoso en Supabase → limpiar el borrador local del formulario
+  const keyGuardado = editId ? draftKeyEdit(editId) : DRAFT_KEY_NUEVO;
+  limpiarBorrador(keyGuardado);
+  _candDraftKey = null;
   cerrarModal('modal-candidato');
   renderCandidatos();
 }
@@ -568,6 +679,9 @@ function editarCandidato(id) {
   if (tit) tit.textContent = 'Editar candidato — ' + (c.apellido || '') + (c.apellido && c.nombre ? ', ' : '') + (c.nombre || '');
   const modal = $('modal-candidato');
   if (modal) modal.dataset.editId = c.id;
+  _candDraftKey = draftKeyEdit(c.id);
+  registrarAutosaveCandidato();
+  ofrecerRestaurarCandidato();
   abrirModal('modal-candidato');
 }
 
@@ -944,7 +1058,7 @@ export async function pasarAPsicoPorId(id) {
   // dato estable entre etapas.
   if ((DB.psicos || []).find(p => p.dni && p.dni === c.dni)) { toast('⚠️ Ya está en Psicotécnico'); return; }
   const p = {
-    id: Date.now(), candidatoId: idLocalCand(c.id), nombre: (c.apellido ? c.apellido + ' ' : '') + c.nombre, dni: c.dni, zona: c.zona, tel: c.tel, rrhh: (DB.personalRrhh || []).find(p => p.id === c.rrhhId)?.nombre || '',
+    id: Date.now(), candidatoId: idLocalCand(c.id), nombre: (c.apellido ? c.apellido + ' ' : '') + c.nombre, dni: c.dni, zona: c.zona, localidad: c.localidad || '', partido: c.partido || '', tel: c.tel, rrhh: (DB.personalRrhh || []).find(p => p.id === c.rrhhId)?.nombre || '',
     psicotecnico: 'Pendiente', prelaboral: 'Pendiente', antecedentes: 'No requerido', libretaSanitaria: 'No requerido',
     requiereAntecedentes: false, requiereLibreta: false, estado: 'En proceso',
     fecha: new Date().toLocaleDateString('es-AR'), obs: '',

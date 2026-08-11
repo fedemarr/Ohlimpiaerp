@@ -75,7 +75,7 @@ export function renderPsico(lista) {
   if (!tbody) return;
 
   if (!listaFinal.length) {
-    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:30px;color:#94a3b8;">'
+    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:30px;color:#94a3b8;">'
       + (_psicoTab === 'historico' ? 'Sin registros en histórico' : 'Sin candidatos en proceso')
       + '</td></tr>';
     return;
@@ -87,6 +87,7 @@ export function renderPsico(lista) {
       + '<td style="padding:8px 12px;font-size:13px;"><strong>' + p.nombre + '</strong></td>'
       + '<td style="padding:8px;font-size:12px;color:#64748b;">' + (p.dni || '—') + '</td>'
       + '<td style="padding:8px;font-size:12px;">' + (p.zona || '—') + '</td>'
+      + '<td style="padding:8px;font-size:12px;">' + (p.localidad || '—') + '</td>'
       + '<td style="padding:8px;text-align:center;">' + textoPsico(p.psicotecnico) + '</td>'
       + '<td style="padding:8px;text-align:center;font-size:11px;font-weight:600;color:' + ec + '">' + p.estado + '</td>'
       + '<td style="padding:8px;text-align:center;">'
@@ -115,21 +116,34 @@ export function renderPsico(lista) {
 export function filtrarPsico() {
   const buscar = (($('psico-buscar') || { value: '' }).value || (($('buscador-global') || { value: '' }).value)).toLowerCase();
   const zona = ($('psico-filtro-zona') || { value: '' }).value;
+  const localidad = ($('psico-filtro-localidad') || { value: '' }).value;
   const estado = ($('psico-filtro-estado') || { value: '' }).value;
 
   renderPsico(DB.psicos.filter(p =>
     !yaIngresadoPsico(p.dni) &&
     (!buscar || (p.nombre || '').toLowerCase().includes(buscar) || (p.dni || '').includes(buscar)) &&
     (!zona || p.zona === zona) &&
+    (!localidad || p.localidad === localidad) &&
     (!estado || p.estado === estado)
   ));
 }
 
 export function poblarFiltrosColumnasPsico() {
   const el = $('psico-filtro-zona');
-  if (!el) return;
-  const ph = el.options[0]?.outerHTML || '<option value="">Todas las zonas</option>';
-  el.innerHTML = ph + [...new Set(DB.zonas)].filter(Boolean).map(z => `<option>${z}</option>`).join('');
+  if (el) {
+    const ph = el.options[0]?.outerHTML || '<option value="">Todas las zonas</option>';
+    el.innerHTML = ph + [...new Set(DB.zonas)].filter(Boolean).map(z => `<option>${z}</option>`).join('');
+  }
+  // Localidad no tiene una lista fija como zona (el catálogo real son
+  // ~400 localidades de PARTIDOS_LOCALIDADES, ver state.js) — se puebla
+  // solo con las que realmente aparecen en los psicos cargados, mismo
+  // criterio liviano que ya usa zona, para no mostrar un desplegable
+  // gigante casi todo vacío.
+  const elLoc = $('psico-filtro-localidad');
+  if (elLoc) {
+    const ph = elLoc.options[0]?.outerHTML || '<option value="">Todas las localidades</option>';
+    elLoc.innerHTML = ph + [...new Set((DB.psicos || []).map(p => p.localidad))].filter(Boolean).sort((a, b) => a.localeCompare(b, 'es')).map(l => `<option>${l}</option>`).join('');
+  }
 }
 
 // ========== CRUD LEGACY ==========
