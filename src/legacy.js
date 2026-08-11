@@ -1775,6 +1775,7 @@ function verObjetivo(idLocal){
     const diasTxt=DIAS_PUESTO.filter(([d])=>p.dias?.[d]).map(([,l])=>l).join(', ')||'—';
     return `<div style="padding:8px;background:var(--fondo);border-radius:var(--radio);margin-bottom:5px;border:1px solid var(--borde);font-size:12px;">
     <strong>${p.cantidad||1}</strong> persona(s)${p.perfil?' — '+p.perfil:''} · ${p.horarioDesde||'?'} a ${p.horarioHasta||'?'} · ${diasTxt}
+    <span class="badge ${p.tipoHorario==='rotativo'?'badge-naranja':'badge-azul'}" style="font-size:10px;">${p.tipoHorario==='rotativo'?'Rotativo':'Fijo'}</span>
     ${p.obs?`<div style="color:var(--texto-suave);margin-top:2px;">${p.obs}</div>`:''}
   </div>`;}).join(''):'<p class="text-muted" style="font-size:12px;">Sin puestos cargados</p>'}
   <div style="margin-top:14px;font-size:11px;font-weight:700;text-transform:uppercase;color:var(--texto-suave);margin-bottom:8px;">Responsables del cliente</div>
@@ -2137,18 +2138,22 @@ const DIAS_PUESTO=[['lunes','L'],['martes','M'],['miercoles','X'],['jueves','J']
 let puestosObjTemp=[];
 window.puestosObjTemp=puestosObjTemp;
 function agregarPuestoObj(){
-  puestosObjTemp.push({cantidad:1,perfil:'',horarioDesde:'',horarioHasta:'',dias:{},obs:''});
+  puestosObjTemp.push({cantidad:1,perfil:'',horarioDesde:'',horarioHasta:'',tipoHorario:'fijo',dias:{},obs:''});
   renderPuestosObj();
 }
 function renderPuestosObj(){
   const el=$('obj-puestos-lista');if(!el)return;
   el.innerHTML=puestosObjTemp.map((p,i)=>`
     <div style="background:var(--fondo);border:1px solid var(--borde);border-radius:var(--radio);padding:10px 12px;margin-bottom:8px;">
-      <div style="display:grid;grid-template-columns:90px 1fr 100px 100px auto;gap:8px;align-items:end;">
+      <div style="display:grid;grid-template-columns:85px 1fr 100px 100px 100px auto;gap:8px;align-items:end;">
         <div class="form-group" style="margin:0;"><label style="font-size:10px;">Cantidad *</label><input type="number" min="1" value="${p.cantidad||''}" style="${inputStyle}" oninput="puestosObjTemp[${i}].cantidad=parseInt(this.value)||0"></div>
         <div class="form-group" style="margin:0;"><label style="font-size:10px;">Perfil (opcional)</label><input type="text" value="${p.perfil||''}" placeholder="Ej: H, 25 a 40 años" style="${inputStyle}" oninput="puestosObjTemp[${i}].perfil=this.value"></div>
         <div class="form-group" style="margin:0;"><label style="font-size:10px;">Desde</label><input type="time" value="${p.horarioDesde||''}" style="${inputStyle}" onchange="puestosObjTemp[${i}].horarioDesde=this.value"></div>
         <div class="form-group" style="margin:0;"><label style="font-size:10px;">Hasta</label><input type="time" value="${p.horarioHasta||''}" style="${inputStyle}" onchange="puestosObjTemp[${i}].horarioHasta=this.value"></div>
+        <div class="form-group" style="margin:0;"><label style="font-size:10px;">Tipo horario</label><select style="${inputStyle}" onchange="puestosObjTemp[${i}].tipoHorario=this.value">
+          <option value="fijo" ${(p.tipoHorario||'fijo')==='fijo'?'selected':''}>Fijo</option>
+          <option value="rotativo" ${p.tipoHorario==='rotativo'?'selected':''}>Rotativo</option>
+        </select></div>
         <button type="button" style="background:none;border:none;cursor:pointer;color:var(--rojo);font-size:16px;" onclick="puestosObjTemp.splice(${i},1);renderPuestosObj()">✕</button>
       </div>
       <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:8px;">
