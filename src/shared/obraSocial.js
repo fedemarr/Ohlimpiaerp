@@ -33,10 +33,12 @@ export function calcularFechaAltaObraSocialISO(fechaIngresoISO) {
   return d.toISOString().slice(0, 10);
 }
 
-const MESES_ES = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
-
-// "Noviembre 2026" — usado en la columna "Mes de alta" del listado de Legajos.
+// "08/2026" — usado en la columna "Mes de alta" del listado de Legajos.
+// Mes con dos dígitos (cero a la izquierda) + barra + año con cuatro
+// dígitos. Se lee con getMonth()/getFullYear() (métodos LOCALES) sobre la
+// fecha ya construida a mediodía local en calcularFechaAltaObraSocial(),
+// así no hay corrimiento de día/mes por zona horaria. d vacío/null → ''.
 export function formatearMesAnio(d) {
   if (!d) return '';
-  return MESES_ES[d.getMonth()] + ' ' + d.getFullYear();
+  return String(d.getMonth() + 1).padStart(2, '0') + '/' + d.getFullYear();
 }
