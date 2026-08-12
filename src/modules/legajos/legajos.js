@@ -6,6 +6,21 @@ import { TALLES_POR_PRENDA } from '@modules/uniformes/catalogos.js';
 import { calcularFechaAltaObraSocial, formatearMesAnio } from '@shared/obraSocial.js';
 import { listarAdjuntos, obtenerUrlFirmada, subirAdjunto, borrarAdjunto, MAX_SIZE, TIPO_LEGIBLE } from '@shared/adjuntos.js';
 import { calcularEstadoVencimiento } from '../documentacion/documentacion.js';
+import { crearNotificacion } from '@shared/notificaciones.js';
+
+// Tema 2 del relevamiento (MODULO_MONOTRIBUTO.md §4): "sin archivo:
+// etiqueta roja + notificación a RRHH/Administración" (MiPyME) y mismo
+// esquema para CUIT inactivo. Se notifica a cada persona de DB.rrhh —
+// mismo catálogo que ya usa el resto del sistema para "a quién le toca
+// RRHH" (altas.js, calendario.js). Solo se llama en una transición real
+// (ver guardarEdicionLegajo/confirmarImportMonotributo), no en cada
+// guardado, para no generar notificaciones repetidas de algo que ya se
+// sabía.
+function _notificarRRHH(legajo, mensaje) {
+  (DB.rrhh || []).forEach(nombre => {
+    crearNotificacion({ tipo: 'legajo_monotributo_pendiente', entidadTipo: 'legajo', entidadIdLocal: String(legajo.nro), destinatarioNombre: nombre, mensaje });
+  });
+}
 
 // Busca, para un DNI, la documentación de ingreso más reciente que tenga
 // vencimiento de antecedentes cargado (puede no haber ninguna si el legajo
@@ -131,6 +146,10 @@ export function renderLegajos(lista) {
           ${_mesAltaObraSocial(l) || '<span class="text-muted">—</span>'}
         </label>
       </td>
+      <td style="font-size:10px;white-space:nowrap;">
+        ${l.mipymeEstado === 'TRAMITADO' ? '<span class="badge badge-verde" style="font-size:9px;">MiPyME OK</span>' : '<span class="badge badge-rojo" style="font-size:9px;" title="Sin certificado MiPyME tramitado">MiPyME pend.</span>'}
+        ${l.cuitEstado === 'INACTIVO' ? '<br><span class="badge badge-rojo" style="font-size:9px;">CUIT inactivo</span>' : ''}
+      </td>
       <td><button class="btn btn-secondary btn-sm" onclick="event.stopPropagation();verLegajo(${l.nro})">Ver legajo</button></td>
     </tr>`;
   }).join('');
@@ -177,6 +196,7 @@ export function filtrarLegajos() {
   const bg = ($('buscador-global') || { value: '' }).value.toLowerCase();
   const busq = nombre || bg;
   const prueba = ($('cf-leg-prueba') || { value: '' }).value;
+  const mono = ($('cf-leg-mono') || { value: '' }).value;
 
   renderLegajos(DB.legajos.filter(l => {
     const pr = calcularPrueba(l);
@@ -193,7 +213,8 @@ export function filtrarLegajos() {
       (!estLegal || l.estadoLegal === estLegal) &&
       (!baja || (l.fechaBaja || '').includes(baja)) &&
       (!reincorp || (l.fechaReincorp || '').includes(reincorp)) &&
-      (!seguro || l.seguro === seguro)
+      (!seguro || l.seguro === seguro) &&
+      (!mono || (mono === 'mipyme' ? l.mipymeEstado !== 'TRAMITADO' : l.cuitEstado === 'INACTIVO'))
     );
   }));
 }
@@ -753,10 +774,21 @@ export function guardarEdicionLegajo() {
   l.inaes = ($('edit-inaes') || { value: l.inaes || '' }).value.trim() || String(l.nro);
   if ($('edit-cuit-estado')) {
     const cuitEstadoNuevo = $('edit-cuit-estado').value || null;
-    if (cuitEstadoNuevo !== l.cuitEstado) l.cuitFechaVerificacion = new Date().toISOString().slice(0, 10);
+    if (cuitEstadoNuevo !== l.cuitEstado) {
+      l.cuitFechaVerificacion = new Date().toISOString().slice(0, 10);
+      if (cuitEstadoNuevo === 'INACTIVO' && l.cuitEstado !== 'INACTIVO') {
+        _notificarRRHH(l, `⚠️ CUIT inactivo: ${l.nombre} (N° ${l.nro}) — revisar estado ante ARCA.`);
+      }
+    }
     l.cuitEstado = cuitEstadoNuevo;
   }
-  if ($('edit-mipyme-estado')) l.mipymeEstado = $('edit-mipyme-estado').value || null;
+  if ($('edit-mipyme-estado')) {
+    const mipymeNuevo = $('edit-mipyme-estado').value || null;
+    if (mipymeNuevo !== 'TRAMITADO' && l.mipymeEstado === 'TRAMITADO') {
+      _notificarRRHH(l, `⚠️ MiPyME pendiente: ${l.nombre} (N° ${l.nro}) quedó sin certificado tramitado.`);
+    }
+    l.mipymeEstado = mipymeNuevo;
+  }
   l.tel = $('edit-tel').value;
   l.mail = $('edit-mail').value;
   l.banco = $('edit-banco').value;

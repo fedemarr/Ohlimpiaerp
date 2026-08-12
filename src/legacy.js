@@ -10243,7 +10243,25 @@ function confirmarNuevoReten(){
 // ══════════════════════════════════════════════════════════
 // MÓDULO MONOTRIBUTOS
 // ══════════════════════════════════════════════════════════
+// Tema 2 §4: "el certificado vence el 30/04 de cada año... conviene
+// alerta anual". Sin infraestructura de vencimiento por-legajo (el
+// certificado no tiene una fecha propia cargada, solo el estado
+// TRAMITADO/PENDIENTE) — se muestra un aviso simple en la ventana
+// previa a esa fecha (marzo-abril) para que RRHH revise las renovaciones
+// a mano, en vez de inventar un sistema de vencimientos por persona que
+// el dato de origen no sustenta todavía.
+function _chequearAlertaMipymeAnual(){
+  const el=$('mono-alerta-mipyme-anual');
+  if(!el) return;
+  const hoy=new Date();
+  const mes=hoy.getMonth()+1; // 1-12
+  if(mes!==3&&mes!==4){ el.style.display='none'; return; }
+  const pendientes=(DB.legajos||[]).filter(l=>l.estado==='Activo'&&l.mipymeEstado!=='TRAMITADO').length;
+  el.style.display='block';
+  el.innerHTML=`<div class="alerta alerta-warn" style="font-size:12.5px;">📅 El certificado MiPyME de la cooperativa vence el 30/04 — ARCA lo renueva solo si la cooperativa está al día. Revisá antes de esa fecha${pendientes?`: hoy hay <strong>${pendientes} asociado(s) activo(s)</strong> con MiPyME no tramitado (columna "Monotributo" en Legajos).`:'.'}</div>`;
+}
 function renderMonotributos(){
+  _chequearAlertaMipymeAnual();
   // Poblar selector de año
   const selAnio = $('mono-anio');
   if(selAnio && !selAnio.options.length){
@@ -10965,10 +10983,16 @@ function confirmarImportMonotributo(){
   if(!_monoImportFilas||!_monoImportFilas.length){ toast('⚠️ Elegí un archivo primero'); return; }
   let legajosActualizados=0,monoActualizados=0,monoCreados=0,sinMatch=0;
   const noDescuentaAdherente=[];
+  const nuevosMipymePendiente=[],nuevosCuitInactivo=[];
   _monoImportFilas.forEach(o=>{
     const leg=(DB.legajos||[]).find(l=>String(l.nro)===o.nroSocio);
     const nombreCompleto=`${o.apellidos||''} ${o.nombres||''}`.trim();
     if(leg){
+      // Tema 2 §4: solo se notifica en la TRANSICIÓN (antes no estaba
+      // marcado así) — comparado contra el valor previo, no en cada
+      // reimport de algo que ya se sabía.
+      const mipymeEraOk=leg.mipymeEstado==='TRAMITADO';
+      const cuitEraActivo=leg.cuitEstado!=='INACTIVO';
       if(o.claveFiscal&&o.claveFiscal!=='SIN CLAVE') leg.claveFiscal=o.claveFiscal;
       const fechaClave=_fechaDMYaISO(o.claveFiscalFecha);
       if(fechaClave) leg.claveFiscalFechaActualizacion=fechaClave;
@@ -10976,6 +11000,8 @@ function confirmarImportMonotributo(){
       if(o.cuitEstado) leg.cuitEstado=o.cuitEstado;
       const fechaCuit=_fechaDMYaISO(o.cuitFecha);
       if(fechaCuit) leg.cuitFechaVerificacion=fechaCuit;
+      if(mipymeEraOk&&leg.mipymeEstado!=='TRAMITADO') nuevosMipymePendiente.push(`${leg.nombre} (N°${leg.nro})`);
+      if(cuitEraActivo&&leg.cuitEstado==='INACTIVO') nuevosCuitInactivo.push(`${leg.nombre} (N°${leg.nro})`);
       supaSync('legajos', leg);
       legajosActualizados++;
     } else sinMatch++;
@@ -11018,6 +11044,20 @@ function confirmarImportMonotributo(){
   renderMonotributos();
   toast(`✅ Importado: ${legajosActualizados} legajo(s) actualizados, ${monoActualizados} monotributo(s) actualizados, ${monoCreados} creados${sinMatch?`, ${sinMatch} sin legajo`:''}`,9000);
   if(noDescuentaAdherente.length) toast(`⚠️ ${noDescuentaAdherente.length} persona(s) con adherente marcado 'NO descontar' en el archivo — el TAB de pago mensual hoy no distingue esto todavía, va a incluir su monto igual que los demás. Revisar a mano: ${noDescuentaAdherente.slice(0,5).join(', ')}${noDescuentaAdherente.length>5?'…':''}`,15000);
+
+  // Tema 2 §4: notificación a RRHH/Administración cuando queda gente en
+  // MiPyME pendiente / CUIT inactivo — UNA notificación resumen por
+  // persona de RRHH (no una por cada legajo, para no generar un aluvión
+  // de 37+ notificaciones individuales de un solo import).
+  if(nuevosMipymePendiente.length||nuevosCuitInactivo.length){
+    const partes=[];
+    if(nuevosMipymePendiente.length) partes.push(`${nuevosMipymePendiente.length} con MiPyME pendiente (${nuevosMipymePendiente.slice(0,8).join(', ')}${nuevosMipymePendiente.length>8?'…':''})`);
+    if(nuevosCuitInactivo.length) partes.push(`${nuevosCuitInactivo.length} con CUIT inactivo (${nuevosCuitInactivo.slice(0,8).join(', ')}${nuevosCuitInactivo.length>8?'…':''})`);
+    const mensaje=`📥 Import de Monotributo — quedaron: ${partes.join(' · ')}.`;
+    (DB.rrhh||[]).forEach(nombre=>{
+      crearNotificacion({tipo:'legajo_monotributo_pendiente', entidadTipo:'legajo', entidadIdLocal:'import', destinatarioNombre:nombre, mensaje});
+    });
+  }
 }
 
 function tabMonotributos(tab, btn){

@@ -516,6 +516,7 @@
         <th>Seguro<select style="display:block;width:100%;font-size:10px;padding:2px 4px;border:1px solid var(--borde-fuerte);border-radius:5px;margin-top:4px;outline:none;" onchange="filtrarLegajos()" id="cf-leg-seguro"><option value="">Todos</option><option>Completo</option><option>Pendiente</option></select></th>
         <th>Obra social</th>
         <th title="Ingreso + 3 meses — mes en que corresponde tramitar el alta">Mes de alta OS</th>
+        <th>Monotributo<select style="display:block;width:100%;font-size:10px;padding:2px 4px;border:1px solid var(--borde-fuerte);border-radius:5px;margin-top:4px;outline:none;" onchange="filtrarLegajos()" id="cf-leg-mono"><option value="">Todos</option><option value="mipyme">MiPyME pendiente</option><option value="cuit">CUIT inactivo</option></select></th>
         <th></th>
       </tr></thead>
       <tbody id="tbody-legajos"></tbody>
@@ -4069,6 +4070,7 @@
           <button class="btn btn-secondary btn-sm" onclick="abrirImportadorMonotributo()">📥 Importar CSV</button>
         </div>
       </div>
+      <div id="mono-alerta-mipyme-anual" style="display:none;margin:0 20px 12px;"></div>
       <div class="tabla-wrap"><table style="width:100%;border-collapse:collapse;font-size:12px;">
         <thead><tr style="background:#374151;color:white;">
           <th style="padding:8px 14px;border:1px solid #6b7280;text-align:left;min-width:180px;">Asociado</th>
