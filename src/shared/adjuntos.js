@@ -26,6 +26,7 @@ export const TIPO_LEGIBLE = {
   'poliza-seguro': 'Poliza Seguro',
   'proceso':       'Documento del proceso',
   'certificado-mipyme': 'Certificado MiPyME',
+  'nc-firmada': 'NC Firmada',
 };
 
 // Límite de tamaño (10 MB, igual que el bucket) y MIME types permitidos.

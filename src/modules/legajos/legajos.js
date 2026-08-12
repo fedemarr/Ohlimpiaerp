@@ -216,6 +216,12 @@ export function verLegajo(nro) {
     .sort((a, b) => (b.fecha || '').localeCompare(a.fecha || ''));
   const sancionesDelAsoc = (DB.sancionesDisciplinarias || []).filter(s => !s.anulado && String(s.legajoIdLocal) === String(l.nro))
     .sort((a, b) => new Date(b.fechaIniciacion) - new Date(a.fechaIniciacion));
+  // Tema 9 del relevamiento (10/08): "una NC vinculada a un asociado
+  // genera el movimiento en la solapa Sanciones de su legajo" — no crea
+  // una sanción real (eso sigue siendo el módulo Sanciones con su propio
+  // flujo de niveles/aprobaciones), se muestra la NC vinculada acá.
+  const ncsDelAsoc = (DB.noConformidades || []).filter(nc => String(nc.asociadoNroSocio) === String(l.nro))
+    .sort((a, b) => (b.fecha || '').localeCompare(a.fecha || ''));
   // Tab "⚖️ Legal": solo lectura y solo visible para RRHH/Admin — es el
   // reemplazo de la fuga de confidencialidad que era mostrar
   // l.estadoLegal como badge/banner para cualquier perfil (ver delta
@@ -294,7 +300,7 @@ export function verLegajo(nro) {
       <button class="tab-btn" onclick="tabLeg(3,this)">Historial completo</button>
       <button class="tab-btn" onclick="tabLeg(4,this)">📎 Adjuntos</button>
       <button class="tab-btn" onclick="tabLeg(5,this)">🎓 Capacitaciones</button>
-      <button class="tab-btn" onclick="tabLeg(6,this)">⚠️ Antecedentes ${sancionesDelAsoc.length > 0 ? `<span class="badge badge-rojo" style="font-size:10px;margin-left:4px;">${sancionesDelAsoc.length}</span>` : ''}</button>
+      <button class="tab-btn" onclick="tabLeg(6,this)">⚠️ Antecedentes ${(sancionesDelAsoc.length + ncsDelAsoc.length) > 0 ? `<span class="badge badge-rojo" style="font-size:10px;margin-left:4px;">${sancionesDelAsoc.length + ncsDelAsoc.length}</span>` : ''}</button>
       ${puedeVerLegal ? `<button class="tab-btn" onclick="tabLeg(7,this)">⚖️ Legal ${casosLegalesDelAsoc.length > 0 ? `<span class="badge badge-naranja" style="font-size:10px;margin-left:4px;">${casosLegalesDelAsoc.length}</span>` : ''}</button>` : ''}
       ${puedeVerMedico ? `<button class="tab-btn" onclick="tabLeg(8,this)">🏥 Historial médico ${casosMedicosDelAsoc.some(c => c.estado === 'Abierto') ? '<span class="badge badge-rojo" style="font-size:10px;margin-left:4px;">En tratamiento</span>' : ''}</button>` : ''}
       ${puedeVerCC ? `<button class="tab-btn" onclick="tabLeg(9,this)">💰 Cuenta corriente ${(adelantosDelAsoc.length + prestamosDelAsoc.filter(p => p.estado === 'Activo').length + descUniDelAsoc.filter(d => d.estado !== 'Terminado' && d.estado !== 'Cancelado').length) > 0 ? `<span class="badge badge-azul" style="font-size:10px;margin-left:4px;">${adelantosDelAsoc.length + prestamosDelAsoc.filter(p => p.estado === 'Activo').length + descUniDelAsoc.filter(d => d.estado !== 'Terminado' && d.estado !== 'Cancelado').length}</span>` : ''}</button>` : ''}
@@ -375,6 +381,7 @@ export function verLegajo(nro) {
       <div class="tl-item"><div class="tl-dot"></div><div class="tl-content"><h4>Alta como asociado</h4><p>${l.ingreso} — ${l.servicio}</p></div></div>
       ${reasDelAsoc.map(r => `<div class="tl-item"><div class="tl-dot" style="background:var(--azul-medio);"></div><div class="tl-content"><h4>Reasignación: ${r.servicioOrigen} → ${r.servicioDestino}</h4><p>${r.fechaEfectiva} · ${r.motivo}</p></div></div>`).join('')}
       ${sancionesDelAsoc.map(s => `<div class="tl-item"><div class="tl-dot" style="background:var(--naranja);"></div><div class="tl-content"><h4>${s.nivel === 0 ? 'Registro informal' : 'Sanción nivel ' + s.nivel + ' — ' + s.nombreNivel}: ${s.nombreInfraccion}</h4><p>${s.fechaHecho} · ${s.estado}</p></div></div>`).join('')}
+      ${ncsDelAsoc.map(nc => `<div class="tl-item"><div class="tl-dot" style="background:var(--naranja);"></div><div class="tl-content"><h4>No conformidad ${nc.nro}</h4><p>${nc.fecha} · ${nc.estado}${nc.firmada ? ' · ✍️ Firmada' : ''}</p></div></div>`).join('')}
       ${puedeVerCC ? adelantosDelAsoc.map(a => `<div class="tl-item"><div class="tl-dot" style="background:var(--verde);"></div><div class="tl-content"><h4>${a.tipo}: $${(a.monto || 0).toLocaleString('es-AR')}</h4><p>${a.fecha || '—'}</p></div></div>`).join('') : ''}
       ${puedeVerCC ? prestamosDelAsoc.map(p => `<div class="tl-item"><div class="tl-dot" style="background:var(--verde);"></div><div class="tl-content"><h4>Préstamo otorgado: $${(p.monto || 0).toLocaleString('es-AR')} en ${p.cuotas} cuotas</h4><p>${p.fechaOtorgamiento || '—'} · ${p.estado}</p></div></div>`).join('') : ''}
       ${l.estadoLegal ? `<div class="tl-item"><div class="tl-dot rojo"></div><div class="tl-content"><h4>Situación legal: ${l.estadoLegal}</h4><p>Registrada en el sistema</p></div></div>` : ''}
@@ -404,7 +411,7 @@ export function verLegajo(nro) {
         </table></div>`}
     </div>
     <div id="leg-tab-6" class="tab-content">
-      ${sancionesDelAsoc.length === 0 ? '<div class="empty-state"><div class="icon">✅</div><p>Sin antecedentes disciplinarios</p></div>' : `
+      ${(sancionesDelAsoc.length + ncsDelAsoc.length) === 0 ? '<div class="empty-state"><div class="icon">✅</div><p>Sin antecedentes disciplinarios</p></div>' : `
         <div style="display:flex;flex-direction:column;gap:8px;">
           ${sancionesDelAsoc.map(s => `
             <div style="background:var(--fondo);border:1px solid var(--borde);border-radius:var(--radio);padding:10px 14px;">
@@ -418,6 +425,19 @@ export function verLegajo(nro) {
                 <div style="text-align:right;">
                   <span class="chip" style="font-size:10px;">${s.estado}</span>
                   <div style="font-size:11px;color:var(--texto-muy-suave);margin-top:4px;">${s.fechaHecho}</div>
+                </div>
+              </div>
+            </div>`).join('')}
+          ${ncsDelAsoc.map(nc => `
+            <div style="background:#fff7ed;border:1px solid #fed7aa;border-radius:var(--radio);padding:10px 14px;">
+              <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;flex-wrap:wrap;">
+                <div>
+                  <div style="font-size:13px;font-weight:600;">📋 No conformidad ${nc.nro}</div>
+                  <div style="font-size:12px;color:var(--texto-suave);margin-top:2px;">${nc.causaRaiz || nc.tratamiento || 'Sin causa raíz cargada'}</div>
+                </div>
+                <div style="text-align:right;">
+                  <span class="chip" style="font-size:10px;">${nc.estado}${nc.firmada ? ' · ✍️ Firmada' : ''}</span>
+                  <div style="font-size:11px;color:var(--texto-muy-suave);margin-top:4px;">${nc.fecha}</div>
                 </div>
               </div>
             </div>`).join('')}

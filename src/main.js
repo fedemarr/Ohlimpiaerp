@@ -137,7 +137,7 @@ async function loadLegacy() {
       cobros: { title: 'Gestión de cobros', btn: '', fn: null, render: () => { if (window.renderCobros) window.renderCobros(); } },
       comisiones: { title: 'Comisiones', btn: '', fn: null, render: () => { if (window.renderComisiones) window.renderComisiones(); } },
       crm: { title: 'CRM Comercial', btn: '+ Nuevo lead', fn: () => { if (window.abrirNuevoLead) window.abrirNuevoLead(); }, render: () => { if (window.renderCRM) window.renderCRM(); } },
-      reclamos: { title: 'Reclamos y NC', btn: '+ Nuevo reclamo', fn: () => abrirModal('modal-reclamo'), render: () => { if (window.renderReclamos) window.renderReclamos(); } },
+      reclamos: { title: 'Reclamos y NC', btn: '+ Nuevo reclamo', fn: () => abrirModal('modal-reclamo'), render: () => { if (window.renderReclamos) window.renderReclamos(); if (window.renderReclamosBoard) window.renderReclamosBoard(); } },
       precios: { title: 'Gestión de precios', btn: '', fn: null, render: () => { if (window.renderPrecios) window.renderPrecios(); } },
       liquidacion: { title: 'Liquidación de horas', btn: '', fn: null, render: () => { if (window.renderLiquidacion) window.renderLiquidacion(); } },
       liq_admin: {

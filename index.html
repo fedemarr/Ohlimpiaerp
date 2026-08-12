@@ -2532,11 +2532,20 @@
     <div class="stat-card azul"><div class="stat-label">No conformidades</div><div class="stat-valor" id="st-rec-nc">0</div><div class="stat-sub">Sistema calidad</div></div>
   </div>
   <div class="tabs" style="background:white;border-radius:var(--radio-lg) var(--radio-lg) 0 0;padding:0 20px;box-shadow:var(--sombra);border-bottom:none;">
-    <button class="tab-btn active" onclick="tabReclamos('lista',this)">📣 Reclamos</button>
+    <button class="tab-btn active" onclick="tabReclamos('tablero',this)">🗂️ Tablero</button>
+    <button class="tab-btn" onclick="tabReclamos('lista',this)">📣 Lista</button>
     <button class="tab-btn" onclick="tabReclamos('nc',this)">📋 No conformidades</button>
     <button class="tab-btn" onclick="tabReclamos('stats',this)">📊 Indicadores</button>
   </div>
-  <div id="rec-tab-lista" class="tab-content active">
+  <div id="rec-tab-tablero" class="tab-content active">
+    <div class="card" style="border-radius:0 var(--radio-lg) var(--radio-lg) var(--radio-lg);">
+      <div class="card-header"><h3>🗂️ Tablero de reclamos</h3>
+        <button class="btn btn-primary btn-sm" onclick="window.abrirModal('modal-reclamo')">+ Nuevo reclamo</button>
+      </div>
+      <div id="reclamos-board" style="display:flex;gap:14px;padding:16px 20px;overflow-x:auto;"></div>
+    </div>
+  </div>
+  <div id="rec-tab-lista" class="tab-content">
     <div class="card" style="border-radius:0 var(--radio-lg) var(--radio-lg) var(--radio-lg);">
       <div class="card-header">
         <h3>📣 Reclamos de clientes</h3>

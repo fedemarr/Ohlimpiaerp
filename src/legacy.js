@@ -9,6 +9,7 @@ import { supaSync, supaDel, supaInit } from '@shared/supabase.js';
 import { crearNotificacion } from '@shared/notificaciones.js';
 import { obtenerValorHoraVigente, getCategoriaById } from './modules/categorias/consultas.js';
 import { pctComisionSupervisor } from './modules/supervisores/supervisores.js';
+import { listarAdjuntos, obtenerUrlFirmada, subirAdjunto, borrarAdjunto, MAX_SIZE as ADJ_MAX_SIZE } from '@shared/adjuntos.js';
 
 // ========== ESTADO ==========
 
@@ -3280,9 +3281,17 @@ function tabReclamos(tab,btn){
   document.querySelectorAll('#screen-reclamos .tab-content').forEach(t=>t.classList.remove('active'));
   document.querySelectorAll('#screen-reclamos .tab-btn').forEach(b=>b.classList.remove('active'));
   $('rec-tab-'+tab).classList.add('active');if(btn)btn.classList.add('active');
+  if(tab==='tablero') renderReclamosBoard();
+  if(tab==='lista') renderReclamos();
   if(tab==='stats') renderStatsReclamos();
   if(tab==='nc') renderNC();
 }
+// Bug real encontrado al conectar el tablero (tema 9): editar/cerrar
+// operaba por índice de la fila ya renderizada (`rows`, filtrable) contra
+// DB.reclamos directo — mismo patrón ya corregido varias veces esta
+// sesión en otros módulos. Se agrega getReclamoById y todo pasa a
+// operar por id real.
+function getReclamoById(id){ return (DB.reclamos||[]).find(r=>String(r.id)===String(id)); }
 function renderReclamos(lista){
   const rows=lista||DB.reclamos;
   $('st-rec-abiertos').textContent=DB.reclamos.filter(r=>r.estado==='Abierto').length;
@@ -3291,7 +3300,7 @@ function renderReclamos(lista){
   $('st-rec-nc').textContent=DB.noConformidades.length;
   const getCliente=id=>DB.clientes.find(c=>c.id===id);
   const priCol={'Baja':'badge-gris','Media':'badge-acento','Alta':'badge-naranja','Urgente':'badge-rojo'};
-  $('tbody-reclamos').innerHTML=rows.map((r,i)=>`<tr>
+  $('tbody-reclamos').innerHTML=rows.map((r)=>`<tr>
     <td style="font-size:12px;">${r.fecha}</td>
     <td><div style="font-weight:500;font-size:12px;">${getCliente(r.clienteId)?.nombre||'—'}</div><div style="font-size:10px;color:var(--texto-suave);">${r.objetivoCod}</div></td>
     <td><span class="chip" style="font-size:11px;">${r.tipo}</span></td>
@@ -3303,25 +3312,86 @@ function renderReclamos(lista){
     <td style="font-size:11px;">${r.nc?`<span class="badge badge-azul">${r.nc}</span>`:'—'}</td>
     <td>
       <div style="display:flex;gap:3px;">
-        ${r.estado!=='Cerrado'?`<button class="btn btn-xs" style="background:var(--verde-claro);color:var(--verde);border:1px solid #9fdaba;" onclick="cerrarReclamo(${i})">✓</button>`:''}
-        <button class="btn btn-secondary btn-xs" onclick="verReclamo(${i})">Ver</button>
+        ${r.estado!=='Cerrado'?`<button class="btn btn-xs" style="background:var(--verde-claro);color:var(--verde);border:1px solid #9fdaba;" onclick="cerrarReclamo('${r.id}')">✓</button>`:''}
+        <button class="btn btn-secondary btn-xs" onclick="verReclamo('${r.id}')">Ver</button>
       </div>
     </td>
   </tr>`).join('')||`<tr><td colspan="10"><div class="empty-state"><div class="icon">📣</div><p>Sin reclamos registrados</p></div></td></tr>`;
 }
+
+// ══════════════════════════════════════════════════════════
+// TABLERO (kanban) — tema 9 del relevamiento (10/08): mismo diseño de
+// pipeline con drag & drop que ya usa el CRM comercial (renderPipeline/
+// dragLead/dropLead), 3 columnas por estado real del reclamo (no hace
+// falta un modelo de etapas nuevo, el estado ya es Abierto/En
+// tratamiento/Cerrado).
+// ══════════════════════════════════════════════════════════
+const ESTADOS_RECLAMO=['Abierto','En tratamiento','Cerrado'];
+const COLOR_ESTADO_RECLAMO={'Abierto':'var(--rojo)','En tratamiento':'var(--naranja)','Cerrado':'var(--verde)'};
+function renderReclamosBoard(){
+  const board=$('reclamos-board');if(!board)return;
+  const getCliente=id=>DB.clientes.find(c=>c.id===id);
+  board.innerHTML=ESTADOS_RECLAMO.map(estado=>{
+    const items=DB.reclamos.filter(r=>r.estado===estado);
+    const col=COLOR_ESTADO_RECLAMO[estado];
+    return `<div class="pipeline-col" data-estado="${estado}" style="width:260px;flex-shrink:0;"
+        ondragover="event.preventDefault();this.style.outline='2px dashed var(--azul)'"
+        ondragleave="this.style.outline=''"
+        ondrop="dropReclamo(event,'${estado}')">
+      <div style="background:${col};color:white;border-radius:var(--radio-lg) var(--radio-lg) 0 0;padding:10px 14px;display:flex;justify-content:space-between;align-items:center;">
+        <span style="font-weight:700;font-size:13px;">${estado}</span>
+        <span style="background:rgba(255,255,255,.2);border-radius:20px;padding:2px 8px;font-size:11px;">${items.length}</span>
+      </div>
+      <div style="background:white;border:1px solid var(--borde);border-top:none;border-radius:0 0 var(--radio-lg) var(--radio-lg);padding:10px;min-height:160px;display:flex;flex-direction:column;gap:8px;">
+        ${items.map(r=>{
+          const priCol={'Baja':'#94a3b8','Media':'var(--acento)','Alta':'var(--naranja)','Urgente':'var(--rojo)'}[r.prioridad]||'#94a3b8';
+          return `<div draggable="true"
+               style="background:var(--fondo);border:1px solid var(--borde);border-left:3px solid ${priCol};border-radius:var(--radio);padding:10px;cursor:grab;"
+               ondragstart="dragReclamo(event,'${r.id}')"
+               onclick="verReclamo('${r.id}')">
+            <div style="font-weight:600;font-size:12px;">${getCliente(r.clienteId)?.nombre||'—'}</div>
+            <div style="font-size:10px;color:var(--texto-suave);margin-top:2px;">${r.objetivoCod} · ${r.tipo}</div>
+            <div style="font-size:11px;margin-top:4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${r.desc}</div>
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-top:6px;">
+              <span class="chip" style="font-size:9px;">${r.prioridad}</span>
+              ${r.nc?`<span class="badge badge-azul" style="font-size:9px;">${r.nc}</span>`:''}
+            </div>
+          </div>`;
+        }).join('')||`<div style="text-align:center;padding:20px 0;font-size:12px;color:var(--texto-muy-suave);">Sin reclamos</div>`}
+      </div>
+    </div>`;
+  }).join('');
+}
+let dragReclamoId=null;
+function dragReclamo(e,id){dragReclamoId=id;e.dataTransfer.effectAllowed='move';}
+function dropReclamo(e,nuevoEstado){
+  e.preventDefault();
+  document.querySelectorAll('#reclamos-board .pipeline-col').forEach(c=>c.style.outline='');
+  const r=getReclamoById(dragReclamoId);
+  dragReclamoId=null;
+  if(!r||r.estado===nuevoEstado)return;
+  if(nuevoEstado==='Cerrado'){ cerrarReclamo(r.id); return; }
+  r.estado=nuevoEstado;
+  supaSync('reclamos', r);
+  renderReclamosBoard();renderReclamos();construirMenu();
+  toast(`✓ "${r.desc.slice(0,30)}..." → ${nuevoEstado}`);
+}
+
 function filtrarReclamos(){
   const tipo=($('cf-rec-tipo')||{value:''}).value;
   const est=($('cf-rec-estado')||{value:''}).value;
   const bg=($('buscar-reclamo')||{value:''}).value.toLowerCase();
   renderReclamos(DB.reclamos.filter(r=>(!tipo||r.tipo===tipo)&&(!est||r.estado===est)&&(!bg||r.desc.toLowerCase().includes(bg)||r.objetivoCod.toLowerCase().includes(bg))));
 }
-function cerrarReclamo(idx){
-  DB.reclamos[idx].estado='Cerrado';
-  DB.reclamos[idx].fechaCierre=new Date().toLocaleDateString('es-AR');
-  renderReclamos();construirMenu();toast('✓ Reclamo cerrado');
+function cerrarReclamo(id){
+  const r=getReclamoById(id);if(!r)return;
+  r.estado='Cerrado';
+  r.fechaCierre=new Date().toLocaleDateString('es-AR');
+  supaSync('reclamos', r);
+  renderReclamos();renderReclamosBoard();construirMenu();toast('✓ Reclamo cerrado');
 }
-function verReclamo(idx){
-  const r=DB.reclamos[idx];const cli=DB.clientes.find(c=>c.id===r.clienteId);
+function verReclamo(id){
+  const r=getReclamoById(id);if(!r)return;const cli=DB.clientes.find(c=>c.id===r.clienteId);
   const tiempoResp=r.fechaCierre?calcularDiasEntre(r.fecha,r.fechaCierre)+' días':'En curso';
   const html=`<div class="info-grid">
     <div class="info-item"><div class="key">Cliente</div><div class="val">${cli?.nombre||'—'}</div></div>
@@ -3347,12 +3417,22 @@ function guardarReclamo(){
   const nroNC=generaNC?'NC-'+new Date().getFullYear()+'-'+String(DB.noConformidades.length+1).padStart(3,'0'):'';
   const nuevo={id:Date.now(),clienteId:cliId,objetivoCod:$('rec-objetivo')?.value||'—',tipo:$('rec-tipo')?.value,prioridad:$('rec-prioridad')?.value,iniciador:$('rec-iniciador')?.value,desc,responsable:$('rec-responsable')?.value,estado:'Abierto',fecha:new Date().toLocaleDateString('es-AR'),fechaCierre:'',generaNC,nc:nroNC,tratamiento:''};
   DB.reclamos.push(nuevo);
+  supaSync('reclamos', nuevo);
   // 2.5.1 (Delta Comercial v1.2): la NC se vincula al reclamo por
   // reclamoId en vez de copiarle la descripción — antes quedaban dos
   // textos independientes que podían divergir si alguno se editaba.
   // renderNC() resuelve la descripción en vivo desde el reclamo vinculado.
-  if(generaNC) DB.noConformidades.push({id:Date.now(),nro:nroNC,fecha:new Date().toLocaleDateString('es-AR'),origen:'Reclamo externo',reclamoId:nuevo.id,causaRaiz:'',tratamiento:'',responsable:nuevo.responsable,fechaCierre:'',estado:'Abierta'});
-  supaSync('reclamos', DB.reclamos[DB.reclamos.length-1]); cerrarModal('modal-reclamo');renderReclamos();construirMenu();toast('✓ Reclamo registrado'+(generaNC?' — NC generada':''));
+  // Bug crítico encontrado y corregido acá (tema 9 del relevamiento,
+  // sql/v082): 'reclamos' y 'no_conformidades' NUNCA estuvieron
+  // registradas en _SM — supaSync() hacía early-return silencioso desde
+  // siempre. Todo reclamo/NC cargado en el sistema vivió solo en memoria
+  // del navegador y se perdía al recargar. Ya está en _SM ahora.
+  if(generaNC){
+    const nuevaNC={id:Date.now()+1,nro:nroNC,fecha:new Date().toLocaleDateString('es-AR'),origen:'Reclamo externo',reclamoId:nuevo.id,causaRaiz:'',tratamiento:'',responsable:nuevo.responsable,fechaCierre:'',estado:'Abierta'};
+    DB.noConformidades.push(nuevaNC);
+    supaSync('noConformidades', nuevaNC);
+  }
+  cerrarModal('modal-reclamo');renderReclamos();construirMenu();toast('✓ Reclamo registrado'+(generaNC?' — NC generada':''));
 }
 function analizarReclamosIA(){
   const porTipo={};DB.reclamos.forEach(r=>{porTipo[r.tipo]=(porTipo[r.tipo]||0)+1;});
@@ -3362,13 +3442,14 @@ function analizarReclamosIA(){
   const pctCerrado=DB.reclamos.length?Math.round(cerrados.length/DB.reclamos.length*100):0;
   toast(`🤖 Análisis IA: "${masFrec?masFrec[0]:'—'}" es el tipo más frecuente. Tiempo promedio de cierre: ${tiempoPromedio} días. Tasa resolución: ${pctCerrado}%. Principales factores: personal insuficiente (${Math.round(DB.reclamos.filter(r=>r.tipo==='Falta de personal').length/Math.max(DB.reclamos.length,1)*100)}%) y calidad del servicio (${Math.round(DB.reclamos.filter(r=>r.tipo==='Calidad del servicio').length/Math.max(DB.reclamos.length,1)*100)}%).`,8000);
 }
+function getNCById(id){ return (DB.noConformidades||[]).find(nc=>String(nc.id)===String(id)); }
 function renderNC(){
-  $('tbody-nc').innerHTML=DB.noConformidades.map((nc,i)=>{
+  $('tbody-nc').innerHTML=DB.noConformidades.map((nc)=>{
     // 2.5.1: si la NC viene de un reclamo, la descripción se lee del
     // reclamo vinculado (no se duplica texto entre los dos registros).
     const reclamoVinculado=nc.reclamoId?DB.reclamos.find(r=>r.id===nc.reclamoId):null;
     const desc=reclamoVinculado?reclamoVinculado.desc:(nc.desc||'—');
-    return `<tr>
+    return `<tr style="cursor:pointer;" onclick="abrirDetalleNC('${nc.id}')">
     <td><span class="badge badge-azul">${nc.nro}</span></td>
     <td style="font-size:12px;">${nc.fecha}</td>
     <td style="font-size:12px;">${nc.origen}</td>
@@ -3377,12 +3458,165 @@ function renderNC(){
     <td style="font-size:12px;">${nc.tratamiento||'—'}</td>
     <td style="font-size:12px;">${nc.responsable}</td>
     <td style="font-size:12px;">${nc.fechaCierre||'—'}</td>
-    <td>${badge(nc.estado==='Cerrada'?'Activo':'Pendiente')}<span style="font-size:10px;display:block;">${nc.estado}</span></td>
-    <td>${nc.estado==='Abierta'?`<button class="btn btn-xs" style="background:var(--verde-claro);color:var(--verde);border:1px solid #9fdaba;" onclick="cerrarNC(${i})">✓</button>`:'—'}</td>
+    <td>${badge(nc.estado==='Cerrada'?'Activo':'Pendiente')} ${nc.firmada?'<span title="Firmada" style="font-size:10px;">✍️</span>':''}<span style="font-size:10px;display:block;">${nc.estado}</span></td>
+    <td onclick="event.stopPropagation()">
+      ${nc.estado==='Abierta'?`<button class="btn btn-xs" style="background:var(--verde-claro);color:var(--verde);border:1px solid #9fdaba;" onclick="cerrarNC('${nc.id}')">✓</button>`:''}
+      <button class="btn btn-secondary btn-xs" onclick="abrirDetalleNC('${nc.id}')">Ver</button>
+    </td>
   </tr>`;
   }).join('')||`<tr><td colspan="10"><div class="empty-state"><div class="icon">📋</div><p>Sin no conformidades</p></div></td></tr>`;
 }
-function cerrarNC(idx){DB.noConformidades[idx].estado='Cerrada';DB.noConformidades[idx].fechaCierre=new Date().toLocaleDateString('es-AR');renderNC();toast('✓ NC cerrada');}
+function cerrarNC(id){
+  const nc=getNCById(id);if(!nc)return;
+  nc.estado='Cerrada';nc.fechaCierre=new Date().toLocaleDateString('es-AR');
+  supaSync('noConformidades', nc);
+  renderNC();toast('✓ NC cerrada');
+}
+
+// ══════════════════════════════════════════════════════════
+// DETALLE DE NC — tema 9 del relevamiento: completar causa raíz/
+// tratamiento (antes no había forma de cargarlos, quedaban siempre
+// vacíos pese a existir en el modelo de datos), vincular a un asociado,
+// imprimir para firma y adjuntar la foto del documento firmado —
+// dispara el movimiento en la solapa Sanciones/Antecedentes del legajo
+// vinculado (tema 1, ver legajos.js: sancionesDelAsoc se completa con
+// las NC firmadas de ese nroSocio).
+// ══════════════════════════════════════════════════════════
+let _ncDetalleId=null;
+function ensureModalDetalleNC(){
+  if($('modal-detalle-nc')) return;
+  const m=document.createElement('div');
+  m.className='modal-overlay';
+  m.id='modal-detalle-nc';
+  m.innerHTML=`
+    <div class="modal" style="max-width:600px;">
+      <div class="modal-header"><h3 id="nc-det-titulo">No conformidad</h3><button class="btn-close" onclick="cerrarModal('modal-detalle-nc')">×</button></div>
+      <div class="modal-body">
+        <div id="nc-det-info" class="info-grid" style="margin-bottom:12px;"></div>
+        <div class="form-group"><label>Causa raíz</label><textarea id="nc-det-causa" rows="2"></textarea></div>
+        <div class="form-group"><label>Tratamiento</label><textarea id="nc-det-tratamiento" rows="2"></textarea></div>
+        <div class="form-group"><label>Asociado vinculado (opcional — para firma y solapa Sanciones del legajo)</label>
+          <input type="text" id="nc-det-asociado" list="dl-nc-det-asociado" placeholder="Buscar asociado...">
+          <datalist id="dl-nc-det-asociado"></datalist>
+        </div>
+        <div class="form-section">✍️ Firma</div>
+        <div id="nc-det-firma-lista" style="margin-bottom:6px;">—</div>
+        <div style="display:flex;gap:8px;">
+          <button type="button" class="btn btn-secondary btn-sm" onclick="imprimirNC('${''}')" id="nc-det-btn-imprimir">🖨️ Imprimir para firmar</button>
+          <input type="file" id="nc-det-firma-file" accept="image/jpeg,image/png,application/pdf" style="display:none;" onchange="seleccionarFirmaNC()">
+          <button type="button" class="btn btn-secondary btn-sm" id="nc-det-btn-subir" onclick="document.getElementById('nc-det-firma-file').click()">📤 Subir foto firmada</button>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="cerrarModal('modal-detalle-nc')">Cerrar</button>
+        <button class="btn btn-primary" onclick="guardarDetalleNC()">Guardar</button>
+      </div>
+    </div>`;
+  document.body.appendChild(m);
+}
+function abrirDetalleNC(id){
+  const nc=getNCById(id);if(!nc)return;
+  ensureModalDetalleNC();
+  _ncDetalleId=id;
+  const reclamoVinculado=nc.reclamoId?DB.reclamos.find(r=>r.id===nc.reclamoId):null;
+  const desc=reclamoVinculado?reclamoVinculado.desc:(nc.desc||'—');
+  const cli=reclamoVinculado?DB.clientes.find(c=>c.id===reclamoVinculado.clienteId):null;
+  $('nc-det-titulo').textContent=`${nc.nro} — ${nc.estado}`;
+  $('nc-det-info').innerHTML=`
+    <div class="info-item"><div class="key">Origen</div><div class="val">${nc.origen}</div></div>
+    <div class="info-item"><div class="key">Cliente</div><div class="val">${cli?.nombre||'—'}</div></div>
+    <div class="info-item"><div class="key">Descripción</div><div class="val">${desc}</div></div>
+    <div class="info-item"><div class="key">Responsable</div><div class="val">${nc.responsable||'—'}</div></div>`;
+  $('nc-det-causa').value=nc.causaRaiz||'';
+  $('nc-det-tratamiento').value=nc.tratamiento||'';
+  const legVinc=nc.asociadoNroSocio?(DB.legajos||[]).find(l=>String(l.nro)===String(nc.asociadoNroSocio)):null;
+  $('nc-det-asociado').value=legVinc?legVinc.nombre:'';
+  const dl=$('dl-nc-det-asociado');
+  if(dl) dl.innerHTML=(DB.legajos||[]).filter(l=>l.estado==='Activo').map(l=>`<option value="${l.nombre}">${l.nombre} — ${l.nro}</option>`).join('');
+  $('nc-det-btn-imprimir').setAttribute('onclick',`imprimirNC('${id}')`);
+  cargarFirmaNC(id);
+  abrirModal('modal-detalle-nc');
+}
+function guardarDetalleNC(){
+  const nc=getNCById(_ncDetalleId);if(!nc)return;
+  nc.causaRaiz=$('nc-det-causa')?.value.trim()||'';
+  nc.tratamiento=$('nc-det-tratamiento')?.value.trim()||'';
+  const nombreAsoc=$('nc-det-asociado')?.value.trim()||'';
+  const leg=nombreAsoc?(DB.legajos||[]).find(l=>l.nombre===nombreAsoc):null;
+  nc.asociadoNroSocio=leg?String(leg.nro):null;
+  supaSync('noConformidades', nc);
+  renderNC();
+  cerrarModal('modal-detalle-nc');
+  toast('✓ NC actualizada'+(leg?` — vinculada a ${leg.nombre}`:''));
+}
+function imprimirNC(id){
+  const nc=getNCById(id);if(!nc)return;
+  const reclamoVinculado=nc.reclamoId?DB.reclamos.find(r=>r.id===nc.reclamoId):null;
+  const desc=reclamoVinculado?reclamoVinculado.desc:(nc.desc||'—');
+  const leg=nc.asociadoNroSocio?(DB.legajos||[]).find(l=>String(l.nro)===String(nc.asociadoNroSocio)):null;
+  const w=window.open('','_blank');
+  w.document.write(`<html><head><title>${nc.nro}</title><style>
+    body{font-family:Arial,sans-serif;padding:40px;color:#111;}
+    h1{font-size:18px;border-bottom:2px solid #111;padding-bottom:8px;}
+    .campo{margin:12px 0;} .lbl{font-size:11px;color:#666;text-transform:uppercase;}
+    .val{font-size:14px;margin-top:2px;}
+    .firma{margin-top:60px;border-top:1px solid #111;width:300px;padding-top:6px;font-size:12px;}
+  </style></head><body>
+    <h1>No Conformidad ${nc.nro}</h1>
+    <div class="campo"><div class="lbl">Fecha</div><div class="val">${nc.fecha}</div></div>
+    <div class="campo"><div class="lbl">Origen</div><div class="val">${nc.origen}</div></div>
+    <div class="campo"><div class="lbl">Descripción</div><div class="val">${desc}</div></div>
+    <div class="campo"><div class="lbl">Causa raíz</div><div class="val">${nc.causaRaiz||'—'}</div></div>
+    <div class="campo"><div class="lbl">Tratamiento</div><div class="val">${nc.tratamiento||'—'}</div></div>
+    <div class="campo"><div class="lbl">Responsable</div><div class="val">${nc.responsable||'—'}</div></div>
+    ${leg?`<div class="campo"><div class="lbl">Asociado</div><div class="val">${leg.nombre} — N° ${leg.nro}</div></div>`:''}
+    <div class="firma">Firma del asociado — aclaración y fecha</div>
+  </body></html>`);
+  w.document.close();
+  w.onload=()=>w.print();
+}
+async function cargarFirmaNC(id){
+  const cont=$('nc-det-firma-lista');if(!cont)return;
+  const nc=getNCById(id);if(!nc)return;
+  if(!nc.asociadoNroSocio){ cont.innerHTML='<span style="color:var(--texto-muy-suave);font-size:12px;">Vinculá un asociado para poder subir la firma</span>'; $('nc-det-btn-subir').disabled=true; return; }
+  $('nc-det-btn-subir').disabled=false;
+  const leg=(DB.legajos||[]).find(l=>String(l.nro)===String(nc.asociadoNroSocio));
+  if(!leg){ cont.innerHTML='—'; return; }
+  // Nota: se lista por DNI+tipo, no por NC puntual — si un mismo
+  // asociado tiene varias NC firmadas, todas aparecen acá (mismo
+  // criterio simple que el resto de los adjuntos "por etapa" del
+  // sistema, no hay un campo entidadIdLocal en este helper genérico).
+  const lista=await listarAdjuntos({dni:leg.dni,etapa:'reclamos_nc',tipo:'nc-firmada'});
+  cont.innerHTML=lista.length===0
+    ? '<span style="color:var(--texto-muy-suave);font-size:12px;">Sin firma cargada</span>'
+    : lista.map(a=>`
+      <div style="display:flex;align-items:center;gap:8px;background:var(--fondo);border:1px solid var(--borde);border-radius:6px;padding:6px 10px;margin-bottom:4px;">
+        <span style="flex:1;font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">📄 ${a.nombreArchivo||'Archivo'}</span>
+        <button type="button" class="btn btn-secondary btn-sm" onclick="verAdjuntoLegajo('${a.url}')">👁️ Ver</button>
+      </div>`).join('');
+}
+async function seleccionarFirmaNC(){
+  const input=$('nc-det-firma-file');
+  const file=input?.files?.[0];
+  if(!file) return;
+  const nc=getNCById(_ncDetalleId);if(!nc){if(input)input.value='';return;}
+  if(!nc.asociadoNroSocio){ toast('⚠️ Vinculá un asociado primero'); if(input)input.value=''; return; }
+  const leg=(DB.legajos||[]).find(l=>String(l.nro)===String(nc.asociadoNroSocio));
+  if(!leg){ toast('⚠️ No se encontró el legajo vinculado'); if(input)input.value=''; return; }
+  if(file.size>ADJ_MAX_SIZE){ toast('⚠️ El archivo supera el límite de 10 MB'); if(input)input.value=''; return; }
+  try{
+    await subirAdjunto({dni:leg.dni,etapa:'reclamos_nc',tipo:'nc-firmada',file});
+    nc.firmada=true;nc.firmadaEn=new Date().toISOString();
+    supaSync('noConformidades', nc);
+    toast('✍️ Firma cargada — queda reflejada en la solapa Sanciones del legajo');
+  }catch(e){
+    toast('⚠️ '+(e.message||'Error al subir el archivo'));
+  }finally{
+    if(input)input.value='';
+  }
+  cargarFirmaNC(_ncDetalleId);
+  renderNC();
+}
 function renderStatsReclamos(){
   const barras=(el,datos,total,col='var(--rojo)')=>{if(!$(el))return;$(el).innerHTML=datos.map(([k,v])=>`<div style="margin-bottom:10px;"><div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:3px;"><span>${k}</span><strong>${v}</strong></div><div style="height:8px;background:var(--borde);border-radius:4px;overflow:hidden;"><div style="height:100%;width:${total?Math.round(v/total*100):0}%;background:${col};border-radius:4px;"></div></div></div>`).join('');};
   const porTipo=DB.tiposReclamo.map(t=>[t,DB.reclamos.filter(r=>r.tipo===t).length]).filter(([,v])=>v>0);
@@ -12699,6 +12933,13 @@ window.cargarFeriadosArg = cargarFeriadosArg;
 window.cerrarGrilla = cerrarGrilla;
 window.cerrarNC = cerrarNC;
 window.cerrarReclamo = cerrarReclamo;
+window.renderReclamosBoard = renderReclamosBoard;
+window.dragReclamo = dragReclamo;
+window.dropReclamo = dropReclamo;
+window.abrirDetalleNC = abrirDetalleNC;
+window.guardarDetalleNC = guardarDetalleNC;
+window.imprimirNC = imprimirNC;
+window.seleccionarFirmaNC = seleccionarFirmaNC;
 window.cfgTab = cfgTab;
 window.ciclarPermiso = ciclarPermiso;
 window.confirmarAgregarAsoc = confirmarAgregarAsoc;
