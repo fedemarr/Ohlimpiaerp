@@ -6,3 +6,9 @@ playwright-report
 .netlify/
 backup_2026-05-28/
 .vercel
+# Scripts/conexiones con credenciales en texto plano — nunca versionar
+_q11.cjs
+# Artefactos del seguimiento de desarrollo (node_modules, reportes generados)
+seguimiento_desarrollo/
+# Capturas personales sueltas
+screencapture-linkedin-*.png
