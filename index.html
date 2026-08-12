@@ -3198,16 +3198,20 @@
         <div class="form-group"><label>Nombre *</label><input type="text" id="ret2-nombre" list="dl-ret2-nombre" placeholder="Buscar asociado..." oninput="autocompletarRetencion()"><datalist id="dl-ret2-nombre"></datalist></div>
         <div class="form-grid form-grid-2">
           <div class="form-group"><label>N° de socio</label><input type="text" id="ret2-nroSocio"></div>
-          <div class="form-group"><label>Tipo</label>
+          <div class="form-group ret2-solo-rrhh"><label>Tipo</label>
             <select id="ret2-tipo"><option value="conflicto">Conflicto</option><option value="enfermedad">Enfermedad</option><option value="otra">Otra</option></select>
           </div>
         </div>
-        <div class="form-grid form-grid-2">
+        <div class="form-group"><label>Motivo tipificado *</label><select id="ret2-motivo-tip"></select></div>
+        <div class="form-grid form-grid-2 ret2-solo-rrhh">
           <div class="form-group"><label>Período</label><input type="month" id="ret2-periodo"></div>
-          <div class="form-group"><label>Monto</label><input type="number" id="ret2-monto" placeholder="0"></div>
+          <div class="form-group"><label>Tipo de valor</label>
+            <select id="ret2-tipo-valor"><option value="Monto">Monto ($)</option><option value="Porcentaje">Porcentaje (%)</option></select>
+          </div>
         </div>
-        <div class="form-group"><label>Motivo</label><input type="text" id="ret2-motivo"></div>
-        <div class="form-group"><label>Estado</label>
+        <div class="form-group ret2-solo-rrhh"><label>Monto / Porcentaje</label><input type="number" id="ret2-monto" placeholder="0"></div>
+        <div class="form-group"><label>Observación</label><input type="text" id="ret2-motivo" placeholder="Detalle del inconveniente..."></div>
+        <div class="form-group ret2-solo-rrhh"><label>Estado</label>
           <select id="ret2-estado"><option>Activa</option><option>Liberada</option><option>Pendiente</option></select>
         </div>
       </div>
@@ -4342,6 +4346,7 @@
     <div class="stat-card acento"><div class="stat-label">Por enfermedad</div><div class="stat-valor" id="st-ret2-enfermedad">0</div><div class="stat-sub">Activas</div></div>
     <div class="stat-card verde"><div class="stat-label">Monto retenido</div><div class="stat-valor" id="st-ret2-monto" style="font-size:14px;">$0</div><div class="stat-sub">Total acumulado</div></div>
   </div>
+  <div id="ret2-candidatos" style="display:none;"></div>
   <div class="card" style="margin-top:0;">
     <div class="card-header"><h3>🔒 Retenciones</h3>
       <select id="ret2-filtro" onchange="filtrarRetenciones()" style="padding:6px 10px;border:1px solid var(--borde-fuerte);border-radius:var(--radio);font-size:13px;outline:none;">
@@ -4356,9 +4361,10 @@
         <th style="padding:8px 14px;border:1px solid #6b7280;text-align:left;">Asociado</th>
         <th style="padding:8px;border:1px solid #6b7280;">Nro. Socio</th>
         <th style="padding:8px;border:1px solid #6b7280;">Tipo</th>
+        <th style="padding:8px;border:1px solid #6b7280;">Motivo tipificado</th>
         <th style="padding:8px;border:1px solid #6b7280;">Período</th>
-        <th style="padding:8px;border:1px solid #6b7280;text-align:right;">Monto</th>
-        <th style="padding:8px;border:1px solid #6b7280;">Motivo</th>
+        <th style="padding:8px;border:1px solid #6b7280;text-align:right;">Monto/%</th>
+        <th style="padding:8px;border:1px solid #6b7280;">Observación</th>
         <th style="padding:8px;border:1px solid #6b7280;text-align:center;">Estado</th>
         <th style="padding:8px;border:1px solid #6b7280;min-width:80px;"></th>
       </tr></thead>

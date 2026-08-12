@@ -43,6 +43,7 @@ export const _SM = {
   monotributos: 'monotributos',
   uniformes: 'uniformes',
   retenciones: 'retenciones',
+  motivosRetencion: 'motivos_retencion',
   reglasCompetencia: 'reglas_competencia',
   reglasCompetenciaVersiones: 'reglas_competencia_versiones',
   eventosPuntos: 'eventos_puntos',
@@ -146,6 +147,7 @@ export function _toSnake(obj) {
     tipoContrato: 'tipo_contrato',
     fechaInicio: 'fecha_inicio', ultimoContacto: 'ultimo_contacto',
     candidatoId: 'candidato_id', psicoId: 'psico_id', fechaTurno: 'fecha_turno',
+    observacion: 'observacion',
     preocupId: 'preocup_id',
     antecResultado: 'antec_resultado',
     antecFecha: 'antec_fecha',
@@ -191,6 +193,9 @@ export function _toSnake(obj) {
     // Monotributos / Uniformes / Retenciones
     nroSocio: 'nro_socio', fechaAlta: 'fecha_alta', historialCategorias: 'historial_categorias',
     fechaLiberacion: 'fecha_liberacion',
+    // Retenciones — tipificación (v076)
+    motivoTipificado: 'motivo_tipificado', tipoValor: 'tipo_valor', origen: 'origen',
+    creadoEn: 'creado_en', liberadoPor: 'liberado_por',
     // Competencia Anual (v025)
     descuentoAusente: 'descuento_ausente',
     // Tabla adjuntos
@@ -460,6 +465,7 @@ export function _toCamel(obj) {
     tipo_contrato: 'tipoContrato',
     fecha_inicio: 'fechaInicio', ultimo_contacto: 'ultimoContacto',
     candidato_id: 'candidatoId', psico_id: 'psicoId', fecha_turno: 'fechaTurno',
+    observacion: 'observacion',
     preocup_id: 'preocupId',
     antec_resultado: 'antecResultado',
     antec_fecha: 'antecFecha',
@@ -506,6 +512,9 @@ export function _toCamel(obj) {
     // Monotributos / Uniformes / Retenciones
     nro_socio: 'nroSocio', fecha_alta: 'fechaAlta', historial_categorias: 'historialCategorias',
     fecha_liberacion: 'fechaLiberacion',
+    // Retenciones — tipificación (v076)
+    motivo_tipificado: 'motivoTipificado', tipo_valor: 'tipoValor',
+    creado_en: 'creadoEn', liberado_por: 'liberadoPor',
     // Competencia Anual (v025)
     descuento_ausente: 'descuentoAusente',
     // Tabla adjuntos

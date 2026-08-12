@@ -5,6 +5,10 @@ export const DB = {
   // Catálogo de atributos del perfil solicitado en Pedidos de personal
   // (sql/v073). Se carga solo vía supaInit() — no hay ABM todavía.
   perfilPersonalAtributos: [],
+  // Catálogo de motivos tipificados de Retenciones (sql/v076). Se carga
+  // solo vía supaInit() — no hay ABM todavía (mismo estado que
+  // perfilPersonalAtributos de arriba).
+  motivosRetencion: [],
   // Código de servicio → supervisor, persistido en Supabase (sql/v067) —
   // se carga solo vía supaInit(). Ver src/modules/servicios_supervisor/
   // (pantalla en Configuración → Servicios) y
@@ -213,7 +217,7 @@ export const PERFILES = {
   'RRHH': { color: 'badge-azul', modulos: ['inicio', 'candidatos', 'psicotecnico', 'preocupacional', 'documentacion', 'altas', 'legajos', 'reasignaciones', 'capacitaciones', 'vacaciones', 'descansos', 'competencia', 'reclamos', 'paritarias', 'categorias', 'liquidacion', 'liq_admin', 'liquidaciones', 'retenes', 'monotributos', 'uniformes', 'retenciones', 'sanciones', 'adelantos', 'pedidos_adelantos', 'gestion_adelantos', 'sugerencias'], desc: 'RRHH, legajos, capacitaciones.' },
   'Operaciones': { color: 'badge-verde', modulos: ['inicio', 'pedidos', 'legajos', 'reasignaciones', 'capacitaciones', 'vacaciones', 'descansos', 'competencia', 'clientes', 'objetivos', 'precios', 'paritarias', 'crm', 'reclamos', 'cobros', 'comisiones', 'liquidacion', 'retenes', 'mantenimiento', 'feriados', 'uniformes', 'sanciones', 'pedidos_adelantos', 'sugerencias'], desc: 'Operaciones y ventas.' },
   'Finanzas': { color: 'badge-acento', modulos: ['inicio', 'legajos', 'smvm', 'cobros', 'comisiones', 'paritarias', 'liquidacion', 'liq_admin', 'liquidaciones', 'retenes', 'mantenimiento', 'monotributos', 'retenciones', 'adelantos', 'gestion_adelantos', 'sugerencias'], desc: 'Finanzas y liquidación.' },
-  'Supervisor': { color: 'badge-gris', modulos: ['inicio', 'pedidos', 'legajos', 'descansos', 'competencia', 'liquidacion', 'liquidaciones', 'adelantos', 'pedidos_adelantos', 'uniformes', 'sanciones', 'sugerencias'], desc: 'Pedidos, legajos, descansos, competencia y liquidación de horas.' },
+  'Supervisor': { color: 'badge-gris', modulos: ['inicio', 'pedidos', 'legajos', 'descansos', 'competencia', 'liquidacion', 'liquidaciones', 'adelantos', 'pedidos_adelantos', 'uniformes', 'sanciones', 'sugerencias', 'retenciones'], desc: 'Pedidos, legajos, descansos, competencia y liquidación de horas.' },
   'Comercial': { color: 'badge-naranja', modulos: ['inicio', 'clientes', 'objetivos', 'precios', 'crm', 'reclamos', 'comisiones', 'sugerencias'], desc: 'Clientes, objetivos, precios, CRM, reclamos y comisiones.' },
   'Logística': { color: 'badge-gris', modulos: ['inicio', 'legajos', 'uniformes', 'stock', 'sugerencias'], desc: 'Consulta de legajos, gestión de pedidos de uniformes y stock.' },
   'Asociado': { color: 'badge-verde', modulos: ['mis_adelantos', 'sugerencias'], desc: 'Portal del asociado — pedidos de adelanto y préstamo.' },
@@ -245,7 +249,7 @@ export const MENU = [
     // Logística más abajo (mismo screen, misma pantalla, dos accesos —
     // ver corrección del ticket "Módulo Logística" 08/2026, día 2).
     { key: 'uniformes', icon: '👕', label: 'Uniformes', perfiles: ['Administrador total', 'RRHH', 'Operaciones', 'Supervisor', 'Logística'] },
-    { key: 'retenciones', icon: '🔒', label: 'Retenciones', perfiles: ['Administrador total', 'RRHH', 'Finanzas'] },
+    { key: 'retenciones', icon: '🔒', label: 'Retenciones', perfiles: ['Administrador total', 'RRHH', 'Finanzas', 'Supervisor'] },
   ]},
   // "Stock" (nuevo, ticket "Módulo Logística" 08/2026) vive solo acá —
   // es dominio exclusivo de Logística, no tiene sentido en Ingreso.
