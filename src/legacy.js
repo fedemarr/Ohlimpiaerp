@@ -7753,6 +7753,71 @@ if(!DB.mantPersonal) DB.mantPersonal = [
 if(!DB.mantHoras) DB.mantHoras = {};
 if(!DB.cuentaCorriente) DB.cuentaCorriente = {};  // DB.cuentaCorriente[nombre] = [{fecha, concepto, monto, tipo}]
 
+// Temas 3 y 5 del relevamiento (10/08): Uniforme, Retenciones, Adelantos
+// y Préstamo dejan de tipearse a mano en la grilla — se calculan acá
+// desde la fuente real y se conectan por N° de socio ("acá se conecta,
+// no se crea", dice el ticket). Sanciones y Monotributo siguen manuales
+// (todavía no hay un monto/cuota automático para esos dos — Monotributo
+// es el tema 2, pendiente de un TAB de pago mensual).
+//
+// Los porcentajes de retención (tipoValor='Porcentaje') no se resuelven
+// acá porque hace falta el bruto de la fila, que se conoce recién en
+// renderLiquidaciones() — se devuelven en pctRetenciones y el llamador
+// los aplica sobre f.bruto.
+function descuentosAutomaticosLegajo(nro, mes){
+  const out = { uniforme:0, retConflicto:0, retEnfermedad:0, adelantos:0, prestamo:0, uniformeIds:[], prestamoId:null, pctRetenciones:[] };
+  if(!nro) return out;
+  const nroStr = String(nro);
+
+  // Uniforme: 1 cuota por cada descuento "En curso" con cuotas pendientes.
+  // No hay fecha de cuota individual guardada — se asume 1 cuota por mes
+  // mientras dure el compromiso (política del propio módulo Uniformes v2).
+  (DB.descuentosUniformePendientes||[]).filter(d=>!d.anulado && String(d.legajoIdLocal)===nroStr && d.estado==='En curso' && d.cuotasCobradas<d.cuotasTotales).forEach(d=>{
+    out.uniforme += d.montoCuota||0;
+    out.uniformeIds.push(d.id);
+  });
+
+  // Retenciones ACTIVAS de este período exacto (no son recurrentes: se
+  // definen por período y RRHH las libera manualmente — tema 4). "otra"
+  // comparte columna con enfermedad, no hay columna propia todavía.
+  (DB.retenciones||[]).filter(r=>!r.anulado && r.estado==='Activa' && r.periodo===mes && String(r.nroSocio)===nroStr).forEach(r=>{
+    if(r.tipoValor==='Porcentaje'){ out.pctRetenciones.push({tipo:r.tipo, pct:parseFloat(r.monto)||0, id:r.id}); return; }
+    const val = parseFloat(r.monto)||0;
+    if(r.tipo==='conflicto') out.retConflicto += val; else out.retEnfermedad += val;
+  });
+
+  // Adelantos aprobados de este período (formales e informales) — se
+  // descuentan enteros en el mismo mes en que se otorgaron.
+  (DB.planillasAdelantos||[]).forEach(p=>{
+    if(p.periodo!==mes) return;
+    (p.items||[]).filter(i=>i.estado==='Aprobado' && String(i.nroSocio)===nroStr).forEach(i=>{ out.adelantos += i.monto||0; });
+  });
+  (DB.adelantosInformales||[]).filter(a=>a.estado==='Aprobado' && a.periodo===mes && String(a.nroSocio)===nroStr).forEach(a=>{ out.adelantos += a.monto||0; });
+
+  // Préstamo: 1 cuota mensual mientras tenga cuotas pendientes.
+  const prestamo=(DB.prestamos||[]).find(p=>String(p.nroSocio)===nroStr && p.estado==='Activo' && (p.pagos||[]).length<p.cuotas);
+  if(prestamo){ out.prestamo = prestamo.montoCuota||0; out.prestamoId = prestamo.id; }
+
+  return out;
+}
+
+// Total de descuentos ya resuelto (sanciones/monotributo manuales +
+// automáticos, con los porcentajes de retención aplicados contra el
+// bruto recibido) — usado por _getFilasConsolidadas() para que el monto
+// que autoriza autorizarPago() coincida con lo que se ve en la grilla
+// principal de renderLiquidaciones().
+function _totalDescLegajo(nombre, mes, bruto){
+  const desc=DB.lqsDescuentos?.[mes]?.[nombre]||{};
+  const nro=(DB.legajos||[]).find(l=>l.nombre===nombre)?.nro;
+  const auto=descuentosAutomaticosLegajo(nro, mes);
+  let retC=auto.retConflicto, retE=auto.retEnfermedad;
+  auto.pctRetenciones.forEach(pr=>{
+    const val=Math.round((bruto||0)*(pr.pct/100));
+    if(pr.tipo==='conflicto') retC+=val; else retE+=val;
+  });
+  return (desc.sanciones||0)+(desc.monotributo||0)+auto.uniforme+retC+retE+auto.adelantos+auto.prestamo;
+}
+
 function renderLiquidaciones(){
   // Determinar permisos PRIMERO antes de cualquier uso
   const esAdmin = ['Administrador total'].includes(currentUser?.perfil);
@@ -8028,15 +8093,24 @@ function renderLiquidaciones(){
     });
     f.presentismo = tieneAI ? 0 : Math.round(f.bruto * 0.03);
 
-    // Descuentos
+    // Descuentos — sanciones y monotributo siguen manuales (DB.lqsDescuentos);
+    // uniforme/retenciones/adelantos/préstamo se calculan automáticamente
+    // desde la fuente real (temas 3 y 5 del relevamiento).
     const desc = DB.lqsDescuentos[mes][f.nombre] || {};
-    f.uniforme      = desc.uniforme    ||0;
+    const auto = descuentosAutomaticosLegajo(legajo?.nro, mes);
+    auto.pctRetenciones.forEach(pr=>{
+      const val = Math.round(f.bruto * (pr.pct/100));
+      if(pr.tipo==='conflicto') auto.retConflicto += val; else auto.retEnfermedad += val;
+    });
+    f.uniforme      = auto.uniforme;
     f.sanciones     = desc.sanciones   ||0;
-    f.retConflicto  = desc.retConflicto||0;
-    f.retEnfermedad = desc.retEnfermedad||0;
+    f.retConflicto  = auto.retConflicto;
+    f.retEnfermedad = auto.retEnfermedad;
     f.monotributo   = desc.monotributo ||0;
-    f.adelantos     = desc.adelantos   ||0;
-    f.totalDesc = f.uniforme+f.sanciones+f.retConflicto+f.retEnfermedad+f.monotributo+f.adelantos;
+    f.adelantos     = auto.adelantos;
+    f.prestamo      = auto.prestamo;
+    f._descAuto     = auto; // guardado para autorizarPago() — consumir cuotas al pagar
+    f.totalDesc = f.uniforme+f.sanciones+f.retConflicto+f.retEnfermedad+f.monotributo+f.adelantos+f.prestamo;
     f.neto = Math.round(f.bruto + f.presentismo - f.totalDesc);
   });
 
@@ -8101,9 +8175,9 @@ function renderLiquidaciones(){
     <th style="${thStyle}min-width:55px;">Antigüed.</th>
     <th style="${thStyle}min-width:70px;">Presentismo</th>
     <th style="${thStyle}min-width:100px;background:#1d4ed8;color:white;">Bruto</th>
-    <th colspan="2" style="${thStyle}min-width:160px;background:#dc2626;color:white;">Descuentos</th>
-    <th colspan="2" style="${thStyle}min-width:160px;background:#7c3aed;color:white;">Retenciones</th>
-    <th colspan="2" style="${thStyle}min-width:160px;background:#6b7280;color:white;opacity:.7;">Próx. módulos</th>
+    <th colspan="4" style="${thStyle}min-width:280px;background:#dc2626;color:white;">Descuentos (automáticos*)</th>
+    <th colspan="2" style="${thStyle}min-width:160px;background:#7c3aed;color:white;">Retenciones (automáticas*)</th>
+    <th colspan="1" style="${thStyle}min-width:90px;background:#6b7280;color:white;opacity:.7;">Próx. módulos</th>
     <th style="${thStyle}min-width:110px;background:#065f46;color:white;">NETO A PAGAR</th>
     <th style="${thStyle}min-width:120px;background:#14532d;color:white;">
       <div style="display:flex;flex-direction:column;align-items:center;gap:4px;">
@@ -8127,12 +8201,13 @@ function renderLiquidaciones(){
     <th style="${thStyle}"></th>
     <th style="${thStyle}"></th>
     <th style="${thStyle}background:#1d4ed8;color:white;"></th>
-    <th style="${thStyle}background:#b91c1c;color:white;">Uniforme</th>
-    <th style="${thStyle}background:#b91c1c;color:white;">Sanciones</th>
-    <th style="${thStyle}background:#6d28d9;color:white;">Ret.Conflicto</th>
-    <th style="${thStyle}background:#6d28d9;color:white;">Ret.Enfermedad</th>
+    <th style="${thStyle}background:#b91c1c;color:white;" title="Cuota del mes desde Uniformes — automático">Uniforme</th>
+    <th style="${thStyle}background:#b91c1c;color:white;" title="Manual — no tiene módulo de cargos económicos todavía">Sanciones</th>
+    <th style="${thStyle}background:#b91c1c;color:white;" title="Adelantos aprobados de este período — automático">Adelantos</th>
+    <th style="${thStyle}background:#b91c1c;color:white;" title="Cuota del mes desde Préstamos — automático">Préstamo</th>
+    <th style="${thStyle}background:#6d28d9;color:white;" title="Retenciones activas de este período, tipo conflicto — automático">Ret.Conflicto</th>
+    <th style="${thStyle}background:#6d28d9;color:white;" title="Retenciones activas de este período, enfermedad/otra — automático">Ret.Enfermedad/Otra</th>
     <th style="${thStyle}background:#9ca3af;color:white;">Monotributo</th>
-    <th style="${thStyle}background:#9ca3af;color:white;">Adelantos</th>
     <th style="${thStyle}background:#065f46;color:white;"></th>
 
     <th style="${thStyle}"></th>
@@ -8151,6 +8226,10 @@ function renderLiquidaciones(){
         style="width:70px;padding:2px 4px;border:1px solid var(--borde-fuerte);border-radius:4px;font-size:11px;text-align:right;outline:none;"
         onchange="setDescuentoLqs('${mes}','${nombre}','${campo}',this.value)">`
     : `<span style="font-size:11px;color:${val>0?'white':'rgba(255,255,255,.4)'};">${val>0?'$'+Math.round(val).toLocaleString('es-AR'):'—'}</span>`;
+  // Uniforme/Adelantos/Préstamo/Retenciones ya no se tipean: se calculan
+  // solos (temas 3 y 5 del relevamiento) — siempre de solo lectura acá,
+  // el detalle real se edita en sus propios módulos.
+  const fmtAuto = val => `<span style="font-size:11px;color:${val>0?'#7f1d1d':'rgba(0,0,0,.3)'};font-weight:${val>0?'600':'400'};" title="Calculado automáticamente — se edita desde su propio módulo">${val>0?'$'+Math.round(val).toLocaleString('es-AR'):'—'}</span>`;
 
   const fuenteColor = {'Servicios':'badge-azul','Administración':'badge-verde','Suplemento':'badge-acento','Retén':'badge-azul'};
 
@@ -8167,12 +8246,13 @@ function renderLiquidaciones(){
     <td style="padding:4px 6px;border:1px solid var(--borde);text-align:center;">${f.antiguedad>0?f.antiguedad+' año'+(f.antiguedad!==1?'s':''):'<1 año'}</td>
     <td style="padding:4px 6px;border:1px solid var(--borde);text-align:right;color:var(--verde);">${fmt(f.presentismo)}</td>
     <td style="padding:4px 6px;border:1px solid var(--borde);text-align:right;font-weight:700;color:white;background:#1e40af;">${fmt(f.bruto)}</td>
-    <td style="padding:2px 4px;border:1px solid var(--borde);background:#fff0f0;">${fmtDesc(f.nombre,'uniforme',f.uniforme)}</td>
+    <td style="padding:2px 4px;border:1px solid var(--borde);background:#fff0f0;">${fmtAuto(f.uniforme)}</td>
     <td style="padding:2px 4px;border:1px solid var(--borde);background:#fff0f0;">${fmtDesc(f.nombre,'sanciones',f.sanciones)}</td>
-    <td style="padding:2px 4px;border:1px solid var(--borde);background:#f5f0ff;">${fmtDesc(f.nombre,'retConflicto',f.retConflicto)}</td>
-    <td style="padding:2px 4px;border:1px solid var(--borde);background:#f5f0ff;">${fmtDesc(f.nombre,'retEnfermedad',f.retEnfermedad)}</td>
+    <td style="padding:2px 4px;border:1px solid var(--borde);background:#fff0f0;">${fmtAuto(f.adelantos)}</td>
+    <td style="padding:2px 4px;border:1px solid var(--borde);background:#fff0f0;">${fmtAuto(f.prestamo)}</td>
+    <td style="padding:2px 4px;border:1px solid var(--borde);background:#f5f0ff;">${fmtAuto(f.retConflicto)}</td>
+    <td style="padding:2px 4px;border:1px solid var(--borde);background:#f5f0ff;">${fmtAuto(f.retEnfermedad)}</td>
     <td style="padding:2px 4px;border:1px solid var(--borde);background:#f9fafb;opacity:.6;">${fmtDesc(f.nombre,'monotributo',f.monotributo)}</td>
-    <td style="padding:2px 4px;border:1px solid var(--borde);background:#f9fafb;opacity:.6;">${fmtDesc(f.nombre,'adelantos',f.adelantos)}</td>
     <td style="padding:4px 8px;border:1px solid var(--borde);text-align:right;font-weight:700;font-size:13px;color:white;background:#065f46;">${fmt(f.neto)}</td>
     <td style="padding:4px 6px;border:1px solid var(--borde);text-align:center;background:${pagoInfo?.pagado?'#dcfce7':listoInfo?'#dbeafe':'white'};">
       ${pagoInfo?.pagado
@@ -8488,8 +8568,7 @@ function _getFilasConsolidadas(mes){
       getDiasDelMes(mes).forEach(d=>{const h=parseFloat(asoc.horas?.[d.iso]||0);if(h>0)hs+=h;});
       const vh=getCategoriaVH(asoc.categoria||'');
       const bruto=Math.round(hs*vh);
-      const desc=DB.lqsDescuentos?.[mes]?.[asoc.nombre]||{};
-      const totalDesc=Object.values(desc).reduce((s,v)=>s+parseFloat(v||0),0);
+      const totalDesc=_totalDescLegajo(asoc.nombre, mes, bruto);
       const presentismo=Math.round(bruto*0.03);
       const neto=Math.round(bruto+presentismo-totalDesc);
       const existing=filas.find(f=>f.nombre===asoc.nombre);
@@ -8500,8 +8579,7 @@ function _getFilasConsolidadas(mes){
   (DB.liqAdminPersonal||[]).filter(p=>p.activo).forEach(p=>{
     const val=getValoresPeriodo(DB.liqAdminValores,p.id,mes,{horasFijas:p.horasFijas||200,valorHora:p.valorHora||0});
     const bruto=Math.round((val.horasFijas||0)*(val.valorHora||0));
-    const desc=DB.lqsDescuentos?.[mes]?.[p.nombre]||{};
-    const totalDesc=Object.values(desc).reduce((s,v)=>s+parseFloat(v||0),0);
+    const totalDesc=_totalDescLegajo(p.nombre, mes, bruto);
     const neto=Math.round(bruto*1.03-totalDesc);
     const existing=filas.find(f=>f.nombre===p.nombre);
     if(existing){existing.bruto+=bruto;existing.neto+=neto;}
@@ -8525,8 +8603,7 @@ function _getFilasConsolidadas(mes){
     });
     const hsCobrar=Math.max(hsReales,HS_MINIMO-rechazos*8);
     const bruto=Math.round(hsCobrar*getCategoriaVH(r.categoriBase||''));
-    const desc=DB.lqsDescuentos?.[mes]?.[r.nombre]||{};
-    const totalDesc=Object.values(desc).reduce((s,v)=>s+parseFloat(v||0),0);
+    const totalDesc=_totalDescLegajo(r.nombre, mes, bruto);
     const neto=Math.round(bruto*1.03-totalDesc);
     const existing=filas.find(f=>f.nombre===r.nombre);
     if(existing){existing.bruto+=bruto;existing.neto+=neto;}
@@ -8544,8 +8621,7 @@ function _getFilasConsolidadas(mes){
     });
     const hsCobrar=Math.max(hsReales,HS_MINIMO-rechazos*8);
     const bruto=Math.round(hsCobrar*getCategoriaVH(r.categoriBase||''));
-    const desc=DB.lqsDescuentos?.[mes]?.[r.nombre]||{};
-    const totalDesc=Object.values(desc).reduce((s,v)=>s+parseFloat(v||0),0);
+    const totalDesc=_totalDescLegajo(r.nombre, mes, bruto);
     const neto=Math.round(bruto*1.03-totalDesc);
     const existing=filas.find(f=>f.nombre===r.nombre);
     if(existing){existing.bruto+=bruto;existing.neto+=neto;}
@@ -8576,10 +8652,20 @@ function autorizarPago(){
   if(!DB.lqsPagos[mes]) DB.lqsPagos[mes]={};
   const fecha=new Date().toLocaleDateString('es-AR');
   const autorizadoPor=currentUser?.nombre||'Admin';
+  const insuficientes=[];
   listos.forEach(([nombre])=>{
     const f=filas.find(x=>x.nombre===nombre);
-    const monto = Math.round(f?.neto||0);
-    DB.lqsPagos[mes][nombre]={pagado:true, monto, fecha, registradoPor:autorizadoPor};
+    const netoCrudo = f?.neto||0;
+    // Tema 5 del relevamiento: si el retiro del mes no cubre todos los
+    // descuentos, no se descuenta nada de las cuotas automáticas — el
+    // saldo completo (uniforme/préstamo) sigue pendiente y se vuelve a
+    // calcular solo el mes que viene (no se incrementa cuotasCobradas
+    // ni se agrega el pago del préstamo). RRHH ve el aviso y decide caso
+    // por caso desde Retenciones/Uniformes/Préstamos si hace falta.
+    const insuficiente = netoCrudo < 0;
+    const monto = Math.max(0, Math.round(netoCrudo));
+    if(insuficiente) insuficientes.push(nombre);
+    DB.lqsPagos[mes][nombre]={pagado:true, monto, fecha, registradoPor:autorizadoPor, insuficiente: insuficiente||undefined};
     // Limpiar el estado "listo" una vez pagado
     if(DB.lqsListos[mes]) delete DB.lqsListos[mes][nombre];
     // ── Registrar en cuenta corriente del asociado ──
@@ -8593,8 +8679,34 @@ function autorizarPago(){
       registradoPor: autorizadoPor,
       estado: 'Acreditado',
     });
+    if(!insuficiente){
+      // Consumir las cuotas automáticas reales (temas 3 y 5): recién
+      // ahora, al pagar de verdad, se incrementa cuotasCobradas del
+      // uniforme y se agrega el pago del préstamo — las retenciones no
+      // se "consumen" acá, son por período y RRHH las libera a mano
+      // (tema 4).
+      const nro=(DB.legajos||[]).find(l=>l.nombre===nombre)?.nro;
+      const auto=descuentosAutomaticosLegajo(nro, mes);
+      auto.uniformeIds.forEach(id=>{
+        const d=(DB.descuentosUniformePendientes||[]).find(x=>x.id===id);
+        if(!d) return;
+        d.cuotasCobradas=(d.cuotasCobradas||0)+1;
+        if(d.cuotasCobradas>=d.cuotasTotales) d.estado='Terminado';
+        supaSync('descuentosUniformePendientes', d);
+      });
+      if(auto.prestamoId){
+        const p=(DB.prestamos||[]).find(x=>x.id===auto.prestamoId);
+        if(p){
+          if(!p.pagos) p.pagos=[];
+          p.pagos.push({fecha, monto:auto.prestamo, cuotaNro:p.pagos.length+1});
+          if(p.pagos.length>=p.cuotas) p.estado='Pagado';
+          supaSync('prestamos', p);
+        }
+      }
+    }
   });
   toast('💰 Pago autorizado — '+listos.length+' asociados · $'+totalNeto.toLocaleString('es-AR'));
+  if(insuficientes.length) toast(`⚠️ ${insuficientes.length} asociado(s) con descuentos mayores al bruto: ${insuficientes.slice(0,5).join(', ')}${insuficientes.length>5?'…':''}. No se descontó nada de sus cuotas este mes — el saldo completo pasa al mes siguiente.`, 10000);
   renderLiquidaciones();
 }
 
@@ -8734,15 +8846,25 @@ function verDetalleLqs(nombre, mes){
     </div>`;
   }).join('');
 
-  // Calcular descuentos del período para esta persona
+  // Calcular descuentos del período para esta persona — uniforme/
+  // retenciones/adelantos/préstamo automáticos (temas 3 y 5), sanciones
+  // y monotributo siguen manuales.
   const desc = (DB.lqsDescuentos?.[mes]?.[nombre]) || {};
+  const nroPersona = (DB.legajos||[]).find(l=>l.nombre===nombre)?.nro;
+  const autoPersona = descuentosAutomaticosLegajo(nroPersona, mes);
+  let retConfPersona=autoPersona.retConflicto, retEnfPersona=autoPersona.retEnfermedad;
+  autoPersona.pctRetenciones.forEach(pr=>{
+    const val=Math.round(totalBruto*(pr.pct/100));
+    if(pr.tipo==='conflicto') retConfPersona+=val; else retEnfPersona+=val;
+  });
   const descItems = [
-    {label:'Uniforme',      val:desc.uniforme     ||0, color:'#b91c1c'},
+    {label:'Uniforme',      val:autoPersona.uniforme, color:'#b91c1c'},
     {label:'Sanciones',     val:desc.sanciones    ||0, color:'#b91c1c'},
-    {label:'Ret. Conflicto',val:desc.retConflicto ||0, color:'#6d28d9'},
-    {label:'Ret. Enfermedad',val:desc.retEnfermedad||0, color:'#6d28d9'},
+    {label:'Adelantos',     val:autoPersona.adelantos, color:'#b91c1c'},
+    {label:'Préstamo',      val:autoPersona.prestamo,  color:'#b91c1c'},
+    {label:'Ret. Conflicto',val:retConfPersona, color:'#6d28d9'},
+    {label:'Ret. Enfermedad/Otra',val:retEnfPersona, color:'#6d28d9'},
     {label:'Monotributo',   val:desc.monotributo  ||0, color:'#6b7280'},
-    {label:'Adelantos',     val:desc.adelantos    ||0, color:'#6b7280'},
   ].filter(d=>d.val>0);
 
   const totalDesc = descItems.reduce((s,d)=>s+d.val,0);
@@ -8758,10 +8880,18 @@ function verDetalleLqs(nombre, mes){
   const presentismo = tieneAI ? 0 : Math.round(totalBruto * 0.03);
 
   // HTML de descuentos
+  // (Bug encontrado al conectar los descuentos automáticos de los temas
+  // 3 y 5 del relevamiento: este bloque solo emitía un </div> vacío por
+  // cada ítem — label/val/color se calculaban pero nunca se mostraban.
+  // Sin este fix los descuentos automáticos habrían quedado invisibles
+  // acá aunque el total sí los restara del neto.)
   const descHTML = descItems.length > 0 ? `
     <div style="background:#fff5f5;border:1px solid #fca5a5;border-radius:8px;padding:12px 16px;margin-bottom:8px;">
       <div style="font-weight:600;font-size:12px;color:var(--rojo);margin-bottom:8px;">Descuentos y retenciones</div>
       ${descItems.map(d=>`
+        <div style="display:flex;justify-content:space-between;font-size:12px;padding:2px 0;">
+          <span style="color:${d.color};">${d.label}</span>
+          <span style="font-weight:600;color:${d.color};">- $${Math.round(d.val).toLocaleString('es-AR')}</span>
         </div>`).join('')}
     </div>` : '<div style="font-size:12px;color:var(--texto-suave);padding:8px 0;">Sin descuentos ni retenciones para este período.</div>';
 
