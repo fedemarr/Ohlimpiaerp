@@ -45,6 +45,7 @@ export const _SM = {
   retenciones: 'retenciones',
   motivosRetencion: 'motivos_retencion',
   rolesContacto: 'roles_contacto_cliente',
+  itemsLogisticaServicio: 'items_logistica_servicio',
   reglasCompetencia: 'reglas_competencia',
   reglasCompetenciaVersiones: 'reglas_competencia_versiones',
   eventosPuntos: 'eventos_puntos',
@@ -388,6 +389,11 @@ export function _toSnake(obj) {
     puestos: 'puestos_necesarios',
     // 2.5/A.6 (Delta Comercial v1.3)
     logProductos: 'log_productos', logElementos: 'log_elementos', logMaquinas: 'log_maquinas',
+    // v079 — multi-select parametrizable (NO reemplaza los 3 de arriba,
+    // que siguen con su dato real de facturación en los 164 objetivos ya
+    // cargados)
+    productosLimpieza: 'productos_limpieza', elementosLimpieza: 'elementos_limpieza',
+    maquinasNecesarias: 'maquinas_necesarias',
     // Liquidación de horas v1.1 (v040)
     objCodigo: 'objetivo_codigo', horasEFT: 'horas_eft', horasContratadas: 'horas_contratadas',
     alertaEFT: 'alerta_eft', totalHorasFacturables: 'total_horas_facturables',
@@ -692,6 +698,8 @@ export function _toCamel(obj) {
     responsable_tipo: 'responsableTipo', responsable_contacto: 'responsableContacto',
     puestos_necesarios: 'puestos',
     log_productos: 'logProductos', log_elementos: 'logElementos', log_maquinas: 'logMaquinas',
+    productos_limpieza: 'productosLimpieza', elementos_limpieza: 'elementosLimpieza',
+    maquinas_necesarias: 'maquinasNecesarias',
     // Liquidación de horas v1.1 (v040)
     objetivo_codigo: 'objCodigo', horas_eft: 'horasEFT', horas_contratadas: 'horasContratadas',
     alerta_eft: 'alertaEFT', total_horas_facturables: 'totalHorasFacturables',

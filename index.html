@@ -5763,9 +5763,14 @@
           </div>
           <div class="form-section">Necesidad logística del servicio</div>
           <div class="alerta alerta-info" style="font-size:12px;">Qué necesita el servicio para funcionar — el pedido/entrega real se gestiona en el módulo Logística.</div>
-          <div class="form-group"><label>Productos</label><textarea id="obj-log-productos" placeholder="Ej: Detergente neutro, lavandina, papel higiénico..."></textarea></div>
-          <div class="form-group"><label>Elementos de limpieza</label><textarea id="obj-log-elementos" placeholder="Ej: Trapos de piso, mopas, guantes..."></textarea></div>
-          <div class="form-group"><label>Máquinas</label><textarea id="obj-log-maquinas" placeholder="Ej: Enceradora, hidrolavadora..."></textarea></div>
+          <div class="form-group"><label>Productos <span style="font-weight:400;color:var(--texto-suave);">(notas / facturación — texto libre, como antes)</span></label><textarea id="obj-log-productos" placeholder="Ej: Detergente neutro, lavandina, papel higiénico..."></textarea></div>
+          <div class="form-group"><label>Elementos de limpieza <span style="font-weight:400;color:var(--texto-suave);">(notas — texto libre, como antes)</span></label><textarea id="obj-log-elementos" placeholder="Ej: Trapos de piso, mopas, guantes..."></textarea></div>
+          <div class="form-group"><label>Máquinas <span style="font-weight:400;color:var(--texto-suave);">(notas — texto libre, como antes)</span></label><textarea id="obj-log-maquinas" placeholder="Ej: Enceradora, hidrolavadora..."></textarea></div>
+
+          <div class="form-section">Qué pide el servicio (selección múltiple)</div>
+          <div class="form-group"><label>Productos de limpieza</label><div id="obj-multi-productos" style="display:flex;flex-wrap:wrap;gap:8px;"></div></div>
+          <div class="form-group"><label>Elementos de limpieza</label><div id="obj-multi-elementos" style="display:flex;flex-wrap:wrap;gap:8px;"></div></div>
+          <div class="form-group"><label>Máquinas</label><div id="obj-multi-maquinas" style="display:flex;flex-wrap:wrap;gap:8px;"></div></div>
         </div>
       </div>
     </div>

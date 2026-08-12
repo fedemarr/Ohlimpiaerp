@@ -12,6 +12,9 @@ export const DB = {
   // Catálogo de roles de contacto de cliente (sql/v077) — mismo estado
   // que los dos catálogos de arriba, seed-only por ahora.
   rolesContacto: [],
+  // Catálogo de productos/elementos/máquinas del servicio (sql/v079) —
+  // mismo estado que los catálogos de arriba, seed-only por ahora.
+  itemsLogisticaServicio: [],
   // Código de servicio → supervisor, persistido en Supabase (sql/v067) —
   // se carga solo vía supaInit(). Ver src/modules/servicios_supervisor/
   // (pantalla en Configuración → Servicios) y

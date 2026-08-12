@@ -1793,6 +1793,12 @@ function verObjetivo(idLocal){
     ${o.logElementos?`<div class="info-item"><div class="key">Elementos de limpieza</div><div class="val">${o.logElementos}</div></div>`:''}
     ${o.logMaquinas?`<div class="info-item"><div class="key">Máquinas</div><div class="val">${o.logMaquinas}</div></div>`:''}
   </div>`:''}
+  ${((o.productosLimpieza||[]).length||(o.elementosLimpieza||[]).length||(o.maquinasNecesarias||[]).length)?`<div style="margin-top:14px;font-size:11px;font-weight:700;text-transform:uppercase;color:var(--texto-suave);margin-bottom:8px;">Qué pide el servicio</div>
+  <div style="display:flex;flex-direction:column;gap:6px;">
+    ${(o.productosLimpieza||[]).length?`<div><span style="font-size:11px;color:var(--texto-suave);">Productos:</span> ${(o.productosLimpieza||[]).map(p=>`<span class="chip" style="font-size:10px;">${p}</span>`).join(' ')}</div>`:''}
+    ${(o.elementosLimpieza||[]).length?`<div><span style="font-size:11px;color:var(--texto-suave);">Elementos:</span> ${(o.elementosLimpieza||[]).map(p=>`<span class="chip" style="font-size:10px;">${p}</span>`).join(' ')}</div>`:''}
+    ${(o.maquinasNecesarias||[]).length?`<div><span style="font-size:11px;color:var(--texto-suave);">Máquinas:</span> ${(o.maquinasNecesarias||[]).map(p=>`<span class="chip" style="font-size:10px;">${p}</span>`).join(' ')}</div>`:''}
+  </div>`:''}
   ${o.notas?`<div class="alerta alerta-info" style="margin-top:12px;font-size:12px;"><strong>Notas:</strong> ${o.notas}</div>`:''}
   ${o.textoFactura?`<div class="alerta alerta-info" style="margin-top:12px;font-size:12px;"><strong>Texto en factura:</strong> ${o.textoFactura}</div>`:''}
   ${o.estado==='Baja'?`<div class="alerta alerta-danger" style="margin-top:12px;font-size:12px;"><strong>🚫 Dado de baja</strong> el ${o.fechaBaja} por ${o.dadoDeBajaPor}. Motivo: ${o.motivoBaja||'—'}</div>`:''}
@@ -1814,6 +1820,30 @@ function verObjetivo(idLocal){
 // P.10 (Delta Comercial v1.2) — bindeado a window por la misma razón que
 // contactosClienteTemp: los oninput/onclick inline del modal de objetivo
 // (respObjetivoTemp[i].nombre=this.value, etc.) corren en scope global.
+// Tema 6.b del relevamiento (10/08): selección múltiple de Productos/
+// Elementos/Máquinas que pide el servicio, parametrizable desde
+// DB.itemsLogisticaServicio. Objeto simple {productos,elementos,maquinas}
+// de arrays de nombres (no ids — mismo patrón liviano que perfil de
+// Pedidos) porque no hace falta relación, solo mostrar/guardar strings.
+let objMultiTemp={productos:[],elementos:[],maquinas:[]};
+function renderObjMulti(){
+  const cats=[['productos','obj-multi-productos'],['elementos','obj-multi-elementos'],['maquinas','obj-multi-maquinas']];
+  cats.forEach(([cat,elId])=>{
+    const el=$(elId);if(!el)return;
+    const catCatalogo={productos:'producto',elementos:'elemento',maquinas:'maquina'}[cat];
+    const items=(DB.itemsLogisticaServicio||[]).filter(it=>it.categoria===catCatalogo&&it.activo!==false).sort((a,b)=>(a.orden||0)-(b.orden||0));
+    el.innerHTML=items.length?items.map(it=>`
+      <label style="display:flex;align-items:center;gap:5px;font-size:12px;font-weight:400;background:var(--fondo);border:1px solid var(--borde);border-radius:20px;padding:4px 10px;cursor:pointer;">
+        <input type="checkbox" ${objMultiTemp[cat].includes(it.nombre)?'checked':''} onchange="toggleObjMulti('${cat}','${it.nombre.replace(/'/g,"\\'")}',this.checked)">
+        ${it.nombre}
+      </label>`).join('') : '<span class="text-muted" style="font-size:11px;">Sin catálogo cargado</span>';
+  });
+}
+function toggleObjMulti(cat,nombre,checked){
+  if(checked){ if(!objMultiTemp[cat].includes(nombre)) objMultiTemp[cat].push(nombre); }
+  else objMultiTemp[cat]=objMultiTemp[cat].filter(n=>n!==nombre);
+}
+
 let respObjetivoTemp=[];
 window.respObjetivoTemp=respObjetivoTemp;
 function agregarRespObjetivo(){
@@ -1913,6 +1943,8 @@ function abrirModalObjetivo(idLocal){
   adjuntosObjTemp.length=0;adjuntosObjTemp.push(...(o?(o.adjuntos||[]).map(a=>({...a})):[]));
   puestosObjTemp.length=0;puestosObjTemp.push(...(o?(o.puestos||[]).map(p=>({...p,dias:{...(p.dias||{})}})):[]));
   comisionesObjTemp.length=0;comisionesObjTemp.push(...(o?(o.comisiones||[]).map(c=>({...c,tramosPct:(c.tramosPct||[]).map(t=>({...t}))})):[]));
+  objMultiTemp={productos:[...(o?.productosLimpieza||[])],elementos:[...(o?.elementosLimpieza||[])],maquinas:[...(o?.maquinasNecesarias||[])]};
+  renderObjMulti();
   const titulo=$('obj-modal-title');
   if(titulo) titulo.textContent=o?'📍 Editar servicio':'📍 Nuevo servicio';
   if(o){
@@ -2011,6 +2043,9 @@ function guardarObjetivo(){
     logProductos:$('obj-log-productos')?.value||'',
     logElementos:$('obj-log-elementos')?.value||'',
     logMaquinas:$('obj-log-maquinas')?.value||'',
+    productosLimpieza:[...objMultiTemp.productos],
+    elementosLimpieza:[...objMultiTemp.elementos],
+    maquinasNecesarias:[...objMultiTemp.maquinas],
     responsables:[...respObjetivoTemp],
     adjuntos:[...adjuntosObjTemp],
   };
@@ -12294,6 +12329,7 @@ window.agregarMesLiq = agregarMesLiq;
 window.agregarPersonaArea = agregarPersonaArea;
 window.agregarPregunta = agregarPregunta;
 window.agregarRespObjetivo = agregarRespObjetivo;
+window.toggleObjMulti = toggleObjMulti;
 window.agregarSMVM = agregarSMVM;
 window.alertarAccionesVencidasModulo = alertarAccionesVencidasModulo;
 window.analizarCobrosIA = analizarCobrosIA;
