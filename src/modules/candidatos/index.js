@@ -18,6 +18,7 @@ export {
 export {
   renderCalendario, cambiarSemana, irHoy,
   actualizarConfigAgente, agendarTurno,
+  confirmarCalTurno, eliminarCalTurno, vincularCandidatoTurno,
   poblarSelectResponsable,
 } from './calendario.js';
 
@@ -94,6 +95,7 @@ import {
 import {
   cambiarSemana, irHoy,
   actualizarConfigAgente, agendarTurno,
+  confirmarCalTurno, eliminarCalTurno, vincularCandidatoTurno,
   poblarSelectResponsable,
 } from './calendario.js';
 
@@ -144,6 +146,9 @@ window.cambiarSemana = cambiarSemana;
 window.irHoy = irHoy;
 window.actualizarConfigAgente = actualizarConfigAgente;
 window.agendarTurno = agendarTurno;
+window.confirmarCalTurno = confirmarCalTurno;
+window.eliminarCalTurno = eliminarCalTurno;
+window.vincularCandidatoTurno = vincularCandidatoTurno;
 
 // Link público de postulación
 window.copiarLinkPostulacion = copiarLinkPostulacion;

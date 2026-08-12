@@ -1,7 +1,8 @@
 import { DB } from '@shared/state.js';
 import { $ } from '@shared/helpers.js';
-import { toast, abrirModalInput } from '@shared/ui.js';
-import { supaSync, supaDel } from '@shared/supabase.js';
+import { toast, abrirModal, cerrarModal } from '@shared/ui.js';
+import { supaSync, supaDel, getLastSupaSyncError } from '@shared/supabase.js';
+import { idLocalCand } from './candidatos.js';
 
 // ========== CONFIGURACION ==========
 
@@ -17,6 +18,10 @@ const configAgente = {
 
 let semanaOffset = 0;
 
+// Turno en edición en el modal (agendar nuevo = { id: null } | ver/editar
+// existente = { id }).
+let _turnoModal = null;
+
 // ========== HELPERS ==========
 
 function getLunesDeSemana(offset) {
@@ -30,6 +35,86 @@ function getLunesDeSemana(offset) {
 
 function getTurnos() {
   return DB.turnos || [];
+}
+
+// Responsables de entrevistas (RRHH + admins) — mismo criterio que usaba
+// el filtro global `cal-responsable`, extraído a un helper para poder
+// alimentar también el select propio del modal (el modal no depende del
+// filtro: en creación toma el valor del filtro como default, pero después
+// cada turno guarda SU responsable).
+function getResponsables() {
+  return [
+    ...DB.usuarios.filter(function (u) { return ['RRHH', 'Administrador total'].includes(u.perfil); }).map(function (u) { return u.nickname || u.nombre.split(' ')[0]; }),
+    ...DB.rrhh.filter(function (n) { return !DB.usuarios.find(function (u) { return (u.nickname || u.nombre.split(' ')[0]) === n; }); }),
+  ];
+}
+
+// Franjas horarias de la grilla según la config del agente.
+function getFranjas() {
+  const franjas = [];
+  const [hD, mD] = configAgente.horaDesde.split(':').map(Number);
+  const [hH, mH] = configAgente.horaHasta.split(':').map(Number);
+  let cur = hD * 60 + mD;
+  const fin = hH * 60 + mH;
+  while (cur < fin) {
+    const h = Math.floor(cur / 60).toString().padStart(2, '0');
+    const m = (cur % 60).toString().padStart(2, '0');
+    franjas.push(h + ':' + m);
+    cur += configAgente.duracion;
+  }
+  return franjas;
+}
+
+// Puebla el select de hora del modal con las franjas de la grilla. Si la
+// hora actual del turno ya no es una franja (porque cambió la config de
+// duración/horario), se agrega igual para no dejar el turno "flotando".
+function poblarSelectHoraTurno(horaActual) {
+  const sel = $('cal-turno-hora');
+  if (!sel) return;
+  const franjas = getFranjas();
+  if (horaActual && !franjas.includes(horaActual)) franjas.push(horaActual);
+  franjas.sort();
+  sel.innerHTML = franjas.map(function (h) { return '<option value="' + h + '">' + h + '</option>'; }).join('');
+}
+
+function poblarSelectResponsableTurno() {
+  const sel = $('cal-turno-responsable');
+  if (!sel) return;
+  sel.innerHTML = '<option value="">— Sin asignar —</option>'
+    + getResponsables().map(function (n) { return '<option>' + n + '</option>'; }).join('');
+}
+
+// Candidatos disponibles para vincular al turno. Se excluyen los que ya
+// salieron del circuito de entrevistas (rechazados o de baja) para no
+// llenar el select de gente que ya no se va a entrevistar.
+function poblarSelectCandidatoTurno() {
+  const sel = $('cal-turno-candidato');
+  if (!sel) return;
+  const estadosMuertos = ['Rechazado', 'Baja', 'Caducado', 'MT Social', 'MT con deuda'];
+  const candidatos = (DB.candidatos || [])
+    .filter(function (c) { return !estadosMuertos.includes(c.estado); })
+    .sort(function (a, b) { return (a.apellido || a.nombre || '').localeCompare(b.apellido || b.nombre || '', 'es'); });
+  sel.innerHTML = '<option value="">— Sin vínculo —</option>'
+    + candidatos.map(function (c) {
+      return '<option value="' + idLocalCand(c.id) + '">' + (c.apellido ? c.apellido + ', ' : '') + (c.nombre || '') + (c.dni ? ' — ' + c.dni : '') + '</option>';
+    }).join('');
+}
+
+// Traduce el último error real de Supabase (guardado por supaSync) a un
+// mensaje específico cuando se puede identificar la causa — mismo patrón
+// que mensajeErrorGuardado() en candidatos.js, con mensajes propios de
+// turnos.
+function errorGuardarTurno(generico) {
+  const err = getLastSupaSyncError();
+  if (!err) return generico;
+  const msg = (err.message || '').toLowerCase();
+  if (err.code === '42501' || msg.includes('row-level security') || msg.includes('permission denied')) {
+    return '⚠️ Tu sesión no tiene permiso para guardar ahora — cerrá sesión, volvé a entrar, y si sigue avisá a sistemas.';
+  }
+  if (err.code === '23505' || msg.includes('duplicate key')) {
+    return '⚠️ No se pudo guardar: ya existe un turno con esos datos en el servidor — recargá y revisá antes de reintentar.';
+  }
+  return generico;
 }
 
 // ========== NAVEGACION ==========
@@ -54,11 +139,7 @@ export function actualizarConfigAgente() {
 export function poblarSelectResponsable() {
   var sel = $('cal-responsable');
   if (!sel) return;
-  var nicksRRHH = [
-    ...DB.usuarios.filter(function (u) { return ['RRHH', 'Administrador total'].includes(u.perfil); }).map(function (u) { return u.nickname || u.nombre.split(' ')[0]; }),
-    ...DB.rrhh.filter(function (n) { return !DB.usuarios.find(function (u) { return (u.nickname || u.nombre.split(' ')[0]) === n; }); }),
-  ];
-  sel.innerHTML = '<option value="">— Todos —</option>' + nicksRRHH.map(function (n) { return '<option>' + n + '</option>'; }).join('');
+  sel.innerHTML = '<option value="">— Todos —</option>' + getResponsables().map(function (n) { return '<option>' + n + '</option>'; }).join('');
 }
 
 // ========== RENDER ==========
@@ -77,17 +158,7 @@ export function renderCalendario() {
   if (lbl) lbl.textContent = dias[0].toLocaleDateString('es-AR', opts) + ' — ' + dias[6].toLocaleDateString('es-AR', opts) + ' ' + dias[0].getFullYear();
 
   // Generar franjas horarias
-  const franjas = [];
-  const [hD, mD] = configAgente.horaDesde.split(':').map(Number);
-  const [hH, mH] = configAgente.horaHasta.split(':').map(Number);
-  let cur = hD * 60 + mD;
-  const fin = hH * 60 + mH;
-  while (cur < fin) {
-    const h = Math.floor(cur / 60).toString().padStart(2, '0');
-    const m = (cur % 60).toString().padStart(2, '0');
-    franjas.push(h + ':' + m);
-    cur += configAgente.duracion;
-  }
+  const franjas = getFranjas();
 
   const hoy = new Date(); hoy.setHours(0, 0, 0, 0);
   const diasNombres = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
@@ -182,6 +253,43 @@ export function renderCalendario() {
   }
 }
 
+// ========== MODAL AGENDAR / EDITAR TURNO ==========
+// Modal propio (patrón ensureModal de los módulos migrados) que se
+// reutiliza para agendar (nuevo) y para ver/editar (existente, con el
+// valor precargado). Campos: fecha + hora + entrevistador + candidato
+// vinculado + nombre + estado (solo edición) + observación. El título,
+// los campos precargados y el botón Eliminar distinguen un modo del otro.
+
+function ensureModalCalTurno() {
+  if ($('modal-cal-turno')) return;
+  const m = document.createElement('div');
+  m.className = 'modal-overlay';
+  m.id = 'modal-cal-turno';
+  m.innerHTML = `
+    <div class="modal" style="max-width:560px;">
+      <div class="modal-header"><h3 id="cal-turno-titulo">Agendar turno</h3><button class="btn-close" onclick="cerrarModal('modal-cal-turno')">×</button></div>
+      <div class="modal-body">
+        <div class="form-grid form-grid-2" style="margin-bottom:12px;">
+          <div class="form-group"><label>Fecha *</label><input type="date" id="cal-turno-fecha"></div>
+          <div class="form-group"><label>Hora *</label><select id="cal-turno-hora"></select></div>
+        </div>
+        <div class="form-grid form-grid-2" style="margin-bottom:12px;">
+          <div class="form-group"><label>Entrevistador</label><select id="cal-turno-responsable"><option value="">— Sin asignar —</option></select></div>
+          <div class="form-group"><label>Candidato vinculado</label><select id="cal-turno-candidato" onchange="vincularCandidatoTurno(this)"><option value="">— Sin vínculo —</option></select></div>
+        </div>
+        <div class="form-group" style="margin-bottom:12px;"><label>Nombre del candidato *</label><input type="text" id="cal-turno-nombre" maxlength="120" placeholder="Nombre del candidato"></div>
+        <div class="form-group" id="cal-turno-estado-group" style="margin-bottom:12px;display:none;"><label>Estado</label><select id="cal-turno-estado"><option value="Pendiente">Pendiente</option><option value="Confirmado">Confirmado</option></select></div>
+        <div class="form-group"><label>Observación <span style="font-weight:400;color:var(--texto-muy-suave);">(opcional)</span></label><textarea id="cal-turno-observacion" rows="3" maxlength="300" placeholder="Nota asociada a la entrevista…"></textarea></div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-danger" id="cal-turno-eliminar" style="display:none;margin-right:auto;" onclick="eliminarCalTurno()">🗑️ Eliminar</button>
+        <button class="btn btn-secondary" onclick="cerrarModal('modal-cal-turno')">Cancelar</button>
+        <button class="btn btn-primary" onclick="confirmarCalTurno()">💾 Guardar</button>
+      </div>
+    </div>`;
+  document.body.appendChild(m);
+}
+
 // ========== AGENDAR ==========
 
 export function agendarTurno(fecha, hora) {
@@ -194,53 +302,156 @@ export function agendarTurno(fecha, hora) {
     return;
   }
 
-  abrirModalInput({ titulo: 'Agendar turno ' + hora + ' del ' + fecha, etiqueta: 'Nombre del candidato' }, function (nombre) {
-    var responsable = ($('cal-responsable') || { value: '' }).value;
-
-    var turno = {
-      id: Date.now(),
-      candidatoId: '',
-      nombre: nombre,
-      fecha: fecha,
-      hora: hora,
-      estado: 'Pendiente',
-      responsable: responsable,
-    };
-
-    if (!DB.turnos) DB.turnos = [];
-    DB.turnos.push(turno);
-    supaSync('turnos', turno);
-    renderCalendario();
-    toast('✓ Turno agendado para ' + nombre + ' el ' + fecha + ' a las ' + hora);
-  });
+  ensureModalCalTurno();
+  poblarSelectHoraTurno(hora);
+  poblarSelectResponsableTurno();
+  poblarSelectCandidatoTurno();
+  // Default del entrevistador: el valor actual del filtro global (si es un
+  // responsable válido) — después cada turno guarda el suyo propio.
+  const responsables = getResponsables();
+  const respDefault = ($('cal-responsable') || { value: '' }).value;
+  $('cal-turno-titulo').textContent = 'Agendar entrevista ' + hora + ' del ' + fecha;
+  $('cal-turno-fecha').value = fecha;
+  $('cal-turno-hora').value = hora;
+  $('cal-turno-responsable').value = responsables.includes(respDefault) ? respDefault : '';
+  $('cal-turno-candidato').value = '';
+  $('cal-turno-nombre').value = '';
+  $('cal-turno-estado-group').style.display = 'none';
+  $('cal-turno-estado').value = 'Pendiente';
+  $('cal-turno-observacion').value = '';
+  $('cal-turno-eliminar').style.display = 'none';
+  _turnoModal = { id: null };
+  abrirModal('modal-cal-turno');
+  setTimeout(() => $('cal-turno-nombre')?.focus(), 50);
 }
 
 // ========== VER / GESTIONAR TURNO ==========
 
 function verTurno(turnoId) {
-  var t = getTurnos().find(function (x) { return x.id == turnoId; });
+  var t = getTurnos().find(function (x) { return String(x.id) === String(turnoId); });
   if (!t) return;
 
-  var nuevoEstado = t.estado === 'Pendiente' ? 'Confirmado' : 'Pendiente';
-  var accion = confirm(
-    'Turno: ' + t.nombre + '\n'
-    + 'Fecha: ' + t.fecha + ' ' + t.hora + '\n'
-    + 'Estado: ' + t.estado + '\n\n'
-    + '¿Cambiar a ' + nuevoEstado + '?\n'
-    + '(Cancelar para eliminar el turno)'
-  );
+  ensureModalCalTurno();
+  poblarSelectHoraTurno(t.hora);
+  poblarSelectResponsableTurno();
+  poblarSelectCandidatoTurno();
+  $('cal-turno-titulo').textContent = 'Editar entrevista — ' + (t.nombre || '');
+  $('cal-turno-fecha').value = t.fecha || '';
+  $('cal-turno-hora').value = t.hora || '';
+  $('cal-turno-responsable').value = t.responsable || '';
+  // Normaliza el candidato vinculado al mismo formato que el select
+  // (id truncado a 9 dígitos) — el candidato_id puede venir en 3 formatos
+  // distintos según el alta (ver idLocalCand en candidatos.js).
+  $('cal-turno-candidato').value = t.candidatoId ? idLocalCand(t.candidatoId) : '';
+  $('cal-turno-nombre').value = t.nombre || '';
+  $('cal-turno-estado-group').style.display = 'flex';
+  $('cal-turno-estado').value = t.estado === 'Confirmado' ? 'Confirmado' : 'Pendiente';
+  $('cal-turno-observacion').value = t.observacion || '';
+  $('cal-turno-eliminar').style.display = 'inline-block';
+  _turnoModal = { id: t.id };
+  abrirModal('modal-cal-turno');
+}
 
-  if (accion) {
-    t.estado = nuevoEstado;
-    supaSync('turnos', t);
-    toast('✓ Turno ' + nuevoEstado.toLowerCase());
-  } else {
-    var eliminar = confirm('¿Eliminar este turno?');
-    if (eliminar) {
-      t.estado = 'Cancelado';
-      supaSync('turnos', t);
-      toast('✓ Turno cancelado');
-    }
+// ========== GUARDAR / ELIMINAR TURNO ==========
+
+export async function confirmarCalTurno() {
+  if (_turnoModal == null) { cerrarModal('modal-cal-turno'); return; }
+  const nombre = ($('cal-turno-nombre').value || '').trim();
+  const fecha = ($('cal-turno-fecha').value || '').trim();
+  const hora = ($('cal-turno-hora').value || '').trim();
+  const responsable = ($('cal-turno-responsable').value || '').trim();
+  const candidatoId = ($('cal-turno-candidato').value || '').trim();
+  const observacion = ($('cal-turno-observacion').value || '').trim() || null;
+
+  if (!nombre) { toast('⚠️ Completá el nombre del candidato'); return; }
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(fecha) || isNaN(new Date(fecha + 'T00:00:00').getTime())) {
+    toast('⚠️ Elegí una fecha válida');
+    return;
   }
+  const diaSemana = new Date(fecha + 'T00:00:00').getDay();
+  if (!configAgente.diasHabilitados.includes(diaSemana)) {
+    toast('⚠️ Ese día no está habilitado para entrevistas');
+    return;
+  }
+  if (!getFranjas().includes(hora)) { toast('⚠️ Elegí una hora válida'); return; }
+
+  // Capacidad del slot destino — excluye el propio turno cuando es edición
+  // (mover un turno a un slot en el que ya estaba no puede bloquearse).
+  const ocupados = getTurnos().filter(function (x) {
+    return x.fecha === fecha && x.hora === hora && x.estado !== 'Cancelado' && String(x.id) !== String(_turnoModal.id);
+  });
+  if (ocupados.length >= configAgente.maxPorTurno) {
+    toast('⚠️ Ese horario ya está completo');
+    return;
+  }
+
+  if (_turnoModal.id == null) {
+    var turno = {
+      id: Date.now(),
+      candidatoId: candidatoId || '',
+      nombre: nombre,
+      fecha: fecha,
+      hora: hora,
+      estado: 'Pendiente',
+      responsable: responsable,
+      observacion: observacion,
+    };
+    if (!DB.turnos) DB.turnos = [];
+    DB.turnos.push(turno);
+    const ok = await supaSync('turnos', turno);
+    if (!ok) {
+      DB.turnos = DB.turnos.filter(function (x) { return String(x.id) !== String(turno.id); });
+      toast(errorGuardarTurno('⚠️ No se pudo agendar la entrevista — reintentá o avisá a sistemas'));
+      return;
+    }
+    toast('✓ Entrevista agendada para ' + nombre + ' el ' + fecha + ' a las ' + hora);
+  } else {
+    const t = getTurnos().find(function (x) { return String(x.id) === String(_turnoModal.id); });
+    if (!t) { cerrarModal('modal-cal-turno'); return; }
+    const snapshot = { fecha: t.fecha, hora: t.hora, nombre: t.nombre, estado: t.estado, responsable: t.responsable, candidatoId: t.candidatoId, observacion: t.observacion };
+    t.fecha = fecha;
+    t.hora = hora;
+    t.nombre = nombre;
+    t.estado = ($('cal-turno-estado').value || 'Pendiente');
+    t.responsable = responsable;
+    t.candidatoId = candidatoId || '';
+    t.observacion = observacion;
+    const ok = await supaSync('turnos', t);
+    if (!ok) {
+      Object.assign(t, snapshot);
+      toast(errorGuardarTurno('⚠️ No se pudo actualizar la entrevista — reintentá o avisá a sistemas'));
+      return;
+    }
+    toast('✓ Entrevista actualizada');
+  }
+  _turnoModal = null;
+  cerrarModal('modal-cal-turno');
   renderCalendario();
+}
+
+export async function eliminarCalTurno() {
+  if (_turnoModal == null || _turnoModal.id == null) return;
+  const t = getTurnos().find(function (x) { return String(x.id) === String(_turnoModal.id); });
+  if (t && confirm('¿Eliminar este turno?')) {
+    t.estado = 'Cancelado';
+    const ok = await supaSync('turnos', t);
+    if (!ok) toast(errorGuardarTurno('⚠️ No se pudo cancelar el turno — reintentá o avisá a sistemas'));
+    else toast('✓ Turno cancelado');
+  }
+  _turnoModal = null;
+  cerrarModal('modal-cal-turno');
+  renderCalendario();
+}
+
+// ========== VINCULAR CANDIDATO ==========
+
+// Al elegir un candidato del select, autocompleta el nombre (texto libre
+// sigue permitido — los turnos viejos y los no registrados no tienen
+// candidato vinculado).
+export function vincularCandidatoTurno(sel) {
+  const id = (sel || {}).value;
+  if (!id) return;
+  const c = (DB.candidatos || []).find(function (x) { return String(idLocalCand(x.id)) === String(id); });
+  if (!c) return;
+  $('cal-turno-nombre').value = (c.apellido ? c.apellido + ' ' : '') + (c.nombre || '');
 }

@@ -141,7 +141,7 @@ const TIPOS_MOTIVO_BAJA = ['Consiguió trabajo', 'Rechazó propuesta', 'No se pr
 // formatos distintos según el alta: '', el id de 13 dígitos sin
 // truncar, o el id serial de Supabase). Se normaliza acá para que la
 // referencia sobreviva a un reload sin importar el origen.
-function idLocalCand(id) {
+export function idLocalCand(id) {
   return String(id).slice(-9);
 }
 
