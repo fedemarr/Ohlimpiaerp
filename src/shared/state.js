@@ -9,6 +9,9 @@ export const DB = {
   // solo vía supaInit() — no hay ABM todavía (mismo estado que
   // perfilPersonalAtributos de arriba).
   motivosRetencion: [],
+  // Catálogo de roles de contacto de cliente (sql/v077) — mismo estado
+  // que los dos catálogos de arriba, seed-only por ahora.
+  rolesContacto: [],
   // Código de servicio → supervisor, persistido en Supabase (sql/v067) —
   // se carga solo vía supaInit(). Ver src/modules/servicios_supervisor/
   // (pantalla en Configuración → Servicios) y

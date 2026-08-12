@@ -44,6 +44,7 @@ export const _SM = {
   uniformes: 'uniformes',
   retenciones: 'retenciones',
   motivosRetencion: 'motivos_retencion',
+  rolesContacto: 'roles_contacto_cliente',
   reglasCompetencia: 'reglas_competencia',
   reglasCompetenciaVersiones: 'reglas_competencia_versiones',
   eventosPuntos: 'eventos_puntos',

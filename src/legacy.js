@@ -1555,7 +1555,11 @@ function renderContactosClienteTemp(){
     <div style="background:var(--fondo);border:1px solid var(--borde);border-radius:var(--radio);padding:10px 12px;">
       <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr auto;gap:8px;align-items:center;">
         <input type="text" placeholder="Nombre *" value="${ct.nombre}" style="${inputStyle}" oninput="contactosClienteTemp[${i}].nombre=this.value">
-        <input type="text" placeholder="Rol (ej: Gerente de compras)" value="${ct.rol}" style="${inputStyle}" oninput="contactosClienteTemp[${i}].rol=this.value">
+        <select style="${inputStyle}" onchange="contactosClienteTemp[${i}].rol=this.value">
+          <option value="">— Rol —</option>
+          ${(DB.rolesContacto||[]).filter(r=>r.activo!==false).sort((a,b)=>(a.orden||0)-(b.orden||0)).map(r=>`<option value="${r.nombre}" ${ct.rol===r.nombre?'selected':''}>${r.nombre}</option>`).join('')}
+          ${ct.rol && !(DB.rolesContacto||[]).some(r=>r.nombre===ct.rol) ? `<option value="${ct.rol}" selected>${ct.rol} (histórico)</option>` : ''}
+        </select>
         <input type="text" placeholder="Teléfono" value="${ct.tel}" style="${inputStyle}" oninput="contactosClienteTemp[${i}].tel=this.value">
         <input type="text" placeholder="Email" value="${ct.mail}" style="${inputStyle}" oninput="contactosClienteTemp[${i}].mail=this.value">
         <button style="background:none;border:none;cursor:pointer;color:var(--rojo);font-size:16px;" onclick="contactosClienteTemp.splice(${i},1);renderContactosClienteTemp()">✕</button>
