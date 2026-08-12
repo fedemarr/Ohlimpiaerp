@@ -1,6 +1,6 @@
 import { DB, LOCALIDADES_BA, BARRIOS_CABA, PARTIDOS_LOCALIDADES, LOCALIDAD_A_PARTIDO } from '@shared/state.js';
 import { getSupervisorDeCodigo } from '@modules/servicios_supervisor/index.js';
-import { $, avatarEl, badge, cleanText, toTitleCase, validarCampos, fillSelect, applyTitleCase } from '@shared/helpers.js';
+import { $, avatarEl, badge, cleanText, toTitleCase, validarCampos, fillSelect, applyTitleCase, cbuValido } from '@shared/helpers.js';
 import { toast, abrirModal, cerrarModal } from '@shared/ui.js';
 import { supaSync } from '@shared/supabase.js';
 import { subirAdjunto, listarAdjuntos, obtenerUrlFirmada, borrarAdjunto, MAX_SIZE } from '@shared/adjuntos.js';
@@ -315,7 +315,7 @@ function crearHTMLModalAlta() {
         '<div id="alta-section-6" style="display:none;">',
           '<div class="form-grid form-grid-2">',
             '<div class="form-group"><label>Banco</label><input type="text" id="alt-banco"></div>',
-            '<div class="form-group"><label>CBU</label><input type="text" id="alt-cbu"></div>',
+            '<div class="form-group"><label>CBU</label><input type="text" id="alt-cbu" maxlength="22" inputmode="numeric" placeholder="22 dígitos"></div>',
           '</div>',
         '</div>',
         // Tab 7 — Constancia MT (ticket "Constancia" 08/2026). Reutiliza el
@@ -873,6 +873,20 @@ export function confirmarAlta() {
   const categoria = ($('alt-categoria') || {}).value || '';
   const claveFiscal = cleanText(($('alt-clave-fiscal') || {}).value || '');
   const inaes = cleanText(($('alt-inaes') || {}).value || '');
+
+  // CBU (ticket "CBU" 08/2026): formato inválido bloquea y lleva a la tab
+  // de cuentas bancarias — un CBU mal cargado es un dato incorrecto y se
+  // propaga a liquidaciones/cobros. Faltante NO bloquea, solo avisa (puede
+  // que el asociado todavía no tenga cuenta; se completa después desde el
+  // legajo o con el importador masivo).
+  if (cbu && !cbuValido(cbu)) {
+    toast('⚠️ El CBU debe tener exactamente 22 dígitos numéricos');
+    tabAlta(6);
+    return;
+  }
+  if (!cbu) {
+    toast('⚠️ El asociado no tiene CBU cargado — se puede completar después desde el legajo');
+  }
 
   // Guard de DNI duplicado (CLAUDE.md conocidos: no existía ninguna
   // validación acá, a diferencia de guardarEdicionLegajo). Un legajo

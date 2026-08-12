@@ -19,6 +19,13 @@ export const toTitleCase = s =>
 
 export const cleanText = s => (s || '').trim();
 
+// ========== CBU (ticket "CBU" 08/2026) ==========
+// CBU argentino: exactamente 22 dígitos numéricos. Se normaliza quitando
+// espacios/guiones/puntos antes de validar (un input o CSV puede venir
+// formateado).
+export const normalizarCbu = s => (s || '').replace(/[\s.\-/]/g, '');
+export const cbuValido = s => /^\d{22}$/.test(normalizarCbu(s));
+
 export const badge = v =>
   `<span class="badge ${BADGE_MAP[v] || 'badge-gris'}">${v || '—'}</span>`;
 

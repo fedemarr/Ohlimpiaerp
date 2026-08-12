@@ -1,5 +1,10 @@
-// Función serverless de Vercel — analiza un PDF (certificado de antecedentes
-// o apto médico) con la API de Claude y devuelve campos estructurados.
+// Función serverless de Vercel — analiza un certificado (antecedentes, apto
+// médico o informe psicotécnico) con la API de Claude y devuelve campos
+// estructurados. El adjunto puede ser un PDF o una foto (JPG/PNG) — los 3
+// formularios que llaman acá aceptan los tres formatos (ver accept= en
+// documentacion.js/preocupacional.js/psicotecnico.js), así que el tipo de
+// contenido que se manda a Claude se arma según el content-type real del
+// archivo en Storage, no asumiendo siempre PDF.
 //
 // La API key de Anthropic vive solo acá (variable de entorno de Vercel),
 // nunca en el bundle del cliente. Ver CLAUDE.md / sql/README para el resto
@@ -8,7 +13,9 @@
 const SUPABASE_URL = 'https://caeqsieiuunqvicfpudu.supabase.co';
 const SUPABASE_ANON_KEY = 'sb_publishable__SBdO6cSQXYfgR16FrztwA_Cf9sNosd';
 const BUCKET = 'ohlimpia-adjuntos';
-const MAX_PDF_BYTES = 10 * 1024 * 1024; // mismo límite que adjuntos.js al subir
+const MAX_FILE_BYTES = 10 * 1024 * 1024; // mismo límite que adjuntos.js al subir
+// Mismos MIME permitidos que TIPOS_PERMITIDOS en src/shared/adjuntos.js.
+const MEDIA_TYPES_PERMITIDOS = ['application/pdf', 'image/jpeg', 'image/png'];
 
 // nombreDetectado/dniDetectado: se piden en los 3 esquemas para que el
 // frontend pueda verificar que el documento realmente pertenece a la persona
@@ -58,9 +65,9 @@ const SCHEMAS = {
 };
 
 const PROMPTS = {
-  antecedente: 'Este PDF es un certificado de antecedentes penales de Argentina. Leelo y determiná si la persona tiene o no antecedentes registrados, la fecha de emisión del certificado, y cualquier detalle relevante (organismo emisor, jurisdicción). También extraé el nombre completo y el DNI de la persona tal como figuran en el documento. Si el documento no es legible o no es un certificado de antecedentes, usá resultado "No se pudo determinar" y explicá por qué en "detalles".',
-  'apto-medico': 'Este PDF es un certificado de aptitud médica laboral (preocupacional) de Argentina. Leelo y determiná el resultado del examen, la fecha, y cualquier restricción u observación médica relevante. También extraé el nombre completo y el DNI de la persona tal como figuran en el documento. Si el documento no es legible o no es un apto médico, usá resultado "No se pudo determinar" y explicá por qué en "detalles".',
-  'informe-psico': 'Este PDF es un informe psicotécnico laboral de Argentina. Leelo y determiná el resultado de la evaluación, cualquier observación relevante, y el nombre completo y DNI de la persona evaluada tal como figuran en el documento. Si el documento no es legible o no es un informe psicotécnico, usá resultado "No se pudo determinar" y explicá por qué en "detalles".',
+  antecedente: 'Este archivo (PDF o foto) es un certificado de antecedentes penales de Argentina. Leelo y determiná si la persona tiene o no antecedentes registrados, la fecha de emisión del certificado, y cualquier detalle relevante (organismo emisor, jurisdicción). También extraé el nombre completo y el DNI de la persona tal como figuran en el documento. Si el documento no es legible o no es un certificado de antecedentes, usá resultado "No se pudo determinar" y explicá por qué en "detalles".',
+  'apto-medico': 'Este archivo (PDF o foto) es un certificado de aptitud médica laboral (preocupacional) de Argentina. Leelo y determiná el resultado del examen, la fecha, y cualquier restricción u observación médica relevante. También extraé el nombre completo y el DNI de la persona tal como figuran en el documento. Si el documento no es legible o no es un apto médico, usá resultado "No se pudo determinar" y explicá por qué en "detalles".',
+  'informe-psico': 'Este archivo (PDF o foto) es un informe psicotécnico laboral de Argentina. Leelo y determiná el resultado de la evaluación, cualquier observación relevante, y el nombre completo y DNI de la persona evaluada tal como figuran en el documento. Si el documento no es legible o no es un informe psicotécnico, usá resultado "No se pudo determinar" y explicá por qué en "detalles".',
 };
 
 export default async function handler(req, res) {
@@ -103,22 +110,33 @@ export default async function handler(req, res) {
       return;
     }
 
-    const pdfResp = await fetch(signed.signedUrl);
-    if (!pdfResp.ok) {
+    const fileResp = await fetch(signed.signedUrl);
+    if (!fileResp.ok) {
       res.status(502).json({ error: 'No se pudo descargar el archivo' });
       return;
     }
-    const contentLength = parseInt(pdfResp.headers.get('content-length') || '0', 10);
-    if (contentLength > MAX_PDF_BYTES) {
+    const contentLength = parseInt(fileResp.headers.get('content-length') || '0', 10);
+    if (contentLength > MAX_FILE_BYTES) {
       res.status(413).json({ error: 'El archivo supera el límite de 10 MB' });
       return;
     }
-    const pdfBuffer = Buffer.from(await pdfResp.arrayBuffer());
-    if (pdfBuffer.byteLength > MAX_PDF_BYTES) {
+    // El content-type real (pdf/jpeg/png) queda guardado en Storage desde la
+    // subida (ver contentType: file.type en adjuntos.js) — se usa ESE para
+    // decidir cómo mandarlo a Claude, no se asume PDF a ciegas.
+    const mediaType = (fileResp.headers.get('content-type') || '').split(';')[0].trim();
+    if (!MEDIA_TYPES_PERMITIDOS.includes(mediaType)) {
+      res.status(415).json({ error: 'El archivo adjunto no es un PDF, JPG o PNG válido' });
+      return;
+    }
+    const fileBuffer = Buffer.from(await fileResp.arrayBuffer());
+    if (fileBuffer.byteLength > MAX_FILE_BYTES) {
       res.status(413).json({ error: 'El archivo supera el límite de 10 MB' });
       return;
     }
-    const base64Pdf = pdfBuffer.toString('base64');
+    const base64Data = fileBuffer.toString('base64');
+    const contentBlock = mediaType === 'application/pdf'
+      ? { type: 'document', source: { type: 'base64', media_type: mediaType, data: base64Data } }
+      : { type: 'image', source: { type: 'base64', media_type: mediaType, data: base64Data } };
 
     const { default: Anthropic } = await import('@anthropic-ai/sdk');
     const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
@@ -138,7 +156,7 @@ export default async function handler(req, res) {
           messages: [{
             role: 'user',
             content: [
-              { type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: base64Pdf } },
+              contentBlock,
               { type: 'text', text: PROMPTS[tipo] },
             ],
           }],
