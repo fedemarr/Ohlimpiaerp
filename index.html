@@ -2778,6 +2778,34 @@
   </div>
 </div>
 
+<!-- SUPERVISORES (tema 7 del relevamiento 10/08) -->
+<div class="screen" id="screen-supervisores">
+  <div class="card" style="margin-top:0;">
+    <div class="card-header"><h3>🧑‍💼 Supervisores</h3>
+      <div style="display:flex;gap:8px;align-items:center;">
+        <input type="text" id="sup-cfg-buscar" placeholder="🔍 Buscar..." oninput="renderSupervisores()" style="padding:6px 10px;border:1px solid var(--borde-fuerte);border-radius:var(--radio);font-size:13px;outline:none;">
+      </div>
+    </div>
+    <div class="alerta alerta-info" style="margin:0 20px 12px;font-size:12px;">
+      % de comisión propio por supervisor (arranca en 3% para todos). Cuando un servicio tiene más de un supervisor asignado, ese % se divide entre los asignados — ver "Cambiar supervisor(es)" en la ficha del servicio, en Comercial → Servicios.
+    </div>
+    <div style="display:flex;gap:8px;align-items:center;margin:0 20px 12px;">
+      <input type="text" id="sup-cfg-nuevo" list="dl-sup-cfg-nuevo" placeholder="Agregar supervisor al catálogo..." style="flex:1;padding:6px 10px;border:1px solid var(--borde-fuerte);border-radius:var(--radio);font-size:13px;outline:none;">
+      <datalist id="dl-sup-cfg-nuevo"></datalist>
+      <button class="btn btn-primary btn-sm" onclick="agregarSupervisorAlCatalogo()">+ Agregar</button>
+    </div>
+    <div class="tabla-wrap"><table>
+      <thead><tr style="background:#374151;color:white;">
+        <th style="padding:8px 14px;border:1px solid #6b7280;text-align:left;">Supervisor</th>
+        <th style="padding:8px;border:1px solid #6b7280;text-align:center;">% Comisión</th>
+        <th style="padding:8px;border:1px solid #6b7280;text-align:center;">Servicios activos</th>
+        <th style="padding:8px;border:1px solid #6b7280;text-align:center;">Estado</th>
+      </tr></thead>
+      <tbody id="tbody-supervisores"></tbody>
+    </table></div>
+  </div>
+</div>
+
 <!-- FERIADOS -->
 <div class="screen" id="screen-feriados">
   <div class="card" style="max-width:900px;">

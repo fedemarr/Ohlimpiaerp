@@ -48,6 +48,7 @@ export const _SM = {
   itemsLogisticaServicio: 'items_logistica_servicio',
   monoCambios: 'mono_cambios',
   monoPagosMes: 'mono_pagos_mes',
+  supervisoresConfig: 'supervisores_config',
   reglasCompetencia: 'reglas_competencia',
   reglasCompetenciaVersiones: 'reglas_competencia_versiones',
   eventosPuntos: 'eventos_puntos',
@@ -205,6 +206,8 @@ export function _toSnake(obj) {
     metodoPago: 'metodo_pago', pagadoPor: 'pagado_por', pagadoEn: 'pagado_en',
     mipymeEstado: 'mipyme_estado', cuitEstado: 'cuit_estado',
     cuitFechaVerificacion: 'cuit_fecha_verificacion', claveFiscalFechaActualizacion: 'clave_fiscal_fecha_actualizacion',
+    // v081 — Módulo Supervisores + multi-supervisor
+    pctComision: 'pct_comision', supervisoresAsignados: 'supervisores_asignados',
     // Retenciones — tipificación (v076)
     motivoTipificado: 'motivo_tipificado', tipoValor: 'tipo_valor', origen: 'origen',
     creadoEn: 'creado_en', liberadoPor: 'liberado_por',
@@ -539,6 +542,7 @@ export function _toCamel(obj) {
     metodo_pago: 'metodoPago', pagado_por: 'pagadoPor', pagado_en: 'pagadoEn',
     mipyme_estado: 'mipymeEstado', cuit_estado: 'cuitEstado',
     cuit_fecha_verificacion: 'cuitFechaVerificacion', clave_fiscal_fecha_actualizacion: 'claveFiscalFechaActualizacion',
+    pct_comision: 'pctComision', supervisores_asignados: 'supervisoresAsignados',
     // Retenciones — tipificación (v076)
     motivo_tipificado: 'motivoTipificado', tipo_valor: 'tipoValor',
     creado_en: 'creadoEn', liberado_por: 'liberadoPor',

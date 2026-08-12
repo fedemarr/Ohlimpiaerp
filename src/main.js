@@ -39,6 +39,7 @@ import './modules/personal_rrhh/index.js';
 import './modules/servicios_supervisor/index.js';
 import { sincronizarServiciosSupervisor } from './modules/servicios_supervisor/index.js';
 import './modules/comercial_importador/index.js';
+import { supervisoresScreenConfig } from './modules/supervisores/index.js';
 
 // ========== BIND SHARED A WINDOW (PRIMERO) ==========
 // Estas funciones las llama el HTML con onclick — deben estar en window
@@ -91,6 +92,7 @@ registerScreens(enfermosAccidentesScreenConfig);
 registerScreens(pedidosAdelantosScreenConfig);
 registerScreens(gestionAdelantosScreenConfig);
 registerScreens(sugerenciasScreenConfig);
+registerScreens(supervisoresScreenConfig);
 
 // ========== REGISTRAR FILTROS DE BÚSQUEDA GLOBAL ==========
 

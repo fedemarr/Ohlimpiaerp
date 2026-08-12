@@ -8,6 +8,7 @@ import { toast, abrirModal, cerrarModal, activarOrdenamiento } from '@shared/ui.
 import { supaSync, supaDel, supaInit } from '@shared/supabase.js';
 import { crearNotificacion } from '@shared/notificaciones.js';
 import { obtenerValorHoraVigente, getCategoriaById } from './modules/categorias/consultas.js';
+import { pctComisionSupervisor } from './modules/supervisores/supervisores.js';
 
 // ========== ESTADO ==========
 
@@ -1705,14 +1706,15 @@ function renderObjetivos(lista){
       <td style="font-size:12px;color:var(--texto-suave);">${o.tipoSitio||'—'}</td>
       <td><span class="badge ${modColor[o.modeloPrecio]||'badge-gris'}" style="font-size:10px;">${(o.modeloPrecio||'').split('(')[0].trim()}</span></td>
       <td style="font-weight:700;color:var(--azul);">${(()=>{const f=calcularFacturacionMensualObjetivo(o);return f!=null?'$'+f.toLocaleString('es-AR')+(o.modeloPrecio==='Por horas variables'?' (est.)':''):'<span style="color:var(--texto-suave);font-weight:400;">— (depende de horas)</span>';})()}</td>
-      <td style="font-size:12px;">${o.supervisorAsignado||'—'}</td>
+      <td style="font-size:12px;">${supervisoresDelObjetivo(o).join(', ')||'—'}${supervisoresDelObjetivo(o).length>1?` <span class="chip" style="font-size:9px;">×${supervisoresDelObjetivo(o).length}</span>`:''}</td>
       <td>${badgeEstadoObjetivo(o.estado)}</td>
       <td>
         <div style="display:flex;gap:4px;flex-wrap:wrap;">
           <button class="btn btn-secondary btn-xs" onclick="verObjetivo('${idl}')">Ver</button>
           <button class="btn btn-secondary btn-xs" onclick="abrirModalObjetivo('${idl}')">✏️</button>
           ${o.estado==='Pendiente asignación operativa'&&esGerenteOperaciones()?`<button class="btn btn-primary btn-xs" onclick="abrirAsignarSupervisor('${idl}')">Asignar supervisor</button>`:''}
-          ${o.estado==='Operativo'&&esGerenteOperaciones()?`<button class="btn btn-secondary btn-xs" onclick="abrirCambiarSupervisor('${idl}')">🔄</button>`:''}
+          ${o.estado==='Operativo'&&esGerenteOperaciones()?`<button class="btn btn-secondary btn-xs" onclick="abrirCambiarSupervisor('${idl}')" title="Cambiar supervisor principal">🔄</button>`:''}
+          ${o.estado==='Operativo'&&esGerenteOperaciones()?`<button class="btn btn-secondary btn-xs" onclick="abrirGestionarSupervisoresMulti('${idl}')" title="Supervisores (múltiple)">👥</button>`:''}
           ${o.estado!=='Baja'&&esGerenteComercial()?`<button class="btn btn-danger btn-xs" onclick="abrirBajaObjetivo('${idl}')">🚫</button>`:''}
           ${o.estado==='Baja'&&esGerenteComercial()?`<button class="btn btn-primary btn-xs" onclick="reactivarObjetivo('${idl}')">♻️ Reactivar</button>`:''}
         </div>
@@ -1752,7 +1754,9 @@ function verObjetivo(idLocal){
     <div class="info-item"><div class="key">Tipo de sitio</div><div class="val">${o.tipoSitio||'—'}</div></div>
     <div class="info-item"><div class="key">Dirección</div><div class="val">${o.dir||'—'}</div></div>
     <div class="info-item"><div class="key">Estado</div><div class="val">${badgeEstadoObjetivo(o.estado)}</div></div>
-    <div class="info-item"><div class="key">Supervisor asignado</div><div class="val">${o.supervisorAsignado||'— (pendiente Operaciones)'}</div></div>
+    <div class="info-item"><div class="key">Supervisor${supervisoresDelObjetivo(o).length>1?'es':''} asignado${supervisoresDelObjetivo(o).length>1?'s':''}</div><div class="val">${supervisoresDelObjetivo(o).join(', ')||'— (pendiente Operaciones)'}
+      ${o.estado==='Operativo'&&esGerenteOperaciones()?` <button class="btn btn-secondary btn-xs" onclick="abrirGestionarSupervisoresMulti('${idl}')" style="margin-left:6px;">👥 Gestionar</button>`:''}
+    </div></div>
     <div class="info-item"><div class="key">Jurisdicción</div><div class="val">${o.jurisdiccion||'—'}</div></div>
     <div class="info-item"><div class="key">Localidad</div><div class="val">${o.localidad||'—'}</div></div>
     <div class="info-item"><div class="key">Modelo precio</div><div class="val">${o.modeloPrecio}</div></div>
@@ -2435,6 +2439,145 @@ function confirmarSupervisorObjetivo(){
   }
   cerrarModal('modal-sup-objetivo');
   filtrarObjetivos();toast(esCambio?'✓ Supervisor actualizado':'✓ Supervisor asignado — servicio Operativo');
+}
+
+// ══════════════════════════════════════════════════════════
+// MULTI-SUPERVISOR + RECOMENDACIÓN IA — tema 7 del relevamiento (10/08),
+// sql/v081. Se agrega COMO CAPA ENCIMA del flujo de supervisor único de
+// arriba (abrirAsignarSupervisor/abrirCambiarSupervisor/
+// confirmarSupervisorObjetivo) — ese flujo NO se toca, sigue siendo la
+// fuente de o.supervisorAsignado/o.supervisor (el "principal", que
+// siguen leyendo 9+ consumidores de obtenerServiciosActivos():
+// Liquidación de horas, Pedidos, Retenciones...). o.supervisoresAsignados
+// es la lista completa (puede tener 1 solo, que es el caso de hoy).
+// ══════════════════════════════════════════════════════════
+let _supMultiIdLocal=null;
+function supervisoresDelObjetivo(o){
+  return (o.supervisoresAsignados&&o.supervisoresAsignados.length) ? o.supervisoresAsignados : (o.supervisorAsignado?[o.supervisorAsignado]:[]);
+}
+// "IA": no hay geocoding real (sin API de mapas contratada en este
+// proyecto) — el ranking usa la MISMA jerarquía geográfica que ya carga
+// el alta de servicio (localidad > partido > jurisdicción) contra los
+// demás servicios que YA tiene ese supervisor, como proxy real de
+// cercanía/recorrido. No inventa coordenadas.
+function recomendarSupervisoresParaObjetivo(o){
+  const yaAsignados=new Set(supervisoresDelObjetivo(o));
+  const facturacionNeta=calcularFacturacionMensualObjetivo(o)||0;
+  const cantFinal=yaAsignados.size+1;
+  return (DB.supervisoresConfig||[]).filter(s=>s.activo!==false&&!yaAsignados.has(s.nombre)).map(s=>{
+    const misServicios=(DB.objetivos||[]).filter(x=>x.estado==='Operativo'&&supervisoresDelObjetivo(x).includes(s.nombre));
+    let score=0,cercanos=0;
+    misServicios.forEach(x=>{
+      if(o.localidad&&x.localidad===o.localidad){score+=3;cercanos++;}
+      else if(o.partido&&x.partido===o.partido){score+=2;cercanos++;}
+      else if(o.jurisdiccion&&x.jurisdiccion===o.jurisdiccion){score+=1;}
+    });
+    const pctSplit=pctComisionSupervisor(s.nombre)/cantFinal;
+    const cobrariaPorEste=Math.round(facturacionNeta*(pctSplit/100));
+    const totalActual=misServicios.reduce((sum,x)=>{
+      const suyos=supervisoresDelObjetivo(x);
+      const suPct=pctComisionSupervisor(s.nombre)/suyos.length;
+      return sum+Math.round((calcularFacturacionMensualObjetivo(x)||0)*(suPct/100));
+    },0);
+    return {nombre:s.nombre,score,cercanos,serviciosActuales:misServicios.length,cobrariaPorEste,totalNuevo:totalActual+cobrariaPorEste};
+  }).sort((a,b)=>b.score-a.score||b.cobrariaPorEste-a.cobrariaPorEste).slice(0,6);
+}
+// Sincroniza SOLO las comisiones auto-generadas de supervisor dentro de
+// o.comisiones (marcadas esComisionSupervisor:true) — nunca toca una
+// comisión de coordinador de cuenta cargada a mano en el mismo array.
+function sincronizarComisionesSupervisores(o){
+  if(!o.comisiones) o.comisiones=[];
+  o.comisiones=o.comisiones.filter(c=>!c.esComisionSupervisor);
+  const sups=supervisoresDelObjetivo(o);
+  if(!sups.length) return;
+  const fechaHoy=new Date().toLocaleDateString('es-AR');
+  sups.forEach(nombre=>{
+    const legajo=(DB.legajos||[]).find(l=>l.nombre===nombre&&l.estado==='Activo');
+    const pct=Math.round((pctComisionSupervisor(nombre)/sups.length)*100)/100;
+    o.comisiones.push({
+      id:Date.now()+Math.floor(Math.random()*1e6),
+      personaTipo:'interno',personaRef:legajo?legajo.nro:null,personaNombre:nombre,
+      tipo:'Continuo',periodosTotal:null,periodosConsumidos:0,
+      tramosPct:[{id:Date.now(),pct,fechaVigencia:fechaHoy}],
+      activa:true,creadaPor:currentUser?.nombre||'',creadaEn:fechaHoy,
+      esComisionSupervisor:true,
+    });
+  });
+}
+function ensureModalSupervisoresMulti(){
+  if($('modal-sup-multi')) return;
+  const m=document.createElement('div');
+  m.className='modal-overlay';
+  m.id='modal-sup-multi';
+  m.innerHTML=`
+    <div class="modal" style="max-width:640px;">
+      <div class="modal-header"><h3>👥 Supervisores del servicio</h3><button class="btn-close" onclick="cerrarModal('modal-sup-multi')">×</button></div>
+      <div class="modal-body">
+        <div class="alerta alerta-info" style="font-size:12px;">La comisión de cada supervisor (% propio, catálogo en Configuración → Supervisores) se divide entre todos los que estén tildados acá.</div>
+        <div class="form-section">Asignados actualmente</div>
+        <div id="sup-multi-actuales" style="display:flex;flex-direction:column;gap:6px;margin-bottom:14px;"></div>
+        <div class="form-section">🤖 Recomendados por cercanía</div>
+        <div id="sup-multi-recomendados" style="display:flex;flex-direction:column;gap:6px;"></div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="cerrarModal('modal-sup-multi')">Cerrar</button>
+      </div>
+    </div>`;
+  document.body.appendChild(m);
+}
+function renderModalSupervisoresMulti(){
+  const o=getObjetivoByIdLocal(_supMultiIdLocal);if(!o)return;
+  const asignados=supervisoresDelObjetivo(o);
+  const contA=$('sup-multi-actuales');
+  contA.innerHTML=asignados.length?asignados.map(nombre=>`
+    <div style="display:flex;justify-content:space-between;align-items:center;background:var(--fondo);border:1px solid var(--borde);border-radius:var(--radio);padding:8px 12px;">
+      <span style="font-size:12.5px;"><strong>${nombre}</strong> <span style="color:var(--texto-suave);">— ${pctComisionSupervisor(nombre)}% base</span></span>
+      <button class="btn btn-xs" style="background:#fee2e2;color:#991b1b;" onclick="quitarSupervisorMulti('${nombre.replace(/'/g,"\\'")}')" ${asignados.length<=1?'disabled title="Debe quedar al menos uno"':''}>Quitar</button>
+    </div>`).join('') : '<p class="text-muted" style="font-size:12px;">Sin supervisores asignados</p>';
+
+  const recs=recomendarSupervisoresParaObjetivo(o);
+  const contR=$('sup-multi-recomendados');
+  contR.innerHTML=recs.length?recs.map(r=>`
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;background:#fff7ed;border:1px solid #fed7aa;border-radius:var(--radio);padding:8px 12px;">
+      <div>
+        <div style="font-size:12.5px;"><strong>${r.nombre}</strong> ${r.cercanos>0?`<span class="chip" style="font-size:9px;">📍 ${r.cercanos} servicio(s) cerca</span>`:''}</div>
+        <div style="font-size:11px;color:var(--texto-suave);margin-top:2px;">Cobraría <strong style="color:var(--verde);">$${r.cobrariaPorEste.toLocaleString('es-AR')}</strong> por este servicio — pasaría a ganar <strong>$${r.totalNuevo.toLocaleString('es-AR')}</strong> en total (${r.serviciosActuales} servicio(s) actuales)</div>
+      </div>
+      <button class="btn btn-primary btn-xs" onclick="agregarSupervisorMulti('${r.nombre.replace(/'/g,"\\'")}')">+ Asignar</button>
+    </div>`).join('') : '<p class="text-muted" style="font-size:12px;">Sin candidatos en el catálogo de Supervisores</p>';
+}
+function abrirGestionarSupervisoresMulti(idLocal){
+  const o=getObjetivoByIdLocal(idLocal);if(!o)return;
+  if(!esGerenteOperaciones()){toast('Solo el Gerente de Operaciones puede gestionar supervisores');return;}
+  ensureModalSupervisoresMulti();
+  _supMultiIdLocal=idLocal;
+  renderModalSupervisoresMulti();
+  abrirModal('modal-sup-multi');
+}
+function _guardarSupervisoresMulti(o){
+  o.supervisorAsignado=supervisoresDelObjetivo(o)[0]||null;
+  o.supervisor=o.supervisorAsignado;
+  sincronizarComisionesSupervisores(o);
+  supaSync('objetivos', objetivoParaGuardar(o));
+  filtrarObjetivos();
+}
+function agregarSupervisorMulti(nombre){
+  const o=getObjetivoByIdLocal(_supMultiIdLocal);if(!o)return;
+  const actuales=supervisoresDelObjetivo(o);
+  if(actuales.includes(nombre)) return;
+  o.supervisoresAsignados=[...actuales,nombre];
+  _guardarSupervisoresMulti(o);
+  renderModalSupervisoresMulti();
+  toast(`✓ ${nombre} asignado — comisión dividida entre ${o.supervisoresAsignados.length}`);
+}
+function quitarSupervisorMulti(nombre){
+  const o=getObjetivoByIdLocal(_supMultiIdLocal);if(!o)return;
+  const actuales=supervisoresDelObjetivo(o);
+  if(actuales.length<=1){toast('⚠️ Debe quedar al menos un supervisor — usá "Cambiar supervisor" para reemplazarlo');return;}
+  o.supervisoresAsignados=actuales.filter(n=>n!==nombre);
+  _guardarSupervisoresMulti(o);
+  renderModalSupervisoresMulti();
+  toast(`${nombre} quitado del servicio`);
 }
 // 2.2.6 (Delta Comercial v1.2) — la razón de baja pasa de texto libre por
 // prompt() a un motivo parametrizable (Configuración → Comercial) más un
@@ -12461,6 +12604,9 @@ window.abrirModalObjetivo = abrirModalObjetivo;
 window.abrirBajaCliente = abrirBajaCliente;
 window.abrirBajaObjetivo = abrirBajaObjetivo;
 window.abrirAsignarSupervisor = abrirAsignarSupervisor;
+window.abrirGestionarSupervisoresMulti = abrirGestionarSupervisoresMulti;
+window.agregarSupervisorMulti = agregarSupervisorMulti;
+window.quitarSupervisorMulti = quitarSupervisorMulti;
 window.abrirCambiarSupervisor = abrirCambiarSupervisor;
 window.abrirModalConcepto = abrirModalConcepto;
 window.abrirModalDescuento = abrirModalDescuento;
