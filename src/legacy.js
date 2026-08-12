@@ -8234,7 +8234,7 @@ if(!DB.cuentaCorriente) DB.cuentaCorriente = {};  // DB.cuentaCorriente[nombre] 
 // renderLiquidaciones() — se devuelven en pctRetenciones y el llamador
 // los aplica sobre f.bruto.
 function descuentosAutomaticosLegajo(nro, mes){
-  const out = { uniforme:0, retConflicto:0, retEnfermedad:0, adelantos:0, prestamo:0, monotributo:0, uniformeIds:[], prestamoId:null, pctRetenciones:[] };
+  const out = { uniforme:0, retConflicto:0, retEnfermedad:0, adelantos:0, prestamo:0, monotributo:0, programado:0, uniformeIds:[], prestamoId:null, programados:[], pctRetenciones:[] };
   if(!nro) return out;
   const nroStr = String(nro);
 
@@ -8251,6 +8251,19 @@ function descuentosAutomaticosLegajo(nro, mes){
   (DB.descuentosUniformePendientes||[]).filter(d=>!d.anulado && String(d.legajoIdLocal)===nroStr && d.estado==='En curso' && d.cuotasCobradas<d.cuotasTotales).forEach(d=>{
     out.uniforme += d.montoCuota||0;
     out.uniformeIds.push(d.id);
+  });
+
+  // Descuentos por asociado (v084): 1 cuota por cada descuento "En curso"
+  // con cuotas pendientes cuyo mes de inicio ya llegó. Mismo contrato que
+  // uniforme — el consumo real (incrementar cuotasCobradas) lo hace
+  // autorizarPago() recién cuando el retiro se paga de verdad.
+  (DB.descuentos||[]).filter(d=>!d.anulado && String(d.legajoIdLocal)===nroStr && d.estado==='En curso' && d.cuotasCobradas<d.cuotasTotales && (!d.periodoInicio || String(d.periodoInicio)<=mes)).forEach(d=>{
+    out.programado += d.montoCuota||0;
+    out.programados.push({
+      id: d.id,
+      monto: d.montoCuota||0,
+      nombre: (DB.conceptosDescuento||[]).find(c=>String(c.idLocal||c.id)===String(d.conceptoIdLocal))?.nombre || 'Descuento',
+    });
   });
 
   // Retenciones ACTIVAS de este período exacto (no son recurrentes: se
@@ -8291,7 +8304,7 @@ function _totalDescLegajo(nombre, mes, bruto){
     const val=Math.round((bruto||0)*(pr.pct/100));
     if(pr.tipo==='conflicto') retC+=val; else retE+=val;
   });
-  return (desc.sanciones||0)+auto.monotributo+auto.uniforme+retC+retE+auto.adelantos+auto.prestamo;
+  return (desc.sanciones||0)+auto.monotributo+auto.uniforme+retC+retE+auto.adelantos+auto.prestamo+auto.programado;
 }
 
 function renderLiquidaciones(){
@@ -8588,8 +8601,9 @@ function renderLiquidaciones(){
     f.monotributo   = auto.monotributo;
     f.adelantos     = auto.adelantos;
     f.prestamo      = auto.prestamo;
+    f.programado    = auto.programado;
     f._descAuto     = auto; // guardado para autorizarPago() — consumir cuotas al pagar
-    f.totalDesc = f.uniforme+f.sanciones+f.retConflicto+f.retEnfermedad+f.monotributo+f.adelantos+f.prestamo;
+    f.totalDesc = f.uniforme+f.sanciones+f.retConflicto+f.retEnfermedad+f.monotributo+f.adelantos+f.prestamo+f.programado;
     f.neto = Math.round(f.bruto + f.presentismo - f.totalDesc);
   });
 
@@ -9173,6 +9187,14 @@ function autorizarPago(){
         if(d.cuotasCobradas>=d.cuotasTotales) d.estado='Terminado';
         supaSync('descuentosUniformePendientes', d);
       });
+      // Descuentos por asociado (v084) — misma semántica que uniforme.
+      (auto.programados||[]).forEach(pr=>{
+        const d=(DB.descuentos||[]).find(x=>String(x.id)===String(pr.id));
+        if(!d) return;
+        d.cuotasCobradas=(d.cuotasCobradas||0)+1;
+        if(d.cuotasCobradas>=d.cuotasTotales) d.estado='Terminado';
+        supaSync('descuentos', d);
+      });
       if(auto.prestamoId){
         const p=(DB.prestamos||[]).find(x=>x.id===auto.prestamoId);
         if(p){
@@ -9344,6 +9366,7 @@ function verDetalleLqs(nombre, mes){
     {label:'Ret. Conflicto',val:retConfPersona, color:'#6d28d9'},
     {label:'Ret. Enfermedad/Otra',val:retEnfPersona, color:'#6d28d9'},
     {label:'Monotributo',   val:autoPersona.monotributo, color:'#6b7280'},
+    ...autoPersona.programados.map(p=>({label:p.nombre, val:p.monto, color:'#b91c1c'})),
   ].filter(d=>d.val>0);
 
   const totalDesc = descItems.reduce((s,d)=>s+d.val,0);

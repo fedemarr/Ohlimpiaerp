@@ -76,6 +76,9 @@ export const _SM = {
   pedidosAdelantos: 'pedidos_adelantos',
   pedidosAdelantosEventos: 'pedidos_adelantos_eventos',
   descuentosAdelantosPendientes: 'descuentos_adelantos_pendientes',
+  // v084 — Descuentos por asociado (conceptos parametrizables) — Liquidación
+  descuentos: 'descuentos',
+  conceptosDescuento: 'conceptos_descuento',
   configuracionAdelantosPrestamos: 'configuracion_adelantos_prestamos',
   topesAdelantosVersiones: 'topes_adelantos_versiones',
   paritarias: 'paritarias',
@@ -288,6 +291,9 @@ export function _toSnake(obj) {
     montoTotal: 'monto_total', cuotasTotales: 'cuotas_totales', cuotasCobradas: 'cuotas_cobradas', montoCuota: 'monto_cuota',
     fechaGenerado: 'fecha_generado', fechaPrimeraCuota: 'fecha_primera_cuota', fechaUltimaCuota: 'fecha_ultima_cuota',
     motivoGeneracion: 'motivo_generacion',
+    // v084 — Descuentos por asociado
+    conceptoIdLocal: 'concepto_id_local', periodoInicio: 'periodo_inicio',
+    cuotasMaximas: 'cuotas_maximas', activo: 'activo',
     fechaGenerada: 'fecha_generada', prendasADevolver: 'prendas_a_devolver',
     fechaConfirmada: 'fecha_confirmada', confirmadaPor: 'confirmada_por',
     prendasDevueltas: 'prendas_devueltas', montoDescuento: 'monto_descuento',
@@ -625,6 +631,9 @@ export function _toCamel(obj) {
     vigencia_desde: 'vigenciaDesde', vigencia_hasta: 'vigenciaHasta', cargado_por: 'cargadoPor', motivo_carga: 'motivoCarga',
     monto_total: 'montoTotal', cuotas_totales: 'cuotasTotales', cuotas_cobradas: 'cuotasCobradas', monto_cuota: 'montoCuota',
     fecha_generado: 'fechaGenerado', fecha_primera_cuota: 'fechaPrimeraCuota', fecha_ultima_cuota: 'fechaUltimaCuota',
+    // v084 — Descuentos por asociado
+    concepto_id_local: 'conceptoIdLocal', periodo_inicio: 'periodoInicio',
+    cuotas_maximas: 'cuotasMaximas', activo: 'activo',
     motivo_generacion: 'motivoGeneracion',
     fecha_generada: 'fechaGenerada', prendas_a_devolver: 'prendasADevolver',
     fecha_confirmada: 'fechaConfirmada', confirmada_por: 'confirmadaPor',
