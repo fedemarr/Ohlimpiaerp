@@ -3170,6 +3170,10 @@
           </div>
         </div>
         <div class="form-grid form-grid-2">
+          <div class="form-group"><label>Adherentes — cantidad</label><input type="number" id="mono-adherentes-cant" min="0" placeholder="0"></div>
+          <div class="form-group"><label>Adherentes — monto total $</label><input type="number" id="mono-adherentes-monto" min="0" placeholder="0"></div>
+        </div>
+        <div class="form-grid form-grid-2">
           <div class="form-group"><label>CUR manual (opcional)</label><input type="number" id="mono-cur" placeholder="0 = calcular por tabla"></div>
           <div class="form-group"><label>Estado</label>
             <select id="mono-estado"><option>Al día</option><option>Fuera de categoría</option><option>Baja</option></select>
@@ -4008,6 +4012,7 @@
     <button class="tab-btn" onclick="tabMonotributos('alerta',this)">⚠️ Fuera de categoría</button>
     <button class="tab-btn" onclick="tabMonotributos('categorias',this)">📊 Tablas de categorías</button>
     <button class="tab-btn" onclick="tabMonotributos('historial',this)">📜 Historial de cambios</button>
+    <button class="tab-btn" onclick="tabMonotributos('pagos',this)">💳 Pago mensual</button>
   </div>
 
   <!-- TAB PADRÓN -->
@@ -4095,6 +4100,36 @@
             <th style="padding:8px;border:1px solid #6b7280;text-align:center;">Resultado</th>
           </tr></thead>
           <tbody id="tbody-mono-hist"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div id="mono-tab-pagos" class="tab-content" style="padding-top:0;">
+    <div class="card" style="margin-top:0;border-radius:0 var(--radio-lg) var(--radio-lg) var(--radio-lg);">
+      <div class="card-header">
+        <h3>💳 Pago de monotributos del mes</h3>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <input type="month" id="mono-pagos-mes" onchange="renderMonoPagos()">
+          <button class="btn btn-sm btn-secondary" onclick="abrirMesMonoPagos()">📥 Armar lista del mes</button>
+          <button class="btn btn-sm btn-secondary" onclick="exportarMonoPagosCSV()">⬇️ Exportar CSV</button>
+        </div>
+      </div>
+      <div class="alerta alerta-info" style="margin:0 20px 12px;font-size:12px;">
+        "Armar lista del mes" trae del padrón a los activos que trabajaron este período (según Liquidación de horas / Administración) y congela su CUR + monto de adherentes de ESTE mes — los cambios de categoría o tabla más adelante no tocan meses ya armados. La liquidación de retiros descuenta este importe congelado automáticamente.
+      </div>
+      <div class="tabla-wrap">
+        <table style="width:100%;border-collapse:collapse;font-size:12px;">
+          <thead><tr style="background:#374151;color:white;">
+            <th style="padding:8px 14px;border:1px solid #6b7280;text-align:left;">Asociado</th>
+            <th style="padding:8px;border:1px solid #6b7280;">N° socio</th>
+            <th style="padding:8px;border:1px solid #6b7280;text-align:right;">CUR congelado</th>
+            <th style="padding:8px;border:1px solid #6b7280;text-align:right;">Adherentes congelado</th>
+            <th style="padding:8px;border:1px solid #6b7280;text-align:right;">Total</th>
+            <th style="padding:8px;border:1px solid #6b7280;text-align:center;">Método de pago</th>
+            <th style="padding:8px;border:1px solid #6b7280;text-align:center;">Pagado</th>
+          </tr></thead>
+          <tbody id="tbody-mono-pagos"></tbody>
         </table>
       </div>
     </div>
@@ -5250,7 +5285,15 @@
         </div>
         <div class="form-grid form-grid-2">
           <div class="form-group"><label>Clave fiscal (ARCA)</label><input type="text" id="edit-clave-fiscal"></div>
-          <div class="form-group"><label>N° INAES</label><input type="text" id="edit-inaes"></div>
+          <div class="form-group"><label>N° INAES</label><input type="text" id="edit-inaes" placeholder="Se autocompleta con el N° de legajo"></div>
+        </div>
+        <div class="form-grid form-grid-2">
+          <div class="form-group"><label>Estado del CUIT</label>
+            <select id="edit-cuit-estado"><option value="">— Sin verificar —</option><option value="ACTIVO">ACTIVO</option><option value="INACTIVO">INACTIVO</option></select>
+          </div>
+          <div class="form-group"><label>Certificado MiPyME</label>
+            <select id="edit-mipyme-estado"><option value="PENDIENTE">PENDIENTE</option><option value="TRAMITADO">TRAMITADO</option></select>
+          </div>
         </div>
         <div class="form-grid form-grid-2">
           <div class="form-group"><label>Localidad</label><input type="text" id="edit-localidad"></div>

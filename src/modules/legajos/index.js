@@ -10,6 +10,7 @@ export {
   toggleAltaObraSocial,
   SECTORES_ADMIN, toggleSeccionVacacionesLegajo,
   toggleLegajoSelection, toggleAllLegajosSelection, viewSelectedLegajos,
+  seleccionarArchivoMipymeLegajo, eliminarAdjuntoMipymeLegajo,
 } from './legajos.js';
 
 export {
@@ -45,6 +46,7 @@ import {
   toggleAltaObraSocial,
   toggleSeccionVacacionesLegajo,
   toggleLegajoSelection, toggleAllLegajosSelection, viewSelectedLegajos,
+  seleccionarArchivoMipymeLegajo, eliminarAdjuntoMipymeLegajo,
 } from './legajos.js';
 
 import {
@@ -77,3 +79,5 @@ window.confirmarImportarCbu = confirmarImportarCbu;
 window.toggleLegajoSelection = toggleLegajoSelection;
 window.toggleAllLegajosSelection = toggleAllLegajosSelection;
 window.viewSelectedLegajos = viewSelectedLegajos;
+window.seleccionarArchivoMipymeLegajo = seleccionarArchivoMipymeLegajo;
+window.eliminarAdjuntoMipymeLegajo = eliminarAdjuntoMipymeLegajo;

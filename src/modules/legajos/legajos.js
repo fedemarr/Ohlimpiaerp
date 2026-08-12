@@ -4,7 +4,7 @@ import { toast, abrirModal, cerrarModal } from '@shared/ui.js';
 import { supaSync, supaDel, getLastSupaSyncError } from '@shared/supabase.js';
 import { TALLES_POR_PRENDA } from '@modules/uniformes/catalogos.js';
 import { calcularFechaAltaObraSocial, formatearMesAnio } from '@shared/obraSocial.js';
-import { listarAdjuntos, obtenerUrlFirmada, TIPO_LEGIBLE } from '@shared/adjuntos.js';
+import { listarAdjuntos, obtenerUrlFirmada, subirAdjunto, borrarAdjunto, MAX_SIZE, TIPO_LEGIBLE } from '@shared/adjuntos.js';
 import { calcularEstadoVencimiento } from '../documentacion/documentacion.js';
 
 // Busca, para un DNI, la documentación de ingreso más reciente que tenga
@@ -248,6 +248,16 @@ export function verLegajo(nro) {
   // así que se arma agregando las tablas reales, sin crear una tabla nueva.
   // Visible solo para los perfiles que manejan plata del asociado.
   const puedeVerCC = ['Administrador total', 'RRHH', 'Finanzas'].includes(currentUser?.perfil);
+  // Tema 2 del relevamiento (MODULO_MONOTRIBUTO.md §4): la clave fiscal
+  // (ARCA) solo la ve RRHH/Administrador total. Nota real: esto NO es
+  // "encriptado" en el sentido que pedía el ticket — no hay forma segura
+  // de encriptar client-side sin exponer la clave de desencriptado en el
+  // propio bundle, así que lo que sí se implementa es el control de
+  // visibilidad por rol (lo enforceable acá); guardarla realmente
+  // encriptada requeriría una función server-side, que no existe en este
+  // proyecto (sin backend propio, todo pega directo a Supabase).
+  const puedeVerClaveFiscal = ['Administrador total', 'RRHH'].includes(currentUser?.perfil);
+  const monoDelLegajo = (DB.monotributos || []).find(m => String(m.nroSocio) === String(l.nro) || m.nombre === l.nombre);
   const adelantosDelAsoc = puedeVerCC ? [
     ...(DB.planillasAdelantos || []).flatMap(p => (p.items || [])
       .filter(i => String(i.nroSocio) === String(l.nro) && i.estado === 'Aprobado')
@@ -292,9 +302,16 @@ export function verLegajo(nro) {
     </div>
     <div id="leg-tab-0" class="tab-content active"><div class="info-grid">
       <div class="info-item"><div class="key">DNI</div><div class="val">${l.dni}</div></div>
-      <div class="info-item"><div class="key">CUIT</div><div class="val">${l.cuit || '—'}</div></div>
-      <div class="info-item"><div class="key">Clave fiscal (ARCA)</div><div class="val">${l.claveFiscal || '—'}</div></div>
-      <div class="info-item"><div class="key">N° INAES</div><div class="val">${l.inaes || '—'}</div></div>
+      <div class="info-item"><div class="key">CUIT</div><div class="val">${l.cuit || '—'}
+        ${l.cuitEstado ? ` <span class="badge ${l.cuitEstado === 'ACTIVO' ? 'badge-verde' : l.cuitEstado === 'INACTIVO' ? 'badge-rojo' : 'badge-naranja'}" style="font-size:9px;">${l.cuitEstado}</span>` : ''}
+        ${l.cuitFechaVerificacion ? `<div style="font-size:10px;color:var(--texto-muy-suave);">Verificado ${l.cuitFechaVerificacion}</div>` : ''}
+      </div></div>
+      <div class="info-item"><div class="key">Clave fiscal (ARCA)</div><div class="val">${puedeVerClaveFiscal ? (l.claveFiscal || '—') : (l.claveFiscal ? '••••••••' : '—')}
+        ${l.claveFiscalFechaActualizacion ? `<div style="font-size:10px;color:var(--texto-muy-suave);">Actualizada ${l.claveFiscalFechaActualizacion}</div>` : ''}
+      </div></div>
+      <div class="info-item"><div class="key">N° INAES</div><div class="val">${l.inaes || l.nro}</div></div>
+      <div class="info-item"><div class="key">Certificado MiPyME</div><div class="val">${l.mipymeEstado === 'TRAMITADO' ? '<span class="badge badge-verde" style="font-size:10px;">TRAMITADO</span>' : '<span class="badge badge-rojo" style="font-size:10px;">⚠️ MiPyME PENDIENTE</span>'}</div></div>
+      ${monoDelLegajo ? `<div class="info-item"><div class="key">Adherentes (monotributo)</div><div class="val">${monoDelLegajo.adherentesCantidad || 0}${monoDelLegajo.adherentesMonto ? ' — $' + monoDelLegajo.adherentesMonto.toLocaleString('es-AR') : ''}</div></div>` : ''}
       <div class="info-item"><div class="key">Estado civil</div><div class="val">${l.estadoCivil || '—'}</div></div>
       <div class="info-item"><div class="key">Nacionalidad</div><div class="val">${l.nac || '—'}</div></div>
       <div class="info-item"><div class="key">Localidad</div><div class="val">${l.localidad || '—'}</div></div>
@@ -503,12 +520,71 @@ export function verLegajo(nro) {
           </div>
         </div>`;
       }).join('')}
+      ${puedeVerCC ? `
+      <div class="form-section">🏭 Certificado MiPyME</div>
+      <p style="font-size:11px;color:var(--texto-suave);margin:0 0 6px;">Vence el 30/04 de cada año (renovación automática de ARCA si la cooperativa está al día).</p>
+      <div id="leg-mipyme-box">
+        <div id="leg-mipyme-lista" style="margin-bottom:6px;">Cargando…</div>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <input type="file" id="leg-mipyme-file" accept="application/pdf,image/jpeg,image/png" style="display:none;" onchange="seleccionarArchivoMipymeLegajo()">
+          <button type="button" class="btn btn-secondary btn-sm" onclick="document.getElementById('leg-mipyme-file').click()">📤 Subir certificado</button>
+        </div>
+      </div>` : ''}
       <div class="form-section">📎 Archivos adjuntos</div>
       <p style="font-size:11px;color:var(--texto-suave);">Ver también la solapa "📎 Adjuntos" para el detalle de cada archivo escaneado.</p>
     </div>
   `;
   abrirModal('modal-legajo');
   cargarAdjuntosLegajo(l.dni);
+  if (puedeVerCC) cargarAdjuntoMipymeLegajo(l.dni);
+}
+
+// ========== CERTIFICADO MiPyME (tema 2 del relevamiento — MODULO_MONOTRIBUTO.md §4) ==========
+// Misma infraestructura que el 'proceso' de Candidatos: tabla `adjuntos`
+// + bucket privado, tipo 'certificado-mipyme' (sql/v080). Con archivo:
+// TRAMITADO; sin archivo: PENDIENTE (badge rojo, visible arriba en la
+// tab Datos personales vía l.mipymeEstado — pero el estado real de
+// "hay archivo o no" se decide acá, no en el select manual, así que se
+// sincroniza l.mipymeEstado al subir/eliminar).
+async function cargarAdjuntoMipymeLegajo(dni) {
+  const cont = $('leg-mipyme-lista');
+  if (!cont) return;
+  const lista = await listarAdjuntos({ dni, etapa: 'legajos', tipo: 'certificado-mipyme' });
+  cont.innerHTML = lista.length === 0
+    ? '<span style="color:var(--texto-muy-suave);font-size:12px;">Sin certificado cargado</span>'
+    : lista.map(a => `
+      <div style="display:flex;align-items:center;gap:8px;background:var(--fondo);border:1px solid var(--borde);border-radius:6px;padding:6px 10px;margin-bottom:4px;">
+        <span style="flex:1;font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">📄 ${a.nombreArchivo || 'Archivo'}</span>
+        <button type="button" class="btn btn-secondary btn-sm" onclick="verAdjuntoLegajo('${a.url}')">👁️ Ver</button>
+        <button type="button" class="btn btn-sm" style="background:#fee2e2;color:#991b1b;" onclick="eliminarAdjuntoMipymeLegajo('${a.id}','${dni}')">🗑️</button>
+      </div>`).join('');
+}
+export async function seleccionarArchivoMipymeLegajo() {
+  const input = $('leg-mipyme-file');
+  const file = input?.files?.[0];
+  if (!file) return;
+  const l = DB.legajos.find(x => x.nro === legajoActualNro);
+  if (!l) return;
+  if (file.size > MAX_SIZE) { toast('⚠️ El archivo supera el límite de 10 MB'); if (input) input.value = ''; return; }
+  try {
+    await subirAdjunto({ dni: l.dni, etapa: 'legajos', tipo: 'certificado-mipyme', file });
+    l.mipymeEstado = 'TRAMITADO';
+    supaSync('legajos', l);
+    toast('📄 Certificado MiPyME subido');
+  } catch (e) {
+    toast('⚠️ ' + (e.message || 'Error al subir el archivo'));
+  } finally {
+    if (input) input.value = '';
+  }
+  cargarAdjuntoMipymeLegajo(l.dni);
+}
+export async function eliminarAdjuntoMipymeLegajo(id, dni) {
+  if (!confirm('¿Eliminar el certificado MiPyME?')) return;
+  const ok = await borrarAdjunto(id);
+  const l = DB.legajos.find(x => x.dni === dni);
+  if (ok && l) { l.mipymeEstado = 'PENDIENTE'; supaSync('legajos', l); }
+  toast(ok ? '🗑️ Certificado eliminado' : '⚠️ No se pudo eliminar');
+  cargarAdjuntoMipymeLegajo(dni);
 }
 
 // ========== ADJUNTOS (todo lo cargado durante el proceso de ingreso) ==========
@@ -578,7 +654,9 @@ export function editarLegajoActual() {
   $('edit-dni').value = l.dni;
   $('edit-cuit').value = l.cuit || '';
   if ($('edit-clave-fiscal')) $('edit-clave-fiscal').value = l.claveFiscal || '';
-  if ($('edit-inaes')) $('edit-inaes').value = l.inaes || '';
+  if ($('edit-inaes')) $('edit-inaes').value = l.inaes || l.nro;
+  if ($('edit-cuit-estado')) $('edit-cuit-estado').value = l.cuitEstado || '';
+  if ($('edit-mipyme-estado')) $('edit-mipyme-estado').value = l.mipymeEstado || 'PENDIENTE';
   $('edit-tel').value = l.tel || '';
   $('edit-mail').value = l.mail || '';
   $('edit-banco').value = l.banco || '';
@@ -643,8 +721,22 @@ export function guardarEdicionLegajo() {
   l.nombre = `${a} ${n}`;
   l.dni = dni;
   l.cuit = $('edit-cuit').value;
-  l.claveFiscal = ($('edit-clave-fiscal') || { value: l.claveFiscal || '' }).value;
-  l.inaes = ($('edit-inaes') || { value: l.inaes || '' }).value;
+  const claveFiscalNueva = ($('edit-clave-fiscal') || { value: l.claveFiscal || '' }).value;
+  // Tema 2 §4: "SIN historial de claves, CON fecha de última
+  // actualización visible" — solo se pisa la fecha si el valor realmente
+  // cambió (si el campo quedó igual, no es una "actualización").
+  if (claveFiscalNueva !== l.claveFiscal) l.claveFiscalFechaActualizacion = new Date().toISOString().slice(0, 10);
+  l.claveFiscal = claveFiscalNueva;
+  // Tema 2 §4: N° INAES ES el número de legajo/asociado — se autocompleta
+  // si quedó vacío, no se inventa nada (es el mismo dato que ya tiene el
+  // legajo).
+  l.inaes = ($('edit-inaes') || { value: l.inaes || '' }).value.trim() || String(l.nro);
+  if ($('edit-cuit-estado')) {
+    const cuitEstadoNuevo = $('edit-cuit-estado').value || null;
+    if (cuitEstadoNuevo !== l.cuitEstado) l.cuitFechaVerificacion = new Date().toISOString().slice(0, 10);
+    l.cuitEstado = cuitEstadoNuevo;
+  }
+  if ($('edit-mipyme-estado')) l.mipymeEstado = $('edit-mipyme-estado').value || null;
   l.tel = $('edit-tel').value;
   l.mail = $('edit-mail').value;
   l.banco = $('edit-banco').value;

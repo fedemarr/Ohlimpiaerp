@@ -46,6 +46,8 @@ export const _SM = {
   motivosRetencion: 'motivos_retencion',
   rolesContacto: 'roles_contacto_cliente',
   itemsLogisticaServicio: 'items_logistica_servicio',
+  monoCambios: 'mono_cambios',
+  monoPagosMes: 'mono_pagos_mes',
   reglasCompetencia: 'reglas_competencia',
   reglasCompetenciaVersiones: 'reglas_competencia_versiones',
   eventosPuntos: 'eventos_puntos',
@@ -195,6 +197,14 @@ export function _toSnake(obj) {
     // Monotributos / Uniformes / Retenciones
     nroSocio: 'nro_socio', fechaAlta: 'fecha_alta', historialCategorias: 'historial_categorias',
     fechaLiberacion: 'fecha_liberacion',
+    // v080 — Monotributo completo
+    curManual: 'cur_manual', adherentesCantidad: 'adherentes_cantidad', adherentesMonto: 'adherentes_monto',
+    catAnterior: 'cat_anterior', catNueva: 'cat_nueva', curAnterior: 'cur_anterior', curNuevo: 'cur_nuevo',
+    proyeccionAnual: 'proyeccion_anual', decidoPor: 'decido_por',
+    curCongelado: 'cur_congelado', adherentesMontoCongelado: 'adherentes_monto_congelado',
+    metodoPago: 'metodo_pago', pagadoPor: 'pagado_por', pagadoEn: 'pagado_en',
+    mipymeEstado: 'mipyme_estado', cuitEstado: 'cuit_estado',
+    cuitFechaVerificacion: 'cuit_fecha_verificacion', claveFiscalFechaActualizacion: 'clave_fiscal_fecha_actualizacion',
     // Retenciones — tipificación (v076)
     motivoTipificado: 'motivo_tipificado', tipoValor: 'tipo_valor', origen: 'origen',
     creadoEn: 'creado_en', liberadoPor: 'liberado_por',
@@ -521,6 +531,14 @@ export function _toCamel(obj) {
     // Monotributos / Uniformes / Retenciones
     nro_socio: 'nroSocio', fecha_alta: 'fechaAlta', historial_categorias: 'historialCategorias',
     fecha_liberacion: 'fechaLiberacion',
+    // v080 — Monotributo completo
+    cur_manual: 'curManual', adherentes_cantidad: 'adherentesCantidad', adherentes_monto: 'adherentesMonto',
+    cat_anterior: 'catAnterior', cat_nueva: 'catNueva', cur_anterior: 'curAnterior', cur_nuevo: 'curNuevo',
+    proyeccion_anual: 'proyeccionAnual', decido_por: 'decidoPor',
+    cur_congelado: 'curCongelado', adherentes_monto_congelado: 'adherentesMontoCongelado',
+    metodo_pago: 'metodoPago', pagado_por: 'pagadoPor', pagado_en: 'pagadoEn',
+    mipyme_estado: 'mipymeEstado', cuit_estado: 'cuitEstado',
+    cuit_fecha_verificacion: 'cuitFechaVerificacion', clave_fiscal_fecha_actualizacion: 'claveFiscalFechaActualizacion',
     // Retenciones — tipificación (v076)
     motivo_tipificado: 'motivoTipificado', tipo_valor: 'tipoValor',
     creado_en: 'creadoEn', liberado_por: 'liberadoPor',

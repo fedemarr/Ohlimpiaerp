@@ -7825,6 +7825,11 @@ if(!DB.monoTablas) DB.monoTablas = {
   ]
 };
 
+// TAB "Pago de monotributos" (mensual) — tema 2 del relevamiento, v080.
+// [{id, periodo, nroSocio, nombre, curCongelado, adherentesMontoCongelado,
+//   total, pagado, metodoPago, pagadoPor, pagadoEn}]
+if(!DB.monoPagosMes) DB.monoPagosMes = [];
+
 // ── DB Uniformes ──
 if(!DB.uniformes) DB.uniformes = [];
 // [{id, nombre, nroSocio, fecha, talle, prendas:[{tipo,cantidad}], descuento, estado, obs}]
@@ -7852,9 +7857,16 @@ if(!DB.cuentaCorriente) DB.cuentaCorriente = {};  // DB.cuentaCorriente[nombre] 
 // renderLiquidaciones() — se devuelven en pctRetenciones y el llamador
 // los aplica sobre f.bruto.
 function descuentosAutomaticosLegajo(nro, mes){
-  const out = { uniforme:0, retConflicto:0, retEnfermedad:0, adelantos:0, prestamo:0, uniformeIds:[], prestamoId:null, pctRetenciones:[] };
+  const out = { uniforme:0, retConflicto:0, retEnfermedad:0, adelantos:0, prestamo:0, monotributo:0, uniformeIds:[], prestamoId:null, pctRetenciones:[] };
   if(!nro) return out;
   const nroStr = String(nro);
+
+  // Monotributo: importe YA CONGELADO para este período por "Armar lista
+  // del mes" en el TAB de pago mensual (tema 2) — se descuenta apenas
+  // existe el registro congelado, independiente de si RRHH ya lo tildó
+  // como pagado al banco (eso es un paso posterior, no condiciona el
+  // descuento del retiro).
+  (DB.monoPagosMes||[]).filter(p=>p.periodo===mes && String(p.nroSocio)===nroStr).forEach(p=>{ out.monotributo += p.total||0; });
 
   // Uniforme: 1 cuota por cada descuento "En curso" con cuotas pendientes.
   // No hay fecha de cuota individual guardada — se asume 1 cuota por mes
@@ -7902,7 +7914,7 @@ function _totalDescLegajo(nombre, mes, bruto){
     const val=Math.round((bruto||0)*(pr.pct/100));
     if(pr.tipo==='conflicto') retC+=val; else retE+=val;
   });
-  return (desc.sanciones||0)+(desc.monotributo||0)+auto.uniforme+retC+retE+auto.adelantos+auto.prestamo;
+  return (desc.sanciones||0)+auto.monotributo+auto.uniforme+retC+retE+auto.adelantos+auto.prestamo;
 }
 
 function renderLiquidaciones(){
@@ -8180,9 +8192,12 @@ function renderLiquidaciones(){
     });
     f.presentismo = tieneAI ? 0 : Math.round(f.bruto * 0.03);
 
-    // Descuentos — sanciones y monotributo siguen manuales (DB.lqsDescuentos);
-    // uniforme/retenciones/adelantos/préstamo se calculan automáticamente
-    // desde la fuente real (temas 3 y 5 del relevamiento).
+    // Descuentos — sanciones sigue manual (DB.lqsDescuentos); uniforme/
+    // retenciones/adelantos/préstamo/monotributo se calculan
+    // automáticamente desde la fuente real (temas 2, 3 y 5 del
+    // relevamiento). Monotributo sale del TAB "Pago mensual" — si no se
+    // "armó la lista" de ese mes en Monotributo, da 0 (no inventa un
+    // descuento sin el paso explícito de RRHH).
     const desc = DB.lqsDescuentos[mes][f.nombre] || {};
     const auto = descuentosAutomaticosLegajo(legajo?.nro, mes);
     auto.pctRetenciones.forEach(pr=>{
@@ -8193,7 +8208,7 @@ function renderLiquidaciones(){
     f.sanciones     = desc.sanciones   ||0;
     f.retConflicto  = auto.retConflicto;
     f.retEnfermedad = auto.retEnfermedad;
-    f.monotributo   = desc.monotributo ||0;
+    f.monotributo   = auto.monotributo;
     f.adelantos     = auto.adelantos;
     f.prestamo      = auto.prestamo;
     f._descAuto     = auto; // guardado para autorizarPago() — consumir cuotas al pagar
@@ -8264,7 +8279,7 @@ function renderLiquidaciones(){
     <th style="${thStyle}min-width:100px;background:#1d4ed8;color:white;">Bruto</th>
     <th colspan="4" style="${thStyle}min-width:280px;background:#dc2626;color:white;">Descuentos (automáticos*)</th>
     <th colspan="2" style="${thStyle}min-width:160px;background:#7c3aed;color:white;">Retenciones (automáticas*)</th>
-    <th colspan="1" style="${thStyle}min-width:90px;background:#6b7280;color:white;opacity:.7;">Próx. módulos</th>
+    <th colspan="1" style="${thStyle}min-width:90px;background:#dc2626;color:white;">Monotributo</th>
     <th style="${thStyle}min-width:110px;background:#065f46;color:white;">NETO A PAGAR</th>
     <th style="${thStyle}min-width:120px;background:#14532d;color:white;">
       <div style="display:flex;flex-direction:column;align-items:center;gap:4px;">
@@ -8294,7 +8309,7 @@ function renderLiquidaciones(){
     <th style="${thStyle}background:#b91c1c;color:white;" title="Cuota del mes desde Préstamos — automático">Préstamo</th>
     <th style="${thStyle}background:#6d28d9;color:white;" title="Retenciones activas de este período, tipo conflicto — automático">Ret.Conflicto</th>
     <th style="${thStyle}background:#6d28d9;color:white;" title="Retenciones activas de este período, enfermedad/otra — automático">Ret.Enfermedad/Otra</th>
-    <th style="${thStyle}background:#9ca3af;color:white;">Monotributo</th>
+    <th style="${thStyle}background:#b91c1c;color:white;" title="Del TAB 'Pago mensual' de Monotributo, mes congelado — automático">Monotributo</th>
     <th style="${thStyle}background:#065f46;color:white;"></th>
 
     <th style="${thStyle}"></th>
@@ -8339,7 +8354,7 @@ function renderLiquidaciones(){
     <td style="padding:2px 4px;border:1px solid var(--borde);background:#fff0f0;">${fmtAuto(f.prestamo)}</td>
     <td style="padding:2px 4px;border:1px solid var(--borde);background:#f5f0ff;">${fmtAuto(f.retConflicto)}</td>
     <td style="padding:2px 4px;border:1px solid var(--borde);background:#f5f0ff;">${fmtAuto(f.retEnfermedad)}</td>
-    <td style="padding:2px 4px;border:1px solid var(--borde);background:#f9fafb;opacity:.6;">${fmtDesc(f.nombre,'monotributo',f.monotributo)}</td>
+    <td style="padding:2px 4px;border:1px solid var(--borde);background:#fff0f0;">${fmtAuto(f.monotributo)}</td>
     <td style="padding:4px 8px;border:1px solid var(--borde);text-align:right;font-weight:700;font-size:13px;color:white;background:#065f46;">${fmt(f.neto)}</td>
     <td style="padding:4px 6px;border:1px solid var(--borde);text-align:center;background:${pagoInfo?.pagado?'#dcfce7':listoInfo?'#dbeafe':'white'};">
       ${pagoInfo?.pagado
@@ -8951,7 +8966,7 @@ function verDetalleLqs(nombre, mes){
     {label:'Préstamo',      val:autoPersona.prestamo,  color:'#b91c1c'},
     {label:'Ret. Conflicto',val:retConfPersona, color:'#6d28d9'},
     {label:'Ret. Enfermedad/Otra',val:retEnfPersona, color:'#6d28d9'},
-    {label:'Monotributo',   val:desc.monotributo  ||0, color:'#6b7280'},
+    {label:'Monotributo',   val:autoPersona.monotributo, color:'#6b7280'},
   ].filter(d=>d.val>0);
 
   const totalDesc = descItems.reduce((s,d)=>s+d.val,0);
@@ -9903,7 +9918,7 @@ function renderMonotributos(){
     return;
   }
 
-  tbody.innerHTML = rows.map((r,i)=>{
+  tbody.innerHTML = rows.map((r)=>{
     const cur = getCURPersona(r, vigencia);
     const proy = getProyeccionAnual(r.nombre, anio);
     const limite = getLimiteCategoria(r.categoria, vigencia);
@@ -9920,10 +9935,11 @@ function renderMonotributos(){
       <td style="padding:6px 8px;border:1px solid var(--borde);font-size:11px;">
         <span class="chip" style="font-size:10px;">${r.zona==='capital'?'🏙️ Capital':'🌿 Provincia'}</span>
         ${r.obraSocial?'<div style="font-size:9px;color:#7c3aed;margin-top:2px;">👨‍👩‍👧 Con familia</div>':''}
+        ${r.adherentesCantidad?`<div style="font-size:9px;color:#0369a1;margin-top:2px;">👥 ${r.adherentesCantidad} adherente${r.adherentesCantidad>1?'s':''}${r.adherentesMonto?' — $'+r.adherentesMonto.toLocaleString('es-AR'):''}</div>`:''}
       </td>
       <td style="padding:6px 8px;border:1px solid var(--borde);text-align:center;">
         <span style="background:#1e40af;color:white;font-weight:800;border-radius:6px;padding:3px 10px;font-size:13px;">${r.categoria||'—'}</span>
-        <button style="background:none;border:none;cursor:pointer;font-size:10px;color:var(--azul);display:block;margin:2px auto 0;" onclick="verHistorialCat(${i})" title="Ver historial">📋 historial</button>
+        <button style="background:none;border:none;cursor:pointer;font-size:10px;color:var(--azul);display:block;margin:2px auto 0;" onclick="verHistorialCat('${r.id}')" title="Ver historial">📋 historial</button>
       </td>
       <td style="padding:6px 8px;border:1px solid var(--borde);text-align:right;font-size:11px;">$${limite.toLocaleString('es-AR')}</td>
       <td style="padding:6px 8px;border:1px solid var(--borde);text-align:right;font-weight:600;color:#7c3aed;">$${cur.toLocaleString('es-AR')}</td>
@@ -9941,8 +9957,8 @@ function renderMonotributos(){
           :`<span class="badge badge-verde" style="font-size:10px;">✅ Al día</span>`}
       </td>
       <td style="padding:6px 8px;border:1px solid var(--borde);">
-        <button class="btn btn-xs btn-secondary" onclick="editarMonotributo(${i})" title="Editar">✏️</button>
-        ${fueraCatRow?`<button class="btn btn-xs" style="background:#fef3c7;color:#92400e;border:1px solid #fcd34d;font-size:10px;margin-top:2px;" onclick="recategorizarModal(${i})">↑ Recateg.</button>`:''}
+        <button class="btn btn-xs btn-secondary" onclick="editarMonotributo('${r.id}')" title="Editar">✏️</button>
+        ${fueraCatRow?`<button class="btn btn-xs" style="background:#fef3c7;color:#92400e;border:1px solid #fcd34d;font-size:10px;margin-top:2px;" onclick="recategorizarModal('${r.id}')">↑ Recateg.</button>`:''}
       </td>
     </tr>`;
   }).join('');
@@ -10124,6 +10140,9 @@ function aplicarRecategorizaciones(){
   const vigencia = getVigenciaActual();
 
   seleccionadas.forEach((p,pi)=>{
+    // p.idxR es un índice real de DB.monotributos (lo arma
+    // renderAlertasMonotributo con .indexOf(r), no viene de una lista
+    // filtrada) — a diferencia del resto del padrón, acá no había bug.
     const r = (DB.monotributos||[])[p.idxR];
     if(!r) return;
     // Leer el CUR del input (puede haber sido modificado)
@@ -10131,10 +10150,13 @@ function aplicarRecategorizaciones(){
     const curInput = $('cur-propuesto-'+inputIdx);
     const curNuevo = curInput ? parseFloat(curInput.value)||0 : p.curActual;
 
-    // Registrar en historial
+    // Registrar en historial — antes esto quedaba solo en memoria: ni
+    // 'monoCambios' ni 'monoTablas' estaban registrados en _SM (mapa de
+    // tablas de supabase.js), así que supaSync() hacía early-return
+    // silencioso. Se agrega mono_cambios en sql/v080 y ahora sí persiste.
     if(!DB.monoCambios) DB.monoCambios=[];
-    DB.monoCambios.unshift({
-      id: Date.now()+Math.random(),
+    const cambio={
+      id: Date.now()+Math.floor(Math.random()*1000),
       nombre: r.nombre,
       fecha,
       catAnterior: p.catAnterior,
@@ -10145,7 +10167,9 @@ function aplicarRecategorizaciones(){
       motivo: 'Proyección anual supera límite de categoría',
       decidoPor: currentUser?.nombre||'Admin',
       resultado: 'Aprobado',
-    });
+    };
+    DB.monoCambios.unshift(cambio);
+    supaSync('monoCambios', cambio);
 
     // Guardar historial en el asociado
     if(!r.historialCategorias) r.historialCategorias=[];
@@ -10159,6 +10183,7 @@ function aplicarRecategorizaciones(){
     // Aplicar cambios
     r.categoria = p.catSugerida;
     r.cur = curNuevo;
+    supaSync('monotributos', r);
   });
 
   toast('✅ '+seleccionadas.length+' recategorizaci'+(seleccionadas.length>1?'ones':'ón')+' aplicada'+(seleccionadas.length>1?'s':''));
@@ -10173,8 +10198,8 @@ function rechazarPropuesta(idxR, catActual, curActual){
   if(!confirm('¿Rechazar el cambio de categoría para '+r.nombre+'? Se registrará en el historial.')) return;
   const fecha = new Date().toLocaleDateString('es-AR');
   if(!DB.monoCambios) DB.monoCambios=[];
-  DB.monoCambios.unshift({
-    id: Date.now()+Math.random(),
+  const cambio={
+    id: Date.now()+Math.floor(Math.random()*1000),
     nombre: r.nombre,
     fecha,
     catAnterior: catActual,
@@ -10185,7 +10210,9 @@ function rechazarPropuesta(idxR, catActual, curActual){
     motivo: 'Decisión manual: mantener categoría actual',
     decidoPor: currentUser?.nombre||'Admin',
     resultado: 'Rechazado',
-  });
+  };
+  DB.monoCambios.unshift(cambio);
+  supaSync('monoCambios', cambio);
   toast('Cambio rechazado y registrado en historial para '+r.nombre);
   renderMonotributos();
 }
@@ -10221,6 +10248,125 @@ function renderHistorialMono(){
       <span class="badge ${resColor[r.resultado]||'badge-gris'}" style="font-size:10px;">${r.resultado}</span>
     </td>
   </tr>`).join('');
+}
+
+// ══════════════════════════════════════════════════════════
+// TAB nuevo: Pago de monotributos (mensual) — MODULO_MONOTRIBUTO.md §3.
+// Flujo: Padrón (maestro) → armar lista del mes (solo activos que
+// trabajaron, congela CUR+adherentes) → Liquidación descuenta ese
+// importe congelado (ver descuentosAutomaticosLegajo, más abajo en la
+// sección de Liquidaciones) → RRHH exporta/tilda con auditoría.
+// Por qué así: lo descontado, lo que hay que pagar y lo tildado son
+// siempre la misma lista, y los cambios de tabla/categoría no tocan
+// meses ya cerrados (política de vigencias del proyecto).
+// ══════════════════════════════════════════════════════════
+function _mesMonoPagosSel(){
+  const el=$('mono-pagos-mes');
+  if(el && !el.value) el.value=new Date().toISOString().slice(0,7);
+  return el?.value||new Date().toISOString().slice(0,7);
+}
+function getMonoPagoById(id){ return (DB.monoPagosMes||[]).find(x=>String(x.id)===String(id)); }
+
+// Paso 1: arma la lista del mes desde el padrón, solo activos que
+// trabajaron ese período (reusa _getFilasConsolidadas, la misma fuente
+// que ya usa Liquidaciones para saber quién cobra retiro este mes).
+function abrirMesMonoPagos(){
+  const mes=_mesMonoPagosSel();
+  const yaArmado=(DB.monoPagosMes||[]).some(p=>p.periodo===mes);
+  if(yaArmado){
+    if(!confirm(`El mes ${mes} ya tiene una lista armada. ¿Agregar los que falten (sin tocar los ya congelados)?`)) return;
+  }
+  const nombresQueTrabajaron=new Set(_getFilasConsolidadas(mes).map(f=>f.nombre));
+  const vigencia=getVigenciaActual();
+  const existentes=new Set((DB.monoPagosMes||[]).filter(p=>p.periodo===mes).map(p=>p.nombre));
+  let agregados=0;
+  (DB.monotributos||[]).filter(r=>r.estado!=='Baja'&&nombresQueTrabajaron.has(r.nombre)&&!existentes.has(r.nombre)).forEach(r=>{
+    const cur=getCURPersona(r,vigencia);
+    const adh=r.adherentesMonto||0;
+    const pago={
+      id:Date.now()+Math.floor(Math.random()*1000),
+      periodo:mes, nroSocio:r.nroSocio||null, nombre:r.nombre,
+      curCongelado:cur, adherentesMontoCongelado:adh, total:cur+adh,
+      pagado:false, metodoPago:null, pagadoPor:null, pagadoEn:null,
+    };
+    if(!DB.monoPagosMes) DB.monoPagosMes=[];
+    DB.monoPagosMes.push(pago);
+    supaSync('monoPagosMes', pago);
+    agregados++;
+  });
+  toast(agregados?`✓ ${agregados} monotributista(s) agregado(s) al mes ${mes}`:'No hay nuevos monotributistas activos para este período');
+  renderMonoPagos();
+}
+
+function renderMonoPagos(){
+  const mes=_mesMonoPagosSel();
+  const tbody=$('tbody-mono-pagos'); if(!tbody) return;
+  const rows=(DB.monoPagosMes||[]).filter(p=>p.periodo===mes).sort((a,b)=>a.nombre.localeCompare(b.nombre));
+  if(!rows.length){
+    tbody.innerHTML=`<tr><td colspan="7" style="padding:40px;text-align:center;color:var(--texto-muy-suave);">Sin lista armada para ${mes}. Usá "📥 Armar lista del mes".</td></tr>`;
+    return;
+  }
+  const metodos=['Transferencia','Cheque','Efectivo','Débito automático','Otro'];
+  tbody.innerHTML=rows.map(p=>`<tr style="background:${p.pagado?'#f0fdf4':'white'};">
+    <td style="padding:6px 14px;border:1px solid var(--borde);font-weight:500;">${p.nombre}</td>
+    <td style="padding:6px 8px;border:1px solid var(--borde);font-size:11px;">${p.nroSocio||'—'}</td>
+    <td style="padding:6px 8px;border:1px solid var(--borde);text-align:right;">$${(p.curCongelado||0).toLocaleString('es-AR')}</td>
+    <td style="padding:6px 8px;border:1px solid var(--borde);text-align:right;">${p.adherentesMontoCongelado?'$'+p.adherentesMontoCongelado.toLocaleString('es-AR'):'—'}</td>
+    <td style="padding:6px 8px;border:1px solid var(--borde);text-align:right;font-weight:700;color:#7c3aed;">$${(p.total||0).toLocaleString('es-AR')}</td>
+    <td style="padding:4px 6px;border:1px solid var(--borde);text-align:center;">
+      ${p.pagado
+        ? `<span style="font-size:11px;">${p.metodoPago||'—'}</span>`
+        : `<select style="font-size:11px;padding:2px 4px;" onchange="_monoPagoMetodoTemp['${p.id}']=this.value">
+             <option value="">Elegir...</option>
+             ${metodos.map(m=>`<option value="${m}">${m}</option>`).join('')}
+           </select>`}
+    </td>
+    <td style="padding:6px 8px;border:1px solid var(--borde);text-align:center;">
+      ${p.pagado
+        ? `<div><span class="badge badge-verde" style="font-size:10px;">✓ Pagado</span><div style="font-size:9px;color:var(--texto-suave);margin-top:2px;">${p.pagadoPor||'—'} · ${p.pagadoEn?new Date(p.pagadoEn).toLocaleDateString('es-AR'):''}</div></div>`
+        : `<button class="btn btn-xs" style="background:#dcfce7;color:#065f46;border:1px solid #9fdaba;" onclick="tildarPagoMono('${p.id}')">Tildar pagado</button>`}
+    </td>
+  </tr>`).join('');
+}
+// Método de pago elegido en el <select> antes de tildar — vive en memoria
+// de sesión nomás, se consume al tildar (no hace falta persistir el
+// "borrador" de selección).
+let _monoPagoMetodoTemp={};
+function tildarPagoMono(id){
+  const p=getMonoPagoById(id); if(!p) return;
+  const metodo=_monoPagoMetodoTemp[id];
+  if(!metodo){ toast('⚠️ Elegí el método de pago antes de tildar'); return; }
+  p.pagado=true;
+  p.metodoPago=metodo;
+  p.pagadoPor=currentUser?.nombre||'';
+  p.pagadoEn=new Date().toISOString();
+  supaSync('monoPagosMes', p);
+  delete _monoPagoMetodoTemp[id];
+  toast(`✓ Monotributo de ${p.nombre} tildado como pagado (${metodo})`);
+  renderMonoPagos();
+}
+
+// Paso 3: exportar CSV del mes para subir al banco — soporta cualquier
+// método de pago porque solo vuelca los datos, no asume uno.
+function exportarMonoPagosCSV(){
+  const mes=_mesMonoPagosSel();
+  const rows=(DB.monoPagosMes||[]).filter(p=>p.periodo===mes);
+  if(!rows.length){ toast('⚠️ No hay lista armada para este período'); return; }
+  const header=['Nombre','N° Socio','CUR','Adherentes','Total','Método de pago','Pagado','Pagado por','Fecha de pago'];
+  const lineas=[header.join(',')];
+  rows.forEach(p=>{
+    lineas.push([
+      `"${p.nombre}"`, p.nroSocio||'', p.curCongelado||0, p.adherentesMontoCongelado||0, p.total||0,
+      p.metodoPago||'', p.pagado?'Sí':'No', p.pagadoPor||'', p.pagadoEn?new Date(p.pagadoEn).toLocaleDateString('es-AR'):'',
+    ].join(','));
+  });
+  const blob=new Blob(['﻿'+lineas.join('\n')],{type:'text/csv;charset=utf-8;'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url; a.download=`monotributo_${mes}.csv`;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  toast('⬇️ CSV exportado');
 }
 
 // ── Importar tabla de categorías ──
@@ -10328,6 +10474,7 @@ function tabMonotributos(tab, btn){
   if(tab==='padron'||tab==='alerta') renderMonotributos();
   if(tab==='categorias') renderTablasCategorias();
   if(tab==='historial')  renderHistorialMono();
+  if(tab==='pagos')      renderMonoPagos();
 }
 
 function renderTablasCategorias(){
@@ -10359,6 +10506,12 @@ function renderTablasCategorias(){
           </tr></thead>
           <tbody>
             ${tabla.map(r=>`<tr>
+              <td style="padding:6px 12px;border:1px solid var(--borde);text-align:center;"><span style="background:#1e40af;color:white;font-weight:800;border-radius:6px;padding:2px 8px;">${r.cat}</span></td>
+              <td style="padding:6px 8px;border:1px solid var(--borde);text-align:right;">$${(r.limiteAnual||0).toLocaleString('es-AR')}</td>
+              <td style="padding:6px 8px;border:1px solid var(--borde);text-align:right;">$${(r.curBase||0).toLocaleString('es-AR')}</td>
+              <td style="padding:6px 8px;border:1px solid var(--borde);text-align:right;">$${(r.curCapital||0).toLocaleString('es-AR')}</td>
+              <td style="padding:6px 8px;border:1px solid var(--borde);text-align:right;">$${(r.curConFamilia||0).toLocaleString('es-AR')}</td>
+              <td style="padding:6px 8px;border:1px solid var(--borde);text-align:right;">$${(r.curCapitalConFamilia||0).toLocaleString('es-AR')}</td>
             </tr>`).join('')}
           </tbody>
         </table>
@@ -10367,8 +10520,8 @@ function renderTablasCategorias(){
 }
 
 // ── Recategorizar ──
-function recategorizarModal(idx){
-  const r=(DB.monotributos||[])[idx]; if(!r) return;
+function recategorizarModal(id){
+  const r=getMonoById(id); if(!r) return;
   const anio=parseInt($('mono-anio')?.value)||new Date().getFullYear();
   const v=getVigenciaActual();
   const proy=getProyeccionAnual(r.nombre,anio);
@@ -10383,20 +10536,22 @@ Nuevo límite: $${(getLimiteCategoria(catSugerida,v)||0).toLocaleString('es-AR')
   r.historialCategorias.push({cat:r.categoria, desde:r.fechaAlta||'—', hasta:new Date().toLocaleDateString('es-AR')});
   r.categoria=catSugerida;
   r.cur=0; // Reset CUR para que se recalcule según nueva categoría
+  supaSync('monotributos', r);
   toast('✅ Recategorizado a '+catSugerida+'. Actualizá el CUR manualmente desde ARCA.');
   renderMonotributos();
 }
 
-function mantenerCategoria(idx){
-  const r=(DB.monotributos||[])[idx]; if(!r) return;
+function mantenerCategoria(id){
+  const r=getMonoById(id); if(!r) return;
   r.estado='Al día'; // Marca como revisado
+  supaSync('monotributos', r);
   toast('Manteniendo categoría '+r.categoria+' para '+r.nombre);
   renderMonotributos();
 }
 
 // ── Historial de categorías ──
-function verHistorialCat(idx){
-  const r=(DB.monotributos||[])[idx]; if(!r) return;
+function verHistorialCat(id){
+  const r=getMonoById(id); if(!r) return;
   const hist=r.historialCategorias||[];
   if(!hist.length){toast('Sin historial de categoría para '+r.nombre);return;}
   const lineas=hist.map(h=>'Cat. '+h.cat+': desde '+h.desde+' hasta '+h.hasta);
@@ -10431,10 +10586,18 @@ function guardarNuevaVigencia(){
 // ══════════════════════════════════════════════════════════
 // FUNCIONES AUXILIARES MONOTRIBUTOS
 // ══════════════════════════════════════════════════════════
-function abrirModalNuevoMonotributo(idx=null){
-  const r=idx!==null?(DB.monotributos||[])[idx]:{};
-  if($('mono-modal-title')) $('mono-modal-title').textContent=idx!==null?'Editar monotributista':'Nuevo monotributista';
-  if($('mono-idx'))         $('mono-idx').value=idx!==null?idx:'';
+// Bug real encontrado al conectar Monotributo (tema 2 del relevamiento):
+// todo el padrón operaba por índice de la fila ya renderizada (`rows`,
+// que excluye 'Baja' y puede venir filtrada por "Fuera de categoría"/
+// "Al día") — el mismo bug que ya se había corregido en Retenciones y
+// Uniformes. Editar/eliminar/ver historial/recategorizar podían actuar
+// sobre la persona equivocada apenas se aplicaba un filtro. Se pasa todo
+// a operar por id real, con guardia String===String.
+function getMonoById(id){ return (DB.monotributos||[]).find(x=>String(x.id)===String(id)); }
+function abrirModalNuevoMonotributo(id=null){
+  const r=id!==null?getMonoById(id):{};
+  if($('mono-modal-title')) $('mono-modal-title').textContent=id!==null?'Editar monotributista':'Nuevo monotributista';
+  if($('mono-idx'))         $('mono-idx').value=id!==null?id:'';
   if($('mono-nombre'))      $('mono-nombre').value=r.nombre||'';
   if($('mono-cuit'))        $('mono-cuit').value=r.cuit||'';
   if($('mono-categoria'))   $('mono-categoria').value=r.categoria||'';
@@ -10442,41 +10605,55 @@ function abrirModalNuevoMonotributo(idx=null){
   if($('mono-zona'))        $('mono-zona').value=r.zona||'provincia';
   if($('mono-obraSocial'))  $('mono-obraSocial').value=r.obraSocial?'true':'false';
   if($('mono-cur'))         $('mono-cur').value=r.cur||0;
+  if($('mono-adherentes-cant')) $('mono-adherentes-cant').value=r.adherentesCantidad||0;
+  if($('mono-adherentes-monto')) $('mono-adherentes-monto').value=r.adherentesMonto||0;
   if($('mono-estado'))      $('mono-estado').value=r.estado||'Al día';
   if($('mono-obs'))         $('mono-obs').value=r.obs||'';
   const dl=$('dl-mono-nombre');
   if(dl) dl.innerHTML=(DB.legajos||[]).filter(l=>l.estado==='Activo').map(l=>`<option value="${l.nombre}">${l.nombre} — ${l.nro}</option>`).join('');
   abrirModal('modal-monotributo');
 }
-function editarMonotributo(i){abrirModalNuevoMonotributo(i);}
-function eliminarMonotributo(i){
-  if(!confirm('¿Eliminar este registro?')) return;
-  DB.monotributos.splice(i,1);
+function editarMonotributo(id){abrirModalNuevoMonotributo(id);}
+function eliminarMonotributo(id){
+  const r=getMonoById(id); if(!r) return;
+  if(!confirm(`¿Eliminar el registro de ${r.nombre}?`)) return;
+  DB.monotributos=DB.monotributos.filter(x=>String(x.id)!==String(id));
   renderMonotributos();
   toast('Registro eliminado');
 }
 function guardarMonotributo(){
-  const idx=$('mono-idx')?.value;
-  const existing=idx!==''?(DB.monotributos||[])[parseInt(idx)]:{};
+  const idVal=$('mono-idx')?.value;
+  const existing=idVal?getMonoById(idVal):null;
+  const nroSocioMatch=(DB.legajos||[]).find(l=>l.nombre===($('mono-nombre')?.value||'').trim())?.nro;
   const obj={
     nombre:$('mono-nombre')?.value.trim(),
+    nroSocio:existing?.nroSocio||nroSocioMatch||null,
     cuit:$('mono-cuit')?.value.trim(),
     categoria:$('mono-categoria')?.value,
     fechaAlta:$('mono-fechaAlta')?.value,
     zona:$('mono-zona')?.value||'provincia',
     obraSocial:$('mono-obraSocial')?.value==='true',
     jubilado:$('mono-jubilado')?.value==='true',
+    // CUR: 0 = se calcula solo por tabla (getCURPersona), >0 = pisa el
+    // cálculo — esto ya funcionaba así de antes (Tema 2 §2, "CUR manual
+    // queda como excepción"), no hizo falta un flag nuevo.
     cur:parseFloat($('mono-cur')?.value)||0,
+    // Tema 2 §2 ADHERENTES: reemplaza el concepto viejo "obraSocial" como
+    // única fuente — ahora cantidad + monto total manual por persona,
+    // casos heterogéneos (puede haber 1 adherente con monto $0).
+    adherentesCantidad:parseInt($('mono-adherentes-cant')?.value)||0,
+    adherentesMonto:parseFloat($('mono-adherentes-monto')?.value)||0,
     estado:$('mono-estado')?.value||'Al día',
     obs:$('mono-obs')?.value.trim(),
-    historialCategorias:existing.historialCategorias||[],
+    historialCategorias:existing?.historialCategorias||[],
   };
   if(!obj.nombre){toast('Ingresá el nombre');return;}
   if(!obj.categoria){toast('Seleccioná una categoría');return;}
-  if(idx!=='') DB.monotributos[parseInt(idx)]={...existing,...obj};
-  else DB.monotributos.push({...obj,id:Date.now()});
+  const registro=existing?{...existing,...obj}:{...obj,id:Date.now()};
+  if(existing) DB.monotributos=DB.monotributos.map(x=>String(x.id)===String(idVal)?registro:x);
+  else DB.monotributos.push(registro);
   cerrarModal('modal-monotributo');
-  supaSync('monotributos', DB.monotributos[DB.monotributos.length-1]); toast('✅ Monotributista guardado');
+  supaSync('monotributos', registro); toast('✅ Monotributista guardado');
   renderMonotributos();
 }
 
@@ -12643,6 +12820,10 @@ window.tabLiqAdmin = tabLiqAdmin;
 window.tabLiquidacion = tabLiquidacion;
 window.tabMantenimiento = tabMantenimiento;
 window.tabMonotributos = tabMonotributos;
+window.abrirMesMonoPagos = abrirMesMonoPagos;
+window.renderMonoPagos = renderMonoPagos;
+window.tildarPagoMono = tildarPagoMono;
+window.exportarMonoPagosCSV = exportarMonoPagosCSV;
 window.tabObjModal = tabObjModal;
 window.tabPrecios = tabPrecios;
 window.tabReclamos = tabReclamos;
