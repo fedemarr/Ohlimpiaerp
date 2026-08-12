@@ -2476,6 +2476,7 @@
           <input type="text" placeholder="🔍 Buscar..." id="buscar-lead" oninput="filtrarLeads()">
           <select id="cf-lead-etapa" onchange="filtrarLeads()"><option value="">Todas las etapas</option></select>
           <select id="cf-lead-resp" onchange="filtrarLeads()"><option value="">Todos los responsables</option></select>
+          <select id="cf-lead-clasif" onchange="filtrarLeads()"><option value="">Existente y potencial</option><option value="Existente">🏢 Cliente existente</option><option value="Potencial">✨ Cliente potencial</option></select>
           <button class="btn btn-ghost btn-sm" onclick="abrirAgenteIA('crm',{})">🤖 Agente IA</button>
         </div>
       </div>
@@ -5781,6 +5782,22 @@
     <div class="modal-header"><h3>🎯 Nuevo lead</h3><button class="btn-close" onclick="cerrarModal('modal-lead')">×</button></div>
     <div class="modal-body">
       <div class="form-grid gap-12">
+        <div class="form-group">
+          <label>Este lead es de un...</label>
+          <div style="display:flex;gap:14px;font-size:13px;">
+            <label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-weight:400;">
+              <input type="radio" name="lead-clasificacion" value="Potencial" checked onchange="toggleLeadClasificacion()"> ✨ Cliente potencial
+            </label>
+            <label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-weight:400;">
+              <input type="radio" name="lead-clasificacion" value="Existente" onchange="toggleLeadClasificacion()"> 🏢 Cliente existente (servicio nuevo)
+            </label>
+          </div>
+        </div>
+        <div class="form-group" id="lead-cliente-existente-wrap" style="display:none;">
+          <label>Cliente *</label>
+          <input type="text" id="lead-cliente-existente" list="dl-clientes-lead" placeholder="Buscar cliente ya cargado..." oninput="autocompletarLeadClienteExistente()">
+          <datalist id="dl-clientes-lead"></datalist>
+        </div>
         <div class="form-grid form-grid-2">
           <div class="form-group"><label>Empresa *</label><input type="text" id="lead-empresa"></div>
           <div class="form-group"><label>Contacto principal</label><input type="text" id="lead-contacto"></div>

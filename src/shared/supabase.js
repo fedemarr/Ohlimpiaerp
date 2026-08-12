@@ -413,6 +413,8 @@ export function _toSnake(obj) {
     alertaTangoNoConfirmo: 'alerta_tango_no_confirmo',
     // v050 — CRM / leads
     clienteBorradorId: 'cliente_borrador_id', motivoPerdida: 'motivo_perdida',
+    // v078 — CRM: lead de cliente existente vs potencial
+    tipoCliente: 'tipo_cliente', clienteIdVinculado: 'cliente_id_vinculado',
     // v051 — Gestión de cobranzas (a nivel cliente)
     gestionesCobro: 'gestiones_cobro',
     // v052 — Gestión de precios (propuestas con tramos)
@@ -714,6 +716,7 @@ export function _toCamel(obj) {
     alerta_tango_no_confirmo: 'alertaTangoNoConfirmo',
     // v050 — CRM / leads
     cliente_borrador_id: 'clienteBorradorId', motivo_perdida: 'motivoPerdida',
+    tipo_cliente: 'tipoCliente', cliente_id_vinculado: 'clienteIdVinculado',
     // v051 — Gestión de cobranzas (a nivel cliente)
     gestiones_cobro: 'gestionesCobro',
     // v052 — Gestión de precios (propuestas con tramos)

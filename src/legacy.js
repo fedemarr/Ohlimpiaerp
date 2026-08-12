@@ -2690,7 +2690,23 @@ function ensureModalHibridoCliente(){
   document.body.appendChild(m);
 }
 let _clienteBorradorPendienteIdLocal=null;
+// Tema 8 del relevamiento: si el lead ya estaba vinculado a un cliente
+// EXISTENTE del ABM, no hay que crear un cliente en Borrador de nuevo —
+// va directo al alta de un servicio nuevo para ese cliente. Si era
+// potencial (o un lead viejo sin tipoCliente, de antes de este cambio),
+// se mantiene el flujo de siempre.
 function ofrecerCrearClienteDesdeLead(lead){
+  if(lead.tipoCliente==='Existente'&&lead.clienteIdVinculado){
+    const cliente=(DB.clientes||[]).find(c=>c.id===lead.clienteIdVinculado);
+    if(cliente){
+      toast(`✓ Lead ganado — "${cliente.nombre}" ya es cliente. Abriendo alta de servicio nuevo...`,6000);
+      window.navTo('objetivos');
+      nuevoObjetivoDesde(cliente.id);
+      return;
+    }
+    // Fallback defensivo: el cliente vinculado ya no existe (borrado) —
+    // no se inventa, se cae al flujo normal de borrador.
+  }
   const cliente=crearClienteBorradorDesdeLead(lead);
   if(!cliente)return;
   ensureModalHibridoCliente();
@@ -2767,7 +2783,7 @@ function renderPipeline(){
                ondragstart="dragLead(event,${l.id})"
                onclick="verLead(${DB.leads.indexOf(l)})">
             <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:6px;">
-              <div style="font-weight:600;font-size:12px;">${l.empresa}</div>
+              <div style="font-weight:600;font-size:12px;">${l.empresa} ${l.tipoCliente==='Existente'?'<span title="Cliente existente" style="font-size:10px;">🏢</span>':'<span title="Cliente potencial" style="font-size:10px;">✨</span>'}</div>
               ${avatarEl(l.responsable,22)}
             </div>
             <div style="font-size:11px;color:var(--texto-suave);margin-top:2px;">${l.contacto||'—'}</div>
@@ -2803,7 +2819,7 @@ function renderLeads(lista){
     const proxAcc=(l.acciones||[]).find(a=>a.estado==='Pendiente');
     const col=DB.colorEtapasCRM[l.etapa]||'#94a3b8';
     return `<tr>
-      <td><div style="font-weight:500;">${l.empresa}</div><div style="font-size:11px;color:var(--texto-suave);">${l.contacto}</div></td>
+      <td><div style="font-weight:500;">${l.empresa} ${l.tipoCliente==='Existente'?'<span class="chip" style="font-size:10px;background:#dbeafe;color:#1e40af;">🏢 Existente</span>':'<span class="chip" style="font-size:10px;">✨ Potencial</span>'}</div><div style="font-size:11px;color:var(--texto-suave);">${l.contacto}</div></td>
       <td><span class="chip" style="font-size:11px;">${l.tipo}</span></td>
       <td style="font-size:12px;">${l.zona}</td>
       <td style="font-weight:700;color:var(--azul);">$${(l.valor/1000).toFixed(0)}k/mes</td>
@@ -2825,7 +2841,8 @@ function filtrarLeads(){
   const bg=($('buscar-lead')||{value:''}).value.toLowerCase();
   const et=($('cf-lead-etapa')||{value:''}).value;
   const resp=($('cf-lead-resp')||{value:''}).value;
-  renderLeads(DB.leads.filter(l=>(!bg||l.empresa.toLowerCase().includes(bg))&&(!et||l.etapa===et)&&(!resp||l.responsable===resp)));
+  const clasif=($('cf-lead-clasif')||{value:''}).value;
+  renderLeads(DB.leads.filter(l=>(!bg||l.empresa.toLowerCase().includes(bg))&&(!et||l.etapa===et)&&(!resp||l.responsable===resp)&&(!clasif||(l.tipoCliente||'Potencial')===clasif)));
 }
 function renderAcciones(lista){
   verificarAccionesVencidas();
@@ -2974,8 +2991,30 @@ function renderStatsCRM(){
 // sin resetear nada — arrastraba valores de la carga anterior. Como la
 // sección de historia retroactiva (punto 3) depende de la etapa elegida,
 // hace falta arrancar en un estado conocido para que no quede desalineada.
+// Tema 8 del relevamiento (10/08): distinguir al crear el lead si es un
+// cliente ya cargado en el ABM (va directo a alta de servicio nuevo al
+// ganar) o un cliente potencial (sigue creando el cliente en Borrador
+// como hasta ahora).
+function toggleLeadClasificacion(){
+  const clasif=document.querySelector('input[name="lead-clasificacion"]:checked')?.value||'Potencial';
+  const wrap=$('lead-cliente-existente-wrap');
+  if(wrap) wrap.style.display=clasif==='Existente'?'block':'none';
+  if(clasif==='Existente'){
+    const dl=$('dl-clientes-lead');
+    if(dl) dl.innerHTML=(DB.clientes||[]).filter(c=>c.estado!=='Borrador').map(c=>`<option value="${c.nombre}">${c.nombre}</option>`).join('');
+  }
+}
+function autocompletarLeadClienteExistente(){
+  const val=($('lead-cliente-existente')||{value:''}).value;
+  const cli=(DB.clientes||[]).find(c=>c.nombre===val);
+  if(cli && !$('lead-empresa').value) $('lead-empresa').value=cli.nombre;
+}
 function abrirNuevoLead(){
   if($('lead-etapa'))$('lead-etapa').value='Prospecto';
+  const rPotencial=document.querySelector('input[name="lead-clasificacion"][value="Potencial"]');
+  if(rPotencial) rPotencial.checked=true;
+  if($('lead-cliente-existente')) $('lead-cliente-existente').value='';
+  toggleLeadClasificacion();
   actualizarHistoriaRetroLead();
   abrirModal('modal-lead');
 }
@@ -3014,10 +3053,19 @@ function guardarLead(){
   // número; si no, el valor "actual" del lead arranca en el último valor
   // retroactivo cargado (el más avanzado en el tiempo).
   const valorManual=parseFloat($('lead-valor')?.value);
+  const tipoCliente=document.querySelector('input[name="lead-clasificacion"]:checked')?.value||'Potencial';
+  let clienteIdVinculado=null;
+  if(tipoCliente==='Existente'){
+    const nombreCli=($('lead-cliente-existente')||{value:''}).value.trim();
+    const cliMatch=(DB.clientes||[]).find(c=>c.nombre===nombreCli);
+    if(!cliMatch){toast('⚠️ Elegí un cliente existente de la lista, o marcá "Cliente potencial"');return;}
+    clienteIdVinculado=cliMatch.id;
+  }
   const nuevo={
     id:Date.now(),empresa,contacto:$('lead-contacto')?.value,tipo:$('lead-tipo')?.value,zona:$('lead-zona')?.value,
     valor:!isNaN(valorManual)?valorManual:(valorRetroFinal||0),
     etapa:etapaElegida,responsable:$('lead-responsable')?.value,origen:$('lead-origen')?.value,obs:$('lead-obs')?.value,
+    tipoCliente,clienteIdVinculado,
     acciones:[...accionesRetro,...(acc.fecha?[acc]:[])],
   };
   DB.leads.push(nuevo);
@@ -12375,6 +12423,8 @@ window.guardarEvaluacion = guardarEvaluacion;
 window.guardarFeriado = guardarFeriado;
 window.guardarLead = guardarLead;
 window.abrirNuevoLead = abrirNuevoLead;
+window.toggleLeadClasificacion = toggleLeadClasificacion;
+window.autocompletarLeadClienteExistente = autocompletarLeadClienteExistente;
 window.guardarMonotributo = guardarMonotributo;
 window.guardarMotivoEFT = guardarMotivoEFT;
 window.guardarMotivoNF = guardarMotivoNF;
