@@ -224,7 +224,14 @@ export const DB = {
 
 export const PERFILES = {
   'Administrador total': { color: 'badge-rojo', modulos: ['inicio', 'candidatos', 'pedidos', 'psicotecnico', 'preocupacional', 'documentacion', 'altas', 'legajos', 'reasignaciones', 'legal', 'enfermos', 'capacitaciones', 'vacaciones', 'descansos', 'competencia', 'clientes', 'objetivos', 'precios', 'paritarias', 'categorias', 'crm', 'reclamos', 'cobros', 'comisiones', 'supervisores', 'liquidacion', 'feriados', 'liq_admin', 'liquidaciones', 'retenes', 'mantenimiento', 'configuracion', 'smvm', 'monotributos', 'uniformes', 'stock', 'retenciones', 'sanciones', 'adelantos', 'pedidos_adelantos', 'gestion_adelantos', 'sugerencias'], desc: 'Acceso completo.' },
-  'RRHH': { color: 'badge-azul', modulos: ['inicio', 'candidatos', 'psicotecnico', 'preocupacional', 'documentacion', 'altas', 'legajos', 'reasignaciones', 'capacitaciones', 'vacaciones', 'descansos', 'competencia', 'reclamos', 'paritarias', 'categorias', 'liquidacion', 'liq_admin', 'liquidaciones', 'retenes', 'monotributos', 'uniformes', 'retenciones', 'sanciones', 'adelantos', 'pedidos_adelantos', 'gestion_adelantos', 'sugerencias'], desc: 'RRHH, legajos, capacitaciones.' },
+  // Reorganización de menú/permisos (Lautaro, 12/08/2026): RRHH tiene que
+  // VER toda el área Personal — antes no veía 'legal' ni 'enfermos' pese a
+  // que esas 2 pantallas ya listaban 'RRHH' en su propio item.perfiles
+  // (metadata que no se usa para el control de acceso real — eso lo hace
+  // este array .modulos). Monotributos/Retenciones quedan igual: RRHH ya
+  // los tenía y los sigue teniendo aunque esos módulos ahora vivan en la
+  // sección de menú Finanzas — la sección es organización, no permiso.
+  'RRHH': { color: 'badge-azul', modulos: ['inicio', 'candidatos', 'psicotecnico', 'preocupacional', 'documentacion', 'altas', 'legajos', 'reasignaciones', 'legal', 'enfermos', 'capacitaciones', 'vacaciones', 'descansos', 'competencia', 'reclamos', 'paritarias', 'categorias', 'liquidacion', 'liq_admin', 'liquidaciones', 'retenes', 'monotributos', 'uniformes', 'retenciones', 'sanciones', 'adelantos', 'pedidos_adelantos', 'gestion_adelantos', 'sugerencias'], desc: 'RRHH, legajos, capacitaciones.' },
   'Operaciones': { color: 'badge-verde', modulos: ['inicio', 'pedidos', 'legajos', 'reasignaciones', 'capacitaciones', 'vacaciones', 'descansos', 'competencia', 'clientes', 'objetivos', 'precios', 'paritarias', 'crm', 'reclamos', 'cobros', 'comisiones', 'supervisores', 'liquidacion', 'retenes', 'mantenimiento', 'feriados', 'uniformes', 'sanciones', 'pedidos_adelantos', 'sugerencias'], desc: 'Operaciones y ventas.' },
   'Finanzas': { color: 'badge-acento', modulos: ['inicio', 'legajos', 'smvm', 'cobros', 'comisiones', 'paritarias', 'liquidacion', 'liq_admin', 'liquidaciones', 'retenes', 'mantenimiento', 'monotributos', 'retenciones', 'adelantos', 'gestion_adelantos', 'sugerencias'], desc: 'Finanzas y liquidación.' },
   'Supervisor': { color: 'badge-gris', modulos: ['inicio', 'pedidos', 'legajos', 'descansos', 'competencia', 'liquidacion', 'liquidaciones', 'adelantos', 'pedidos_adelantos', 'uniformes', 'sanciones', 'sugerencias', 'retenciones'], desc: 'Pedidos, legajos, descansos, competencia y liquidación de horas.' },
@@ -235,79 +242,89 @@ export const PERFILES = {
 };
 
 // ========== MENÚ ==========
-
+//
+// Reorganización de menú (Lautaro, 12/08/2026 — "REORGANIZACIÓN DEL
+// MENÚ Y PERMISOS"): la sección/área acá abajo es solo ORGANIZACIÓN,
+// no un límite de acceso — quién ve y quién modifica cada módulo lo
+// define PERFILES[perfil].modulos más arriba, no en qué sección de
+// menú vive la key. Ej.: Monotributos vive en Finanzas pero RRHH sigue
+// operándolo (ya está en RRHH.modulos).
+//
+// Movimientos de esta pasada (ver tabla del ticket): Altas→Selección,
+// Legajos→Personal, Reasignaciones→Operaciones, Monotributos→Finanzas,
+// Uniformes (Ingreso+Logística, duplicado)→Logística (queda 1 solo),
+// Retenciones→Finanzas, Situaciones legales→Personal, Enfermos y
+// accidentes→Personal, Sanciones→Personal, Feriados→Administración,
+// Pedidos de adelantos→Finanzas. Las secciones Ingreso y Seguimiento
+// quedaron sin ítems y se eliminan. Reportes y sugerencias pasa de
+// sección propia a Finanzas (sigue visible para todos los perfiles que
+// ya tenía en su item.perfiles/PERFILES.modulos — la sección es el
+// título bajo el que se agrupa en el menú, no cambia quién la ve).
+// Dentro de cada sección, orden alfabético por label (pedido explícito
+// del ticket).
+//
+// Nota: "Supervisores" (módulo nuevo, agregado el 11/08 — un día antes
+// de este ticket) no aparece en el listado "Menú final" del documento.
+// No hay instrucción de sacarlo ni de dónde ponerlo, así que se dejó
+// donde ya estaba (Comercial, junto a Servicios/Comisiones) en vez de
+// adivinar — a confirmar con Lautaro si tiene otro lugar pensado.
 export const MENU = [
   { section: '', items: [
     { key: 'inicio', icon: '🏠', label: 'Inicio', perfiles: ['Administrador total', 'RRHH', 'Operaciones', 'Finanzas', 'Supervisor', 'Comercial', 'Logística'] },
   ]},
   { section: 'Selección', items: [
-    { key: 'candidatos', icon: '👥', label: 'Candidatos', perfiles: ['Administrador total', 'RRHH'] },
-    { key: 'pedidos', icon: '📋', label: 'Pedidos de personal', perfiles: ['Administrador total', 'RRHH', 'Operaciones', 'Supervisor'] },
-    { key: 'psicotecnico', icon: '🧠', label: 'Psicotécnico', perfiles: ['Administrador total', 'RRHH'] },
-    { key: 'preocupacional', icon: '🏥', label: 'Pre-ocupacional', perfiles: ['Administrador total', 'RRHH'] },
-    { key: 'documentacion', icon: '📄', label: 'Documentación de ingreso', perfiles: ['Administrador total', 'RRHH'] },
-  ]},
-  { section: 'Ingreso', items: [
     { key: 'altas', icon: '✅', label: 'Altas de asociados', perfiles: ['Administrador total', 'RRHH'] },
-    { key: 'legajos', icon: '📁', label: 'Legajos', perfiles: ['Administrador total', 'RRHH', 'Operaciones', 'Finanzas', 'Supervisor', 'Comercial', 'Logística'] },
-    { key: 'reasignaciones', icon: '🔄', label: 'Reasignaciones', badge: 'reas', perfiles: ['Administrador total', 'RRHH', 'Operaciones'] },
-    { key: 'monotributos', icon: '💸', label: 'Monotributos', perfiles: ['Administrador total', 'RRHH', 'Finanzas'] },
-    // Uniformes aparece ACÁ (para RRHH, en el mismo contexto donde ya
-    // trabaja el alta — confirmarAlta() crea el pedido en Borrador y
-    // alguien de RRHH tiene que "elevarlo" para que arranque la cadena
-    // de notificaciones hacia Logística) Y TAMBIÉN en la sección
-    // Logística más abajo (mismo screen, misma pantalla, dos accesos —
-    // ver corrección del ticket "Módulo Logística" 08/2026, día 2).
-    { key: 'uniformes', icon: '👕', label: 'Uniformes', perfiles: ['Administrador total', 'RRHH', 'Operaciones', 'Supervisor', 'Logística'] },
-    { key: 'retenciones', icon: '🔒', label: 'Retenciones', perfiles: ['Administrador total', 'RRHH', 'Finanzas', 'Supervisor'] },
+    { key: 'candidatos', icon: '👥', label: 'Candidatos', perfiles: ['Administrador total', 'RRHH'] },
+    { key: 'documentacion', icon: '📄', label: 'Documentación de ingreso', perfiles: ['Administrador total', 'RRHH'] },
+    { key: 'pedidos', icon: '📋', label: 'Pedidos de personal', perfiles: ['Administrador total', 'RRHH', 'Operaciones', 'Supervisor'] },
+    { key: 'preocupacional', icon: '🏥', label: 'Pre-ocupacional', perfiles: ['Administrador total', 'RRHH'] },
+    { key: 'psicotecnico', icon: '🧠', label: 'Psicotécnico', perfiles: ['Administrador total', 'RRHH'] },
   ]},
-  // "Stock" (nuevo, ticket "Módulo Logística" 08/2026) vive solo acá —
-  // es dominio exclusivo de Logística, no tiene sentido en Ingreso.
   { section: 'Logística', items: [
-    { key: 'uniformes', icon: '👕', label: 'Uniformes', perfiles: ['Administrador total', 'RRHH', 'Operaciones', 'Supervisor', 'Logística'] },
     { key: 'stock', icon: '📦', label: 'Stock', perfiles: ['Administrador total', 'Logística'] },
+    { key: 'uniformes', icon: '👕', label: 'Uniformes', perfiles: ['Administrador total', 'RRHH', 'Operaciones', 'Supervisor', 'Logística'] },
   ]},
   { section: 'Operaciones', items: [
-    { key: 'liquidacion', icon: '📋', label: 'Liquidación de horas', badge: 'liqh', perfiles: ['Administrador total', 'RRHH', 'Operaciones', 'Finanzas', 'Supervisor'] },
     { key: 'liq_admin', icon: '🏢', label: 'Liquidación Administración', badge: 'liqadm', perfiles: ['Administrador total', 'RRHH', 'Finanzas'] },
-    { key: 'retenes', icon: '🔄', label: 'Retenes', perfiles: ['Administrador total', 'RRHH', 'Operaciones', 'Finanzas'] },
+    { key: 'liquidacion', icon: '📋', label: 'Liquidación de horas', badge: 'liqh', perfiles: ['Administrador total', 'RRHH', 'Operaciones', 'Finanzas', 'Supervisor'] },
     { key: 'mantenimiento', icon: '🔧', label: 'Mantenimiento', perfiles: ['Administrador total', 'RRHH', 'Operaciones', 'Finanzas'] },
-    { key: 'sanciones', icon: '⚠️', label: 'Sanciones', perfiles: ['Administrador total', 'RRHH', 'Operaciones', 'Supervisor'] },
-    { key: 'pedidos_adelantos', icon: '💵', label: 'Pedidos de adelantos', perfiles: ['Administrador total', 'RRHH', 'Operaciones', 'Supervisor'] },
-    { key: 'feriados', icon: '📅', label: 'Feriados', perfiles: ['Administrador total', 'RRHH', 'Operaciones'] },
+    { key: 'reasignaciones', icon: '🔄', label: 'Reasignaciones', badge: 'reas', perfiles: ['Administrador total', 'RRHH', 'Operaciones'] },
+    { key: 'retenes', icon: '🔄', label: 'Retenes', perfiles: ['Administrador total', 'RRHH', 'Operaciones', 'Finanzas'] },
   ]},
   { section: 'Comercial', items: [
     { key: 'clientes', icon: '🏢', label: 'Clientes', perfiles: ['Administrador total', 'Operaciones', 'Comercial'] },
-    { key: 'objetivos', icon: '📍', label: 'Servicios', perfiles: ['Administrador total', 'Operaciones', 'Comercial'] },
-    { key: 'precios', icon: '💲', label: 'Gestión de precios', badge: 'prec', perfiles: ['Administrador total', 'Operaciones', 'Comercial'] },
-    { key: 'crm', icon: '📊', label: 'CRM Comercial', badge: 'crm', perfiles: ['Administrador total', 'Operaciones', 'Comercial'] },
-    { key: 'reclamos', icon: '📣', label: 'Reclamos y NC', badge: 'rec', perfiles: ['Administrador total', 'RRHH', 'Operaciones', 'Comercial'] },
-    { key: 'cobros', icon: '💳', label: 'Gestión de cobros', perfiles: ['Administrador total', 'Finanzas', 'Operaciones'] },
     { key: 'comisiones', icon: '🤝', label: 'Comisiones', perfiles: ['Administrador total', 'Finanzas', 'Operaciones', 'Comercial'] },
+    { key: 'crm', icon: '📊', label: 'CRM Comercial', badge: 'crm', perfiles: ['Administrador total', 'Operaciones', 'Comercial'] },
+    { key: 'cobros', icon: '💳', label: 'Gestión de cobros', perfiles: ['Administrador total', 'Finanzas', 'Operaciones'] },
+    { key: 'precios', icon: '💲', label: 'Gestión de precios', badge: 'prec', perfiles: ['Administrador total', 'Operaciones', 'Comercial'] },
+    { key: 'reclamos', icon: '📣', label: 'Reclamos y NC', badge: 'rec', perfiles: ['Administrador total', 'RRHH', 'Operaciones', 'Comercial'] },
+    { key: 'objetivos', icon: '📍', label: 'Servicios', perfiles: ['Administrador total', 'Operaciones', 'Comercial'] },
     { key: 'supervisores', icon: '🧑‍💼', label: 'Supervisores', perfiles: ['Administrador total', 'Operaciones'] },
-  ]},
-  { section: 'Seguimiento', items: [
-    { key: 'legal', icon: '⚖️', label: 'Situaciones legales', badge: 'legal', perfiles: ['Administrador total', 'RRHH'] },
-    { key: 'enfermos', icon: '🏥', label: 'Enfermos y accidentes', badge: 'enf', perfiles: ['Administrador total', 'RRHH', 'Operaciones'] },
-  ]},
-  { section: 'Administración', items: [
-    { key: 'paritarias', icon: '📜', label: 'Paritarias', perfiles: ['Administrador total', 'RRHH', 'Operaciones', 'Finanzas'] },
-    { key: 'categorias', icon: '🏷️', label: 'Categorías', perfiles: ['Administrador total', 'RRHH'] },
-    { key: 'configuracion', icon: '⚙️', label: 'Configuración', perfiles: ['Administrador total'] },
-    { key: 'smvm', icon: '💵', label: 'SMVM histórico', perfiles: ['Administrador total', 'Finanzas'] },
   ]},
   { section: 'Personal', items: [
     { key: 'capacitaciones', icon: '🎓', label: 'Capacitaciones', perfiles: ['Administrador total', 'RRHH', 'Operaciones'] },
-    { key: 'vacaciones', icon: '🏖️', label: 'Vacaciones', perfiles: ['Administrador total', 'RRHH', 'Operaciones'] },
-    { key: 'descansos', icon: '👷', label: 'Descansos', perfiles: ['Administrador total', 'RRHH', 'Operaciones', 'Supervisor'] },
     { key: 'competencia', icon: '🏆', label: 'Competencia anual', perfiles: ['Administrador total', 'RRHH', 'Operaciones', 'Supervisor'] },
+    { key: 'descansos', icon: '👷', label: 'Descansos', perfiles: ['Administrador total', 'RRHH', 'Operaciones', 'Supervisor'] },
+    { key: 'enfermos', icon: '🏥', label: 'Enfermos y accidentes', badge: 'enf', perfiles: ['Administrador total', 'RRHH', 'Operaciones'] },
+    { key: 'legajos', icon: '📁', label: 'Legajos', perfiles: ['Administrador total', 'RRHH', 'Operaciones', 'Finanzas', 'Supervisor', 'Comercial', 'Logística'] },
+    { key: 'sanciones', icon: '⚠️', label: 'Sanciones', perfiles: ['Administrador total', 'RRHH', 'Operaciones', 'Supervisor'] },
+    { key: 'legal', icon: '⚖️', label: 'Situaciones legales', badge: 'legal', perfiles: ['Administrador total', 'RRHH'] },
+    { key: 'vacaciones', icon: '🏖️', label: 'Vacaciones', perfiles: ['Administrador total', 'RRHH', 'Operaciones'] },
+  ]},
+  { section: 'Administración', items: [
+    { key: 'categorias', icon: '🏷️', label: 'Categorías', perfiles: ['Administrador total', 'RRHH'] },
+    { key: 'configuracion', icon: '⚙️', label: 'Configuración', perfiles: ['Administrador total'] },
+    { key: 'feriados', icon: '📅', label: 'Feriados', perfiles: ['Administrador total', 'RRHH', 'Operaciones'] },
+    { key: 'paritarias', icon: '📜', label: 'Paritarias', perfiles: ['Administrador total', 'RRHH', 'Operaciones', 'Finanzas'] },
+    { key: 'smvm', icon: '💵', label: 'SMVM histórico', perfiles: ['Administrador total', 'Finanzas'] },
   ]},
   { section: 'Finanzas', items: [
-    { key: 'liquidaciones', icon: '💰', label: 'Liquidaciones', perfiles: ['Administrador total', 'RRHH', 'Finanzas', 'Supervisor'] },
     { key: 'gestion_adelantos', icon: '🏦', label: 'Gestión de adelantos', perfiles: ['Administrador total', 'Finanzas', 'RRHH'] },
-  ]},
-  { section: '', items: [
+    { key: 'liquidaciones', icon: '💰', label: 'Liquidaciones', perfiles: ['Administrador total', 'RRHH', 'Finanzas', 'Supervisor'] },
+    { key: 'monotributos', icon: '💸', label: 'Monotributos', perfiles: ['Administrador total', 'RRHH', 'Finanzas'] },
+    { key: 'pedidos_adelantos', icon: '💵', label: 'Pedidos de adelantos', perfiles: ['Administrador total', 'RRHH', 'Operaciones', 'Supervisor'] },
     { key: 'sugerencias', icon: '💬', label: 'Reportes y sugerencias', perfiles: ['Administrador total', 'RRHH', 'Operaciones', 'Finanzas', 'Supervisor', 'Comercial', 'Logística', 'Asociado'] },
+    { key: 'retenciones', icon: '🔒', label: 'Retenciones', perfiles: ['Administrador total', 'RRHH', 'Finanzas', 'Supervisor'] },
   ]},
   { section: 'Próximamente', items: [
     { key: 'maquinas', icon: '🔧', label: 'Máquinas', disabled: true, perfiles: [] },
