@@ -10843,6 +10843,183 @@ function proponerRecategorizacion(){
 
 
 // ── Tab tablas de categorías ──
+// ══════════════════════════════════════════════════════════
+// IMPORTADOR CSV — IMPORT_MONOTRIBUTO_completo.xlsx (tema 2, 11/08).
+// Trae clave fiscal/estado CUIT/certificado MiPyME (van a LEGAJOS, no al
+// padrón — son datos del asociado, no de su categoría de monotributo) y
+// adherentes (van al padrón de monotributos). No trae categoría/CUR/zona
+// — ese dato queda para una importación aparte si aparece.
+//
+// Match por N° de socio contra Legajos real. Si no matchea ningún
+// legajo, NO se inventa un legajo ni se descarta el registro entero: se
+// crea/actualiza igual el registro de monotributo (con nroSocio y
+// nombre del csv) pero sin tocar Legajos, y queda listado en "sin
+// match" para que RRHH lo revise a mano.
+//
+// Parser CSV propio (mismo patrón que legajos/importador.js) — sin
+// librerías externas.
+function _parseCSVMono(texto){
+  const finPrimeraLinea=texto.search(/\r\n|\r|\n/);
+  const cabecera=finPrimeraLinea===-1?texto:texto.slice(0,finPrimeraLinea);
+  const delim=cabecera.split(';').length>cabecera.split(',').length?';':',';
+  const filas=[];let fila=[];let campo='';let dentroComillas=false;
+  for(let i=0;i<texto.length;i++){
+    const c=texto[i];
+    if(dentroComillas){
+      if(c==='"'){ if(texto[i+1]==='"'){campo+='"';i++;} else dentroComillas=false; }
+      else campo+=c;
+    } else if(c==='"'){ dentroComillas=true; }
+    else if(c===delim){ fila.push(campo);campo=''; }
+    else if(c==='\n'||c==='\r'){
+      if(c==='\r'&&texto[i+1]==='\n')i++;
+      fila.push(campo);campo='';
+      if(fila.length>1||fila[0]!=='')filas.push(fila);
+      fila=[];
+    } else campo+=c;
+  }
+  if(campo!==''||fila.length){fila.push(campo);filas.push(fila);}
+  return filas;
+}
+function _normHeaderMono(h){
+  return (h||'').trim().toLowerCase()
+    .normalize('NFD').replace(/[̀-ͯ]/g,'')
+    .replace(/[^a-z0-9]+/g,'_').replace(/^_+|_+$/g,'');
+}
+const _ALIAS_MONO={
+  n_socio:'nroSocio', n_de_socio:'nroSocio', nro_socio:'nroSocio',
+  apellidos:'apellidos', nombres:'nombres', puesto:'puesto', activo:'activo',
+  cuit:'cuit', clave_fiscal_arca:'claveFiscal',
+  ultima_actualizacion_clave:'claveFiscalFecha',
+  certificado_mipyme:'mipymeEstado', estado_cuit:'cuitEstado',
+  fecha_verificacion_cuit:'cuitFecha',
+  adherentes_cant:'adherentesCant', monto_adherentes:'adherentesMonto',
+  fecha_alta_adherente:'adherentesFechaAlta',
+  descontar_adherente_si_no:'adherentesDescontar',
+  observacion_adherentes:'adherentesObs',
+};
+function _fechaDMYaISO(f){
+  const m=(f||'').trim().match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if(!m) return null;
+  const [,d,mes,y]=m;
+  return `${y}-${mes.padStart(2,'0')}-${d.padStart(2,'0')}`;
+}
+function _numArg(v){
+  // "25694,54" (coma decimal AR) → 25694.54. Vacío/guion → 0.
+  const t=(v||'').trim().replace(/\./g,'').replace(',','.');
+  const n=parseFloat(t);
+  return isNaN(n)?0:n;
+}
+let _monoImportFilas=null;
+function abrirImportadorMonotributo(){
+  ensureModalImportMono();
+  _monoImportFilas=null;
+  $('mono-import-resultado').innerHTML='';
+  $('mono-import-file').value='';
+  abrirModal('modal-import-mono');
+}
+function ensureModalImportMono(){
+  if($('modal-import-mono')) return;
+  const m=document.createElement('div');
+  m.className='modal-overlay';
+  m.id='modal-import-mono';
+  m.innerHTML=`
+    <div class="modal" style="max-width:600px;">
+      <div class="modal-header"><h3>📥 Importar Monotributo (CSV)</h3><button class="btn-close" onclick="cerrarModal('modal-import-mono')">×</button></div>
+      <div class="modal-body">
+        <p style="font-size:12.5px;color:var(--texto-suave);">Trae clave fiscal, estado de CUIT, certificado MiPyME (van a Legajos) y adherentes (van al padrón de Monotributo). Match por N° de socio.</p>
+        <input type="file" id="mono-import-file" accept=".csv" onchange="seleccionarArchivoImportMono()">
+        <div id="mono-import-resultado" style="margin-top:14px;"></div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="cerrarModal('modal-import-mono')">Cancelar</button>
+        <button class="btn btn-primary" id="mono-import-btn-confirmar" style="display:none;" onclick="confirmarImportMonotributo()">Confirmar importación</button>
+      </div>
+    </div>`;
+  document.body.appendChild(m);
+}
+function seleccionarArchivoImportMono(){
+  const input=$('mono-import-file');
+  const file=input?.files?.[0];
+  if(!file) return;
+  const reader=new FileReader();
+  reader.onload=e=>{
+    const texto=String(e.target.result||'');
+    const filas=_parseCSVMono(texto);
+    if(!filas.length){ toast('⚠️ El archivo está vacío'); return; }
+    const headers=filas[0].map(h=>_ALIAS_MONO[_normHeaderMono(h)]||_normHeaderMono(h));
+    const datos=filas.slice(1).filter(f=>f.some(v=>(v||'').trim()!==''))
+      .map(f=>{ const o={}; headers.forEach((h,i)=>{o[h]=(f[i]||'').trim();}); return o; })
+      .filter(o=>o.nroSocio&&/^\d+$/.test(o.nroSocio));
+    if(!datos.length){ toast('⚠️ No se encontraron filas con N° de socio válido'); return; }
+    _monoImportFilas=datos;
+    const conMatch=datos.filter(o=>(DB.legajos||[]).some(l=>String(l.nro)===o.nroSocio)).length;
+    $('mono-import-resultado').innerHTML=`
+      <div class="alerta alerta-info" style="font-size:12.5px;">
+        ${datos.length} persona(s) en el archivo — ${conMatch} con legajo encontrado por N° de socio, ${datos.length-conMatch} sin match (se crea/actualiza igual el registro de monotributo, sin tocar Legajos).
+      </div>`;
+    $('mono-import-btn-confirmar').style.display='inline-flex';
+  };
+  reader.readAsText(file,'UTF-8');
+}
+function confirmarImportMonotributo(){
+  if(!_monoImportFilas||!_monoImportFilas.length){ toast('⚠️ Elegí un archivo primero'); return; }
+  let legajosActualizados=0,monoActualizados=0,monoCreados=0,sinMatch=0;
+  const noDescuentaAdherente=[];
+  _monoImportFilas.forEach(o=>{
+    const leg=(DB.legajos||[]).find(l=>String(l.nro)===o.nroSocio);
+    const nombreCompleto=`${o.apellidos||''} ${o.nombres||''}`.trim();
+    if(leg){
+      if(o.claveFiscal&&o.claveFiscal!=='SIN CLAVE') leg.claveFiscal=o.claveFiscal;
+      const fechaClave=_fechaDMYaISO(o.claveFiscalFecha);
+      if(fechaClave) leg.claveFiscalFechaActualizacion=fechaClave;
+      if(o.mipymeEstado) leg.mipymeEstado=o.mipymeEstado;
+      if(o.cuitEstado) leg.cuitEstado=o.cuitEstado;
+      const fechaCuit=_fechaDMYaISO(o.cuitFecha);
+      if(fechaCuit) leg.cuitFechaVerificacion=fechaCuit;
+      supaSync('legajos', leg);
+      legajosActualizados++;
+    } else sinMatch++;
+
+    let mono=(DB.monotributos||[]).find(m=>String(m.nroSocio)===o.nroSocio);
+    const adherentesCant=parseInt(o.adherentesCant)||0;
+    const adherentesMonto=_numArg(o.adherentesMonto);
+    const descuenta=(o.adherentesDescontar||'').trim().toUpperCase();
+    if(adherentesCant>0&&descuenta==='NO'){
+      noDescuentaAdherente.push(`${leg?leg.nombre:nombreCompleto} (N° ${o.nroSocio})`);
+    }
+    const obsPartes=[];
+    if(o.adherentesObs) obsPartes.push(o.adherentesObs);
+    if(adherentesCant>0&&descuenta==='NO') obsPartes.push('⚠️ Adherente cargado pero marcado NO descontar en el import — revisar manualmente antes de que entre en el TAB de pago mensual.');
+    const obs=obsPartes.join(' — ');
+    if(mono){
+      mono.cuit=o.cuit||mono.cuit;
+      mono.adherentesCantidad=adherentesCant;
+      mono.adherentesMonto=adherentesMonto;
+      if(obs) mono.obs=obs;
+      supaSync('monotributos', mono);
+      monoActualizados++;
+    } else if(adherentesCant>0||o.cuit){
+      // Solo se crea un registro nuevo en el padrón si el import trae
+      // algo real para esa persona (adherentes o CUIT) — si no, no hay
+      // nada que agregar y se evita un registro vacío sin categoría.
+      const nuevo={
+        id:Date.now()+Math.floor(Math.random()*1000),
+        nombre:leg?leg.nombre:nombreCompleto, nroSocio:o.nroSocio, cuit:o.cuit||'',
+        categoria:'', zona:'provincia', obraSocial:false, cur:0, estado:'Al día',
+        adherentesCantidad:adherentesCant, adherentesMonto, obs,
+        historialCategorias:[],
+      };
+      DB.monotributos.push(nuevo);
+      supaSync('monotributos', nuevo);
+      monoCreados++;
+    }
+  });
+  cerrarModal('modal-import-mono');
+  renderMonotributos();
+  toast(`✅ Importado: ${legajosActualizados} legajo(s) actualizados, ${monoActualizados} monotributo(s) actualizados, ${monoCreados} creados${sinMatch?`, ${sinMatch} sin legajo`:''}`,9000);
+  if(noDescuentaAdherente.length) toast(`⚠️ ${noDescuentaAdherente.length} persona(s) con adherente marcado 'NO descontar' en el archivo — el TAB de pago mensual hoy no distingue esto todavía, va a incluir su monto igual que los demás. Revisar a mano: ${noDescuentaAdherente.slice(0,5).join(', ')}${noDescuentaAdherente.length>5?'…':''}`,15000);
+}
+
 function tabMonotributos(tab, btn){
   document.querySelectorAll('#screen-monotributos .tab-content').forEach(t=>t.classList.remove('active'));
   document.querySelectorAll('#screen-monotributos .tab-btn').forEach(b=>b.classList.remove('active'));
@@ -13207,6 +13384,9 @@ window.tabLiqAdmin = tabLiqAdmin;
 window.tabLiquidacion = tabLiquidacion;
 window.tabMantenimiento = tabMantenimiento;
 window.tabMonotributos = tabMonotributos;
+window.abrirImportadorMonotributo = abrirImportadorMonotributo;
+window.seleccionarArchivoImportMono = seleccionarArchivoImportMono;
+window.confirmarImportMonotributo = confirmarImportMonotributo;
 window.abrirMesMonoPagos = abrirMesMonoPagos;
 window.renderMonoPagos = renderMonoPagos;
 window.tildarPagoMono = tildarPagoMono;
