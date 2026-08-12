@@ -1061,7 +1061,7 @@ export async function pasarAPsicoPorId(id) {
     id: Date.now(), candidatoId: idLocalCand(c.id), nombre: (c.apellido ? c.apellido + ' ' : '') + c.nombre, dni: c.dni, zona: c.zona, localidad: c.localidad || '', partido: c.partido || '', tel: c.tel, rrhh: (DB.personalRrhh || []).find(p => p.id === c.rrhhId)?.nombre || '',
     psicotecnico: 'Pendiente', prelaboral: 'Pendiente', antecedentes: 'No requerido', libretaSanitaria: 'No requerido',
     requiereAntecedentes: false, requiereLibreta: false, estado: 'En proceso',
-    fecha: new Date().toLocaleDateString('es-AR'), obs: '',
+    fecha: new Date().toLocaleDateString('es-AR'), fechaRealizacion: null, obs: '',
   };
   const okPsico = await supaSync('psicos', p);
   if (!okPsico) { toast(mensajeErrorGuardado('⚠️ No se pudo enviar a Psicotécnico — reintentá o avisá a sistemas')); return; }

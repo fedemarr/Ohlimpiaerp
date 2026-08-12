@@ -57,13 +57,31 @@ function yaIngresadoPsico(dni) {
   return (DB.catAltPendientes || []).some(a => dni && a.dni === dni && a.estado === 'Alta completada');
 }
 
+// Fecha de realización del psicotécnico (v083). Se guarda en ISO
+// (YYYY-MM-DD, nativo del input date) para que el orden lexicográfico
+// coincida con el cronológico. Display en DD/MM/AAAA; NULL/vacío → '—'.
+const fmtFechaRealizacion = f => (f || '').split('-').reverse().join('/') || '—';
+
+// Orden por fecha de realización ascendente (quienes lo hicieron primero
+// se llaman primero). Registros sin fecha van al final — no rompe ni el
+// listado ni el ordenamiento (ticket: fecha vacía en registros antiguos).
+const porFechaRealizacion = (a, b) => {
+  if (!a.fechaRealizacion && !b.fechaRealizacion) return 0;
+  if (!a.fechaRealizacion) return 1;
+  if (!b.fechaRealizacion) return -1;
+  return a.fechaRealizacion < b.fechaRealizacion ? -1 : a.fechaRealizacion > b.fechaRealizacion ? 1 : 0;
+};
+
 export function renderPsico(lista) {
   const todos = (DB.psicos || []).filter(p => !yaIngresadoPsico(p.dni));
-  const activos = todos.filter(p => p.estado === 'En proceso');
-  const historico = todos.filter(p => p.estado !== 'En proceso');
+  // Orden por fecha de realización ascendente (más antiguos primero) para
+  // respaldar el criterio de llamado por antigüedad.
+  const activos = todos.filter(p => p.estado === 'En proceso').sort(porFechaRealizacion);
+  const historico = todos.filter(p => p.estado !== 'En proceso').sort(porFechaRealizacion);
 
-  // Si recibe lista filtrada, usarla; si no, usar tab activo
-  const listaFinal = lista || (_psicoTab === 'historico' ? historico : activos);
+  // Si recibe lista filtrada, usarla; si no, usar tab activo. Se ordena
+  // igual al final para que el criterio aplique también a los filtros.
+  const listaFinal = (lista || (_psicoTab === 'historico' ? historico : activos)).slice().sort(porFechaRealizacion);
 
   // Stats
   const ss = (id, v) => { const e = $(id); if (e) e.textContent = v; };
@@ -75,7 +93,7 @@ export function renderPsico(lista) {
   if (!tbody) return;
 
   if (!listaFinal.length) {
-    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:30px;color:#94a3b8;">'
+    tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:30px;color:#94a3b8;">'
       + (_psicoTab === 'historico' ? 'Sin registros en histórico' : 'Sin candidatos en proceso')
       + '</td></tr>';
     return;
@@ -88,6 +106,7 @@ export function renderPsico(lista) {
       + '<td style="padding:8px;font-size:12px;color:#64748b;">' + (p.dni || '—') + '</td>'
       + '<td style="padding:8px;font-size:12px;">' + (p.zona || '—') + '</td>'
       + '<td style="padding:8px;font-size:12px;">' + (p.localidad || '—') + '</td>'
+      + '<td style="padding:8px;font-size:12px;">' + fmtFechaRealizacion(p.fechaRealizacion) + '</td>'
       + '<td style="padding:8px;text-align:center;">' + textoPsico(p.psicotecnico) + '</td>'
       + '<td style="padding:8px;text-align:center;font-size:11px;font-weight:600;color:' + ec + '">' + p.estado + '</td>'
       + '<td style="padding:8px;text-align:center;">'
@@ -161,6 +180,7 @@ export function guardarPsico() {
     preocup: $('ps-preocup').value,
     estado: $('ps-estado').value,
     fecha: new Date().toLocaleDateString('es-AR'),
+    fechaRealizacion: ($('ps-fecha-realizacion') || { value: '' }).value || null,
     obs: $('ps-obs').value,
   });
   cerrarModal('modal-psico');
@@ -186,6 +206,7 @@ export function abrirGestionPsico(id) {
   $('psico-gest-idx').value = p.id;
   $('psico-gest-nombre').textContent = p.nombre;
   $('pg-psicotecnico').value = p.psicotecnico || 'Pendiente';
+  $('pg-fecha-realizacion').value = p.fechaRealizacion || '';
   $('pg-obs').value = p.obs || '';
   const moEl = $('pg-motivo-noapto');
   if (moEl) moEl.value = p.motivoRechazo || '';
@@ -219,6 +240,9 @@ function crearHTMLModalPsico() {
             '<select id="pg-psicotecnico" onchange="actualizarBotonesAprobacion()" style="width:100%;padding:8px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;">',
               '<option>Pendiente</option><option>Apto</option><option>Apto+</option><option>Apto-</option><option>Apto condicional</option><option>No Apto</option>',
             '</select></div>',
+          '<div class="form-group"><label>📅 Fecha de realización</label>',
+            '<input type="date" id="pg-fecha-realizacion" style="width:100%;padding:8px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;">',
+          '</div>',
         '</div>',
         '<div id="pg-motivo-noapto-row" class="form-group" style="display:none;margin-top:8px;background:#fef2f2;border:1px solid #fca5a5;border-radius:8px;padding:10px;">',
           '<label style="color:#991b1b;font-weight:600;">⚠️ Motivo / observaciones del No Apto *</label>',
@@ -405,6 +429,7 @@ export function guardarEtapasPsico() {
     p.motivoRechazo = motivo.trim();
   }
   p.psicotecnico = psicoVal;
+  p.fechaRealizacion = ($('pg-fecha-realizacion') || {}).value || null;
   p.obs = $('pg-obs').value;
   supaSync('psicos', p);
   actualizarBotonesAprobacion();

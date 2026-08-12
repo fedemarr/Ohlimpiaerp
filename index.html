@@ -385,6 +385,7 @@
           <th style="padding:10px 8px;text-align:left;">DNI</th>
           <th style="padding:10px 8px;text-align:left;">Zona</th>
           <th style="padding:10px 8px;text-align:left;">Localidad</th>
+          <th style="padding:10px 8px;text-align:left;">📅 Fecha realización</th>
           <th style="padding:10px 8px;text-align:center;">🧠 Psicotécnico</th>
           <th style="padding:10px 8px;text-align:center;">Estado</th>
           <th style="padding:10px 8px;text-align:center;">Acciones</th>
@@ -5129,7 +5130,10 @@
           <div class="form-group"><label>Resultado psicotécnico</label><select id="ps-resultado"><option>Apto</option><option>No apto</option><option>Apto condicional</option><option>Pendiente</option><option>No realizó</option></select></div>
           <div class="form-group"><label>Preocupacional</label><select id="ps-preocup"><option>Realizado</option><option>Pendiente</option><option>No requiere</option></select></div>
         </div>
-        <div class="form-group"><label>Estado final</label><select id="ps-estado"><option>En proceso</option><option>Ingreso</option><option>Baja</option></select></div>
+        <div class="form-grid form-grid-2">
+          <div class="form-group"><label>Fecha de realización</label><input type="date" id="ps-fecha-realizacion"></div>
+          <div class="form-group"><label>Estado final</label><select id="ps-estado"><option>En proceso</option><option>Ingreso</option><option>Baja</option></select></div>
+        </div>
         <div class="form-group"><label>Observaciones</label><textarea id="ps-obs"></textarea></div>
       </div>
     </div>
