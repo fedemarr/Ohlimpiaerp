@@ -11083,6 +11083,232 @@ function confirmarImportMonotributo(){
   }
 }
 
+// ========== IMPORTADOR CSV — LIQUIDACIÓN DE HORAS ==========
+// Trae la grilla mensual ya calculada por servicio/persona/tipo de hora
+// (una fila por combinación, HS MES/VALOR HORA/RETIRO MES ya resueltos por
+// el proceso que arma el archivo). Se importa como dato de REFERENCIA: no
+// se recalculan pagos a partir de las celdas diarias (eso sería reinventar
+// el cálculo con riesgo real de errar plata de gente real) — se usan los
+// totales que el propio archivo ya trae (RETIRO MES = HS MES × VALOR HORA).
+function _headerIdxLiq(headers){
+  const norm=h=>(h||'').trim();
+  const upper=h=>norm(h).toUpperCase();
+  const soloLetras=h=>upper(h).replace(/[^A-Z]/g,'');
+  const idx={dias:[]};
+  headers.forEach((h,i)=>{
+    const u=upper(h);
+    if(u==='AREA') idx.area=i;
+    else if(u.startsWith('SERVICIO')) idx.servicio=i; // tolera "SERVICIO (cÃ³digo)" con encoding roto
+    else if(u.startsWith('HOJA ORIGEN')) idx.hojaOrigen=i;
+    else if(u==='SUPERVISOR') idx.supervisor=i;
+    else if(u==='APELLIDO Y NOMBRE') idx.nombre=i;
+    else if(u==='TIPO HR') idx.tipoHr=i;
+    else if(u==='FACTURABLE') idx.facturable=i;
+    else if(u==='HS MES') idx.hsMes=i;
+    else if(u==='VALOR HORA') idx.valorHora=i;
+    else if(u==='RETIRO MES') idx.retiroMes=i;
+    else if(u==='CATEGORIA FIJA') idx.catFija=i;
+    else if(u==='VALOR CAT FIJA') idx.valorCatFija=i;
+    else if(u==='CATEGORIA TEMPORAL') idx.catTemp=i;
+    else if(u==='VALOR CAT TEMPORAL') idx.valorCatTemp=i;
+    else if(u==='VALOR A TOMAR') idx.valorATomar=i;
+    else if(u==='ESTADO SERVICIO') idx.estadoServicio=i;
+    else if(u==='MODULO DESTINO') idx.moduloDestino=i;
+    else if(idx.nroSocio===undefined && soloLetras(h).includes('SOCIO')) idx.nroSocio=i; // "NÂ° SOCIO" con encoding roto
+    else { const m=norm(h).match(/^(\d{1,2})\/(\d{1,2})$/); if(m) idx.dias.push({i,dd:m[1].padStart(2,'0'),mm:m[2].padStart(2,'0')}); }
+  });
+  return idx;
+}
+const _CODIGOS_ESPECIALES_LIQ=new Set(['F','AJ','AI','BAJA','VAC','ART','FER','FR','LIC','RENUNCIA']);
+function _valorDiaLiq(raw){
+  const v=(raw||'').trim();
+  if(!v) return null;
+  const up=v.toUpperCase();
+  if(_CODIGOS_ESPECIALES_LIQ.has(up)) return up;
+  if(/^-?[\d.,]+$/.test(v)) return _numArg(v);
+  return up; // texto no reconocido (ej. filas con datos corridos) — se preserva, no se descarta
+}
+function _tipoHoraDesdeCSV(tipoHr){
+  const t=(tipoHr||'').trim().toUpperCase();
+  if(t==='HRS FAC'||t==='HRS EXTRAS FAC') return 'facturable';
+  if(t==='HRS ART 42') return 'art42';
+  if(t==='HRS RET NO FAC') return 'reten';
+  if(t==='HRS TRAB ESP NO FAC'||t==='HRS NO FAC') return 'no_facturable';
+  return null; // desconocido — no se adivina, se reporta en el resumen
+}
+let _liqImportFilas=null,_liqImportIdx=null;
+function abrirImportadorLiquidacion(){
+  ensureModalImportLiq();
+  _liqImportFilas=null; _liqImportIdx=null;
+  $('liq-import-resultado').innerHTML='';
+  $('liq-import-file').value='';
+  if($('liq-import-periodo')) $('liq-import-periodo').value=$('liq-mes-sel')?.value||'';
+  $('liq-import-btn-confirmar').style.display='none';
+  abrirModal('modal-import-liq');
+}
+function ensureModalImportLiq(){
+  if($('modal-import-liq')) return;
+  const m=document.createElement('div');
+  m.className='modal-overlay';
+  m.id='modal-import-liq';
+  m.innerHTML=`
+    <div class="modal" style="max-width:640px;">
+      <div class="modal-header"><h3>📥 Importar Liquidación de Horas (CSV)</h3><button class="btn-close" onclick="cerrarModal('modal-import-liq')">×</button></div>
+      <div class="modal-body">
+        <p style="font-size:12.5px;color:var(--texto-suave);">Trae la grilla ya calculada por servicio/persona/tipo de hora (HS MES, valor hora, retiro del mes) tal como viene del archivo. Solo se importan las filas con MÓDULO DESTINO = LIQUIDACION DE HORAS — las de Mantenimiento/Retenes no se tocan acá. Si un servicio/período ya tiene una grilla armada a mano en la app, no se pisa.</p>
+        <div style="margin-bottom:10px;">
+          <label style="font-size:12px;font-weight:600;">Período (el archivo no trae el año) <input type="month" id="liq-import-periodo" style="margin-left:8px;padding:5px 8px;border:1px solid var(--borde-fuerte);border-radius:var(--radio);"></label>
+        </div>
+        <input type="file" id="liq-import-file" accept=".csv" onchange="seleccionarArchivoImportLiq()">
+        <div id="liq-import-resultado" style="margin-top:14px;"></div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="cerrarModal('modal-import-liq')">Cancelar</button>
+        <button class="btn btn-primary" id="liq-import-btn-confirmar" style="display:none;" onclick="confirmarImportLiquidacion()">Confirmar importación</button>
+      </div>
+    </div>`;
+  document.body.appendChild(m);
+}
+function seleccionarArchivoImportLiq(){
+  const periodo=$('liq-import-periodo')?.value;
+  if(!periodo){ toast('⚠️ Elegí primero el período (mes/año) — el archivo no lo trae'); if($('liq-import-file')) $('liq-import-file').value=''; return; }
+  const input=$('liq-import-file');
+  const file=input?.files?.[0];
+  if(!file) return;
+  const reader=new FileReader();
+  reader.onload=e=>{
+    const texto=String(e.target.result||'');
+    const filas=_parseCSVMono(texto); // parser genérico, reutilizado (sin lógica propia de Monotributo)
+    if(!filas.length){ toast('⚠️ El archivo está vacío'); return; }
+    const idx=_headerIdxLiq(filas[0]);
+    if(idx.servicio===undefined||idx.tipoHr===undefined||!idx.dias.length){
+      toast('⚠️ No se reconocen las columnas esperadas (SERVICIO, TIPO HR, días DD/MM) — revisar el archivo');
+      return;
+    }
+    const datos=filas.slice(1).filter(f=>f.some(v=>(v||'').trim()!==''));
+    if(!datos.length){ toast('⚠️ No se encontraron filas de datos'); return; }
+    _liqImportFilas=datos; _liqImportIdx=idx;
+
+    const filasLiq=datos.filter(f=>(f[idx.moduloDestino]||'').trim().toUpperCase()==='LIQUIDACION DE HORAS');
+    const filasOtroDestino=datos.length-filasLiq.length;
+    const serviciosLiq=new Set(filasLiq.map(f=>(f[idx.servicio]||'').trim()).filter(Boolean));
+    const tiposDesconocidos=new Set();
+    filasLiq.forEach(f=>{ if(!_tipoHoraDesdeCSV(f[idx.tipoHr])) tiposDesconocidos.add((f[idx.tipoHr]||'').trim()); });
+
+    $('liq-import-resultado').innerHTML=`
+      <div class="alerta alerta-info" style="font-size:12.5px;">
+        Período: <strong>${periodo}</strong> · ${filasLiq.length} fila(s) para Liquidación de horas, en ${serviciosLiq.size} servicio(s).
+        ${filasOtroDestino?`<br>${filasOtroDestino} fila(s) con otro módulo destino (Mantenimiento/Retenes/etc.) — no se importan acá.`:''}
+        ${tiposDesconocidos.size?`<br>⚠️ TIPO HR no reconocido, se van a importar como "no facturable" para no perder el dato: ${[...tiposDesconocidos].join(', ')}`:''}
+      </div>`;
+    $('liq-import-btn-confirmar').style.display='inline-flex';
+  };
+  reader.readAsText(file,'UTF-8');
+}
+function confirmarImportLiquidacion(){
+  if(!_liqImportFilas||!_liqImportIdx){ toast('⚠️ Elegí un archivo primero'); return; }
+  const periodo=$('liq-import-periodo')?.value;
+  if(!periodo){ toast('⚠️ Falta el período'); return; }
+  const idx=_liqImportIdx;
+  const [anio]=periodo.split('-');
+  let grillasCreadas=0, entradasImportadas=0, sinServicio=0;
+  const serviciosSinObjetivo=new Set(), serviciosActualizados=new Set(), serviciosOmitidosManual=new Set(), gruposLimpiados=new Set();
+
+  const filasLiq=_liqImportFilas.filter(f=>(f[idx.moduloDestino]||'').trim().toUpperCase()==='LIQUIDACION DE HORAS');
+
+  filasLiq.forEach(f=>{
+    const codigoServ=(f[idx.servicio]||'').trim();
+    if(!codigoServ){ sinServicio++; return; }
+    if(serviciosOmitidosManual.has(codigoServ)) return;
+
+    let grilla=(DB.grillasLiq||[]).find(g=>g.periodo===periodo&&g.objCodigo===codigoServ);
+    if(grilla&&!grilla.importadoDeCSV){
+      // Grilla armada a mano en la app (crearGrillaDesdeObj) — no se mezcla
+      // ni se pisa con datos del import, para no perder edición manual.
+      serviciosOmitidosManual.add(codigoServ);
+      return;
+    }
+    const obj=(DB.objetivos||[]).find(o=>o.codigo===codigoServ);
+    if(!obj) serviciosSinObjetivo.add(codigoServ);
+
+    if(!grilla){
+      grilla={
+        id:'GRL-'+Date.now()+'-'+Math.floor(Math.random()*1000), periodo, tipo:'servicio',
+        objCodigo:codigoServ, nombre:obj?obj.nombre:codigoServ,
+        supervisor:(f[idx.supervisor]||'').trim()||(obj?.supervisor||''),
+        efts:obj?.efts||null, horasEFT:obj?.efts?obj.efts*200:null,
+        horasContratadas:null,
+        asociados:[], estado:'Abierta', alertaEFT:null,
+        totalHorasFacturables:0, totalHorasNoFacturables:0, totalAPagar:0,
+        importadoDeCSV:true,
+      };
+      DB.grillasLiq.push(grilla);
+      grillasCreadas++;
+    } else if(!gruposLimpiados.has(codigoServ)){
+      // Reimportación del mismo servicio/período: se reemplaza por completo
+      // (no se mezcla) para no duplicar entradas si el archivo se vuelve a
+      // cargar — mismo criterio de "reemplazo, no fusión" que se usó para
+      // la carga de servicios/supervisores (ver comentario en DB.servicios,
+      // state.js).
+      grilla.asociados=[];
+      gruposLimpiados.add(codigoServ);
+      serviciosActualizados.add(codigoServ);
+    }
+
+    const nroSocio=(f[idx.nroSocio]||'').trim();
+    const nombre=(f[idx.nombre]||'').trim();
+    const tipoHora=_tipoHoraDesdeCSV(f[idx.tipoHr])||'no_facturable';
+    const horas={};
+    idx.dias.forEach(d=>{
+      const val=_valorDiaLiq(f[d.i]);
+      if(val===null) return;
+      horas[`${anio}-${d.mm}-${d.dd}`]=val;
+    });
+    const categoria=(f[idx.catTemp]||'').trim()||(f[idx.catFija]||'').trim();
+
+    grilla.asociados.push({
+      id:(nroSocio||'SN')+'-'+(f[idx.tipoHr]||'').trim().replace(/\s+/g,'')+'-'+Date.now()+Math.floor(Math.random()*10000),
+      nro:nroSocio, nombre, categoria,
+      horas, facturable:{}, motivoNoFact:{}, infoEFT:{},
+      tipoHora, motivoTipo:'', esExtra:(f[idx.tipoHr]||'').toUpperCase().includes('EXTRA'), esEnfermedad:false,
+      // Datos tal como vienen del archivo — referencia informativa, no se
+      // recalculan (ver nota al inicio de esta sección).
+      importado:{
+        tipoHrOriginal:(f[idx.tipoHr]||'').trim(),
+        facturableCSV:(f[idx.facturable]||'').trim(),
+        hsMes:_numArg(f[idx.hsMes]),
+        valorHora:_numArg(f[idx.valorHora]),
+        retiroMes:_numArg(f[idx.retiroMes]),
+        categoriaFija:(f[idx.catFija]||'').trim(),
+        valorCatFija:_numArg(f[idx.valorCatFija]),
+        categoriaTemporal:(f[idx.catTemp]||'').trim(),
+        valorCatTemporal:_numArg(f[idx.valorCatTemp]),
+        valorATomar:_numArg(f[idx.valorATomar]),
+        estadoServicio:(f[idx.estadoServicio]||'').trim(),
+        hojaOrigen:(f[idx.hojaOrigen]||'').trim(),
+      },
+    });
+    entradasImportadas++;
+  });
+
+  const gruposDelPeriodo=new Set(filasLiq.map(f=>(f[idx.servicio]||'').trim()).filter(Boolean));
+  gruposDelPeriodo.forEach(codigoServ=>{
+    if(serviciosOmitidosManual.has(codigoServ)) return;
+    const grilla=(DB.grillasLiq||[]).find(g=>g.periodo===periodo&&g.objCodigo===codigoServ);
+    if(!grilla) return;
+    grilla.totalAPagar=(grilla.asociados||[]).reduce((s,a)=>s+(a.importado?.retiroMes||0),0);
+    grilla.totalHorasFacturables=(grilla.asociados||[]).filter(a=>a.tipoHora==='facturable').reduce((s,a)=>s+(a.importado?.hsMes||0),0);
+    grilla.totalHorasNoFacturables=(grilla.asociados||[]).filter(a=>a.tipoHora!=='facturable').reduce((s,a)=>s+(a.importado?.hsMes||0),0);
+    supaSync('grillasLiq', grilla);
+  });
+
+  cerrarModal('modal-import-liq');
+  renderGrillasLiq();
+  toast(`✅ Importado: ${grillasCreadas} grilla(s) nueva(s), ${serviciosActualizados.size} reemplazada(s), ${entradasImportadas} entrada(s) de persona/tipo de hora${sinServicio?`, ${sinServicio} fila(s) sin código de servicio`:''}`,10000);
+  if(serviciosOmitidosManual.size) toast(`⚠️ ${serviciosOmitidosManual.size} servicio(s) ya tenían una grilla armada a mano en la app para este período — no se tocaron: ${[...serviciosOmitidosManual].slice(0,8).join(', ')}${serviciosOmitidosManual.size>8?'…':''}`,15000);
+  if(serviciosSinObjetivo.size) toast(`⚠️ ${serviciosSinObjetivo.size} código(s) de servicio sin Objetivo/Cliente cargado en Comercial (se creó la grilla igual, con el código como nombre): ${[...serviciosSinObjetivo].slice(0,8).join(', ')}${serviciosSinObjetivo.size>8?'…':''}`,15000);
+}
+
 function tabMonotributos(tab, btn){
   document.querySelectorAll('#screen-monotributos .tab-content').forEach(t=>t.classList.remove('active'));
   document.querySelectorAll('#screen-monotributos .tab-btn').forEach(b=>b.classList.remove('active'));
@@ -13450,6 +13676,9 @@ window.tabMonotributos = tabMonotributos;
 window.abrirImportadorMonotributo = abrirImportadorMonotributo;
 window.seleccionarArchivoImportMono = seleccionarArchivoImportMono;
 window.confirmarImportMonotributo = confirmarImportMonotributo;
+window.abrirImportadorLiquidacion = abrirImportadorLiquidacion;
+window.seleccionarArchivoImportLiq = seleccionarArchivoImportLiq;
+window.confirmarImportLiquidacion = confirmarImportLiquidacion;
 window.abrirMesMonoPagos = abrirMesMonoPagos;
 window.renderMonoPagos = renderMonoPagos;
 window.tildarPagoMono = tildarPagoMono;
