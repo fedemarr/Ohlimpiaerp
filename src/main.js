@@ -40,6 +40,7 @@ import './modules/servicios_supervisor/index.js';
 import { sincronizarServiciosSupervisor } from './modules/servicios_supervisor/index.js';
 import './modules/comercial_importador/index.js';
 import { supervisoresScreenConfig } from './modules/supervisores/index.js';
+import { supervisionScreenConfig } from './modules/supervision/index.js';
 import { descuentosScreenConfig } from './modules/descuentos/index.js';
 import { pedidoProductosScreenConfig } from './modules/pedido_productos/index.js';
 
@@ -95,6 +96,7 @@ registerScreens(pedidosAdelantosScreenConfig);
 registerScreens(gestionAdelantosScreenConfig);
 registerScreens(sugerenciasScreenConfig);
 registerScreens(supervisoresScreenConfig);
+registerScreens(supervisionScreenConfig);
 registerScreens(descuentosScreenConfig);
 registerScreens(pedidoProductosScreenConfig);
 

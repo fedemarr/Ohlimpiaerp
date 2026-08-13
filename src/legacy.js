@@ -8,7 +8,7 @@ import { toast, abrirModal, cerrarModal, activarOrdenamiento } from '@shared/ui.
 import { supaSync, supaDel, supaInit } from '@shared/supabase.js';
 import { crearNotificacion } from '@shared/notificaciones.js';
 import { obtenerValorHoraVigente, getCategoriaById } from './modules/categorias/consultas.js';
-import { pctComisionSupervisor } from './modules/supervisores/supervisores.js';
+import { pctEfectivoObjetivo, pctEfectivoCliente, pctGeneralVigente, esEditorSupervision, esMismoSupervisor, adicionalSupervisionDe, detalleAdicionalSupervision } from './modules/supervision/supervision.js';
 import { listarAdjuntos, obtenerUrlFirmada, subirAdjunto, borrarAdjunto, MAX_SIZE as ADJ_MAX_SIZE } from '@shared/adjuntos.js';
 
 // ========== ESTADO ==========
@@ -1455,6 +1455,7 @@ function verCliente(idLocal){
       <div class="info-item"><div class="key">Ingresos brutos</div><div class="val">${c.ingresosBrutos||'—'}</div></div>
       <div class="info-item"><div class="key">Jurisdicción IIBB</div><div class="val">${c.jurisdiccionIibb||'—'}</div></div>
       <div class="info-item"><div class="key">Responsable</div><div class="val">${c.responsable||'—'}${c.responsableTipo==='Externo'?' <span class="chip" style="font-size:10px;">Externo</span>'+(c.responsableContacto?' · '+c.responsableContacto:''):''}</div></div>
+      <div class="info-item"><div class="key">% supervisión <span class="chip" style="font-size:9px;background:var(--verde-claro);color:var(--verde);">${pctEfectivoCliente(c).origen==='cliente'?'CLIENTE':'GENERAL'}</span></div><div class="val">${pctEfectivoCliente(c).pct.toFixed(2).replace('.', ',')}% <a style="cursor:pointer;color:var(--azul);font-size:10px;text-decoration:underline;margin-left:2px;" onclick="navTo('supervision');cerrarModal('modal-ver-pedido')">gestionar en Supervisión →</a></div></div>
     </div>
     <div>
       <div style="font-size:11px;font-weight:700;text-transform:uppercase;color:var(--texto-suave);margin-bottom:8px;">Contactos clave</div>
@@ -2465,6 +2466,11 @@ function recomendarSupervisoresParaObjetivo(o){
   const yaAsignados=new Set(supervisoresDelObjetivo(o));
   const facturacionNeta=calcularFacturacionMensualObjetivo(o)||0;
   const cantFinal=yaAsignados.size+1;
+  // Ticket 13/08: el % ya no es del supervisor (se eliminó el % propio del
+  // catálogo, sql/v086). El % es del SERVICIO (cascada GENERAL → CLIENTE →
+  // SERVICIO) y se divide en partes iguales entre los supervisores.
+  const pctServicio=pctEfectivoObjetivo(o).pct;
+  const pctSplit=pctServicio/cantFinal;
   return (DB.supervisoresConfig||[]).filter(s=>s.activo!==false&&!yaAsignados.has(s.nombre)).map(s=>{
     const misServicios=(DB.objetivos||[]).filter(x=>x.estado==='Operativo'&&supervisoresDelObjetivo(x).includes(s.nombre));
     let score=0,cercanos=0;
@@ -2473,37 +2479,22 @@ function recomendarSupervisoresParaObjetivo(o){
       else if(o.partido&&x.partido===o.partido){score+=2;cercanos++;}
       else if(o.jurisdiccion&&x.jurisdiccion===o.jurisdiccion){score+=1;}
     });
-    const pctSplit=pctComisionSupervisor(s.nombre)/cantFinal;
     const cobrariaPorEste=Math.round(facturacionNeta*(pctSplit/100));
     const totalActual=misServicios.reduce((sum,x)=>{
       const suyos=supervisoresDelObjetivo(x);
-      const suPct=pctComisionSupervisor(s.nombre)/suyos.length;
+      const suPct=pctEfectivoObjetivo(x).pct/suyos.length;
       return sum+Math.round((calcularFacturacionMensualObjetivo(x)||0)*(suPct/100));
     },0);
     return {nombre:s.nombre,score,cercanos,serviciosActuales:misServicios.length,cobrariaPorEste,totalNuevo:totalActual+cobrariaPorEste};
   }).sort((a,b)=>b.score-a.score||b.cobrariaPorEste-a.cobrariaPorEste).slice(0,6);
 }
-// Sincroniza SOLO las comisiones auto-generadas de supervisor dentro de
-// o.comisiones (marcadas esComisionSupervisor:true) — nunca toca una
-// comisión de coordinador de cuenta cargada a mano en el mismo array.
+// La supervisión NO se liquida más como comisión (ticket 13/08): el pago
+// sale por Liquidación Administración ("Adicional por supervisión" +
+// "Ajuste de nivelación"). Esta función queda como no-op para no regenerar
+// esComisionSupervisor:true en o.comisiones. Las comisiones de supervisor
+// históricas ya generadas NO se tocan: quedan intactas en la data.
 function sincronizarComisionesSupervisores(o){
-  if(!o.comisiones) o.comisiones=[];
-  o.comisiones=o.comisiones.filter(c=>!c.esComisionSupervisor);
-  const sups=supervisoresDelObjetivo(o);
-  if(!sups.length) return;
-  const fechaHoy=new Date().toLocaleDateString('es-AR');
-  sups.forEach(nombre=>{
-    const legajo=(DB.legajos||[]).find(l=>l.nombre===nombre&&l.estado==='Activo');
-    const pct=Math.round((pctComisionSupervisor(nombre)/sups.length)*100)/100;
-    o.comisiones.push({
-      id:Date.now()+Math.floor(Math.random()*1e6),
-      personaTipo:'interno',personaRef:legajo?legajo.nro:null,personaNombre:nombre,
-      tipo:'Continuo',periodosTotal:null,periodosConsumidos:0,
-      tramosPct:[{id:Date.now(),pct,fechaVigencia:fechaHoy}],
-      activa:true,creadaPor:currentUser?.nombre||'',creadaEn:fechaHoy,
-      esComisionSupervisor:true,
-    });
-  });
+  // no-op — la supervisión se liquida por Liq Admin, no como comisión.
 }
 function ensureModalSupervisoresMulti(){
   if($('modal-sup-multi')) return;
@@ -2514,7 +2505,7 @@ function ensureModalSupervisoresMulti(){
     <div class="modal" style="max-width:640px;">
       <div class="modal-header"><h3>👥 Supervisores del servicio</h3><button class="btn-close" onclick="cerrarModal('modal-sup-multi')">×</button></div>
       <div class="modal-body">
-        <div class="alerta alerta-info" style="font-size:12px;">La comisión de cada supervisor (% propio, catálogo en Configuración → Supervisores) se divide entre todos los que estén tildados acá.</div>
+        <div class="alerta alerta-info" style="font-size:12px;">El % de supervisión es del SERVICIO (cascada GENERAL → CLIENTE → SERVICIO, gestionada en Comercial → Supervisión de servicios) y se divide en partes iguales entre todos los supervisores tildados acá.</div>
         <div class="form-section">Asignados actualmente</div>
         <div id="sup-multi-actuales" style="display:flex;flex-direction:column;gap:6px;margin-bottom:14px;"></div>
         <div class="form-section">🤖 Recomendados por cercanía</div>
@@ -2532,7 +2523,7 @@ function renderModalSupervisoresMulti(){
   const contA=$('sup-multi-actuales');
   contA.innerHTML=asignados.length?asignados.map(nombre=>`
     <div style="display:flex;justify-content:space-between;align-items:center;background:var(--fondo);border:1px solid var(--borde);border-radius:var(--radio);padding:8px 12px;">
-      <span style="font-size:12.5px;"><strong>${nombre}</strong> <span style="color:var(--texto-suave);">— ${pctComisionSupervisor(nombre)}% base</span></span>
+      <span style="font-size:12.5px;"><strong>${nombre}</strong> <span style="color:var(--texto-suave);">— ${(pctEfectivoObjetivo(o).pct / asignados.length).toFixed(2).replace('.', ',')}% del servicio</span></span>
       <button class="btn btn-xs" style="background:#fee2e2;color:#991b1b;" onclick="quitarSupervisorMulti('${nombre.replace(/'/g,"\\'")}')" ${asignados.length<=1?'disabled title="Debe quedar al menos uno"':''}>Quitar</button>
     </div>`).join('') : '<p class="text-muted" style="font-size:12px;">Sin supervisores asignados</p>';
 
@@ -2558,7 +2549,6 @@ function abrirGestionarSupervisoresMulti(idLocal){
 function _guardarSupervisoresMulti(o){
   o.supervisorAsignado=supervisoresDelObjetivo(o)[0]||null;
   o.supervisor=o.supervisorAsignado;
-  sincronizarComisionesSupervisores(o);
   supaSync('objetivos', objetivoParaGuardar(o));
   filtrarObjetivos();
 }
@@ -2569,7 +2559,7 @@ function agregarSupervisorMulti(nombre){
   o.supervisoresAsignados=[...actuales,nombre];
   _guardarSupervisoresMulti(o);
   renderModalSupervisoresMulti();
-  toast(`✓ ${nombre} asignado — comisión dividida entre ${o.supervisoresAsignados.length}`);
+  toast(`✓ ${nombre} asignado — supervisión dividida entre ${o.supervisoresAsignados.length}`);
 }
 function quitarSupervisorMulti(nombre){
   const o=getObjetivoByIdLocal(_supMultiIdLocal);if(!o)return;
@@ -7746,15 +7736,128 @@ function reconciliarPeriodosOperaciones(){
 
   if(!DB.mantHoras) DB.mantHoras={};
   rebuild(DB.mantHorasRows, DB.mantPersonal, DB.mantHoras, null, null);
+
+  // v086 — Ajuste de nivelación del adicional de supervisión: se persiste
+  // en liq_admin_periodos (ajuste_nivelacion/motivo/usuario/fecha) y acá se
+  // reconstruye la vista anidada DB.liqAdminAjustes[mes][personalId].
+  if(!DB.liqAdminAjustes) DB.liqAdminAjustes={};
+  (DB.liqAdminPeriodos||[]).forEach(row=>{
+    if(row.ajusteNivelacion==null) return;
+    const persona=(DB.liqAdminPersonal||[]).find(p=>idLocalTrunc(p.id)===String(row.personaIdLocal));
+    if(!persona||!row.periodo) return;
+    if(!DB.liqAdminAjustes[row.periodo]) DB.liqAdminAjustes[row.periodo]={};
+    DB.liqAdminAjustes[row.periodo][persona.id]={
+      ajuste: row.ajusteNivelacion, motivo: row.ajusteMotivo||'', usuario: row.ajusteUsuario||'', fecha: row.ajusteFecha||'',
+    };
+  });
 }
 function syncPeriodoAdmin(mes, personalId){
   const horas=DB.liqAdminHoras?.[mes]?.[personalId]||{};
   const tipo=DB.liqAdminTipo?.[mes]?.[personalId]||'facturable';
   const valores=DB.liqAdminValores?.[mes]?.[personalId]||null;
+  const aj=DB.liqAdminAjustes?.[mes]?.[personalId]||null;
   supaSync('liqAdminPeriodos', {
     id:idPersonaPeriodo(personalId,mes), personaIdLocal:idLocalTrunc(personalId), periodo:mes,
     horas, tipo, horasFijas:valores?.horasFijas??null, valorHora:valores?.valorHora??null,
+    ajusteNivelacion:aj?.ajuste??null, ajusteMotivo:aj?.motivo??null,
+    ajusteUsuario:aj?.usuario??null, ajusteFecha:aj?.fecha??null,
   });
+}
+// v086 — Ajuste de nivelación del adicional de supervisión. Solo edita
+// FINANZAS (+ Administrador total). Pide motivo obligatorio y deja
+// auditoría (usuario/fecha) en liq_admin_periodos.
+let _ajusteModal={mes:null,id:null,valor:null};
+function abrirModalAjusteNivelacion(mes, personalId, valor){
+  if(!esEditorSupervision()){toast('⚠️ Solo Finanzas puede cargar la nivelación');return;}
+  _ajusteModal={mes,id:personalId,valor:parseFloat(valor)||0};
+  ensureModalAjusteNivelacion();
+  const actual=DB.liqAdminAjustes?.[mes]?.[personalId]||null;
+  $('ajuste-modal-valor').textContent=`$${_ajusteModal.valor.toLocaleString('es-AR')}`;
+  $('ajuste-modal-nombre').textContent=(DB.liqAdminPersonal||[]).find(x=>x.id===personalId)?.nombre||'';
+  $('ajuste-modal-ante').textContent=actual&&actual.ajuste?`Anterior: $${Math.round(actual.ajuste).toLocaleString('es-AR')} (${actual.usuario||''}, ${actual.fecha||''})`:'Sin ajuste anterior';
+  $('ajuste-modal-motivo').value=actual?.motivo||'';
+  abrirModal('modal-ajuste-nivelacion');
+}
+function ensureModalAjusteNivelacion(){
+  if($('modal-ajuste-nivelacion')) return;
+  const m=document.createElement('div');
+  m.className='modal-overlay';
+  m.id='modal-ajuste-nivelacion';
+  m.innerHTML=`
+    <div class="modal" style="max-width:440px;">
+      <div class="modal-header"><h3>⚖️ Ajuste de nivelación</h3><button class="btn-close" onclick="cerrarModal('modal-ajuste-nivelacion')">×</button></div>
+      <div class="modal-body">
+        <div class="alerta alerta-info" style="font-size:12px;">La Gerencia General define la nivelación de la escala; Finanzas la carga acá. No pisa el adicional por supervisión (calculado) — se suma aparte. Todo queda auditado.</div>
+        <div class="form-group"><label>Supervisor</label><div id="ajuste-modal-nombre" style="font-weight:600;font-size:14px;"></div></div>
+        <div class="form-group"><label>Nuevo ajuste</label><div id="ajuste-modal-valor" style="font-weight:700;color:var(--verde);font-size:16px;"></div></div>
+        <div class="form-group"><label id="ajuste-modal-ante" style="font-size:11px;color:var(--texto-suave);"></label></div>
+        <div class="form-group"><label>Motivo <span style="color:var(--rojo);">*</span></label>
+          <textarea id="ajuste-modal-motivo" style="width:100%;padding:8px;border:1px solid var(--borde-fuerte);border-radius:6px;font-family:inherit;font-size:13px;" rows="2" placeholder="Ej: equiparar a supervisor de nivel 2 / definido por Gerencia"></textarea>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="cerrarModal('modal-ajuste-nivelacion')">Cancelar</button>
+        <button class="btn btn-primary" onclick="confirmarAjusteNivelacion()">Guardar ajuste</button>
+      </div>
+    </div>`;
+  document.body.appendChild(m);
+}
+function confirmarAjusteNivelacion(){
+  const motivo=($('ajuste-modal-motivo')||{value:''}).value.trim();
+  if(!motivo){toast('⚠️ El motivo es obligatorio');return;}
+  const {mes,id,valor}=_ajusteModal;
+  if(!DB.liqAdminAjustes) DB.liqAdminAjustes={};
+  if(!DB.liqAdminAjustes[mes]) DB.liqAdminAjustes[mes]={};
+  DB.liqAdminAjustes[mes][id]={ajuste:valor,motivo,usuario:currentUser?.nombre||'',fecha:new Date().toLocaleDateString('es-AR')};
+  syncPeriodoAdmin(mes,id);
+  renderLiqAdmin();
+  cerrarModal('modal-ajuste-nivelacion');
+  toast(`✓ Ajuste de $${valor.toLocaleString('es-AR')} guardado`);
+}
+// Drill-down del adicional por supervisión: detalle por servicio.
+function abrirDetalleAdicionalSupervision(nombre, mes){
+  const filas=detalleAdicionalSupervision(nombre, mes);
+  ensureModalDetalleAdicional();
+  const cuerpo=$('det-adic-body');
+  const total=filas.reduce((s,f)=>s+f.monto,0);
+  cuerpo.innerHTML=filas.length
+    ? filas.map(f=>`<tr>
+        <td style="padding:6px 10px;border:1px solid var(--borde);font-size:12px;">${f.codigo||''} ${f.nombreServicio?`<span class="text-muted">— ${f.nombreServicio}</span>`:''}</td>
+        <td style="padding:6px 8px;border:1px solid var(--borde);font-size:11px;color:var(--texto-suave);">${f.cliente||'—'}</td>
+        <td style="padding:6px 8px;border:1px solid var(--borde);text-align:center;font-size:11px;">${f.pct.toFixed(2).replace('.',',')}% ${f.supervisores>1?`<span class="chip" style="font-size:9px;">×${f.supervisores}</span>`:''}</td>
+        <td style="padding:6px 8px;border:1px solid var(--borde);text-align:right;font-size:12px;">${Math.round(f.monto).toLocaleString('es-AR')}</td>
+      </tr>`).join('')
+    : '<tr><td colspan="4" style="padding:30px;text-align:center;color:var(--texto-muy-suave);">Sin servicios supervisados para este período.</td></tr>';
+  $('det-adic-nombre').textContent=`${nombre} — ${mes}`;
+  $('det-adic-total').textContent=`Total: $${Math.round(total).toLocaleString('es-AR')}`;
+  abrirModal('modal-det-adic-sup');
+}
+function ensureModalDetalleAdicional(){
+  if($('modal-det-adic-sup')) return;
+  const m=document.createElement('div');
+  m.className='modal-overlay';
+  m.id='modal-det-adic-sup';
+  m.innerHTML=`
+    <div class="modal" style="max-width:560px;">
+      <div class="modal-header"><h3>🔍 Adicional por supervisión</h3><button class="btn-close" onclick="cerrarModal('modal-det-adic-sup')">×</button></div>
+      <div class="modal-body">
+        <div style="font-weight:600;font-size:14px;margin-bottom:8px;" id="det-adic-nombre"></div>
+        <div class="tabla-wrap"><table>
+          <thead><tr style="background:#374151;color:white;">
+            <th style="padding:8px 10px;border:1px solid #6b7280;text-align:left;">Servicio</th>
+            <th style="padding:8px;border:1px solid #6b7280;">Cliente</th>
+            <th style="padding:8px;border:1px solid #6b7280;">% (dividido)</th>
+            <th style="padding:8px;border:1px solid #6b7280;text-align:right;">Monto</th>
+          </tr></thead>
+          <tbody id="det-adic-body"></tbody>
+        </table></div>
+        <div id="det-adic-total" style="margin-top:10px;font-weight:700;color:var(--verde);"></div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="cerrarModal('modal-det-adic-sup')">Cerrar</button>
+      </div>
+    </div>`;
+  document.body.appendChild(m);
 }
 function renderLiqAdmin(){
   // Poblar el selector de mes PRIMERO (antes de leer el valor)
@@ -7816,7 +7919,9 @@ function renderLiqAdmin(){
     <th style="padding:8px;border:1px solid #6b7280;text-align:right;min-width:70px;">Hs reg.</th>
     <th style="padding:8px;border:1px solid #6b7280;text-align:right;min-width:75px;">Hs fijas</th>
     <th style="padding:8px;border:1px solid #6b7280;text-align:right;min-width:80px;">Valor/h</th>
-    <th style="padding:8px;border:1px solid #6b7280;text-align:right;min-width:110px;">Total a pagar</th>
+    <th style="padding:8px;border:1px solid #6b7280;text-align:right;min-width:160px;">Adicional por supervisión</th>
+    <th style="padding:8px;border:1px solid #6b7280;text-align:right;min-width:130px;">Ajuste de nivelación</th>
+    <th style="padding:8px;border:1px solid #6b7280;text-align:right;min-width:140px;">Total a pagar</th>
     <th style="padding:8px;border:1px solid #6b7280;min-width:60px;"></th>
   </tr>`;
 
@@ -7837,6 +7942,13 @@ function renderLiqAdmin(){
     const valPeriodo = getValoresPeriodo(DB.liqAdminValores, p.id, mes, {horasFijas:p.horasFijas||200, valorHora:p.valorHora||0});
     const horasFijasMes = valPeriodo.horasFijas;
     const valorHoraMes  = valPeriodo.valorHora;
+    // v086 — adicional por supervisión (calculado, bloqueado) + ajuste de
+    // nivelación (edita Finanzas con motivo/auditoría). El adicional sale
+    // del módulo Supervisión de servicios (cascada GENERAL→CLIENTE→SERVICIO).
+    const adicionalSup = adicionalSupervisionDe(p.nombre, mes);
+    const aj = DB.liqAdminAjustes?.[mes]?.[p.id]||null;
+    const ajuste = aj ? (Number(aj.ajuste)||0) : 0;
+    const totalPagar = (horasFijasMes*valorHoraMes) + adicionalSup + ajuste;
 
     let totalHsP=0;
     const celdas = dias.map(dia=>{
@@ -7891,9 +8003,25 @@ function renderLiqAdmin(){
           style="width:65px;padding:2px 4px;border:1px solid var(--borde-fuerte);border-radius:4px;font-size:11px;text-align:right;outline:none;"
           onchange="actualizarValorHoraAdmin('${mes}',${p.id},this.value)">
       </td>
+      <td style="padding:4px 8px;border:1px solid var(--borde);text-align:right;font-size:12px;">
+        ${adicionalSup>0
+          ? `<a style="cursor:pointer;color:var(--azul);font-weight:600;text-decoration:underline;" title="Ver detalle por servicio"
+              onclick="abrirDetalleAdicionalSupervision('${p.nombre.replace(/'/g,"\\'")}','${mes}')">${Math.round(adicionalSup).toLocaleString('es-AR')}</a>`
+          : '—'}
+        <div style="font-size:9px;color:var(--texto-muy-suave);">🔒 calculado</div>
+      </td>
+      <td style="padding:4px 8px;border:1px solid var(--borde);text-align:right;">
+        ${esEditorSupervision()
+          ? `<input type="number" value="${ajuste||''}" step="100" min="0"
+              style="width:80px;padding:2px 4px;border:1px solid var(--borde-fuerte);border-radius:4px;font-size:11px;text-align:right;outline:none;"
+              title="Ajuste de nivelación definido por Gerencia — Finanzas lo carga con motivo"
+              onchange="abrirModalAjusteNivelacion('${mes}',${p.id},this.value)">`
+          : `<div style="font-size:12px;">${ajuste?Math.round(ajuste).toLocaleString('es-AR'):'—'}</div>`}
+        ${aj?.motivo?`<div style="font-size:8.5px;color:var(--texto-suave);">${aj.motivo} · ${aj.usuario||''}</div>`:''}
+      </td>
       <td style="padding:4px 8px;border:1px solid var(--borde);text-align:right;font-weight:600;color:var(--verde);">
-        ${(horasFijasMes*valorHoraMes).toLocaleString('es-AR')}
-        <div style="font-size:9px;color:var(--texto-suave);">${horasFijasMes}hs × ${valorHoraMes.toLocaleString('es-AR')}</div>
+        ${Math.round(totalPagar).toLocaleString('es-AR')}
+        <div style="font-size:9px;color:var(--texto-suave);">${horasFijasMes}hs × ${valorHoraMes.toLocaleString('es-AR')}${adicionalSup>0?` + sup. ${Math.round(adicionalSup).toLocaleString('es-AR')}`:''}${ajuste?` + aj. ${Math.round(ajuste).toLocaleString('es-AR')}`:''}</div>
       </td>
       <td style="padding:4px 8px;border:1px solid var(--borde);">
         <button style="background:none;border:none;cursor:pointer;font-size:11px;color:var(--rojo);"
@@ -13297,6 +13425,7 @@ window.abrirAgenteIA = abrirAgenteIA;
 window.abrirCargaRapidaMant = abrirCargaRapidaMant;
 window.abrirCargaRapidaReten = abrirCargaRapidaReten;
 window.abrirEditarVacAdmin = abrirEditarVacAdmin;
+window.abrirModalAjusteNivelacion = abrirModalAjusteNivelacion;
 window.abrirModalArt42 = abrirModalArt42;
 window.abrirModalCategoriaSind = abrirModalCategoriaSind;
 window.abrirModalCliente = abrirModalCliente;
@@ -13402,6 +13531,7 @@ window.cerrarReclamo = cerrarReclamo;
 window.renderReclamosBoard = renderReclamosBoard;
 window.dragReclamo = dragReclamo;
 window.dropReclamo = dropReclamo;
+window.abrirDetalleAdicionalSupervision = abrirDetalleAdicionalSupervision;
 window.abrirDetalleNC = abrirDetalleNC;
 window.guardarDetalleNC = guardarDetalleNC;
 window.imprimirNC = imprimirNC;
@@ -13409,6 +13539,7 @@ window.seleccionarFirmaNC = seleccionarFirmaNC;
 window.cfgTab = cfgTab;
 window.ciclarPermiso = ciclarPermiso;
 window.confirmarAgregarAsoc = confirmarAgregarAsoc;
+window.confirmarAjusteNivelacion = confirmarAjusteNivelacion;
 window.confirmarCargaRapidaMant = confirmarCargaRapidaMant;
 window.confirmarCargaRapidaReten = confirmarCargaRapidaReten;
 window.confirmarImportacion = confirmarImportacion;
@@ -13679,6 +13810,9 @@ window.confirmarImportMonotributo = confirmarImportMonotributo;
 window.abrirImportadorLiquidacion = abrirImportadorLiquidacion;
 window.seleccionarArchivoImportLiq = seleccionarArchivoImportLiq;
 window.confirmarImportLiquidacion = confirmarImportLiquidacion;
+// Usado por el módulo Pedido de Productos para congelar la facturación
+// neta del servicio al abrir un período (misma fórmula que Comisiones).
+window.calcularFacturacionMensualObjetivo = calcularFacturacionMensualObjetivo;
 window.abrirMesMonoPagos = abrirMesMonoPagos;
 window.renderMonoPagos = renderMonoPagos;
 window.tildarPagoMono = tildarPagoMono;

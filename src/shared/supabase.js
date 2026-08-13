@@ -49,6 +49,7 @@ export const _SM = {
   monoCambios: 'mono_cambios',
   monoPagosMes: 'mono_pagos_mes',
   supervisoresConfig: 'supervisores_config',
+  supervisionVigencias: 'supervision_vigencias',
   reclamos: 'reclamos',
   noConformidades: 'no_conformidades',
   reglasCompetencia: 'reglas_competencia',
@@ -221,6 +222,11 @@ export function _toSnake(obj) {
     cuitFechaVerificacion: 'cuit_fecha_verificacion', claveFiscalFechaActualizacion: 'clave_fiscal_fecha_actualizacion',
     // v081 — Módulo Supervisores + multi-supervisor
     pctComision: 'pct_comision', supervisoresAsignados: 'supervisores_asignados',
+    // v086 — Supervisión de servicios (% por servicio, vigencias, ajuste)
+    pctSupervision: 'pct_supervision', alcanceNombre: 'alcance_nombre',
+    vigenteDesde: 'vigente_desde', vigenteHasta: 'vigente_hasta',
+    ajusteNivelacion: 'ajuste_nivelacion', ajusteMotivo: 'ajuste_motivo',
+    ajusteUsuario: 'ajuste_usuario', ajusteFecha: 'ajuste_fecha',
     // v082 — Reclamos/NC: fix de persistencia (nunca estaban en _SM)
     desc: 'col_desc', generaNC: 'genera_nc', causaRaiz: 'causa_raiz',
     reclamoId: 'reclamo_id', asociadoNroSocio: 'asociado_nro_socio', firmadaEn: 'firmada_en',
@@ -575,6 +581,11 @@ export function _toCamel(obj) {
     mipyme_estado: 'mipymeEstado', cuit_estado: 'cuitEstado',
     cuit_fecha_verificacion: 'cuitFechaVerificacion', clave_fiscal_fecha_actualizacion: 'claveFiscalFechaActualizacion',
     pct_comision: 'pctComision', supervisores_asignados: 'supervisoresAsignados',
+    // v086 — Supervisión de servicios (% por servicio, vigencias, ajuste)
+    pct_supervision: 'pctSupervision', alcance_nombre: 'alcanceNombre',
+    vigente_desde: 'vigenteDesde', vigente_hasta: 'vigenteHasta',
+    ajuste_nivelacion: 'ajusteNivelacion', ajuste_motivo: 'ajusteMotivo',
+    ajuste_usuario: 'ajusteUsuario', ajuste_fecha: 'ajusteFecha',
     col_desc: 'desc', genera_nc: 'generaNC', causa_raiz: 'causaRaiz',
     reclamo_id: 'reclamoId', asociado_nro_socio: 'asociadoNroSocio', firmada_en: 'firmadaEn',
     // Retenciones — tipificación (v076)

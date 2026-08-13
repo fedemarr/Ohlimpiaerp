@@ -2798,7 +2798,7 @@
       </div>
     </div>
     <div class="alerta alerta-info" style="margin:0 20px 12px;font-size:12px;">
-      % de comisión propio por supervisor (arranca en 3% para todos). Cuando un servicio tiene más de un supervisor asignado, ese % se divide entre los asignados — ver "Cambiar supervisor(es)" en la ficha del servicio, en Comercial → Servicios.
+      Catálogo de supervisores (personas). El <strong>% de supervisión</strong> no vive acá: es del servicio (cascada GENERAL → CLIENTE → SERVICIO) y se gestiona en <strong>Supervisión de servicios</strong> (Comercial). Cuando un servicio tiene más de un supervisor, ese % se divide en partes iguales.
     </div>
     <div style="display:flex;gap:8px;align-items:center;margin:0 20px 12px;">
       <input type="text" id="sup-cfg-nuevo" list="dl-sup-cfg-nuevo" placeholder="Agregar supervisor al catálogo..." style="flex:1;padding:6px 10px;border:1px solid var(--borde-fuerte);border-radius:var(--radio);font-size:13px;outline:none;">
@@ -2808,12 +2808,125 @@
     <div class="tabla-wrap"><table>
       <thead><tr style="background:#374151;color:white;">
         <th style="padding:8px 14px;border:1px solid #6b7280;text-align:left;">Supervisor</th>
-        <th style="padding:8px;border:1px solid #6b7280;text-align:center;">% Comisión</th>
         <th style="padding:8px;border:1px solid #6b7280;text-align:center;">Servicios activos</th>
         <th style="padding:8px;border:1px solid #6b7280;text-align:center;">Estado</th>
       </tr></thead>
       <tbody id="tbody-supervisores"></tbody>
     </table></div>
+  </div>
+</div>
+
+<!-- SUPERVISIÓN DE SERVICIOS (ticket 13/08/2026, sql/v086) -->
+<div class="screen" id="screen-supervision">
+  <div class="stats-grid">
+    <div class="stat-card azul"><div class="stat-label">Servicios activos</div><div class="stat-valor" id="sup-c-srv">0</div><div class="stat-sub">con supervisor asignado</div></div>
+    <div class="stat-card verde"><div class="stat-label">Costo supervisión · mes</div><div class="stat-valor" id="sup-c-costo">$0</div><div class="stat-sub">Σ neta × % vigente</div></div>
+    <div class="stat-card acento"><div class="stat-label">Fuera del % general</div><div class="stat-valor" id="sup-c-exc">0</div><div class="stat-sub">con % de cliente o de servicio</div></div>
+    <div class="stat-card rojo"><div class="stat-label">Vigencia de cambios</div>
+      <div class="stat-valor" style="font-size:14px;">
+        <select id="sup-mes-sel" onchange="cambiarMesSup(this.value)" style="padding:4px 8px;border:1.5px solid var(--borde-fuerte);border-radius:var(--radio);font-size:12px;font-weight:600;">
+        </select>
+      </div>
+      <div class="stat-sub">meses liquidados no se tocan</div>
+    </div>
+  </div>
+
+  <div class="card" style="margin-top:0;border-radius:var(--radio-lg);">
+    <div class="tabs" style="border-bottom:none;margin-bottom:0;background:white;border-radius:var(--radio-lg) var(--radio-lg) 0 0;padding:0 8px;box-shadow:var(--sombra);">
+      <button class="tab-btn active" id="sup-tab-0" onclick="tabSupervision(0)">% por servicio</button>
+      <button class="tab-btn" id="sup-tab-1" onclick="tabSupervision(1)">Reporte por supervisor</button>
+      <button class="tab-btn" id="sup-tab-2" onclick="tabSupervision(2)">Vista en Liquidación Admin</button>
+      <button class="tab-btn" id="sup-tab-3" onclick="tabSupervision(3)">Historial de %</button>
+    </div>
+
+    <!-- TAB 0: % POR SERVICIO -->
+    <div class="tab-content active" id="sup-panel-0" style="padding:16px 8px;">
+      <div class="alerta alerta-info" style="font-size:12px;margin-bottom:12px;">
+        <strong>Cascada de defaults:</strong> GENERAL (3%, en Configuración) → CLIENTE (campo "% supervisión" del cliente) → SERVICIO (override puntual). Gana el más específico. Editá el % de un <strong>cliente</strong> y sus servicios lo heredan al instante; editá el de un <strong>servicio</strong> y queda pisado (chip rojo). "Heredar" limpia el override. Todo cambio pide período de vigencia y queda auditado.
+      </div>
+      <div class="tabla-wrap"><table>
+        <thead><tr style="background:#374151;color:white;">
+          <th style="padding:8px 14px;border:1px solid #6b7280;text-align:left;width:220px;">Servicio</th>
+          <th style="padding:8px;border:1px solid #6b7280;">Supervisor(es)</th>
+          <th style="padding:8px;border:1px solid #6b7280;width:120px;">Neta del mes</th>
+          <th style="padding:8px;border:1px solid #6b7280;width:100px;">% supervisión</th>
+          <th style="padding:8px;border:1px solid #6b7280;width:90px;">Origen</th>
+          <th style="padding:8px;border:1px solid #6b7280;width:130px;">Supervisión ($)</th>
+          <th style="padding:8px;border:1px solid #6b7280;"></th>
+        </tr></thead>
+        <tbody id="tbody-supervision"></tbody>
+      </table></div>
+      <div class="foot" style="margin-top:10px;font-size:11.5px;color:var(--texto-muy-suave);line-height:1.6;">
+        Los importes son estimados según la neta mensual del servicio. En servicios con 2 supervisores el % se divide en partes iguales.<br>
+        Auditoría: cada celda guarda quién cambió el %, cuándo y desde qué período rige.
+      </div>
+    </div>
+
+    <!-- TAB 1: REPORTE POR SUPERVISOR -->
+    <div class="tab-content" id="sup-panel-1" style="padding:16px 8px;">
+      <div class="alerta alerta-info" style="font-size:12px;margin-bottom:12px;">
+        Vista de control (solo lectura): cuánto junta cada supervisor con los % vigentes. Es lo que mira el Gerente General para definir la nivelación, que Finanzas carga en la liquidación.
+      </div>
+      <div class="tabla-wrap"><table>
+        <thead><tr style="background:#374151;color:white;">
+          <th style="padding:8px 14px;border:1px solid #6b7280;text-align:left;">Supervisor</th>
+          <th style="padding:8px;border:1px solid #6b7280;">Servicios</th>
+          <th style="padding:8px;border:1px solid #6b7280;text-align:right;">Neta supervisada</th>
+          <th style="padding:8px;border:1px solid #6b7280;text-align:right;">Adicional por supervisión</th>
+        </tr></thead>
+        <tbody id="tbody-sup-reporte"></tbody>
+      </table></div>
+    </div>
+
+    <!-- TAB 2: VISTA EN LIQUIDACIÓN ADMIN -->
+    <div class="tab-content" id="sup-panel-2" style="padding:16px 8px;">
+      <div class="alerta alerta-info" style="font-size:12px;margin-bottom:12px;">
+        ESTA PANTALLA VIVE EN EL MÓDULO <strong>LIQUIDACIÓN ADMINISTRACIÓN</strong> (acá se muestra solo como referencia). El adicional viaja automáticamente desde Supervisión, donde el supervisor ya tiene su fila. La nivelación de la escala se carga en la columna <strong>Ajuste de nivelación</strong> (edita FINANZAS, con motivo y auditoría; el Gerente General define los valores) — nunca pisa el adicional calculado.
+      </div>
+      <div class="tabla-wrap"><table>
+        <thead><tr style="background:#374151;color:white;">
+          <th style="padding:8px 14px;border:1px solid #6b7280;text-align:left;">Nombre</th>
+          <th style="padding:8px;border:1px solid #6b7280;">Categoría</th>
+          <th style="padding:8px;border:1px solid #6b7280;text-align:right;">HS fijas × Valor/h</th>
+          <th style="padding:8px;border:1px solid #6b7280;text-align:right;">Adicional por supervisión</th>
+          <th style="padding:8px;border:1px solid #6b7280;text-align:right;">Ajuste de nivelación</th>
+          <th style="padding:8px;border:1px solid #6b7280;text-align:right;">Total a pagar</th>
+        </tr></thead>
+        <tbody id="tbody-sup-liq"></tbody>
+      </table></div>
+    </div>
+
+    <!-- TAB 3: HISTORIAL -->
+    <div class="tab-content" id="sup-panel-3" style="padding:16px 8px;">
+      <div class="alerta alerta-info" style="font-size:12px;margin-bottom:12px;">
+        <strong>Trazabilidad por vigencias:</strong> cada % se guarda con vigente-desde / vigente-hasta, usuario y motivo. Cambiar un % nunca borra el anterior: se cierra la vigencia y se abre una nueva. La liquidación de cada mes usa el % vigente de ESE mes — los meses cerrados se reconstruyen exactos siempre.
+      </div>
+      <h3 style="font-size:14px;margin:6px 0 8px;color:#16213e;">Registro de cambios</h3>
+      <div class="tabla-wrap"><table>
+        <thead><tr style="background:#374151;color:white;">
+          <th style="padding:8px 10px;border:1px solid #6b7280;">Fecha</th>
+          <th style="padding:8px 10px;border:1px solid #6b7280;">Usuario</th>
+          <th style="padding:8px 10px;border:1px solid #6b7280;">Nivel</th>
+          <th style="padding:8px 10px;border:1px solid #6b7280;">Alcance</th>
+          <th style="padding:8px 10px;border:1px solid #6b7280;">% anterior</th>
+          <th style="padding:8px 10px;border:1px solid #6b7280;">% nuevo</th>
+          <th style="padding:8px 10px;border:1px solid #6b7280;">Rige desde</th>
+          <th style="padding:8px 10px;border:1px solid #6b7280;">Motivo</th>
+        </tr></thead>
+        <tbody id="tbody-sup-historial"></tbody>
+      </table></div>
+      <h3 style="font-size:14px;margin:16px 0 8px;color:#16213e;">Foto por mes — ¿cómo estaba la grilla en…?
+        <select id="sup-foto-mes" onchange="renderFotoPorMes()" style="font-size:13px;padding:4px 8px;border-radius:7px;border:1.5px solid var(--borde-fuerte);"></select>
+      </h3>
+      <div class="tabla-wrap"><table>
+        <thead><tr style="background:#374151;color:white;">
+          <th style="padding:8px 10px;border:1px solid #6b7280;">Servicio</th>
+          <th style="padding:8px 10px;border:1px solid #6b7280;">% vigente ese mes</th>
+          <th style="padding:8px 10px;border:1px solid #6b7280;">Origen</th>
+        </tr></thead>
+        <tbody id="tbody-sup-foto"></tbody>
+      </table></div>
+    </div>
   </div>
 </div>
 
