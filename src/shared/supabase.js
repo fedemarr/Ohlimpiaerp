@@ -138,6 +138,13 @@ export const _SM = {
   comisionesExternos: 'comisiones_externos',
   comisionesDevengos: 'comisiones_devengos',
   comisionesPagos: 'comisiones_pagos',
+  // v085 — Pedido de Productos (Logística). Prefijo pp_ para no chocar con
+  // la tabla `pedidos` (Pedidos de personal, Selección) ya existente.
+  ppPeriodos: 'pp_periodos',
+  ppProductos: 'pp_productos',
+  ppPrecios: 'pp_precios',
+  ppPedidos: 'pp_pedidos',
+  ppItems: 'pp_items',
 };
 
 // camelCase → snake_case para guardar en Supabase
@@ -465,6 +472,18 @@ export function _toSnake(obj) {
     tramosPct: 'tramos_pct', registradoEn: 'registrado_en',
     // v071 — Stock de uniformes
     refTipo: 'ref_tipo', refIdLocal: 'ref_id_local',
+    // v085 — Pedido de Productos (Logística)
+    abiertoPor: 'abierto_por', abiertoEn: 'abierto_en', cerradoEn: 'cerrado_en',
+    codigoMonica: 'codigo_monica', tipoUso: 'tipo_uso',
+    productoIdLocal: 'producto_id_local', costoUnit: 'costo_unit',
+    periodoIdLocal: 'periodo_id_local', servicioCodigo: 'servicio_codigo',
+    facturacionNeta: 'facturacion_neta', porcentajeTope: 'porcentaje_tope',
+    auditadoPor: 'auditado_por', auditadoEn: 'auditado_en',
+    autorizadoPor: 'autorizado_por', autorizadoEn: 'autorizado_en',
+    enCompraEn: 'en_compra_en', entregadoEn: 'entregado_en',
+    cantSolicitada: 'cant_solicitada', cantAutorizada: 'cant_autorizada',
+    costoCongelado: 'costo_congelado', ajustadoPor: 'ajustado_por',
+    ajustadoEn: 'ajustado_en', cantAntesAjuste: 'cant_antes_ajuste',
   };
   const r = {};
   for (const [k, v] of Object.entries(obj)) {
@@ -784,6 +803,18 @@ export function _toCamel(obj) {
     tramos_pct: 'tramosPct', registrado_en: 'registradoEn',
     // v071 — Stock de uniformes
     ref_tipo: 'refTipo', ref_id_local: 'refIdLocal',
+    // v085 — Pedido de Productos (Logística)
+    abierto_por: 'abiertoPor', abierto_en: 'abiertoEn', cerrado_en: 'cerradoEn',
+    codigo_monica: 'codigoMonica', tipo_uso: 'tipoUso',
+    producto_id_local: 'productoIdLocal', costo_unit: 'costoUnit',
+    periodo_id_local: 'periodoIdLocal', servicio_codigo: 'servicioCodigo',
+    facturacion_neta: 'facturacionNeta', porcentaje_tope: 'porcentajeTope',
+    auditado_por: 'auditadoPor', auditado_en: 'auditadoEn',
+    autorizado_por: 'autorizadoPor', autorizado_en: 'autorizadoEn',
+    en_compra_en: 'enCompraEn', entregado_en: 'entregadoEn',
+    cant_solicitada: 'cantSolicitada', cant_autorizada: 'cantAutorizada',
+    costo_congelado: 'costoCongelado', ajustado_por: 'ajustadoPor',
+    ajustado_en: 'ajustadoEn', cant_antes_ajuste: 'cantAntesAjuste',
   };
   const r = {};
   for (const [k, v] of Object.entries(obj)) {

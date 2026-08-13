@@ -41,6 +41,7 @@ import { sincronizarServiciosSupervisor } from './modules/servicios_supervisor/i
 import './modules/comercial_importador/index.js';
 import { supervisoresScreenConfig } from './modules/supervisores/index.js';
 import { descuentosScreenConfig } from './modules/descuentos/index.js';
+import { pedidoProductosScreenConfig } from './modules/pedido_productos/index.js';
 
 // ========== BIND SHARED A WINDOW (PRIMERO) ==========
 // Estas funciones las llama el HTML con onclick — deben estar en window
@@ -95,6 +96,7 @@ registerScreens(gestionAdelantosScreenConfig);
 registerScreens(sugerenciasScreenConfig);
 registerScreens(supervisoresScreenConfig);
 registerScreens(descuentosScreenConfig);
+registerScreens(pedidoProductosScreenConfig);
 
 // ========== REGISTRAR FILTROS DE BÚSQUEDA GLOBAL ==========
 
