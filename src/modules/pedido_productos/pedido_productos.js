@@ -116,8 +116,8 @@ export function renderPedidoProductos() {
 }
 
 export function tabPP(tab, btn) {
-  document.querySelectorAll('#screen-pedido-productos .tab-content').forEach(t => t.classList.remove('active'));
-  document.querySelectorAll('#screen-pedido-productos .tab-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('#screen-pedido_productos .tab-content').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('#screen-pedido_productos .tab-btn').forEach(b => b.classList.remove('active'));
   const el = $('pp-tab-' + tab); if (el) el.classList.add('active');
   if (btn) btn.classList.add('active');
   if (tab === 'catalogo') renderCatalogoPP();
