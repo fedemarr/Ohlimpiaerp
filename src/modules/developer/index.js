@@ -7,6 +7,7 @@ export {
   renderDevSeguridad, toggleChecklistItem,
   sincronizarSugerenciasComoTickets,
   iniciarRealtimeDev, detenerRealtimeDev,
+  borrarAdjuntoDevClick,
 } from './developer.js';
 
 // ========== SCREEN CONFIG ==========
@@ -58,3 +59,4 @@ window.renderDevProyeccion = renderDevProyeccion;
 window.toggleRoadmapItem = toggleRoadmapItem;
 window.renderDevSeguridad = renderDevSeguridad;
 window.toggleChecklistItem = toggleChecklistItem;
+window.borrarAdjuntoDevClick = borrarAdjuntoDevClick;

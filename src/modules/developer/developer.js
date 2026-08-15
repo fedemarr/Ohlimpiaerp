@@ -12,6 +12,11 @@ import { toast, abrirModal, cerrarModal } from '@shared/ui.js';
 import { supaSync, SUPA } from '@shared/supabase.js';
 import { currentScreen } from '@shared/nav.js';
 import { suscribirseAInserts, desuscribirse } from '@shared/realtime.js';
+import {
+  listarAdjuntosDeSugerencia,
+  borrarAdjuntoSugerencia,
+  obtenerUrlFirmadaSugerencia,
+} from '../sugerencias/adjuntos_sugerencia.js';
 
 // ========== HELPERS ==========
 
@@ -179,6 +184,8 @@ function ensureModalTicket() {
         '<div style="display:flex;gap:16px;flex-wrap:wrap;margin-top:8px;font-size:12.5px;color:var(--texto-suave);">',
           '<span id="dt-tipo"></span><span id="dt-autor"></span><span id="dt-fecha"></span><span id="dt-modulo"></span>',
         '</div>',
+        '<div class="form-section" style="margin:12px 0 6px;">📎 Archivos adjuntos</div>',
+        '<div id="dt-adjuntos" style="font-size:12.5px;"></div>',
         '<div class="form-grid form-grid-2" style="margin-top:14px;">',
           '<div class="form-group"><label>Estado</label>',
             '<select id="dt-estado" style="width:100%;padding:8px;border:1px solid #d1d5db;border-radius:6px;">',
@@ -222,7 +229,37 @@ export function abrirTicketPorId(id) {
   $('dt-respuesta').value = t.respuestaDev || '';
   const panel = $('dt-ia-resultado');
   if (panel) { panel.style.display = 'none'; panel.innerHTML = ''; }
+  renderAdjuntosDevTicket(t.sugerenciaId || t.id);
   abrirModal('modal-dev-ticket');
+}
+
+// ========== ADJUNTOS EN EL MODAL DE TICKET (v087) ==========
+// Los adjuntos viven en la sugerencia origen — acá se listan/descargan/
+// borran desde la vista DEVELOPER sin volver al módulo de sugerencias.
+
+function renderAdjuntosDevTicket(sugerenciaIdLocal) {
+  const cont = $('dt-adjuntos');
+  if (!cont) return;
+  const adjuntos = listarAdjuntosDeSugerencia(sugerenciaIdLocal);
+  cont.innerHTML = adjuntos.length === 0
+    ? '<span style="opacity:.55;">Sin archivos adjuntos</span>'
+    : adjuntos.map(a => `
+      <div style="display:flex;align-items:center;gap:8px;padding:6px 8px;background:var(--fondo);border:1px solid var(--borde);border-radius:6px;margin-bottom:4px;">
+        <span style="cursor:pointer;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;" title="Descargar ${a.nombreArchivo}" onclick="descargarAdjuntoSugerencia('${a.id}')">📎 ${a.nombreArchivo}</span>
+        <button type="button" title="Descargar" onclick="descargarAdjuntoSugerencia('${a.id}')" style="border:none;background:none;cursor:pointer;">⬇️</button>
+        <button type="button" title="Eliminar" onclick="borrarAdjuntoDevClick('${a.id}')" style="border:none;background:none;cursor:pointer;">🗑</button>
+      </div>`).join('');
+}
+
+export async function borrarAdjuntoDevClick(adjuntoId) {
+  const a = (DB.sugerenciaAdjuntos || []).find(x => String(x.id) === String(adjuntoId));
+  if (!a) return;
+  if (!confirm('¿Eliminar el archivo "' + a.nombreArchivo + '" del ticket?')) return;
+  await borrarAdjuntoSugerencia(adjuntoId);
+  const id = $('dt-id').value;
+  const t = getTicketById(id);
+  renderAdjuntosDevTicket(t.sugerenciaId || id);
+  toast('🗑 Archivo eliminado');
 }
 
 export async function guardarRespuestaTicket() {
