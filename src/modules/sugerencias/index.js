@@ -5,6 +5,9 @@ export {
   filtrarSugerencias,
   mostrarBotonReporte,
   ocultarBotonReporte,
+  adjuntarArchivosSugerencia,
+  descargarAdjuntoSugerencia,
+  borrarAdjuntoSugerenciaClick,
 } from './sugerencias.js';
 
 import {
@@ -14,6 +17,9 @@ import {
   filtrarSugerencias,
   mostrarBotonReporte,
   ocultarBotonReporte,
+  adjuntarArchivosSugerencia,
+  descargarAdjuntoSugerencia,
+  borrarAdjuntoSugerenciaClick,
 } from './sugerencias.js';
 
 export const sugerenciasScreenConfig = {
@@ -31,3 +37,6 @@ window.renderSugerencias = renderSugerencias;
 window.filtrarSugerencias = filtrarSugerencias;
 window.mostrarBotonReporte = mostrarBotonReporte;
 window.ocultarBotonReporte = ocultarBotonReporte;
+window.adjuntarArchivosSugerencia = adjuntarArchivosSugerencia;
+window.descargarAdjuntoSugerencia = descargarAdjuntoSugerencia;
+window.borrarAdjuntoSugerenciaClick = borrarAdjuntoSugerenciaClick;

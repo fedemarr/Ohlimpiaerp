@@ -101,6 +101,7 @@ export const _SM = {
   liqSuplemento: 'liq_suplemento_personal',
   liqSuplementoPeriodos: 'liq_suplemento_periodos',
   sugerencias: 'sugerencias',
+  sugerenciaAdjuntos: 'sugerencia_adjuntos',
   personalRrhh: 'personal_rrhh',
   serviciosSupervisor: 'servicios_supervisor',
   adjuntos: 'adjuntos',
@@ -361,6 +362,7 @@ export function _toSnake(obj) {
     casoIdLocal: 'caso_id_local', novedadIdLocal: 'novedad_id_local',
     tipoEvento: 'tipo_evento', cargadaPor: 'cargada_por', cargadaEn: 'cargada_en',
     tipoMime: 'tipo_mime', subidoPor: 'subido_por',
+    sugerenciaIdLocal: 'sugerencia_id_local',
     // Adelantos y Préstamos v1.1 (v038)
     supervisorNombre: 'supervisor_nombre', fechaPedido: 'fecha_pedido',
     motivoRechazoFinanzas: 'motivo_rechazo_finanzas', pagadoPor: 'pagado_por', fechaPago: 'fecha_pago',
@@ -719,6 +721,7 @@ export function _toCamel(obj) {
     caso_id_local: 'casoIdLocal', novedad_id_local: 'novedadIdLocal',
     tipo_evento: 'tipoEvento', cargada_por: 'cargadaPor', cargada_en: 'cargadaEn',
     tipo_mime: 'tipoMime', subido_por: 'subidoPor',
+    sugerencia_id_local: 'sugerenciaIdLocal',
     // Adelantos y Préstamos v1.1 (v038)
     supervisor_nombre: 'supervisorNombre', fecha_pedido: 'fechaPedido',
     motivo_rechazo_finanzas: 'motivoRechazoFinanzas', pagado_por: 'pagadoPor', fecha_pago: 'fechaPago',

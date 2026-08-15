@@ -220,6 +220,8 @@ export const DB = {
   configuracionAdelantosPrestamos: [],
   topesAdelantosVersiones: [],
   sugerencias: [],
+  // Adjuntos de sugerencias/tickets (tabla sugerencia_adjuntos, v087).
+  sugerenciaAdjuntos: [],
   // Se puebla desde Supabase Auth (tabla public.usuarios) al loguear —
   // ver cargarListaUsuarios() en src/shared/auth.js. Ya no vive hardcodeado
   // acá para no mandar contraseñas en texto plano al bundle del cliente.

@@ -8,6 +8,12 @@ import { DB, MENU, currentUser } from '@shared/state.js';
 import { $ } from '@shared/helpers.js';
 import { toast, abrirModal, cerrarModal } from '@shared/ui.js';
 import { supaSync } from '@shared/supabase.js';
+import {
+  subirAdjuntoSugerencia,
+  listarAdjuntosDeSugerencia,
+  borrarAdjuntoSugerencia,
+  obtenerUrlFirmadaSugerencia,
+} from './adjuntos_sugerencia.js';
 
 const TIPO_LABEL = { problema: '🐛 Problema', sugerencia: '💡 Sugerencia', mejora: '✨ Mejora', otro: '📝 Otro' };
 const ESTADO_BADGE = { Pendiente: 'badge-gris', 'En revisión': 'badge-acento', Resuelto: 'badge-verde', Cerrado: 'badge-gris' };
@@ -100,6 +106,12 @@ export function abrirModalSugerencia() {
             <label style="font-weight:600;font-size:13px;">Descripción</label>
             <textarea id="sugerencia-desc" rows="5" placeholder="Describí el problema o tu sugerencia con el mayor detalle posible..." style="width:100%;padding:8px;border:1px solid #d1d5db;border-radius:6px;margin-top:4px;resize:vertical;"></textarea>
           </div>
+          <div style="margin-bottom:4px;">
+            <label style="font-weight:600;font-size:13px;">Archivos adjuntos (opcional)</label>
+            <input type="file" id="sugerencia-archivos" multiple accept=".md,.txt,.pdf,.doc,.docx,.xls,.xlsx,.csv,.png,.jpg,.jpeg,.gif" onchange="mostrarArchivosSugerencia(this)" style="width:100%;padding:8px;border:1px dashed #d1d5db;border-radius:6px;margin-top:4px;">
+            <div style="font-size:11px;color:var(--texto-suave);margin-top:4px;">Markdown, Word, Excel, PDF, CSV, imágenes… máx. 10 MB c/u.</div>
+            <div id="sugerencia-archivos-lista" style="margin-top:6px;"></div>
+          </div>
         </div>
         <div class="modal-footer">
           <button class="btn btn-secondary" onclick="cerrarModal('modal-sugerencia')">Cancelar</button>
@@ -111,9 +123,24 @@ export function abrirModalSugerencia() {
   }
   const titulo = $('sugerencia-titulo'); if (titulo) titulo.value = '';
   const desc = $('sugerencia-desc'); if (desc) desc.value = '';
+  const archivos = $('sugerencia-archivos'); if (archivos) archivos.value = '';
+  const lista = $('sugerencia-archivos-lista'); if (lista) lista.innerHTML = '';
   const modulo = $('sugerencia-modulo'); if (modulo) modulo.value = MODULO_GENERAL;
   abrirModal('modal-sugerencia');
 }
+
+// Preview de los archivos seleccionados en el modal.
+window.mostrarArchivosSugerencia = function (input) {
+  const cont = $('sugerencia-archivos-lista');
+  if (!cont) return;
+  const files = Array.from(input?.files || []);
+  if (!files.length) { cont.innerHTML = ''; return; }
+  cont.innerHTML = files.map(f => `
+    <div style="display:flex;align-items:center;gap:6px;padding:4px 8px;background:var(--fondo);border:1px solid var(--borde);border-radius:6px;margin-bottom:4px;font-size:12px;">
+      📎 ${f.name}
+      <span style="margin-left:auto;color:var(--texto-suave);">${(f.size / 1024).toFixed(1)} KB</span>
+    </div>`).join('');
+};
 
 export async function enviarSugerencia() {
   const tipo = $('sugerencia-tipo')?.value || '';
@@ -122,8 +149,10 @@ export async function enviarSugerencia() {
   const desc = $('sugerencia-desc')?.value?.trim() || '';
   if (!titulo) { toast('Poné un título corto para el reporte'); return; }
   if (!desc) { toast('Escribí una descripción'); return; }
+  const id = Date.now();
+  const archivos = Array.from($('sugerencia-archivos')?.files || []);
   const registro = {
-    id: Date.now(),
+    id,
     fecha: new Date().toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' }),
     usuario: currentUser?.nombre || 'Desconocido',
     tipo,
@@ -136,6 +165,23 @@ export async function enviarSugerencia() {
   };
   const btn = $('btn-enviar-sugerencia');
   if (btn) { btn.disabled = true; btn.textContent = 'Enviando…'; }
+
+  // Subir archivos ANTES de guardar el ticket: así el registro nunca queda
+  // sin su adjunto si algo falla a mitad de camino. Si falla una subida, se
+  // aborta el envío entero (no un ticket a medias sin archivos).
+  const idLocal = String(id).slice(-9);
+  const adjuntosSubidos = [];
+  for (const file of archivos) {
+    try {
+      const a = await subirAdjuntoSugerencia({ sugerenciaIdLocal: idLocal, file });
+      adjuntosSubidos.push(a);
+    } catch (e) {
+      toast('⚠️ No se pudo adjuntar un archivo: ' + e.message);
+      if (btn) { btn.disabled = false; btn.textContent = 'Enviar'; }
+      return;
+    }
+  }
+
   const ok = await supaSync('sugerencias', registro);
   if (btn) { btn.disabled = false; btn.textContent = 'Enviar'; }
   if (!ok) {
@@ -143,9 +189,73 @@ export async function enviarSugerencia() {
     return;
   }
   DB.sugerencias.push(registro);
+  if (adjuntosSubidos.length) DB.sugerenciaAdjuntos.push(...adjuntosSubidos);
   cerrarModal('modal-sugerencia');
-  toast('✅ Recibido — el equipo de desarrollo lo va a aplicar y modificar de manera eficiente. ¡Gracias por tu colaboración!');
+  toast(adjuntosSubidos.length
+    ? '✅ Recibido con ' + adjuntosSubidos.length + ' archivo(s) adjunto(s). ¡Gracias por tu colaboración!'
+    : '✅ Recibido — el equipo de desarrollo lo va a aplicar y modificar de manera eficiente. ¡Gracias por tu colaboración!');
   renderSugerencias();
+}
+
+// ========== ADJUNTOS DE UN TICKET YA CREADO ==========
+
+// Adjunta archivos adicionales a un ticket existente (v1.2).
+export async function adjuntarArchivosSugerencia(sugerenciaId, input) {
+  const files = Array.from(input?.files || []);
+  if (!files.length) return;
+  const idLocal = String(sugerenciaId).slice(-9);
+  let subidos = 0;
+  for (const file of files) {
+    try {
+      await subirAdjuntoSugerencia({ sugerenciaIdLocal: idLocal, file });
+      subidos++;
+    } catch (e) {
+      toast('⚠️ No se pudo adjuntar "' + file.name + '": ' + e.message);
+    }
+  }
+  if (input) input.value = '';
+  renderSugerencias();
+  if (subidos) toast('✅ ' + subidos + ' archivo(s) adjuntado(s) al ticket');
+}
+
+// Descarga un adjunto vía signed URL (bucket privado).
+export async function descargarAdjuntoSugerencia(adjuntoId) {
+  const a = (DB.sugerenciaAdjuntos || []).find(x => String(x.id) === String(adjuntoId));
+  if (!a || a.borrado) { toast('⚠️ No se encontró el archivo'); return; }
+  const url = await obtenerUrlFirmadaSugerencia(a.url);
+  if (url) window.open(url, '_blank');
+  else toast('⚠️ No se pudo generar el link de descarga');
+}
+
+// Borra (soft delete) un adjunto del ticket.
+export async function borrarAdjuntoSugerenciaClick(adjuntoId) {
+  const a = (DB.sugerenciaAdjuntos || []).find(x => String(x.id) === String(adjuntoId));
+  if (!a) return;
+  if (!confirm('¿Eliminar el archivo "' + a.nombreArchivo + '" del ticket?')) return;
+  await borrarAdjuntoSugerencia(adjuntoId);
+  renderSugerencias();
+  toast('🗑 Archivo eliminado');
+}
+
+// HTML de la celda "Archivos" de la tabla: chips con descarga + borrado +
+// botón para adjuntar más.
+function celdaArchivosSugerencia(s) {
+  const adjuntos = listarAdjuntosDeSugerencia(s.id);
+  if (!adjuntos.length) {
+    return `<label style="cursor:pointer;font-size:11px;color:#1e3a8a;text-decoration:underline;">
+      <input type="file" multiple accept=".md,.txt,.pdf,.doc,.docx,.xls,.xlsx,.csv,.png,.jpg,.jpeg,.gif" style="display:none;" onchange="adjuntarArchivosSugerencia('${s.id}',this)">＋ Adjuntar archivos
+    </label>`;
+  }
+  const chips = adjuntos.map(a => `
+    <div style="display:flex;align-items:center;gap:6px;padding:4px 8px;background:var(--fondo);border:1px solid var(--borde);border-radius:6px;margin-bottom:4px;font-size:12px;max-width:260px;">
+      <span title="${a.nombreArchivo}" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;cursor:pointer;flex:1;" onclick="descargarAdjuntoSugerencia('${a.id}')">📎 ${a.nombreArchivo}</span>
+      <span title="Descargar" style="cursor:pointer;opacity:.7;" onclick="descargarAdjuntoSugerencia('${a.id}')">⬇️</span>
+      <span title="Eliminar" style="cursor:pointer;opacity:.7;" onclick="borrarAdjuntoSugerenciaClick('${a.id}')">🗑</span>
+    </div>`).join('');
+  return chips + `
+    <label style="cursor:pointer;font-size:11px;color:#1e3a8a;text-decoration:underline;">
+      <input type="file" multiple accept=".md,.txt,.pdf,.doc,.docx,.xls,.xlsx,.csv,.png,.jpg,.jpeg,.gif" style="display:none;" onchange="adjuntarArchivosSugerencia('${s.id}',this)">＋ Adjuntar más
+    </label>`;
 }
 
 // ========== PANTALLA ==========
@@ -159,7 +269,7 @@ export function renderSugerencias() {
   const tbody = $('tbody-sugerencias');
   if (tbody) {
     tbody.innerHTML = lista.length === 0
-      ? '<tr><td colspan="7" style="text-align:center;padding:32px;opacity:.5;">No hay reportes ni sugerencias registradas</td></tr>'
+      ? '<tr><td colspan="8" style="text-align:center;padding:32px;opacity:.5;">No hay reportes ni sugerencias registradas</td></tr>'
       : lista.slice().reverse().map(s => `<tr>
           <td>${s.fecha}</td>
           <td>${s.usuario}</td>
@@ -171,6 +281,7 @@ export function renderSugerencias() {
           </td>
           <td><span class="badge ${ESTADO_BADGE[s.estado] || 'badge-gris'}">${s.estado}</span></td>
           <td style="max-width:260px;white-space:pre-wrap;color:var(--texto-suave);">${s.respuestaDev || '—'}</td>
+          <td style="vertical-align:top;">${celdaArchivosSugerencia(s)}</td>
         </tr>`).join('');
   }
   const base = DB.sugerencias || [];
