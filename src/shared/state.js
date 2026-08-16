@@ -295,12 +295,16 @@ export const MENU = [
     { key: 'inicio', icon: '🏠', label: 'Inicio', perfiles: ['Administrador total', 'RRHH', 'Operaciones', 'Finanzas', 'Supervisor', 'Comercial', 'Logística'] },
   ]},
   { section: 'Selección', items: [
-    { key: 'altas', icon: '✅', label: 'Altas de asociados', perfiles: ['Administrador total', 'RRHH'] },
-    { key: 'candidatos', icon: '👥', label: 'Candidatos', perfiles: ['Administrador total', 'RRHH'] },
-    { key: 'documentacion', icon: '📄', label: 'Documentación de ingreso', perfiles: ['Administrador total', 'RRHH'] },
+    // Orden = flujo del postulante (ticket "Área de selección"): Pedidos de
+    // personal es la demanda del supervisor que dispara la búsqueda; después
+    // Candidatos → Psicotécnico → Preocupacional → Documentación de ingreso
+    // → Alta de asociado (etapas por las que pasa el postulante).
     { key: 'pedidos', icon: '📋', label: 'Pedidos de personal', perfiles: ['Administrador total', 'RRHH', 'Operaciones', 'Supervisor'] },
-    { key: 'preocupacional', icon: '🏥', label: 'Pre-ocupacional', perfiles: ['Administrador total', 'RRHH'] },
+    { key: 'candidatos', icon: '👥', label: 'Candidatos', perfiles: ['Administrador total', 'RRHH'] },
     { key: 'psicotecnico', icon: '🧠', label: 'Psicotécnico', perfiles: ['Administrador total', 'RRHH'] },
+    { key: 'preocupacional', icon: '🏥', label: 'Pre-ocupacional', perfiles: ['Administrador total', 'RRHH'] },
+    { key: 'documentacion', icon: '📄', label: 'Documentación de ingreso', perfiles: ['Administrador total', 'RRHH'] },
+    { key: 'altas', icon: '✅', label: 'Altas de asociados', perfiles: ['Administrador total', 'RRHH'] },
   ]},
   { section: 'Logística', items: [
     { key: 'pedido_productos', icon: '🧴', label: 'Pedido de productos', perfiles: ['Administrador total', 'Logística', 'Supervisor'] },
