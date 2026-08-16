@@ -427,6 +427,9 @@ export function _toSnake(obj) {
     responsableTipo: 'responsable_tipo', responsableContacto: 'responsable_contacto',
     // A.3 (Delta Comercial v1.3)
     puestos: 'puestos_necesarios',
+    // v088 — Pedidos de personal: horario semanal estructurado (mismo shape
+    // que un puesto de objetivos.puestos_necesarios)
+    horarioSemanal: 'horario_semanal',
     // 2.5/A.6 (Delta Comercial v1.3)
     logProductos: 'log_productos', logElementos: 'log_elementos', logMaquinas: 'log_maquinas',
     // v079 — multi-select parametrizable (NO reemplaza los 3 de arriba,
@@ -770,6 +773,8 @@ export function _toCamel(obj) {
     recibe_factura: 'recibeFactura',
     responsable_tipo: 'responsableTipo', responsable_contacto: 'responsableContacto',
     puestos_necesarios: 'puestos',
+    // v088 — Pedidos de personal: horario semanal estructurado
+    horario_semanal: 'horarioSemanal',
     log_productos: 'logProductos', log_elementos: 'logElementos', log_maquinas: 'logMaquinas',
     productos_limpieza: 'productosLimpieza', elementos_limpieza: 'elementosLimpieza',
     maquinas_necesarias: 'maquinasNecesarias',

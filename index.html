@@ -5355,7 +5355,7 @@
 <!-- MODAL PEDIDO -->
 <div class="modal-overlay" id="modal-pedido">
   <div class="modal">
-    <div class="modal-header"><h3>Nuevo pedido de personal</h3><button class="btn-close" onclick="cerrarModal('modal-pedido')">×</button></div>
+    <div class="modal-header"><h3 id="pedido-modal-title">Nuevo pedido de personal</h3><button class="btn-close" onclick="cerrarModal('modal-pedido')">×</button></div>
     <div class="modal-body">
       <div class="form-grid gap-12">
         <div class="form-grid form-grid-2">
@@ -5365,8 +5365,9 @@
         <div class="form-grid form-grid-3">
           <div class="form-group"><label>Zona</label><select id="p-zona"></select></div>
           <div class="form-group"><label>Puesto *</label><select id="p-puesto"></select></div>
-          <div class="form-group"><label>Horario</label><input type="text" id="p-horario" placeholder="Ej: Lunes a viernes 14 a 22hs"></div>
         </div>
+        <div class="form-section" style="margin-bottom:4px;">Horario y días</div>
+        <div id="p-horario"></div>
         <div class="form-section" style="margin-bottom:4px;">Perfil del personal</div>
         <div id="p-perfil" class="form-grid form-grid-3"></div>
         <div class="form-group"><label>Urgencia</label><select id="p-urgencia"><option>Alto</option><option>Medio</option><option>Bajo</option></select></div>

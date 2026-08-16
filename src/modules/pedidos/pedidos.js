@@ -2,7 +2,16 @@ import { DB, currentUser } from '@shared/state.js';
 import { $, avatarEl, badge, fillDL } from '@shared/helpers.js';
 import { toast, cerrarModal, abrirModal } from '@shared/ui.js';
 import { supaSync } from '@shared/supabase.js';
+import { checklistDiasHtml, formatearHorarioSemanal } from '@shared/horarioDias.js';
 import { getSupervisorDeCodigo, serviciosDeSupervisor } from '@modules/servicios_supervisor/index.js';
+
+// Estado del checklist de días/horario del modal (los onchange inline
+// escriben en scope global, mismo patrón que puestosObjTemp en legacy.js).
+let horarioPedidoTemp = { dias: {}, horarioDesde: '', horarioHasta: '', tipoHorario: 'fijo' };
+window.horarioPedidoTemp = horarioPedidoTemp;
+
+// id del pedido en edición (null = alta nueva).
+let _pedidoEditId = null;
 
 // Tema 11 del relevamiento (10/08): un supervisor solo ve pedidos de SUS
 // servicios activos, no los de toda la cooperativa. Mismo criterio que ya
@@ -31,7 +40,7 @@ export function renderPedidos(lista) {
     <td>${p.zona}</td>
     <td><span class="chip">${p.puesto}</span></td>
     <td style="font-size:12px;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${perfilChips(p)}</td>
-    <td style="font-size:12px;max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${p.horario}</td>
+    <td style="font-size:12px;max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${formatearHorarioSemanal(p.horarioSemanal) || p.horario || '—'}</td>
     <td>${badge(p.urgencia)}</td>
     <td>${badge(p.estado)}</td>
     <td>${p.candidato ? `<div style="display:flex;align-items:center;gap:6px;">${avatarEl(p.candidato, 24)}<span style="font-size:12px;">${p.candidato}</span></div>` : '<span class="text-muted">Sin asignar</span>'}</td>
@@ -58,23 +67,44 @@ function nombrePerfil(codigo) {
 export function verDetallePedido(id) {
   const p = DB.pedidos.find(x => String(x.id) === String(id));
   if (!p) return;
+  const horarioTxt = formatearHorarioSemanal(p.horarioSemanal) || p.horario || '—';
   const body = `<div class="info-grid" style="margin-bottom:16px;">
     <div class="info-item"><div class="key">Servicio / Cliente</div><div class="val">${p.servicio}</div></div>
     <div class="info-item"><div class="key">Estado</div><div class="val">${badge(p.estado)}</div></div>
     <div class="info-item"><div class="key">Supervisor</div><div class="val">${p.supervisor}</div></div>
     <div class="info-item"><div class="key">Zona</div><div class="val">${p.zona}</div></div>
     <div class="info-item"><div class="key">Puesto</div><div class="val">${p.puesto}</div></div>
-    <div class="info-item"><div class="key">Horario</div><div class="val">${p.horario || '—'}</div></div>
+    <div class="info-item"><div class="key">Horario</div><div class="val">${horarioTxt}</div></div>
     <div class="info-item"><div class="key">Urgencia</div><div class="val">${badge(p.urgencia)}</div></div>
     <div class="info-item"><div class="key">Fecha del pedido</div><div class="val">${p.fecha}</div></div>
     <div class="info-item"><div class="key">Candidato asignado</div><div class="val">${p.candidato || 'Sin asignar'}</div></div>
   </div>
   ${perfilDetalle(p)}
   <div class="form-section" style="margin-bottom:8px;">Observaciones</div>
-  <p style="font-size:13px;color:var(--texto-suave);">${p.obs || 'Sin observaciones'}</p>`;
+  <p style="font-size:13px;color:var(--texto-suave);">${p.obs || 'Sin observaciones'}</p>
+  <button class="btn btn-primary" style="margin-top:12px;width:100%;" onclick="abrirEdicionPedido(${p.id})">✏️ Editar pedido</button>`;
   $('pedido-title').textContent = `📋 Pedido de personal — ${p.servicio}`;
   $('pedido-body').innerHTML = body;
   abrirModal('modal-ver-pedido');
+}
+
+// Abre el modal de alta precargado con los datos del pedido, en modo
+// edición (update por id_local en vez de push).
+export function abrirEdicionPedido(id) {
+  const p = DB.pedidos.find(x => String(x.id) === String(id));
+  if (!p) return;
+  _pedidoEditId = p.id;
+  $('pedido-modal-title').textContent = '✏️ Editar pedido de personal';
+  $('p-supervisor').value = p.supervisor || '';
+  $('p-servicio').value = p.servicio || '';
+  $('p-zona').value = p.zona || '';
+  $('p-puesto').value = p.puesto || '';
+  $('p-urgencia').value = p.urgencia || 'Medio';
+  $('p-obs').value = p.obs || '';
+  renderPerfilInputs(p.perfil || []);
+  renderHorarioPedido(p.horarioSemanal);
+  onChangeSupervisorPedido();
+  abrirModal('modal-pedido');
 }
 
 function perfilDetalle(p) {
@@ -108,7 +138,7 @@ export function filtrarPedidos() {
     (!serv || p.servicio.toLowerCase().includes(serv)) &&
     (!zona || p.zona === zona) &&
     (!puesto || p.puesto === puesto) &&
-    (!horario || (p.horario || '').toLowerCase().includes(horario)) &&
+    (!horario || (formatearHorarioSemanal(p.horarioSemanal) || p.horario || '').toLowerCase().includes(horario)) &&
     (!urg || p.urgencia === urg) &&
     (!estado || p.estado === estado) &&
     (!cand || (p.candidato || '').toLowerCase().includes(cand)) &&
@@ -121,24 +151,75 @@ export function filtrarPedidos() {
 export function guardarPedido() {
   const s = $('p-servicio').value.trim();
   if (!s) { toast('Ingresá el servicio'); return; }
-  DB.pedidos.push({
-    id: Date.now(),
-    fecha: new Date().toLocaleDateString('es-AR'),
+  const datos = {
     supervisor: $('p-supervisor').value,
     servicio: s,
     zona: $('p-zona').value,
     puesto: $('p-puesto').value,
-    horario: $('p-horario').value,
+    horarioSemanal: { ...horarioPedidoTemp },
+    horario: formatearHorarioSemanal(horarioPedidoTemp),
     urgencia: $('p-urgencia').value,
-    estado: 'Pendiente',
-    candidato: '',
     perfil: recolectarPerfil(),
     obs: $('p-obs').value,
+  };
+  if (_pedidoEditId) {
+    const p = DB.pedidos.find(x => String(x.id) === String(_pedidoEditId));
+    if (!p) { toast('No se encontró el pedido'); return; }
+    Object.assign(p, datos);
+    _pedidoEditId = null;
+    cerrarModal('modal-pedido');
+    renderPedidos();
+    supaSync('pedidos', p);
+    toast('✓ Pedido actualizado');
+    return;
+  }
+  DB.pedidos.push({
+    id: Date.now(),
+    fecha: new Date().toLocaleDateString('es-AR'),
+    ...datos,
+    estado: 'Pendiente',
+    candidato: '',
   });
   cerrarModal('modal-pedido');
   renderPedidos();
   supaSync('pedidos', DB.pedidos[DB.pedidos.length - 1]);
   toast('✓ Pedido guardado');
+}
+
+// Renderiza el checklist de días + horario dentro de #p-horario. prefill:
+// objeto horarioSemanal de un pedido existente (para edición) o null.
+export function renderHorarioPedido(prefill) {
+  const el = $('p-horario');
+  if (!el) return;
+  horarioPedidoTemp = {
+    dias: { ...(prefill?.dias || {}) },
+    horarioDesde: prefill?.horarioDesde || '',
+    horarioHasta: prefill?.horarioHasta || '',
+    tipoHorario: prefill?.tipoHorario || 'fijo',
+  };
+  window.horarioPedidoTemp = horarioPedidoTemp;
+  el.innerHTML = `
+    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:8px;">
+      ${checklistDiasHtml(horarioPedidoTemp.dias, (d) => `horarioPedidoTemp.dias.${d}=this.checked`)}
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;">
+      <div class="form-group"><label>Desde</label><input type="time" value="${horarioPedidoTemp.horarioDesde}" style="padding:9px 12px;" onchange="horarioPedidoTemp.horarioDesde=this.value"></div>
+      <div class="form-group"><label>Hasta</label><input type="time" value="${horarioPedidoTemp.horarioHasta}" style="padding:9px 12px;" onchange="horarioPedidoTemp.horarioHasta=this.value"></div>
+      <div class="form-group"><label>Tipo de horario</label>
+        <select style="padding:9px 12px;" onchange="horarioPedidoTemp.tipoHorario=this.value">
+          <option value="fijo" ${(horarioPedidoTemp.tipoHorario || 'fijo') === 'fijo' ? 'selected' : ''}>Fijo</option>
+          <option value="rotativo" ${horarioPedidoTemp.tipoHorario === 'rotativo' ? 'selected' : ''}>Rotativo</option>
+        </select>
+      </div>
+    </div>`;
+}
+
+// Reinicia el estado del modal para un alta nueva (botón "+ Nuevo pedido").
+export function resetModalPedido() {
+  _pedidoEditId = null;
+  $('pedido-modal-title').textContent = 'Nuevo pedido de personal';
+  renderPerfilInputs([]);
+  renderHorarioPedido(null);
 }
 
 // ========== MATCHER SERVICIO ↔ SUPERVISOR (08/2026) ==========
@@ -171,28 +252,33 @@ export function onChangeServicioPedido() {
 
 // Renderiza los controles del perfil solicitado dentro de #p-perfil,
 // leyendo los atributos activos de DB.perfilPersonalAtributos (orden).
-export function renderPerfilInputs() {
+// prefill: array [{codigo, valor}] con los valores guardados (edición).
+export function renderPerfilInputs(prefill) {
   const cont = $('p-perfil');
   if (!cont) return;
+  const pref = (prefill || []);
+  const valorDe = (codigo) => pref.find(x => x.codigo === codigo);
   const atrs = (DB.perfilPersonalAtributos || [])
     .filter(a => a.activo !== false)
     .sort((a, b) => (a.orden || 0) - (b.orden || 0));
   cont.innerHTML = atrs.map(a => {
     const opciones = a.opciones || [];
+    const pv = valorDe(a.codigo);
     if (a.tipo === 'multi') {
+      const marcados = Array.isArray(pv?.valor) ? pv.valor : [];
       return `<div class="form-group">
         <label>${a.nombre}</label>
         <div style="display:flex;flex-direction:column;gap:4px;padding-top:2px;">
-          ${opciones.map(o => `<label style="display:flex;align-items:center;gap:6px;font-size:12px;"><input type="checkbox" data-perfil="${a.codigo}" value="${o}"> ${o}</label>`).join('')}
+          ${opciones.map(o => `<label style="display:flex;align-items:center;gap:6px;font-size:12px;"><input type="checkbox" data-perfil="${a.codigo}" value="${o}" ${marcados.includes(o) ? 'checked' : ''}> ${o}</label>`).join('')}
         </div>
       </div>`;
     }
     if (a.tipo === 'text') {
-      return `<div class="form-group"><label>${a.nombre}</label><input type="text" id="perfil-${a.codigo}" placeholder="${a.nombre}"></div>`;
+      return `<div class="form-group"><label>${a.nombre}</label><input type="text" id="perfil-${a.codigo}" value="${pv?.valor || ''}" placeholder="${a.nombre}"></div>`;
     }
     return `<div class="form-group"><label>${a.nombre}</label>
       <select id="perfil-${a.codigo}"><option value="">—</option>
-        ${opciones.map(o => `<option>${o}</option>`).join('')}
+        ${opciones.map(o => `<option ${pv?.valor === o ? 'selected' : ''}>${o}</option>`).join('')}
       </select>
     </div>`;
   }).join('');

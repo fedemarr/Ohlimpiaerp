@@ -10,6 +10,7 @@ import { crearNotificacion } from '@shared/notificaciones.js';
 import { obtenerValorHoraVigente, getCategoriaById } from './modules/categorias/consultas.js';
 import { pctEfectivoObjetivo, pctEfectivoCliente, pctGeneralVigente, esEditorSupervision, esMismoSupervisor, adicionalSupervisionDe, detalleAdicionalSupervision } from './modules/supervision/supervision.js';
 import { listarAdjuntos, obtenerUrlFirmada, subirAdjunto, borrarAdjunto, MAX_SIZE as ADJ_MAX_SIZE } from '@shared/adjuntos.js';
+import { DIAS_SEMANA, checklistDiasHtml } from '@shared/horarioDias.js';
 
 // ========== ESTADO ==========
 
@@ -2179,7 +2180,7 @@ function renderAdjuntosObj(){
 // Operaciones/RRHH. Mismo bindeo a window que respObjetivoTemp/
 // adjuntosObjTemp: los oninput/onclick inline de las filas corren en
 // scope global.
-const DIAS_PUESTO=[['lunes','L'],['martes','M'],['miercoles','X'],['jueves','J'],['viernes','V'],['sabados','S'],['domingos','D'],['feriados','Fer.']];
+const DIAS_PUESTO=DIAS_SEMANA;
 let puestosObjTemp=[];
 window.puestosObjTemp=puestosObjTemp;
 function agregarPuestoObj(){
@@ -2202,7 +2203,7 @@ function renderPuestosObj(){
         <button type="button" style="background:none;border:none;cursor:pointer;color:var(--rojo);font-size:16px;" onclick="puestosObjTemp.splice(${i},1);renderPuestosObj()">✕</button>
       </div>
       <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:8px;">
-        ${DIAS_PUESTO.map(([d,label])=>`<label style="display:flex;align-items:center;gap:3px;font-size:11px;cursor:pointer;"><input type="checkbox" ${p.dias?.[d]?'checked':''} onchange="puestosObjTemp[${i}].dias.${d}=this.checked">${label}</label>`).join('')}
+        ${checklistDiasHtml(p.dias||{}, (d)=>`puestosObjTemp[${i}].dias.${d}=this.checked`)}
       </div>
       <div class="form-group" style="margin:6px 0 0;"><label style="font-size:10px;">Observación</label><input type="text" value="${p.obs||''}" placeholder="Notas de este puesto..." style="${inputStyle}" oninput="puestosObjTemp[${i}].obs=this.value"></div>
     </div>`).join('')||'<p class="text-muted" style="font-size:12px;">Sin puestos cargados — hacé click en "+ Agregar puesto"</p>';
