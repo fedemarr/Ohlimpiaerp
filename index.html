@@ -2025,7 +2025,7 @@
         <div class="form-grid form-grid-2">
           <div class="form-group">
             <label>Servicio destino *</label>
-            <input type="text" id="reas-serv-dest" list="dl-serv-reas" placeholder="Buscar servicio...">
+            <input type="text" id="reas-serv-dest" list="dl-serv-reas" placeholder="Buscar servicio..." oninput="onChangeServicioDestinoReas()">
             <datalist id="dl-serv-reas"></datalist>
           </div>
           <div class="form-group">
@@ -5359,8 +5359,8 @@
     <div class="modal-body">
       <div class="form-grid gap-12">
         <div class="form-grid form-grid-2">
-          <div class="form-group"><label>Supervisor que solicita *</label><select id="p-supervisor"></select></div>
-          <div class="form-group"><label>Servicio / Cliente *</label><input type="text" id="p-servicio" list="dl-serv"><datalist id="dl-serv"></datalist></div>
+          <div class="form-group"><label>Supervisor que solicita *</label><select id="p-supervisor" onchange="onChangeSupervisorPedido()"></select></div>
+          <div class="form-group"><label>Servicio / Cliente *</label><input type="text" id="p-servicio" list="dl-serv" oninput="onChangeServicioPedido()"><datalist id="dl-serv"></datalist></div>
         </div>
         <div class="form-grid form-grid-3">
           <div class="form-group"><label>Zona</label><select id="p-zona"></select></div>
@@ -5614,7 +5614,7 @@
         </div>
         <div class="form-grid form-grid-2">
           <div class="form-group"><label>Función</label><select id="edit-funcion"></select></div>
-          <div class="form-group"><label>Servicio actual</label><input type="text" id="edit-servicio" oninput="toggleSeccionVacacionesLegajo()"></div>
+          <div class="form-group"><label>Servicio actual</label><input type="text" id="edit-servicio" oninput="toggleSeccionVacacionesLegajo();onChangeServicioLegajo()"></div>
         </div>
         <div class="form-grid form-grid-2">
           <div class="form-group"><label>Supervisor</label><input type="text" id="edit-supervisor"></div>

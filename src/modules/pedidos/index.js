@@ -1,6 +1,6 @@
 // Módulo Pedidos de personal — Entry point
 
-export { renderPedidos, filtrarPedidos, guardarPedido, verDetallePedido, renderPerfilInputs } from './pedidos.js';
+export { renderPedidos, filtrarPedidos, guardarPedido, verDetallePedido, renderPerfilInputs, onChangeSupervisorPedido, onChangeServicioPedido } from './pedidos.js';
 
 // ========== SCREEN CONFIG ==========
 
@@ -18,10 +18,12 @@ export const pedidosScreenConfig = {
 
 // ========== WINDOW BINDINGS ==========
 
-import { filtrarPedidos, guardarPedido, verDetallePedido } from './pedidos.js';
+import { filtrarPedidos, guardarPedido, verDetallePedido, onChangeSupervisorPedido, onChangeServicioPedido } from './pedidos.js';
 
 window.renderPedidos = renderPedidos;
 window.filtrarPedidos = filtrarPedidos;
 window.guardarPedido = guardarPedido;
 window.verDetallePedido = verDetallePedido;
 window.renderPerfilInputs = renderPerfilInputs;
+window.onChangeSupervisorPedido = onChangeSupervisorPedido;
+window.onChangeServicioPedido = onChangeServicioPedido;

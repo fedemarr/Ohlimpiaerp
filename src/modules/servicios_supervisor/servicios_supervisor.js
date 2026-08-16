@@ -29,11 +29,29 @@ function getServicioSupervisorById(id) {
   return (DB.serviciosSupervisor || []).find(s => String(s.id) === String(id));
 }
 
-// Usado por onChangeServicioAlta() (altas.js) como fallback cuando el
-// código no tiene un objetivo comercial cargado todavía.
+// Fuente central de la relación servicio → supervisor. Prioridad:
+// 1) objetivo comercial Operativo (DB.objetivos) — fuente autoritativa
+// 2) lista puente servicios_supervisor (v067) — fallback operativo.
 export function getSupervisorDeCodigo(codigo) {
+  const obj = (DB.objetivos || []).find(o => o.codigo === codigo && o.estado === 'Operativo' && !o.anulado);
+  if (obj && (obj.supervisor || obj.supervisorAsignado)) return obj.supervisor || obj.supervisorAsignado;
   const s = (DB.serviciosSupervisor || []).find(x => x.codigo === codigo);
   return s ? s.supervisor : '';
+}
+
+// Dirección inversa: códigos de servicio de un supervisor. Unión de los
+// objetivos Operativos con ese supervisor + la lista puente. Usado por el
+// pedido de personal para filtrar el datalist de servicios por supervisor.
+export function serviciosDeSupervisor(supervisor) {
+  if (!supervisor) return [];
+  const deObjetivos = (DB.objetivos || [])
+    .filter(o => o.estado === 'Operativo' && !o.anulado &&
+      (o.supervisor === supervisor || o.supervisorAsignado === supervisor))
+    .map(o => o.codigo);
+  const dePuente = (DB.serviciosSupervisor || [])
+    .filter(s => s.supervisor === supervisor)
+    .map(s => s.codigo);
+  return [...new Set([...deObjetivos, ...dePuente])];
 }
 
 // ========== RENDER ==========

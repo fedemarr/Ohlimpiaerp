@@ -5,7 +5,7 @@ export {
   tabReas, renderReasignacionesInicial,
   renderReasignaciones, renderReasPend, renderReasHist, renderRotacion,
   filtrarReas, filtrarReasH, filtrarRotacion,
-  poblarSelectsReas, autocompletarReas,
+  poblarSelectsReas, autocompletarReas, onChangeServicioDestinoReas,
   abrirNuevaReasignacion, abrirModalReasDesde, abrirBorradorReasignacionPorId,
   guardarReasignacion, puedeAprobarReasignacion,
   aprobarReasignacionPorId, rechazarReasignacionPorId, anularReasignacionPorId,
@@ -34,7 +34,7 @@ import {
   tabReas,
   renderReasPend, renderReasHist, renderRotacion,
   filtrarReas, filtrarReasH, filtrarRotacion,
-  poblarSelectsReas, autocompletarReas,
+  poblarSelectsReas, autocompletarReas, onChangeServicioDestinoReas,
   abrirModalReasDesde, abrirBorradorReasignacionPorId,
   guardarReasignacion, puedeAprobarReasignacion,
   aprobarReasignacionPorId, rechazarReasignacionPorId, anularReasignacionPorId,
@@ -55,6 +55,7 @@ window.filtrarReasH = filtrarReasH;
 window.filtrarRotacion = filtrarRotacion;
 window.poblarSelectsReas = poblarSelectsReas;
 window.autocompletarReas = autocompletarReas;
+window.onChangeServicioDestinoReas = onChangeServicioDestinoReas;
 window.abrirNuevaReasignacion = abrirNuevaReasignacion;
 window.abrirModalReasDesde = abrirModalReasDesde;
 window.abrirBorradorReasignacionPorId = abrirBorradorReasignacionPorId;

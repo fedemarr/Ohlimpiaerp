@@ -8,7 +8,7 @@ export {
   imprimirLegajo,
   verAdjuntoLegajo,
   toggleAltaObraSocial,
-  SECTORES_ADMIN, toggleSeccionVacacionesLegajo,
+  SECTORES_ADMIN, toggleSeccionVacacionesLegajo, onChangeServicioLegajo,
   toggleLegajoSelection, toggleAllLegajosSelection, viewSelectedLegajos,
   seleccionarArchivoMipymeLegajo, eliminarAdjuntoMipymeLegajo,
 } from './legajos.js';
@@ -44,7 +44,7 @@ import {
   imprimirLegajo,
   verAdjuntoLegajo,
   toggleAltaObraSocial,
-  toggleSeccionVacacionesLegajo,
+  toggleSeccionVacacionesLegajo, onChangeServicioLegajo,
   toggleLegajoSelection, toggleAllLegajosSelection, viewSelectedLegajos,
   seleccionarArchivoMipymeLegajo, eliminarAdjuntoMipymeLegajo,
 } from './legajos.js';
@@ -69,6 +69,7 @@ window.toggleAltaObraSocial = toggleAltaObraSocial;
 window.imprimirLegajo = imprimirLegajo;
 window.verAdjuntoLegajo = verAdjuntoLegajo;
 window.toggleSeccionVacacionesLegajo = toggleSeccionVacacionesLegajo;
+window.onChangeServicioLegajo = onChangeServicioLegajo;
 window.abrirImportadorLegajos = abrirImportadorLegajos;
 window.descargarPlantillaLegajos = descargarPlantillaLegajos;
 window.seleccionarArchivoImportacion = seleccionarArchivoImportacion;

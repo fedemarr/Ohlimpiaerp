@@ -22,6 +22,7 @@ import { toast, abrirModal, cerrarModal, abrirModalInput } from '@shared/ui.js';
 import { supaSync } from '@shared/supabase.js';
 import { construirMenu } from '@shared/nav.js';
 import { sugerirServicioDestino } from './sugeridor.js';
+import { getSupervisorDeCodigo } from '@modules/servicios_supervisor/index.js';
 
 // ========== HELPERS DE FECHA ==========
 
@@ -430,6 +431,17 @@ export function autocompletarReas() {
   if (btnSug) btnSug.disabled = false;
   const cont = $('reas-sugerencias');
   if (cont) cont.innerHTML = '';
+}
+
+// Matcher servicio destino → supervisor destino: al elegir el servicio,
+// autocompleta el supervisor a cargo (objetivo Operativo primero, luego
+// servicios_supervisor — ver getSupervisorDeCodigo).
+export function onChangeServicioDestinoReas() {
+  const codigo = ($('reas-serv-dest') || { value: '' }).value.trim();
+  const supEl = $('reas-sup-dest');
+  if (!supEl || !codigo) return;
+  const sup = getSupervisorDeCodigo(codigo);
+  if (sup) supEl.value = sup;
 }
 
 // ========== SUGERIDOR IA DE SERVICIO DESTINO ==========

@@ -104,12 +104,11 @@ export function onChangeServicioAlta() {
   const supEl = $('alt-supervisor');
   if (!supEl) return;
   if (!codigo || codigo === 'Administrativo') { supEl.value = ''; return; }
-  // Comercial (objetivo real, con cliente/precio) tiene prioridad — es la
-  // fuente autoritativa. Si el código todavía no tiene un objetivo
-  // cargado, cae a DB.serviciosSupervisor (Configuración → Servicios,
-  // sql/v067) en vez de dejar el campo vacío.
-  const obj = (DB.objetivos || []).find(o => o.codigo === codigo && o.estado === 'Operativo' && !o.anulado);
-  supEl.value = obj ? obj.supervisor : getSupervisorDeCodigo(codigo);
+  // El helper central (servicios_supervisor.js) prioriza el objetivo
+  // comercial Operativo (DB.objetivos, fuente autoritativa) y cae a
+  // DB.serviciosSupervisor (Configuración → Servicios, sql/v067) cuando el
+  // código todavía no tiene un objetivo real cargado.
+  supEl.value = getSupervisorDeCodigo(codigo);
 }
 
 // ========== ZONA ==========

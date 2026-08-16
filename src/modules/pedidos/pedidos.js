@@ -1,7 +1,8 @@
 import { DB, currentUser } from '@shared/state.js';
-import { $, avatarEl, badge } from '@shared/helpers.js';
+import { $, avatarEl, badge, fillDL } from '@shared/helpers.js';
 import { toast, cerrarModal, abrirModal } from '@shared/ui.js';
 import { supaSync } from '@shared/supabase.js';
+import { getSupervisorDeCodigo, serviciosDeSupervisor } from '@modules/servicios_supervisor/index.js';
 
 // Tema 11 del relevamiento (10/08): un supervisor solo ve pedidos de SUS
 // servicios activos, no los de toda la cooperativa. Mismo criterio que ya
@@ -138,6 +139,32 @@ export function guardarPedido() {
   renderPedidos();
   supaSync('pedidos', DB.pedidos[DB.pedidos.length - 1]);
   toast('✓ Pedido guardado');
+}
+
+// ========== MATCHER SERVICIO ↔ SUPERVISOR (08/2026) ==========
+
+// Al cambiar el supervisor, filtra el datalist de servicios solo con los
+// de ese supervisor (objetivos Operativos + servicios_supervisor). Limpia
+// el servicio elegido si quedó fuera del filtro.
+export function onChangeSupervisorPedido() {
+  const sup = ($('p-supervisor') || {}).value || '';
+  const servicios = sup
+    ? serviciosDeSupervisor(sup)
+    : (window.obtenerServiciosActivos ? window.obtenerServiciosActivos() : []);
+  fillDL('dl-serv', servicios);
+  const servEl = $('p-servicio');
+  if (servEl && sup && servEl.value && !servicios.includes(servEl.value)) servEl.value = '';
+}
+
+// Al escribir el servicio, autocompleta el supervisor a cargo (misma
+// fuente que Altas/Reasignaciones: objetivo Operativo primero, luego
+// servicios_supervisor).
+export function onChangeServicioPedido() {
+  const codigo = ($('p-servicio') || {}).value || '';
+  const supEl = $('p-supervisor');
+  if (!supEl || !codigo) return;
+  const sup = getSupervisorDeCodigo(codigo);
+  if (sup) supEl.value = sup;
 }
 
 // ========== PERFIL DEL PERSONAL (catálogo parametrizable, v073) ==========

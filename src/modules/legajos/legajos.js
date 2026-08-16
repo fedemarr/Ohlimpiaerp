@@ -7,6 +7,7 @@ import { calcularFechaAltaObraSocial, formatearMesAnio } from '@shared/obraSocia
 import { listarAdjuntos, obtenerUrlFirmada, subirAdjunto, borrarAdjunto, MAX_SIZE, TIPO_LEGIBLE } from '@shared/adjuntos.js';
 import { calcularEstadoVencimiento } from '../documentacion/documentacion.js';
 import { crearNotificacion } from '@shared/notificaciones.js';
+import { getSupervisorDeCodigo } from '@modules/servicios_supervisor/index.js';
 
 // Tema 2 del relevamiento (MODULO_MONOTRIBUTO.md §4): "sin archivo:
 // etiqueta roja + notificación a RRHH/Administración" (MiPyME) y mismo
@@ -683,6 +684,17 @@ export function toggleSeccionVacacionesLegajo() {
   const servicio = ($('edit-servicio') || { value: '' }).value.trim().toUpperCase();
   const sec = $('edit-admin-vac-section');
   if (sec) sec.style.display = servicio === 'ADMINISTRATIVO' ? 'block' : 'none';
+}
+
+// Matcher servicio → supervisor en el modal de edición: al escribir el
+// servicio, autocompleta el supervisor a cargo (objetivo Operativo primero,
+// luego servicios_supervisor — ver getSupervisorDeCodigo).
+export function onChangeServicioLegajo() {
+  const codigo = ($('edit-servicio') || { value: '' }).value.trim();
+  const supEl = $('edit-supervisor');
+  if (!supEl || !codigo) return;
+  const sup = getSupervisorDeCodigo(codigo);
+  if (sup) supEl.value = sup;
 }
 
 export function editarLegajoActual() {
