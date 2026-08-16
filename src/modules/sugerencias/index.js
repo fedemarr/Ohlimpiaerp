@@ -1,3 +1,5 @@
+// Módulo Sugerencias — Entry point
+
 export {
   abrirModalSugerencia,
   enviarSugerencia,

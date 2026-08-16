@@ -45,7 +45,7 @@ export const developerScreenConfig = {
 
 import {
   filtrarDevTickets, abrirTicketPorId, guardarRespuestaTicket, generarPromptIA, copiarPromptIA,
-  toggleRoadmapItem, toggleChecklistItem,
+  toggleRoadmapItem, toggleChecklistItem, borrarAdjuntoDevClick,
 } from './developer.js';
 
 window.renderDevInicio = renderDevInicio;
