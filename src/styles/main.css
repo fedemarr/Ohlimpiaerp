@@ -99,7 +99,45 @@ body{font-family:'DM Sans',sans-serif;background:var(--fondo);color:var(--texto)
 .bar-row .n{font-size:12px;font-weight:700;width:24px;text-align:left;color:var(--texto-suave);}
 
 /* TABLA */
-.tabla-wrap{overflow-x:auto;}
+/* Encabezado y primera columna "congelados" (sticky) — mecanismo
+   centralizado en .tabla-wrap, que ya envuelve prácticamente todas las
+   tablas del sistema (90+ usos entre index.html y los módulos), así que
+   este cambio aplica a todas ellas sin tocar un solo archivo de markup.
+   Ticket: fijar encabezados al hacer scroll vertical y la primera columna
+   (nombres/identificadores) al hacer scroll horizontal.
+   Notas técnicas (por qué está armado así y no de otra forma):
+   - .tabla-wrap ya tenía overflow-x:auto. Por la regla real de CSS
+     Overflow, un overflow-x distinto de visible promueve automáticamente
+     overflow-y a auto aunque no se declare — es decir, .tabla-wrap YA era
+     un contenedor de scroll en ambos ejes, solo que sin max-height nunca
+     llegaba a scrollear verticalmente (crecía con la página). Se agrega
+     max-height explícito para que ese overflow-y tenga alto que scrollear:
+     así .tabla-wrap pasa a ser el propio contenedor de scroll que
+     position:sticky necesita para funcionar (si el scroll fuera de toda
+     la página, sticky ya quedaba "atrapado" igual por ese overflow-x
+     implícito — no alcanzaba con top:0 relativo al viewport).
+   - En tablas cortas que no llegan a max-height no cambia nada: el
+     contenedor se ajusta al contenido como siempre, sin scrollbar propia.
+   - background-color explícito en las celdas sticky (no alcanza con el
+     fondo heredado de la fila): position:sticky necesita un fondo opaco
+     propio en la celda o el contenido que scrollea por detrás se
+     transparenta al quedar la celda "pegada". #f8f9fd es el mismo fondo
+     que ya pinta la regla thead th{} de más abajo (no cambia el color de
+     ningún header existente). El fondo blanco de la primera columna en
+     tbody es el de .card — filas con un color propio vía estilo inline en
+     el <tr> (ej. urgentes en rojo) van a mostrar blanco en la celda
+     congelada puntualmente; el resto de la fila conserva su color al
+     hacer scroll horizontal. Limitación conocida, no crítica.
+   - Los bordes de separación usan box-shadow en vez de border: con
+     border-collapse:collapse (usado en toda la tabla base) los bordes
+     reales de celda pueden duplicarse/recortarse rarito en celdas
+     sticky — box-shadow pinta dentro del cuadro de la celda y no tiene
+     ese problema, es el truco estándar para "sticky columns". */
+.tabla-wrap{overflow:auto;max-height:70vh;}
+.tabla-wrap thead th{position:sticky;top:0;z-index:2;background-color:#f8f9fd;box-shadow:0 1px 0 var(--borde-fuerte);}
+.tabla-wrap tbody td:first-child,.tabla-wrap tbody th:first-child{position:sticky;left:0;z-index:1;background-color:white;box-shadow:1px 0 0 var(--borde-fuerte);}
+.tabla-wrap tbody tr:hover td:first-child,.tabla-wrap tbody tr:hover th:first-child{background-color:#f8f9fd;}
+.tabla-wrap thead th:first-child{left:0;z-index:3;box-shadow:0 1px 0 var(--borde-fuerte),1px 0 0 var(--borde-fuerte);}
 /* Tabla compacta de liquidación */
 .liq-row-servicio{background:#6b7280;color:white;cursor:pointer;transition:background .1s;}
 .liq-row-servicio:hover{background:white;color:#111 !important;}

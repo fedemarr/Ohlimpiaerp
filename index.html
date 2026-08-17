@@ -180,7 +180,7 @@
       <select id="cand-filtro-zona" onchange="filtrarCandidatos()" style="padding:7px 10px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;"><option value="">Todas las zonas</option></select>
       <select id="cand-filtro-estado" onchange="filtrarCandidatos()" style="padding:7px 10px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;"><option value="">Todos los estados</option><option>Sin citar</option><option>Citado</option><option>Entrevistado</option><option>Aprobado</option><option value="Psicotecnico">Psicotécnico</option><option>Rechazado</option><option>Baja</option><option>Caducado</option><option>MT Social</option><option>MT con deuda</option></select>
     </div>
-    <div style="margin:0 20px;overflow-x:auto;">
+    <div class="tabla-wrap" style="margin:0 20px;overflow-x:auto;">
       <table style="width:100%;border-collapse:collapse;font-size:13px;">
         <thead><tr style="background:#1e3a8a;color:white;">
           <th style="padding:10px 12px;text-align:left;">Nombre</th>
@@ -377,7 +377,7 @@
     <select id="psico-filtro-estado" onchange="filtrarPsico()" style="padding:7px 10px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;"><option value="">Todos los estados</option><option>En proceso</option><option>Aprobado</option><option>Rechazado</option></select>
   </div>
 
-  <div style="margin:0 20px;overflow-x:auto;">
+  <div class="tabla-wrap" style="margin:0 20px;overflow-x:auto;">
     <table style="width:100%;border-collapse:collapse;font-size:13px;">
       <thead>
         <tr style="background:#1e3a8a;color:white;">
@@ -413,7 +413,7 @@
     <select id="preocup-filtro-zona" onchange="filtrarPreocup()" style="padding:7px 10px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;"><option value="">Todas las zonas</option></select>
     <select id="preocup-filtro-estado" onchange="filtrarPreocup()" style="padding:7px 10px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;"><option value="">Todos los estados</option><option>En proceso</option><option>Aprobado</option><option>Rechazado</option></select>
   </div>
-  <div style="margin:0 20px;overflow-x:auto;">
+  <div class="tabla-wrap" style="margin:0 20px;overflow-x:auto;">
     <table style="width:100%;border-collapse:collapse;font-size:13px;">
       <thead>
         <tr style="background:#1e3a8a;color:white;">
@@ -448,7 +448,7 @@
     <select id="docum-filtro-zona" onchange="filtrarDocum()" style="padding:7px 10px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;"><option value="">Todas las zonas</option></select>
     <select id="docum-filtro-estado" onchange="filtrarDocum()" style="padding:7px 10px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;"><option value="">Todos los estados</option><option>En proceso</option><option>Aprobado</option><option>Rechazado</option></select>
   </div>
-  <div style="margin:0 20px;overflow-x:auto;">
+  <div class="tabla-wrap" style="margin:0 20px;overflow-x:auto;">
     <table style="width:100%;border-collapse:collapse;font-size:13px;">
       <thead>
         <tr style="background:#1e3a8a;color:white;">
@@ -862,7 +862,7 @@
         <button class="btn btn-primary btn-sm" onclick="abrirModal('modal-usuario')">+ Nuevo usuario</button>
       </div>
       <div class="card-body" style="padding:0;">
-        <div style="overflow-x:auto;">
+        <div class="tabla-wrap" style="overflow-x:auto;">
           <table id="tabla-perfiles-modulos" style="border-collapse:collapse;font-size:12px;width:100%;">
             <thead id="thead-perfiles"></thead>
             <tbody id="tbody-perfiles"></tbody>
@@ -898,7 +898,7 @@
       </div>
       </div>
       <div class="card-body" style="padding:0;">
-        <div style="overflow-x:auto;">
+        <div class="tabla-wrap" style="overflow-x:auto;">
           <table style="border-collapse:collapse;font-size:13px;width:100%;">
             <thead>
               <tr>
@@ -1123,7 +1123,7 @@
       </div>
       <div class="card-body" style="padding:0;">
         <div style="padding:8px 12px;font-size:12px;color:var(--texto-suave);" id="ss-contador"></div>
-        <div style="overflow-x:auto;">
+        <div class="tabla-wrap" style="overflow-x:auto;">
           <table style="border-collapse:collapse;font-size:13px;width:100%;">
             <thead>
               <tr>
@@ -2988,7 +2988,7 @@
       </div>
 
       <!-- Vista compacta: tabla de servicios con horas por día expandibles -->
-      <div style="overflow-x:auto;">
+      <div class="tabla-wrap" style="overflow-x:auto;">
         <table id="tabla-servicios-compacta" style="border-collapse:collapse;font-size:12px;width:100%;min-width:max-content;">
           <thead id="thead-servicios-compacta"></thead>
           <tbody id="tbody-servicios-compacta"></tbody>

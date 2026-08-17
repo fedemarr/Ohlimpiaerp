@@ -8969,7 +8969,7 @@ function verGrillaRetenDetalle(nombre, mes){
       ${rechazos>0?`<div style="background:#fee2e2;border:1px solid #fca5a5;border-radius:6px;padding:8px 12px;font-size:12px;color:#dc2626;margin-bottom:8px;">
         ⚠️ <strong>${rechazos} rechazo${rechazos>1?'s':''}</strong> — descuento de ${descRechazos}hs del contrato
       </div>`:''}
-      <div style="overflow-x:auto;">
+      <div class="tabla-wrap" style="overflow-x:auto;">
         <table style="border-collapse:collapse;font-size:12px;white-space:nowrap;">
           <thead>
             <tr style="background:#374151;color:white;">
@@ -9078,7 +9078,7 @@ function verGrillaServicioDetalle(nombre, mes, servicioDesc, detalleIdx){
       <div style="font-size:13px;font-weight:700;color:#1e40af;">📅 ${servicioDesc}</div>
       <div style="font-size:12px;color:var(--texto-suave);">${asoc.categoria||'—'} · $${vh.toLocaleString('es-AR')}/h</div>
     </div>
-    <div style="overflow-x:auto;">
+    <div class="tabla-wrap" style="overflow-x:auto;">
       <table style="border-collapse:collapse;font-size:12px;white-space:nowrap;">
         <thead>
           <tr style="background:#374151;color:white;">
@@ -10011,7 +10011,7 @@ function verGrillaMantDetalle(nombre, mes){
       </div>
       ${rechazos>0?`<div style="background:#fee2e2;border:1px solid #fca5a5;border-radius:6px;padding:8px 12px;font-size:12px;color:#dc2626;margin-bottom:8px;">
         ⚠️ <strong>${rechazos} rechazo${rechazos>1?'s':''}</strong> — descuento de ${descRechazos}hs del contrato</div>`:''}
-      <div style="overflow-x:auto;">
+      <div class="tabla-wrap" style="overflow-x:auto;">
         <table style="border-collapse:collapse;font-size:12px;white-space:nowrap;">
           <thead><tr style="background:#374151;color:white;">
             <th style="padding:6px 10px;border:1px solid #6b7280;text-align:left;min-width:80px;position:sticky;left:0;background:#374151;z-index:2;">Concepto</th>
@@ -10932,7 +10932,7 @@ function previsualizarImportacion(){
   if(!parsed.length){ preview.innerHTML='<div style="color:#dc2626;padding:8px;">No se pudieron interpretar los datos. Verificá el formato.</div>'; return; }
   preview.innerHTML = `
     <div style="font-size:12px;color:#065f46;margin-bottom:8px;">✅ ${parsed.length} categorías detectadas</div>
-    <div style="overflow-x:auto;max-height:200px;overflow-y:auto;">
+    <div class="tabla-wrap" style="overflow-x:auto;max-height:200px;overflow-y:auto;">
       <table style="border-collapse:collapse;font-size:11px;width:100%;">
         <thead><tr style="background:#374151;color:white;">
           <th style="padding:4px 8px;border:1px solid #6b7280;">Cat.</th>
@@ -11466,7 +11466,7 @@ function renderTablasCategorias(){
       <div style="font-size:12px;color:var(--texto-suave);margin-bottom:12px;">
         Los valores de CUR se actualizan según resolución de ARCA. Vigencia desde: <strong>${vigencia}</strong>
       </div>
-      <div style="overflow-x:auto;">
+      <div class="tabla-wrap" style="overflow-x:auto;">
         <table style="border-collapse:collapse;width:100%;font-size:12px;">
           <thead><tr style="background:#374151;color:white;">
             <th style="padding:8px 12px;border:1px solid #6b7280;text-align:center;">Cat.</th>
@@ -12803,7 +12803,7 @@ function renderHistorialPrecios(){
           ${o.valorHora?`<div style="font-size:11px;color:var(--texto-suave);">$${o.valorHora.toLocaleString('es-AR')}/hora</div>`:''}
         </div>
       </div>
-      <div style="overflow-x:auto;">
+      <div class="tabla-wrap" style="overflow-x:auto;">
         <table style="width:100%;border-collapse:collapse;font-size:12px;">
           <thead><tr style="background:#f8f9fd;">
             <th style="padding:8px 12px;border:1px solid var(--borde);text-align:left;">Fecha</th>
