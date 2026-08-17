@@ -461,7 +461,7 @@ export const PARTIDOS_LOCALIDADES = {
   'La Plata': ['La Plata', 'Los Hornos', 'City Bell', 'Villa Elisa', 'Tolosa', 'Melchor Romero', 'Gonnet', 'Ringuelet'],
   'Lomas de Zamora': ['Lomas de Zamora', 'Banfield', 'Temperley', 'Llavallol', 'Turdera', 'Villa Fiorito', 'Ingeniero Budge'],
   'Luján': ['Luján', 'Jáuregui', 'Open Door', 'Olivera', 'Carlos Keen'],
-  'Malvinas Argentinas': ['Los Polvorines', 'Grand Bourg', 'Tortuguitas', 'Ing. Adolfo Sourdeaux', 'Pablo Nogués'],
+  'Malvinas Argentinas': ['Los Polvorines', 'Grand Bourg', 'Tortuguitas', 'Ing. Adolfo Sourdeaux', 'Pablo Nogués', 'Villa de Mayo'],
   'Marcos Paz': ['Marcos Paz'],
   'Mercedes': ['Mercedes'],
   'Merlo': ['Merlo', 'San Antonio de Padua', 'Libertad', 'Mariano Acosta', 'Pontevedra'],
