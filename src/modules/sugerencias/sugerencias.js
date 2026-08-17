@@ -53,7 +53,7 @@ function ensureBotonReporte() {
   btn.id = 'btn-reporte-flotante';
   btn.innerHTML = '💬';
   btn.title = 'Reportar problema o sugerencia';
-  btn.setAttribute('onclick', 'abrirModalSugerencia()');
+  btn.addEventListener('click', abrirModalSugerencia);
   btn.style.cssText = 'position:fixed!important;bottom:24px!important;right:24px!important;z-index:99999!important;width:52px!important;height:52px!important;border-radius:50%!important;border:none!important;cursor:pointer!important;background:#1e3a8a!important;color:white!important;font-size:22px!important;box-shadow:0 4px 12px rgba(0,0,0,0.3)!important;align-items:center!important;justify-content:center!important;';
   btn.style.setProperty('display', 'none', 'important');
   document.body.appendChild(btn);
@@ -108,8 +108,8 @@ export function abrirModalSugerencia() {
           </div>
           <div style="margin-bottom:4px;">
             <label style="font-weight:600;font-size:13px;">Archivos adjuntos (opcional)</label>
-            <input type="file" id="sugerencia-archivos" multiple accept=".md,.txt,.pdf,.doc,.docx,.xls,.xlsx,.csv,.png,.jpg,.jpeg,.gif" onchange="mostrarArchivosSugerencia(this)" style="width:100%;padding:8px;border:1px dashed #d1d5db;border-radius:6px;margin-top:4px;">
-            <div style="font-size:11px;color:var(--texto-suave);margin-top:4px;">Markdown, Word, Excel, PDF, CSV, imágenes… máx. 10 MB c/u.</div>
+            <input type="file" id="sugerencia-archivos" multiple accept=".md,.txt,.pdf,.doc,.docx,.xls,.xlsx,.csv,.png,.jpg,.jpeg,.gif,.html,.htm" onchange="mostrarArchivosSugerencia(this)" style="width:100%;padding:8px;border:1px dashed #d1d5db;border-radius:6px;margin-top:4px;">
+            <div style="font-size:11px;color:var(--texto-suave);margin-top:4px;">Markdown, Word, Excel, PDF, CSV, HTML, imágenes… máx. 10 MB c/u.</div>
             <div id="sugerencia-archivos-lista" style="margin-top:6px;"></div>
           </div>
         </div>
@@ -243,7 +243,7 @@ function celdaArchivosSugerencia(s) {
   const adjuntos = listarAdjuntosDeSugerencia(s.id);
   if (!adjuntos.length) {
     return `<label style="cursor:pointer;font-size:11px;color:#1e3a8a;text-decoration:underline;">
-      <input type="file" multiple accept=".md,.txt,.pdf,.doc,.docx,.xls,.xlsx,.csv,.png,.jpg,.jpeg,.gif" style="display:none;" onchange="adjuntarArchivosSugerencia('${s.id}',this)">＋ Adjuntar archivos
+      <input type="file" multiple accept=".md,.txt,.pdf,.doc,.docx,.xls,.xlsx,.csv,.png,.jpg,.jpeg,.gif,.html,.htm" style="display:none;" onchange="adjuntarArchivosSugerencia('${s.id}',this)">＋ Adjuntar archivos
     </label>`;
   }
   const chips = adjuntos.map(a => `
@@ -254,7 +254,7 @@ function celdaArchivosSugerencia(s) {
     </div>`).join('');
   return chips + `
     <label style="cursor:pointer;font-size:11px;color:#1e3a8a;text-decoration:underline;">
-      <input type="file" multiple accept=".md,.txt,.pdf,.doc,.docx,.xls,.xlsx,.csv,.png,.jpg,.jpeg,.gif" style="display:none;" onchange="adjuntarArchivosSugerencia('${s.id}',this)">＋ Adjuntar más
+      <input type="file" multiple accept=".md,.txt,.pdf,.doc,.docx,.xls,.xlsx,.csv,.png,.jpg,.jpeg,.gif,.html,.htm" style="display:none;" onchange="adjuntarArchivosSugerencia('${s.id}',this)">＋ Adjuntar más
     </label>`;
 }
 
