@@ -37,9 +37,6 @@ export { chequearAlertas24hs, chequear15Dias } from './vencimientos.js';
 export {
   cambiarTabStockUniformes, renderStock,
   filtrarStockUniformes,
-  abrirNuevaCompra, agregarItemCompra, quitarItemCompra,
-  cambiarPrendaItemCompra, cambiarTalleItemCompra, cambiarCantidadItemCompra, cambiarCostoItemCompra,
-  guardarCompraUniformes,
   abrirConteoFisico, cambiarCantidadContadaConteo, guardarConteoFisico,
 } from './stock.js';
 
@@ -87,8 +84,8 @@ export const uniformesScreenConfig = {
   },
   stock: {
     title: 'Stock de uniformes',
-    btn: '+ Nueva compra',
-    fn: () => window.abrirNuevaCompra(),
+    btn: null,
+    fn: null,
     render: () => window.renderStock(),
   },
 };
@@ -117,9 +114,6 @@ import { filtrarDescuentosUniformes, exportarDescuentosUniformesExcel } from './
 import { filtrarDevolucionesBaja, abrirGenerarOrdenManual, abrirCierreDevolucion, confirmarCierreDevolucion, generarOrdenDevolucionUniformes } from './devoluciones.js';
 import {
   cambiarTabStockUniformes, renderStock, filtrarStockUniformes,
-  abrirNuevaCompra, agregarItemCompra, quitarItemCompra,
-  cambiarPrendaItemCompra, cambiarTalleItemCompra, cambiarCantidadItemCompra, cambiarCostoItemCompra,
-  guardarCompraUniformes,
   abrirConteoFisico, cambiarCantidadContadaConteo, guardarConteoFisico,
 } from './stock.js';
 
@@ -176,14 +170,6 @@ window.generarOrdenDevolucionUniformes = generarOrdenDevolucionUniformes;
 window.cambiarTabStockUniformes = cambiarTabStockUniformes;
 window.renderStock = renderStock;
 window.filtrarStockUniformes = filtrarStockUniformes;
-window.abrirNuevaCompra = abrirNuevaCompra;
-window.agregarItemCompra = agregarItemCompra;
-window.quitarItemCompra = quitarItemCompra;
-window.cambiarPrendaItemCompra = cambiarPrendaItemCompra;
-window.cambiarTalleItemCompra = cambiarTalleItemCompra;
-window.cambiarCantidadItemCompra = cambiarCantidadItemCompra;
-window.cambiarCostoItemCompra = cambiarCostoItemCompra;
-window.guardarCompraUniformes = guardarCompraUniformes;
 window.abrirConteoFisico = abrirConteoFisico;
 window.cambiarCantidadContadaConteo = cambiarCantidadContadaConteo;
 window.guardarConteoFisico = guardarConteoFisico;

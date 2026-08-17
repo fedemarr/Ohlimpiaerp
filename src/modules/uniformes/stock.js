@@ -4,13 +4,10 @@
 // descuentos.js) — esto agrega el control de stock físico que faltaba
 // (reemplaza el ítem "Próximamente" del menú).
 //
-// 3 vistas + 1 acción integrada al flujo existente:
+// 2 vistas + 1 acción integrada al flujo existente:
 // - Stock actual: nivel lógico por prenda/talle.
 // - Movimientos: ledger completo (entradas/salidas/ajustes), auditoría
 //   y base para una futura Previsión de compras (consumo histórico).
-// - Compras: alta de un lote de compra a proveedor (costo real pagado —
-//   distinto de precios_uniformes, que es lo que se le cobra al
-//   operario por pérdida/daño, no lo que la cooperativa pagó).
 // - Conteo físico: Logística carga el conteo real del depósito de vez
 //   en cuando: precarga con el stock lógico, el usuario corrige lo que
 //   difiera, y al guardar se generan movimientos de tipo 'ajuste' con
@@ -26,7 +23,6 @@ import { DB, currentUser } from '@shared/state.js';
 import { $ } from '@shared/helpers.js';
 import { toast, abrirModal, cerrarModal } from '@shared/ui.js';
 import { supaSync } from '@shared/supabase.js';
-import { PRENDAS, TALLES_POR_PRENDA } from './catalogos.js';
 
 // ========== NIVEL DE STOCK + MOVIMIENTOS (ledger) ==========
 
@@ -120,92 +116,6 @@ export function renderMovimientosStockUniformes() {
       </tr>`).join('');
 }
 
-// ========== TAB: COMPRAS (alta de lote) ==========
-
-let _itemsCompraTemp = [];
-
-export function abrirNuevaCompra() {
-  _itemsCompraTemp = [];
-  const f = $('compra-fecha'); if (f) f.value = new Date().toISOString().slice(0, 10);
-  const p = $('compra-proveedor'); if (p) p.value = '';
-  const nf = $('compra-nro-factura'); if (nf) nf.value = '';
-  const obs = $('compra-obs'); if (obs) obs.value = '';
-  renderItemsCompraTemp();
-  abrirModal('modal-nueva-compra-uniformes');
-}
-
-export function agregarItemCompra() {
-  _itemsCompraTemp.push({ prenda: PRENDAS[0], talle: TALLES_POR_PRENDA[PRENDAS[0]][0], cantidad: 1, costoUnitario: 0 });
-  renderItemsCompraTemp();
-}
-export function quitarItemCompra(i) { _itemsCompraTemp.splice(i, 1); renderItemsCompraTemp(); }
-export function cambiarPrendaItemCompra(i, prenda) { _itemsCompraTemp[i].prenda = prenda; _itemsCompraTemp[i].talle = TALLES_POR_PRENDA[prenda][0]; renderItemsCompraTemp(); }
-export function cambiarTalleItemCompra(i, talle) { _itemsCompraTemp[i].talle = talle; }
-export function cambiarCantidadItemCompra(i, v) { _itemsCompraTemp[i].cantidad = Math.max(1, parseInt(v) || 1); renderItemsCompraTemp(); }
-export function cambiarCostoItemCompra(i, v) { _itemsCompraTemp[i].costoUnitario = Math.max(0, parseFloat(v) || 0); renderItemsCompraTemp(); }
-
-function renderItemsCompraTemp() {
-  const cont = $('compra-items-lista');
-  if (!cont) return;
-  cont.innerHTML = _itemsCompraTemp.map((it, i) => `
-    <div style="display:grid;grid-template-columns:1fr 1fr 80px 120px 32px;gap:6px;align-items:center;margin-bottom:6px;">
-      <select onchange="cambiarPrendaItemCompra(${i}, this.value)">${PRENDAS.map(p => `<option ${p === it.prenda ? 'selected' : ''}>${p}</option>`).join('')}</select>
-      <select onchange="cambiarTalleItemCompra(${i}, this.value)">${(TALLES_POR_PRENDA[it.prenda] || []).map(t => `<option ${t === it.talle ? 'selected' : ''}>${t}</option>`).join('')}</select>
-      <input type="number" min="1" value="${it.cantidad}" onchange="cambiarCantidadItemCompra(${i}, this.value)">
-      <input type="number" min="0" step="0.01" placeholder="Costo unit." value="${it.costoUnitario}" onchange="cambiarCostoItemCompra(${i}, this.value)">
-      <button type="button" class="btn btn-danger btn-xs" onclick="quitarItemCompra(${i})">✕</button>
-    </div>`).join('') || '<p style="opacity:.5;font-size:12px;">Sin ítems — agregá al menos una prenda</p>';
-  const totalEl = $('compra-total');
-  if (totalEl) totalEl.textContent = '$' + _itemsCompraTemp.reduce((s, it) => s + it.cantidad * it.costoUnitario, 0).toLocaleString('es-AR');
-}
-
-export async function guardarCompraUniformes() {
-  if (!_itemsCompraTemp.length) { toast('⚠️ Agregá al menos una prenda'); return; }
-  const fecha = ($('compra-fecha') || {}).value;
-  if (!fecha) { toast('⚠️ Ingresá la fecha de la compra'); return; }
-  const total = _itemsCompraTemp.reduce((s, it) => s + it.cantidad * it.costoUnitario, 0);
-  const compra = {
-    id: Date.now(), fecha,
-    proveedor: ($('compra-proveedor') || {}).value || '',
-    nroFactura: ($('compra-nro-factura') || {}).value || '',
-    items: [..._itemsCompraTemp], total,
-    observaciones: ($('compra-obs') || {}).value || '',
-    registradoPor: currentUser?.nombre || '',
-  };
-  const ok = await supaSync('comprasUniformes', compra);
-  if (!ok) { toast('⚠️ No se pudo guardar la compra — reintentá'); return; }
-  if (!DB.comprasUniformes) DB.comprasUniformes = [];
-  DB.comprasUniformes.push(compra);
-  for (const it of _itemsCompraTemp) {
-    await registrarMovimientoStock({
-      tipo: 'entrada', prenda: it.prenda, talle: it.talle, cantidad: it.cantidad,
-      motivo: 'Compra' + (compra.proveedor ? ' — ' + compra.proveedor : '') + (compra.nroFactura ? ' (Fact. ' + compra.nroFactura + ')' : ''),
-      refTipo: 'compra', refIdLocal: String(compra.id).slice(-9),
-    });
-  }
-  cerrarModal('modal-nueva-compra-uniformes');
-  renderStockUniformes();
-  renderMovimientosStockUniformes();
-  renderComprasUniformes();
-  toast('✅ Compra registrada — stock actualizado');
-}
-
-export function renderComprasUniformes() {
-  const tbody = $('tbody-stock-compras');
-  if (!tbody) return;
-  const compras = [...(DB.comprasUniformes || [])].sort((a, b) => (b.fecha || '').localeCompare(a.fecha || ''));
-  tbody.innerHTML = compras.length === 0
-    ? '<tr><td colspan="6" style="text-align:center;padding:24px;opacity:.5;">Sin compras registradas</td></tr>'
-    : compras.map(c => `<tr>
-        <td>${c.fecha}</td>
-        <td>${c.proveedor || '—'}</td>
-        <td>${c.nroFactura || '—'}</td>
-        <td style="font-size:12px;">${(c.items || []).map(it => `${it.cantidad}x ${it.prenda} (${it.talle})`).join(', ')}</td>
-        <td style="font-weight:700;">$${(c.total || 0).toLocaleString('es-AR')}</td>
-        <td style="font-size:12px;color:var(--texto-suave);">${c.registradoPor || '—'}</td>
-      </tr>`).join('');
-}
-
 // ========== TAB: CONTEO FÍSICO ==========
 
 let _itemsConteoTemp = [];
@@ -275,11 +185,9 @@ export function cambiarTabStockUniformes(tab, btn) {
   if (el) el.classList.add('active');
   if (tab === 'actual') renderStockUniformes();
   if (tab === 'movimientos') renderMovimientosStockUniformes();
-  if (tab === 'compras') renderComprasUniformes();
 }
 
 export function renderStock() {
   renderStockUniformes();
   renderMovimientosStockUniformes();
-  renderComprasUniformes();
 }
