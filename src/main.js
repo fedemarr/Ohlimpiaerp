@@ -35,6 +35,7 @@ import { pedidosAdelantosScreenConfig } from './modules/pedidos_adelantos/index.
 import { gestionAdelantosScreenConfig } from './modules/gestion_adelantos/index.js';
 import { sugerenciasScreenConfig, mostrarBotonReporte, ocultarBotonReporte } from './modules/sugerencias/index.js';
 import { renderCampanaNotificaciones, fetchNotificacionesPendientes, toggleCampanaDropdown, marcarNotifLeidaYRefrescar } from '@shared/notificaciones.js';
+import { aplicarBranding } from '@shared/branding.js';
 import './modules/personal_rrhh/index.js';
 import './modules/servicios_supervisor/index.js';
 import { sincronizarServiciosSupervisor } from './modules/servicios_supervisor/index.js';
@@ -342,6 +343,7 @@ registerScreens({
 
 // ========== INIT ==========
 
+aplicarBranding();
 initLoginKeydown();
 initModalClickOutside();
 
