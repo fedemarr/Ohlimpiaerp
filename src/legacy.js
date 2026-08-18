@@ -8835,6 +8835,20 @@ function renderLiquidaciones(){
     <th style="${thStyle}"></th>
   </tr>`;
 
+  // El thead de esta tabla tiene 2 filas (grupo + subgrupo). El sticky
+  // genérico de .tabla-wrap (main.css) pone top:0 en TODOS los th por
+  // igual — position:sticky no apila solo filas de encabezado, cada una
+  // necesita su propio offset o la 2da fila queda tapando exactamente
+  // arriba de la 1ra al hacer scroll vertical (headers se ven vacíos).
+  // Se mide el alto real de la 1ra fila (no un valor fijo, cambia si
+  // cambia el contenido) y se lo aplica como "top" a la 2da.
+  const filaHead1=thead.querySelector('tr:first-child');
+  const filaHead2=thead.querySelector('tr:nth-child(2)');
+  if(filaHead1&&filaHead2){
+    const alto1=filaHead1.getBoundingClientRect().height;
+    filaHead2.querySelectorAll('th').forEach(th=>{th.style.top=alto1+'px';});
+  }
+
   if(!filasConsolidadas.length){
     tbody.innerHTML=`<tr><td colspan="17" style="padding:40px;text-align:center;color:var(--texto-muy-suave);">
       Sin datos para el período. Cargá horas en Liquidación de horas o en la Planilla de Administración.
