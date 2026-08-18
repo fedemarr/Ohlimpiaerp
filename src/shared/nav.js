@@ -1,6 +1,6 @@
 import { DB, PERFILES, MENU, currentUser } from '@shared/state.js';
 import { $ } from '@shared/helpers.js';
-import { activarOrdenamiento } from '@shared/ui.js';
+import { activarOrdenamiento, toast } from '@shared/ui.js';
 
 // Multi-empresa (18/08/2026): qué módulos le vendiste a la empresa de
 // ESTE deploy — ver src/modules/superadmin/ para el registro de todas.
@@ -38,6 +38,15 @@ export function registerNavCallbacks(cbs) {
 }
 
 export function navTo(sec, el) {
+  // Multi-empresa: bloquear acá, no solo en construirMenu(). Las tarjetas
+  // de acceso directo del Inicio (renderInicio, legacy.js) navegan con
+  // navTo() directo, sin pasar por el sidebar — sin este chequeo, el
+  // filtro de módulos contratados se podía saltear con un click ahí.
+  if (sec !== 'inicio' && MODULOS_CONTRATADOS && !MODULOS_CONTRATADOS.includes(sec)) {
+    console.warn('navTo: módulo "' + sec + '" no contratado para esta empresa — navegación bloqueada');
+    toast('⚠️ Este módulo no está disponible en tu plan');
+    return;
+  }
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
   // OJO: NO tocar .tab-content acá. Antes se le sacaba "active" a las
