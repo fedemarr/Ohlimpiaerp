@@ -83,11 +83,13 @@ CREATE TABLE IF NOT EXISTS public.historial_importaciones (
   updated_at  timestamptz NOT NULL DEFAULT now()
 );
 
+DROP TRIGGER IF EXISTS set_updated_at_historial_importaciones ON public.historial_importaciones;
 CREATE TRIGGER set_updated_at_historial_importaciones
   BEFORE UPDATE ON public.historial_importaciones
   FOR EACH ROW EXECUTE FUNCTION public.tg_set_updated_at();
 
 ALTER TABLE public.historial_importaciones ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Solo usuarios autenticados" ON public.historial_importaciones;
 CREATE POLICY "Solo usuarios autenticados" ON public.historial_importaciones
   FOR ALL TO authenticated USING (true) WITH CHECK (true);
 

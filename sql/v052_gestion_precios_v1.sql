@@ -14,13 +14,25 @@
 
 BEGIN;
 
-ALTER TABLE public.propuestas_precios
-  ALTER COLUMN valor_propuesto DROP DEFAULT,
-  ALTER COLUMN valor_hora_propuesto DROP DEFAULT,
-  ALTER COLUMN valor_propuesto TYPE numeric USING NULLIF(valor_propuesto,'')::numeric,
-  ALTER COLUMN valor_hora_propuesto TYPE numeric USING NULLIF(valor_hora_propuesto,'')::numeric,
-  ALTER COLUMN valor_propuesto SET DEFAULT 0,
-  ALTER COLUMN valor_hora_propuesto SET DEFAULT 0;
+-- Guardado contra "text" (18/08/2026): en una base nueva, creada por
+-- introspección del esquema YA MIGRADO de producción, esta columna nace
+-- numeric directamente — el USING NULLIF(col,'')::numeric de abajo
+-- comparaba un numeric contra el literal '' y explotaba al resolver el
+-- tipo (''::numeric no es válido), aunque no hubiera ni una fila. Se hace
+-- condicional: solo convierte si todavía está en el estado viejo (text).
+DO $$
+BEGIN
+  IF (SELECT data_type FROM information_schema.columns
+      WHERE table_schema='public' AND table_name='propuestas_precios' AND column_name='valor_propuesto') = 'text' THEN
+    ALTER TABLE public.propuestas_precios
+      ALTER COLUMN valor_propuesto DROP DEFAULT,
+      ALTER COLUMN valor_hora_propuesto DROP DEFAULT,
+      ALTER COLUMN valor_propuesto TYPE numeric USING NULLIF(valor_propuesto,'')::numeric,
+      ALTER COLUMN valor_hora_propuesto TYPE numeric USING NULLIF(valor_hora_propuesto,'')::numeric,
+      ALTER COLUMN valor_propuesto SET DEFAULT 0,
+      ALTER COLUMN valor_hora_propuesto SET DEFAULT 0;
+  END IF;
+END $$;
 
 ALTER TABLE public.propuestas_precios
   ADD COLUMN IF NOT EXISTS objetivo_id            bigint,
