@@ -4,19 +4,22 @@
 -- empezara la disciplina de migraciones numeradas). Reconstruido por
 -- introspección directa contra la base de producción de Ohlimpia
 -- (information_schema + pg_catalog), 18/08/2026 — no a mano, así queda
--- fiel a lo que realmente existe, columna por columna.
+-- fiel a lo que realmente existe, columna por columna, PK incluida.
 --
 -- Con esto + setup_supabase.sql + v002 en adelante, una base nueva
 -- (para una empresa cliente nueva) puede levantar el esquema completo
 -- desde cero, cosa que antes no era posible: sin este archivo, decenas
--- de migraciones fallaban en cascada porque asumían que estas 36 tablas
+-- de migraciones fallaban en cascada porque asumían que estas 34 tablas
 -- ya existían.
 
 BEGIN;
 
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+CREATE EXTENSION IF NOT EXISTS pgcrypto;
+
 -- Tabla: legajos
 CREATE TABLE IF NOT EXISTS public.legajos (
-  id                     uuid NOT NULL DEFAULT uuid_generate_v4(),
+  id                     uuid NOT NULL DEFAULT uuid_generate_v4() PRIMARY KEY,
   id_local               text,
   nro                    integer DEFAULT 0,
   nombre                 text DEFAULT ''::text,
@@ -85,7 +88,7 @@ CREATE POLICY "Solo usuarios autenticados" ON public.legajos FOR ALL TO authenti
 
 -- Tabla: clientes
 CREATE TABLE IF NOT EXISTS public.clientes (
-  id                     uuid NOT NULL DEFAULT uuid_generate_v4(),
+  id                     uuid NOT NULL DEFAULT uuid_generate_v4() PRIMARY KEY,
   id_local               text,
   nombre                 text DEFAULT ''::text,
   razon                  text DEFAULT ''::text,
@@ -137,7 +140,7 @@ CREATE POLICY "Solo usuarios autenticados" ON public.clientes FOR ALL TO authent
 
 -- Tabla: objetivos
 CREATE TABLE IF NOT EXISTS public.objetivos (
-  id                     bigint NOT NULL,
+  id                     bigint NOT NULL PRIMARY KEY,
   id_local               text NOT NULL,
   cliente_id_local       text NOT NULL,
   codigo                 text NOT NULL,
@@ -206,7 +209,7 @@ CREATE POLICY "objetivos_all" ON public.objetivos FOR ALL TO authenticated USING
 
 -- Tabla: usuarios
 CREATE TABLE IF NOT EXISTS public.usuarios (
-  id                     uuid NOT NULL DEFAULT uuid_generate_v4(),
+  id                     uuid NOT NULL DEFAULT uuid_generate_v4() PRIMARY KEY,
   id_local               text,
   nombre                 text NOT NULL,
   email                  text,
@@ -229,7 +232,7 @@ CREATE POLICY "usuarios_update_propio_o_admin" ON public.usuarios FOR UPDATE TO 
 
 -- Tabla: monotributos
 CREATE TABLE IF NOT EXISTS public.monotributos (
-  id                     uuid NOT NULL DEFAULT uuid_generate_v4(),
+  id                     uuid NOT NULL DEFAULT uuid_generate_v4() PRIMARY KEY,
   id_local               text,
   historial_categorias   jsonb DEFAULT '[]'::jsonb,
   created_at             timestamp with time zone DEFAULT now(),
@@ -257,7 +260,7 @@ CREATE POLICY "Solo usuarios autenticados" ON public.monotributos FOR ALL TO aut
 
 -- Tabla: uniformes
 CREATE TABLE IF NOT EXISTS public.uniformes (
-  id                     bigint NOT NULL,
+  id                     bigint NOT NULL PRIMARY KEY,
   id_local               text NOT NULL,
   legajo_id_local        text,
   nro_socio              text,
@@ -284,7 +287,7 @@ CREATE POLICY "Solo usuarios autenticados" ON public.uniformes FOR ALL TO authen
 
 -- Tabla: retenciones
 CREATE TABLE IF NOT EXISTS public.retenciones (
-  id                     bigint NOT NULL,
+  id                     bigint NOT NULL PRIMARY KEY,
   id_local               text NOT NULL,
   legajo_id_local        text,
   nro_socio              text,
@@ -317,7 +320,7 @@ CREATE POLICY "Solo usuarios autenticados" ON public.retenciones FOR ALL TO auth
 
 -- Tabla: capacitaciones
 CREATE TABLE IF NOT EXISTS public.capacitaciones (
-  id                     bigint NOT NULL,
+  id                     bigint NOT NULL PRIMARY KEY,
   id_local               text NOT NULL,
   legajo_id_local        text NOT NULL,
   nro_socio              text NOT NULL,
@@ -350,7 +353,7 @@ CREATE POLICY "Solo usuarios autenticados" ON public.capacitaciones FOR ALL TO a
 
 -- Tabla: reasignaciones
 CREATE TABLE IF NOT EXISTS public.reasignaciones (
-  id                     bigint NOT NULL,
+  id                     bigint NOT NULL PRIMARY KEY,
   id_local               text NOT NULL,
   legajo_id_local        text,
   nro_socio              text NOT NULL,
@@ -394,7 +397,7 @@ CREATE POLICY "Solo usuarios autenticados" ON public.reasignaciones FOR ALL TO a
 
 -- Tabla: casos_legales
 CREATE TABLE IF NOT EXISTS public.casos_legales (
-  id                     uuid NOT NULL DEFAULT uuid_generate_v4(),
+  id                     uuid NOT NULL DEFAULT uuid_generate_v4() PRIMARY KEY,
   id_local               text,
   asociado               text DEFAULT ''::text,
   nro_socio              integer DEFAULT 0,
@@ -431,7 +434,7 @@ CREATE POLICY "Solo usuarios autenticados" ON public.casos_legales FOR ALL TO au
 
 -- Tabla: prestamos
 CREATE TABLE IF NOT EXISTS public.prestamos (
-  id                     uuid NOT NULL DEFAULT uuid_generate_v4(),
+  id                     uuid NOT NULL DEFAULT uuid_generate_v4() PRIMARY KEY,
   id_local               text,
   nombre                 text DEFAULT ''::text,
   nro_socio              integer DEFAULT 0,
@@ -470,7 +473,7 @@ CREATE POLICY "Solo usuarios autenticados" ON public.prestamos FOR ALL TO authen
 
 -- Tabla: facturas
 CREATE TABLE IF NOT EXISTS public.facturas (
-  id                     uuid NOT NULL DEFAULT uuid_generate_v4(),
+  id                     uuid NOT NULL DEFAULT uuid_generate_v4() PRIMARY KEY,
   id_local               text,
   cliente_id             bigint DEFAULT 0,
   objetivo_cod           text DEFAULT ''::text,
@@ -513,7 +516,7 @@ CREATE POLICY "Solo usuarios autenticados" ON public.facturas FOR ALL TO authent
 
 -- Tabla: leads
 CREATE TABLE IF NOT EXISTS public.leads (
-  id                     uuid NOT NULL DEFAULT uuid_generate_v4(),
+  id                     uuid NOT NULL DEFAULT uuid_generate_v4() PRIMARY KEY,
   id_local               text,
   empresa                text DEFAULT ''::text,
   contacto               text DEFAULT ''::text,
@@ -544,7 +547,7 @@ CREATE POLICY "Solo usuarios autenticados" ON public.leads FOR ALL TO authentica
 
 -- Tabla: propuestas_precios
 CREATE TABLE IF NOT EXISTS public.propuestas_precios (
-  id                     uuid NOT NULL DEFAULT uuid_generate_v4(),
+  id                     uuid NOT NULL DEFAULT uuid_generate_v4() PRIMARY KEY,
   id_local               text,
   objetivo_cod           text DEFAULT ''::text,
   cliente_nombre         text DEFAULT ''::text,
@@ -594,7 +597,7 @@ CREATE POLICY "Solo usuarios autenticados" ON public.propuestas_precios FOR ALL 
 
 -- Tabla: sugerencias
 CREATE TABLE IF NOT EXISTS public.sugerencias (
-  id                     uuid NOT NULL DEFAULT uuid_generate_v4(),
+  id                     uuid NOT NULL DEFAULT uuid_generate_v4() PRIMARY KEY,
   id_local               text,
   tipo                   text DEFAULT ''::text,
   modulo                 text DEFAULT ''::text,
@@ -629,7 +632,7 @@ CREATE POLICY "Solo usuarios autenticados" ON public.sugerencias FOR ALL TO auth
 
 -- Tabla: no_conformidades
 CREATE TABLE IF NOT EXISTS public.no_conformidades (
-  id                     uuid NOT NULL DEFAULT uuid_generate_v4(),
+  id                     uuid NOT NULL DEFAULT uuid_generate_v4() PRIMARY KEY,
   id_local               text,
   nro                    integer DEFAULT 0,
   fecha                  text DEFAULT ''::text,
@@ -655,7 +658,7 @@ CREATE POLICY "Solo usuarios autenticados" ON public.no_conformidades FOR ALL TO
 
 -- Tabla: adelantos_informales
 CREATE TABLE IF NOT EXISTS public.adelantos_informales (
-  id                     uuid NOT NULL DEFAULT uuid_generate_v4(),
+  id                     uuid NOT NULL DEFAULT uuid_generate_v4() PRIMARY KEY,
   id_local               text,
   nro_socio              integer DEFAULT 0,
   supervisor_nombre      text DEFAULT ''::text,
@@ -674,7 +677,7 @@ CREATE POLICY "Solo usuarios autenticados" ON public.adelantos_informales FOR AL
 
 -- Tabla: art42
 CREATE TABLE IF NOT EXISTS public.art42 (
-  id                     uuid NOT NULL DEFAULT uuid_generate_v4(),
+  id                     uuid NOT NULL DEFAULT uuid_generate_v4() PRIMARY KEY,
   id_local               text,
   dias_semana            integer DEFAULT 0,
   horas_por_dia          numeric DEFAULT 0,
@@ -693,7 +696,7 @@ CREATE POLICY "Solo usuarios autenticados" ON public.art42 FOR ALL TO authentica
 
 -- Tabla: categorias_salariales
 CREATE TABLE IF NOT EXISTS public.categorias_salariales (
-  id                     uuid NOT NULL DEFAULT uuid_generate_v4(),
+  id                     uuid NOT NULL DEFAULT uuid_generate_v4() PRIMARY KEY,
   id_local               text,
   nombre                 text DEFAULT ''::text,
   valor_hora_actual      numeric DEFAULT 0,
@@ -708,7 +711,7 @@ CREATE POLICY "Solo usuarios autenticados" ON public.categorias_salariales FOR A
 
 -- Tabla: cobros
 CREATE TABLE IF NOT EXISTS public.cobros (
-  id                     uuid NOT NULL DEFAULT uuid_generate_v4(),
+  id                     uuid NOT NULL DEFAULT uuid_generate_v4() PRIMARY KEY,
   id_local               text,
   cliente_id             bigint DEFAULT 0,
   objetivo_cod           text DEFAULT ''::text,
@@ -736,7 +739,7 @@ CREATE POLICY "Solo usuarios autenticados" ON public.cobros FOR ALL TO authentic
 
 -- Tabla: enfermos
 CREATE TABLE IF NOT EXISTS public.enfermos (
-  id                     uuid NOT NULL DEFAULT uuid_generate_v4(),
+  id                     uuid NOT NULL DEFAULT uuid_generate_v4() PRIMARY KEY,
   id_local               text,
   asociado               text DEFAULT ''::text,
   nro_socio              integer DEFAULT 0,
@@ -759,7 +762,7 @@ CREATE POLICY "Solo usuarios autenticados" ON public.enfermos FOR ALL TO authent
 
 -- Tabla: evaluaciones
 CREATE TABLE IF NOT EXISTS public.evaluaciones (
-  id                     uuid NOT NULL DEFAULT uuid_generate_v4(),
+  id                     uuid NOT NULL DEFAULT uuid_generate_v4() PRIMARY KEY,
   id_local               text,
   cap                    text DEFAULT ''::text,
   maquinarias            jsonb DEFAULT '[]'::jsonb,
@@ -780,7 +783,7 @@ CREATE POLICY "Solo usuarios autenticados" ON public.evaluaciones FOR ALL TO aut
 
 -- Tabla: feriados
 CREATE TABLE IF NOT EXISTS public.feriados (
-  id                     uuid NOT NULL DEFAULT uuid_generate_v4(),
+  id                     uuid NOT NULL DEFAULT uuid_generate_v4() PRIMARY KEY,
   id_local               text,
   fecha                  text DEFAULT ''::text,
   nombre                 text DEFAULT ''::text,
@@ -797,7 +800,7 @@ CREATE POLICY "Solo usuarios autenticados" ON public.feriados FOR ALL TO authent
 
 -- Tabla: materiales
 CREATE TABLE IF NOT EXISTS public.materiales (
-  id                     uuid NOT NULL DEFAULT uuid_generate_v4(),
+  id                     uuid NOT NULL DEFAULT uuid_generate_v4() PRIMARY KEY,
   id_local               text,
   nombre                 text DEFAULT ''::text,
   video                  jsonb DEFAULT '[]'::jsonb,
@@ -821,7 +824,7 @@ CREATE POLICY "Solo usuarios autenticados" ON public.materiales FOR ALL TO authe
 
 -- Tabla: motivos_fuera_eft
 CREATE TABLE IF NOT EXISTS public.motivos_fuera_eft (
-  id                     uuid NOT NULL DEFAULT uuid_generate_v4(),
+  id                     uuid NOT NULL DEFAULT uuid_generate_v4() PRIMARY KEY,
   id_local               text,
   nombre                 text DEFAULT ''::text,
   codigo                 text DEFAULT ''::text,
@@ -838,7 +841,7 @@ CREATE POLICY "Solo usuarios autenticados" ON public.motivos_fuera_eft FOR ALL T
 
 -- Tabla: motivos_no_fact
 CREATE TABLE IF NOT EXISTS public.motivos_no_fact (
-  id                     uuid NOT NULL DEFAULT uuid_generate_v4(),
+  id                     uuid NOT NULL DEFAULT uuid_generate_v4() PRIMARY KEY,
   id_local               text,
   nombre                 text DEFAULT ''::text,
   codigo                 text DEFAULT ''::text,
@@ -855,7 +858,7 @@ CREATE POLICY "Solo usuarios autenticados" ON public.motivos_no_fact FOR ALL TO 
 
 -- Tabla: paritarias
 CREATE TABLE IF NOT EXISTS public.paritarias (
-  id                     uuid NOT NULL DEFAULT uuid_generate_v4(),
+  id                     uuid NOT NULL DEFAULT uuid_generate_v4() PRIMARY KEY,
   id_local               text,
   nombre                 text DEFAULT ''::text,
   sindicato              text DEFAULT ''::text,
@@ -881,7 +884,7 @@ CREATE POLICY "Solo usuarios autenticados" ON public.paritarias FOR ALL TO authe
 
 -- Tabla: planillas_adelantos
 CREATE TABLE IF NOT EXISTS public.planillas_adelantos (
-  id                     uuid NOT NULL DEFAULT uuid_generate_v4(),
+  id                     uuid NOT NULL DEFAULT uuid_generate_v4() PRIMARY KEY,
   id_local               text,
   supervisor             text,
   fecha                  text,
@@ -900,7 +903,7 @@ CREATE POLICY "Solo usuarios autenticados" ON public.planillas_adelantos FOR ALL
 
 -- Tabla: planillas_informales
 CREATE TABLE IF NOT EXISTS public.planillas_informales (
-  id                     uuid NOT NULL DEFAULT uuid_generate_v4(),
+  id                     uuid NOT NULL DEFAULT uuid_generate_v4() PRIMARY KEY,
   id_local               text,
   periodo                text DEFAULT ''::text,
   supervisor_nombre      text DEFAULT ''::text,
@@ -918,7 +921,7 @@ CREATE POLICY "Solo usuarios autenticados" ON public.planillas_informales FOR AL
 
 -- Tabla: reclamos
 CREATE TABLE IF NOT EXISTS public.reclamos (
-  id                     uuid NOT NULL DEFAULT uuid_generate_v4(),
+  id                     uuid NOT NULL DEFAULT uuid_generate_v4() PRIMARY KEY,
   id_local               text,
   cliente_id             bigint DEFAULT 0,
   objetivo_cod           text DEFAULT ''::text,
@@ -944,7 +947,7 @@ CREATE POLICY "Solo usuarios autenticados" ON public.reclamos FOR ALL TO authent
 
 -- Tabla: retenes
 CREATE TABLE IF NOT EXISTS public.retenes (
-  id                     uuid NOT NULL DEFAULT uuid_generate_v4(),
+  id                     uuid NOT NULL DEFAULT uuid_generate_v4() PRIMARY KEY,
   id_local               text,
   periodo                text DEFAULT ''::text,
   supervisor             text DEFAULT ''::text,
@@ -966,7 +969,7 @@ CREATE POLICY "Solo usuarios autenticados" ON public.retenes FOR ALL TO authenti
 
 -- Tabla: sanciones
 CREATE TABLE IF NOT EXISTS public.sanciones (
-  id                     uuid NOT NULL DEFAULT uuid_generate_v4(),
+  id                     uuid NOT NULL DEFAULT uuid_generate_v4() PRIMARY KEY,
   id_local               text,
   asociado               text DEFAULT ''::text,
   nro_socio              integer DEFAULT 0,
@@ -987,7 +990,7 @@ CREATE POLICY "Solo usuarios autenticados" ON public.sanciones FOR ALL TO authen
 
 -- Tabla: solicitudes_prestamos
 CREATE TABLE IF NOT EXISTS public.solicitudes_prestamos (
-  id                     uuid NOT NULL DEFAULT uuid_generate_v4(),
+  id                     uuid NOT NULL DEFAULT uuid_generate_v4() PRIMARY KEY,
   id_local               text,
   periodo                text DEFAULT ''::text,
   supervisor_nombre      text DEFAULT ''::text,
@@ -1005,7 +1008,7 @@ CREATE POLICY "Solo usuarios autenticados" ON public.solicitudes_prestamos FOR A
 
 -- Tabla: vac_admin
 CREATE TABLE IF NOT EXISTS public.vac_admin (
-  id                     uuid NOT NULL DEFAULT uuid_generate_v4(),
+  id                     uuid NOT NULL DEFAULT uuid_generate_v4() PRIMARY KEY,
   id_local               text,
   nro_socio              integer DEFAULT 0,
   asociado               text DEFAULT ''::text,
@@ -1031,7 +1034,7 @@ CREATE POLICY "Solo usuarios autenticados" ON public.vac_admin FOR ALL TO authen
 
 -- Tabla: vac_operativo
 CREATE TABLE IF NOT EXISTS public.vac_operativo (
-  id                     uuid NOT NULL DEFAULT uuid_generate_v4(),
+  id                     uuid NOT NULL DEFAULT uuid_generate_v4() PRIMARY KEY,
   id_local               text,
   fecha_sol              text DEFAULT ''::text,
   nro_socio              integer DEFAULT 0,
