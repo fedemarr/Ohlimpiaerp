@@ -264,12 +264,15 @@ export const PERFILES = {
   // pedido de productos queda dentro de este perfil (Gerente de Logística).
   'Logística': { color: 'badge-gris', modulos: ['inicio', 'legajos', 'uniformes', 'stock', 'pedido_productos', 'sugerencias'], desc: 'Consulta de legajos, gestión de pedidos de uniformes, stock y pedido de productos.' },
   'Asociado': { color: 'badge-verde', modulos: ['mis_adelantos', 'sugerencias'], desc: 'Portal del asociado — pedidos de adelanto y préstamo.' },
-  'DEVELOPER': { color: 'badge-azul', modulos: ['dev_inicio', 'dev_tickets', 'dev_proyeccion', 'dev_seguridad'], desc: 'Panel de desarrollo — tickets, roadmap y seguridad.' },
+  // 'empresas' agregado acá (18/08/2026, a pedido de Fede) — entra con su
+  // login de siempre (fede@ohlimpia.com) en vez de necesitar una cuenta
+  // aparte para el perfil Superadmin de más abajo.
+  'DEVELOPER': { color: 'badge-azul', modulos: ['dev_inicio', 'dev_tickets', 'dev_proyeccion', 'dev_seguridad', 'empresas'], desc: 'Panel de desarrollo — tickets, roadmap, seguridad y empresas clientes.' },
   // Perfil exclusivo para gestionar el negocio de vender este sistema como
   // producto a otras empresas — registro de empresas clientes y qué
-  // módulos le vendiste a cada una (sql/v089). A propósito NO comparte
-  // acceso con 'Administrador total' (que puede tener más de una persona
-  // en Ohlimpia) — esto queda acotado a quien administre las cuentas.
+  // módulos le vendiste a cada una (sql/v089). Queda definido por si en el
+  // futuro se delega esto a otra persona sin darle también acceso a
+  // Developer — hoy Fede entra por DEVELOPER (arriba), no por este.
   'Superadmin': { color: 'badge-rojo', modulos: ['empresas'], desc: 'Alta de empresas clientes y módulos contratados.' },
 };
 
@@ -377,7 +380,7 @@ export const MENU = [
   // Panel de Superadmin (sql/v089) — venta del sistema como producto a
   // otras empresas. Ver comentario de PERFILES.Superadmin más arriba.
   { section: 'Superadmin', items: [
-    { key: 'empresas', icon: '🏢', label: 'Empresas clientes', perfiles: ['Superadmin'] },
+    { key: 'empresas', icon: '🏢', label: 'Empresas clientes', perfiles: ['Superadmin', 'DEVELOPER'] },
   ]},
 ];
 
