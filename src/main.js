@@ -43,6 +43,7 @@ import { supervisoresScreenConfig } from './modules/supervisores/index.js';
 import { supervisionScreenConfig } from './modules/supervision/index.js';
 import { descuentosScreenConfig } from './modules/descuentos/index.js';
 import { pedidoProductosScreenConfig } from './modules/pedido_productos/index.js';
+import { superadminScreenConfig } from './modules/superadmin/index.js';
 
 // ========== BIND SHARED A WINDOW (PRIMERO) ==========
 // Estas funciones las llama el HTML con onclick — deben estar en window
@@ -99,6 +100,7 @@ registerScreens(supervisoresScreenConfig);
 registerScreens(supervisionScreenConfig);
 registerScreens(descuentosScreenConfig);
 registerScreens(pedidoProductosScreenConfig);
+registerScreens(superadminScreenConfig);
 
 // ========== REGISTRAR FILTROS DE BÚSQUEDA GLOBAL ==========
 

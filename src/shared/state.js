@@ -36,6 +36,10 @@ export const DB = {
   ppPrecios: [],
   ppPedidos: [],
   ppItems: [],
+  // Superadmin: registro de empresas clientes del sistema (sql/v089) —
+  // vive solo en el Supabase de Ohlimpia, no es dato operativo de ninguna
+  // empresa cliente. Ver src/modules/superadmin/.
+  empresasCliente: [],
   // Código de servicio → supervisor, persistido en Supabase (sql/v067) —
   // se carga solo vía supaInit(). Ver src/modules/servicios_supervisor/
   // (pantalla en Configuración → Servicios) y
@@ -261,6 +265,12 @@ export const PERFILES = {
   'Logística': { color: 'badge-gris', modulos: ['inicio', 'legajos', 'uniformes', 'stock', 'pedido_productos', 'sugerencias'], desc: 'Consulta de legajos, gestión de pedidos de uniformes, stock y pedido de productos.' },
   'Asociado': { color: 'badge-verde', modulos: ['mis_adelantos', 'sugerencias'], desc: 'Portal del asociado — pedidos de adelanto y préstamo.' },
   'DEVELOPER': { color: 'badge-azul', modulos: ['dev_inicio', 'dev_tickets', 'dev_proyeccion', 'dev_seguridad'], desc: 'Panel de desarrollo — tickets, roadmap y seguridad.' },
+  // Perfil exclusivo para gestionar el negocio de vender este sistema como
+  // producto a otras empresas — registro de empresas clientes y qué
+  // módulos le vendiste a cada una (sql/v089). A propósito NO comparte
+  // acceso con 'Administrador total' (que puede tener más de una persona
+  // en Ohlimpia) — esto queda acotado a quien administre las cuentas.
+  'Superadmin': { color: 'badge-rojo', modulos: ['empresas'], desc: 'Alta de empresas clientes y módulos contratados.' },
 };
 
 // ========== MENÚ ==========
@@ -363,6 +373,11 @@ export const MENU = [
     { key: 'dev_tickets', icon: '🎫', label: 'Tickets', perfiles: ['DEVELOPER'] },
     { key: 'dev_proyeccion', icon: '🗺️', label: 'Proyección', perfiles: ['DEVELOPER'] },
     { key: 'dev_seguridad', icon: '🔐', label: 'Seguridad', perfiles: ['DEVELOPER'] },
+  ]},
+  // Panel de Superadmin (sql/v089) — venta del sistema como producto a
+  // otras empresas. Ver comentario de PERFILES.Superadmin más arriba.
+  { section: 'Superadmin', items: [
+    { key: 'empresas', icon: '🏢', label: 'Empresas clientes', perfiles: ['Superadmin'] },
   ]},
 ];
 

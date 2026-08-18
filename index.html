@@ -5132,6 +5132,32 @@
   </div>
 </div>
 
+<div class="screen" id="screen-empresas">
+  <div class="stats-grid">
+    <div class="stat-card azul"><div class="stat-label">Empresas registradas</div><div class="stat-valor" id="st-emp-total">0</div><div class="stat-sub">Total en el registro</div></div>
+    <div class="stat-card verde"><div class="stat-label">Activas</div><div class="stat-valor" id="st-emp-activas">0</div><div class="stat-sub">Con acceso hoy</div></div>
+  </div>
+  <div class="card">
+    <div class="card-header">
+      <h3>🏢 Empresas clientes</h3>
+      <div class="filtros-bar">
+        <input type="text" id="emp-buscar" placeholder="🔍 Buscar empresa o contacto..." oninput="renderEmpresas()">
+      </div>
+    </div>
+    <p style="font-size:12px;color:var(--texto-suave);padding:0 20px 10px;">Registro de empresas clientes y qué módulos le vendiste a cada una. Cada empresa tiene su propia base de datos separada (Supabase propio) — este listado no accede a sus datos, es solo tu bookkeeping para llevar cuenta de qué vendiste y a quién.</p>
+    <div class="tabla-wrap"><table style="width:100%;border-collapse:collapse;font-size:12.5px;">
+      <thead><tr style="background:#374151;color:white;">
+        <th style="padding:8px 14px;text-align:left;">Empresa</th>
+        <th style="padding:8px;">Estado</th>
+        <th style="padding:8px;text-align:left;">Módulos contratados</th>
+        <th style="padding:8px;">Alta</th>
+        <th style="padding:8px;">Acciones</th>
+      </tr></thead>
+      <tbody id="tbody-empresas"></tbody>
+    </table></div>
+  </div>
+</div>
+
 
 <div class="modal-overlay" id="modal-nuevo-suplemento">
   <div class="modal" style="max-width:480px;">
