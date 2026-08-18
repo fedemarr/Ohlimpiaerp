@@ -7,7 +7,7 @@
 import { DB, MENU, currentUser } from '@shared/state.js';
 import { $ } from '@shared/helpers.js';
 import { toast, abrirModal, cerrarModal } from '@shared/ui.js';
-import { supaSync } from '@shared/supabase.js';
+import { supaSync, SUPA } from '@shared/supabase.js';
 import {
   subirAdjuntoSugerencia,
   listarAdjuntosDeSugerencia,
@@ -218,13 +218,28 @@ export async function adjuntarArchivosSugerencia(sugerenciaId, input) {
   if (subidos) toast('✅ ' + subidos + ' archivo(s) adjuntado(s) al ticket');
 }
 
-// Descarga un adjunto vía signed URL (bucket privado).
+// Descarga un adjunto forzando descarga (no render).
+// Usa el SDK de Supabase Storage para descargar el blob directamente,
+// evitando CORS y asegurando que el navegador descargue en vez de renderizar.
 export async function descargarAdjuntoSugerencia(adjuntoId) {
   const a = (DB.sugerenciaAdjuntos || []).find(x => String(x.id) === String(adjuntoId));
   if (!a || a.borrado) { toast('⚠️ No se encontró el archivo'); return; }
-  const url = await obtenerUrlFirmadaSugerencia(a.url);
-  if (url) window.open(url, '_blank');
-  else toast('⚠️ No se pudo generar el link de descarga');
+  try {
+    const { data, error } = await SUPA.storage.from('ohlimpia-adjuntos').download(a.url);
+    if (error) throw error;
+    const blobUrl = URL.createObjectURL(data);
+    const link = document.createElement('a');
+    link.href = blobUrl;
+    link.download = a.nombreArchivo || 'archivo';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(blobUrl);
+    toast('📥 Descargando ' + (a.nombreArchivo || 'archivo'));
+  } catch (e) {
+    console.warn('Error al descargar adjunto:', e);
+    toast('⚠️ Error al descargar: ' + (e.message || 'desconocido'));
+  }
 }
 
 // Borra (soft delete) un adjunto del ticket.
