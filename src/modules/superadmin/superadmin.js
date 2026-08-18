@@ -247,35 +247,67 @@ export function guardarEmpresa() {
 // bucket de Storage. Se guarda como data: URL (base64) para no depender
 // de configurar Storage en cada Supabase de cliente nuevo. Se refleja en
 // el Inicio de esa empresa en el próximo refresh, sin redeploy.
+// Redimensiona/comprime la imagen en el navegador antes de codificarla —
+// así un logo de varios MB (típico de un export de Canva/Illustrator en
+// alta resolución) igual entra sin problema: en el Inicio se muestra a
+// 160×160px, no hace falta guardar más que eso.
+function _comprimirImagen(archivo, maxLado = 480, calidad = 0.85) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = reject;
+    reader.onload = () => {
+      const img = new Image();
+      img.onerror = reject;
+      img.onload = () => {
+        let { width, height } = img;
+        if (width > maxLado || height > maxLado) {
+          const escala = maxLado / Math.max(width, height);
+          width = Math.round(width * escala);
+          height = Math.round(height * escala);
+        }
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, width, height);
+        // PNG/SVG con transparencia se guardan como PNG (sin fondo negro);
+        // el resto se comprime como JPEG (bastante más liviano).
+        const esTransparente = archivo.type === 'image/png' || archivo.type === 'image/svg+xml';
+        resolve(canvas.toDataURL(esTransparente ? 'image/png' : 'image/jpeg', calidad));
+      };
+      img.src = reader.result;
+    };
+    reader.readAsDataURL(archivo);
+  });
+}
+
 export async function subirLogoEmpresa() {
   const url = ($('emp-supabase-url').value || '').trim();
   const key = ($('emp-supabase-anon-key').value || '').trim();
   const archivo = $('emp-logo-file').files[0];
   if (!url || !key) { toast('⚠️ Cargá la URL y el anon key de Supabase de la empresa antes de subir el logo'); return; }
   if (!archivo) { toast('⚠️ Elegí un archivo de imagen primero'); return; }
-  if (archivo.size > 1.5 * 1024 * 1024) { toast('⚠️ La imagen es muy pesada (máx. ~1.5MB) — probá con una más chica o comprimida'); return; }
+  if (archivo.size > 15 * 1024 * 1024) { toast('⚠️ La imagen es muy pesada (máx. 15MB de origen) — probá con una más chica'); return; }
 
   try {
-    const dataUrl = await new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => resolve(reader.result);
-      reader.onerror = reject;
-      reader.readAsDataURL(archivo);
-    });
+    const dataUrl = await _comprimirImagen(archivo);
+    console.log('Logo comprimido a', Math.round(dataUrl.length / 1024), 'KB');
 
     const cliente = createClient(url, key);
     // Upsert manual: mira si ya hay fila, y si hay la actualiza; si no, inserta.
-    const { data: existente } = await cliente.from('branding_config').select('id').limit(1).maybeSingle();
-    if (existente) {
-      await cliente.from('branding_config').update({ logo_url: dataUrl, updated_at: new Date().toISOString() }).eq('id', existente.id);
-    } else {
-      await cliente.from('branding_config').insert({ logo_url: dataUrl });
-    }
+    const { data: existente, error: errSelect } = await cliente.from('branding_config').select('id').limit(1).maybeSingle();
+    if (errSelect) throw new Error('No se pudo leer branding_config: ' + errSelect.message);
+
+    const { error: errWrite } = existente
+      ? await cliente.from('branding_config').update({ logo_url: dataUrl, updated_at: new Date().toISOString() }).eq('id', existente.id)
+      : await cliente.from('branding_config').insert({ logo_url: dataUrl });
+    if (errWrite) throw new Error('No se pudo guardar: ' + errWrite.message);
 
     $('emp-logo-preview').src = dataUrl;
     $('emp-logo-preview').style.display = 'inline-block';
     toast('✓ Logo subido — ya se va a ver en el Inicio de esa empresa (sin necesidad de redeploy)');
   } catch (err) {
+    console.error('subirLogoEmpresa:', err);
     toast('⚠️ No se pudo subir el logo: ' + (err.message || 'revisá la URL/anon key de esa empresa (¿corriste sql/v091_branding_config.sql en su base?)'));
   }
 }
