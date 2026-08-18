@@ -1,7 +1,7 @@
 // Módulo Superadmin — Entry point
 
 export {
-  renderEmpresas, abrirNuevaEmpresa, abrirEditarEmpresa, guardarEmpresa, eliminarEmpresa,
+  renderEmpresas, abrirNuevaEmpresa, abrirEditarEmpresa, guardarEmpresa, eliminarEmpresa, subirLogoEmpresa,
 } from './superadmin.js';
 
 // ========== SCREEN CONFIG ==========
@@ -19,10 +19,11 @@ export const superadminScreenConfig = {
 
 // ========== WINDOW BINDINGS ==========
 
-import { abrirNuevaEmpresa, abrirEditarEmpresa, guardarEmpresa, eliminarEmpresa } from './superadmin.js';
+import { abrirNuevaEmpresa, abrirEditarEmpresa, guardarEmpresa, eliminarEmpresa, subirLogoEmpresa } from './superadmin.js';
 
 window.renderEmpresas = renderEmpresas;
 window.abrirNuevaEmpresa = abrirNuevaEmpresa;
 window.abrirEditarEmpresa = abrirEditarEmpresa;
 window.guardarEmpresa = guardarEmpresa;
 window.eliminarEmpresa = eliminarEmpresa;
+window.subirLogoEmpresa = subirLogoEmpresa;

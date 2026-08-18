@@ -507,6 +507,7 @@ export function _toSnake(obj) {
     ajustadoEn: 'ajustado_en', cantAntesAjuste: 'cant_antes_ajuste',
     // v089 — Superadmin / empresas cliente
     modulosContratados: 'modulos_contratados', supabaseUrl: 'supabase_url', vercelUrl: 'vercel_url',
+    supabaseAnonKey: 'supabase_anon_key', // v090
   };
   const r = {};
   for (const [k, v] of Object.entries(obj)) {
@@ -848,6 +849,7 @@ export function _toCamel(obj) {
     ajustado_en: 'ajustadoEn', cant_antes_ajuste: 'cantAntesAjuste',
     // v089 — Superadmin / empresas cliente
     modulos_contratados: 'modulosContratados', supabase_url: 'supabaseUrl', vercel_url: 'vercelUrl',
+    supabase_anon_key: 'supabaseAnonKey', // v090
   };
   const r = {};
   for (const [k, v] of Object.entries(obj)) {

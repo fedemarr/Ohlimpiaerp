@@ -11,6 +11,7 @@
 // modulosContratados se arma con las mismas keys que ya usa MENU
 // (state.js) — una sola fuente de verdad de "qué módulos existen".
 
+import { createClient } from '@supabase/supabase-js';
 import { DB, MENU, currentUser } from '@shared/state.js';
 import { $, hoyStr } from '@shared/helpers.js';
 import { toast, abrirModal, cerrarModal } from '@shared/ui.js';
@@ -80,8 +81,11 @@ export function abrirNuevaEmpresa() {
   $('emp-contacto').value = '';
   $('emp-estado').value = 'Prospecto';
   $('emp-supabase-url').value = '';
+  $('emp-supabase-anon-key').value = '';
   $('emp-vercel-url').value = '';
   $('emp-notas').value = '';
+  $('emp-logo-preview').style.display = 'none';
+  $('emp-logo-file').value = '';
   document.querySelectorAll('#emp-modulos-cont input[type="checkbox"]').forEach(cb => { cb.checked = false; });
   $('emp-modal-titulo').textContent = 'Nueva empresa';
   abrirModal('modal-empresa');
@@ -96,12 +100,34 @@ export function abrirEditarEmpresa(id) {
   $('emp-contacto').value = e.contacto || '';
   $('emp-estado').value = e.estado || 'Activa';
   $('emp-supabase-url').value = e.supabaseUrl || '';
+  $('emp-supabase-anon-key').value = e.supabaseAnonKey || '';
   $('emp-vercel-url').value = e.vercelUrl || '';
   $('emp-notas').value = e.notas || '';
+  $('emp-logo-preview').style.display = 'none';
+  $('emp-logo-file').value = '';
   const seleccionados = new Set(e.modulosContratados || []);
   document.querySelectorAll('#emp-modulos-cont input[type="checkbox"]').forEach(cb => { cb.checked = seleccionados.has(cb.value); });
   $('emp-modal-titulo').textContent = `Editar — ${e.nombre}`;
   abrirModal('modal-empresa');
+  cargarLogoActualEmpresa(e);
+}
+
+// Muestra el logo que la empresa ya tiene guardado en su propia base
+// (tabla branding_config), si hay URL+anon key cargados. Puramente
+// informativo — no bloquea nada si falla (base vieja sin la tabla, etc.).
+async function cargarLogoActualEmpresa(e) {
+  if (!e.supabaseUrl || !e.supabaseAnonKey) return;
+  try {
+    const cliente = createClient(e.supabaseUrl, e.supabaseAnonKey);
+    const { data } = await cliente.from('branding_config').select('logo_url').limit(1).maybeSingle();
+    if (data && data.logo_url && $('emp-logo-preview')) {
+      $('emp-logo-preview').src = data.logo_url;
+      $('emp-logo-preview').style.display = 'inline-block';
+    }
+  } catch {
+    // sin tabla branding_config todavía en esa base, o URL/key inválidos —
+    // no es un error que el usuario necesite ver acá.
+  }
 }
 
 function ensureModalEmpresa() {
@@ -147,7 +173,7 @@ function ensureModalEmpresa() {
         </div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;">
           <div>
-            <label style="font-size:12px;font-weight:600;">URL de su Supabase (informativo)</label>
+            <label style="font-size:12px;font-weight:600;">URL de su Supabase</label>
             <input type="text" id="emp-supabase-url" placeholder="https://xxxx.supabase.co" style="width:100%;padding:7px 10px;border:1px solid var(--borde-fuerte);border-radius:var(--radio);margin-top:4px;">
           </div>
           <div>
@@ -155,8 +181,22 @@ function ensureModalEmpresa() {
             <input type="text" id="emp-vercel-url" placeholder="https://empresa.vercel.app" style="width:100%;padding:7px 10px;border:1px solid var(--borde-fuerte);border-radius:var(--radio);margin-top:4px;">
           </div>
         </div>
+        <div style="margin-bottom:10px;">
+          <label style="font-size:12px;font-weight:600;">Anon key de su Supabase</label>
+          <input type="text" id="emp-supabase-anon-key" placeholder="eyJhbGci..." style="width:100%;padding:7px 10px;border:1px solid var(--borde-fuerte);border-radius:var(--radio);margin-top:4px;font-family:monospace;font-size:11px;">
+          <div style="font-size:11px;color:var(--texto-suave);margin-top:2px;">Necesaria para poder subir el logo directo a la base de esta empresa (ver abajo).</div>
+        </div>
         <label style="font-size:12px;font-weight:600;">Notas</label>
         <textarea id="emp-notas" rows="2" style="width:100%;padding:7px 10px;border:1px solid var(--borde-fuerte);border-radius:var(--radio);margin:4px 0 12px;"></textarea>
+
+        <div style="margin-bottom:14px;">
+          <label style="font-size:12px;font-weight:600;">Logo de la empresa (se refleja solo en su Inicio, sin redeploy)</label>
+          <div style="display:flex;align-items:center;gap:10px;margin-top:6px;">
+            <img id="emp-logo-preview" style="display:none;width:48px;height:48px;object-fit:contain;border:1px solid var(--borde);border-radius:8px;background:#fff;">
+            <input type="file" id="emp-logo-file" accept="image/png,image/jpeg,image/svg+xml,image/webp" style="font-size:12px;">
+            <button type="button" class="btn btn-xs btn-secondary" onclick="subirLogoEmpresa()">Subir logo</button>
+          </div>
+        </div>
 
         <label style="font-size:12px;font-weight:600;">Módulos contratados</label>
         <div id="emp-modulos-cont" style="margin-top:6px;max-height:280px;overflow-y:auto;border:1px solid var(--borde);border-radius:var(--radio);padding:10px 14px;columns:2;column-gap:24px;">
@@ -180,6 +220,7 @@ export function guardarEmpresa() {
     contacto: ($('emp-contacto').value || '').trim(),
     estado: $('emp-estado').value,
     supabaseUrl: ($('emp-supabase-url').value || '').trim(),
+    supabaseAnonKey: ($('emp-supabase-anon-key').value || '').trim(),
     vercelUrl: ($('emp-vercel-url').value || '').trim(),
     notas: ($('emp-notas').value || '').trim(),
     modulosContratados,
@@ -199,6 +240,44 @@ export function guardarEmpresa() {
   cerrarModal('modal-empresa');
   renderEmpresas();
   toast(`✓ ${nombre} guardada — ${modulosContratados.length} módulo(s) contratado(s)`);
+}
+
+// Sube el logo elegido directo a la base de ESA empresa (tabla
+// branding_config, ver sql/v091) — no pasa por Ohlimpia ni por ningún
+// bucket de Storage. Se guarda como data: URL (base64) para no depender
+// de configurar Storage en cada Supabase de cliente nuevo. Se refleja en
+// el Inicio de esa empresa en el próximo refresh, sin redeploy.
+export async function subirLogoEmpresa() {
+  const url = ($('emp-supabase-url').value || '').trim();
+  const key = ($('emp-supabase-anon-key').value || '').trim();
+  const archivo = $('emp-logo-file').files[0];
+  if (!url || !key) { toast('⚠️ Cargá la URL y el anon key de Supabase de la empresa antes de subir el logo'); return; }
+  if (!archivo) { toast('⚠️ Elegí un archivo de imagen primero'); return; }
+  if (archivo.size > 1.5 * 1024 * 1024) { toast('⚠️ La imagen es muy pesada (máx. ~1.5MB) — probá con una más chica o comprimida'); return; }
+
+  try {
+    const dataUrl = await new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result);
+      reader.onerror = reject;
+      reader.readAsDataURL(archivo);
+    });
+
+    const cliente = createClient(url, key);
+    // Upsert manual: mira si ya hay fila, y si hay la actualiza; si no, inserta.
+    const { data: existente } = await cliente.from('branding_config').select('id').limit(1).maybeSingle();
+    if (existente) {
+      await cliente.from('branding_config').update({ logo_url: dataUrl, updated_at: new Date().toISOString() }).eq('id', existente.id);
+    } else {
+      await cliente.from('branding_config').insert({ logo_url: dataUrl });
+    }
+
+    $('emp-logo-preview').src = dataUrl;
+    $('emp-logo-preview').style.display = 'inline-block';
+    toast('✓ Logo subido — ya se va a ver en el Inicio de esa empresa (sin necesidad de redeploy)');
+  } catch (err) {
+    toast('⚠️ No se pudo subir el logo: ' + (err.message || 'revisá la URL/anon key de esa empresa (¿corriste sql/v091_branding_config.sql en su base?)'));
+  }
 }
 
 export function eliminarEmpresa(id) {

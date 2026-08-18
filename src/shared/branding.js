@@ -41,3 +41,22 @@ export function aplicarBranding() {
     tplWhatsapp.value = tplWhatsapp.value.replace('Cooperativa Ohlimpia', EMPRESA_NOMBRE);
   }
 }
+
+// Logo "en vivo" (18/08/2026): a diferencia de VITE_EMPRESA_LOGO_URL (env
+// var, hornea el logo en el build — cambiarlo pide redeploy), esto lee la
+// tabla branding_config de la base de ESTA empresa en cada carga de
+// página. Así, subir un logo nuevo desde el panel de Superadmin de
+// Ohlimpia se refleja acá solo, sin que Fede tenga que redesplegar nada.
+// Si la tabla no existe todavía en esta base (empresas viejas, o Ohlimpia
+// mismo) o no hay fila cargada, no hace nada — no rompe nada.
+export async function aplicarBrandingRemoto(supa) {
+  try {
+    const { data, error } = await supa.from('branding_config').select('logo_url').limit(1).maybeSingle();
+    if (error || !data || !data.logo_url) return;
+    const el = document.getElementById('inicio-hero-logo');
+    if (el) el.src = data.logo_url;
+  } catch {
+    // tabla inexistente en esta base u otro error de red — no es crítico,
+    // el logo simplemente se queda con el que ya tenía (env var o default).
+  }
+}
