@@ -86,8 +86,10 @@ export function construirMenu() {
   // Además del perfil, tiene que estar entre los módulos contratados de
   // esta empresa (MODULOS_CONTRATADOS null = sin restricción, caso de
   // Ohlimpia hoy). Los ítems deshabilitados ("Próximamente") no se filtran
-  // por contrato — son placeholders sin funcionalidad real detrás.
-  const contratado = key => !MODULOS_CONTRATADOS || MODULOS_CONTRATADOS.includes(key);
+  // por contrato — son placeholders sin funcionalidad real detrás. 'inicio'
+  // tampoco se filtra — es la pantalla de bienvenida, no algo vendible (por
+  // eso ni aparece como checkbox en el alta de empresa, ver superadmin.js).
+  const contratado = key => key === 'inicio' || !MODULOS_CONTRATADOS || MODULOS_CONTRATADOS.includes(key);
   MENU.forEach(sec => {
     const items = sec.items.filter(i => esDeveloper
       ? (perfil && perfil.modulos.includes(i.key) && contratado(i.key))
