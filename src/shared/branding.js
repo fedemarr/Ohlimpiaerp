@@ -32,4 +32,12 @@ export function aplicarBranding() {
   if (EMPRESA_LOGO_URL) {
     setImg('inicio-hero-logo', EMPRESA_LOGO_URL);
   }
+
+  // Plantilla de WhatsApp del calendario de entrevistas (Candidatos) — decía
+  // "Cooperativa Ohlimpia" fijo. No todo cliente es una cooperativa, así que
+  // para otras empresas queda genérico (sin la palabra "Cooperativa").
+  const tplWhatsapp = document.getElementById('tpl-whatsapp-entrevista');
+  if (tplWhatsapp) {
+    tplWhatsapp.value = tplWhatsapp.value.replace('Cooperativa Ohlimpia', EMPRESA_NOMBRE);
+  }
 }
