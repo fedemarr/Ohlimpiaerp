@@ -247,6 +247,8 @@ function objetivoParaGuardar(o) {
 // ── RENDER ──
 
 let _supMesActual = null; // mes que muestra la grilla ("Rige desde")
+let _clientesExpandidos = {}; // {cliId: true} — track de qué clientes están expandidos
+let _filtrosSup = { buscar: '', supervisor: '', neta: 'todas', origen: 'todos' };
 
 export function renderSupervision() {
   asegurarVigenciaGeneralSeed();
@@ -272,7 +274,14 @@ function renderStatsSup() {
   if ($('sup-c-srv')) $('sup-c-srv').textContent = servicios.length;
   if ($('sup-c-costo')) $('sup-c-costo').textContent = '$' + Math.round(costo).toLocaleString('es-AR');
   if ($('sup-c-exc')) $('sup-c-exc').textContent = fueraGeneral;
-  if ($('sup-mes-sel')) $('sup-mes-sel').value = mes;
+}
+
+export function filtrarSupervision() {
+  _filtrosSup.buscar = ($('sup-filtro-buscar') || {}).value || '';
+  _filtrosSup.supervisor = ($('sup-filtro-supervisor') || {}).value || '';
+  _filtrosSup.neta = ($('sup-filtro-neta') || {}).value || 'todas';
+  _filtrosSup.origen = ($('sup-filtro-origen') || {}).value || 'todos';
+  renderTablaSupervision();
 }
 
 function chipOrigen(origen) {
@@ -299,58 +308,124 @@ export function renderTablaSupervision() {
   });
   const edit = esEditorSupervision();
 
+  // Filtros
+  const fBusqueda = _filtrosSup.buscar.toLowerCase();
+  const fSupervisor = _filtrosSup.supervisor.toLowerCase();
+  const fNeta = _filtrosSup.neta;
+  const fOrigen = _filtrosSup.origen;
+
   let rows = '';
+  let costoTotal = 0;
   Object.values(porCliente)
     .sort((a, b) => (a.cli?.nombre || '').localeCompare(b.cli?.nombre || ''))
     .forEach(g => {
-      const efCli = g.cli ? pctEfectivoCliente(g.cli, mes) : null;
-      const cliOverride = g.cli ? (vigenciaAbierta('cliente', alcanceCliente(g.cli)) || g.cli.pctSupervision != null) : false;
+      // Filtrar servicios dentro del grupo
+      const srvsFiltrados = g.srvs.filter(o => {
+        const cod = (o.codigo || o.nombre || '').toLowerCase();
+        const sups = supervisoresDelObjetivo(o).join(' ').toLowerCase();
+        const { origen } = pctEfectivoObjetivo(o, mes);
+        if (fBusqueda && !cod.includes(fBusqueda) && !(g.cli?.nombre || '').toLowerCase().includes(fBusqueda)) return false;
+        if (fSupervisor && !sups.includes(fSupervisor)) return false;
+        if (fOrigen !== 'todos' && origen !== fOrigen.toLowerCase()) return false;
+        return true;
+      });
+      if (!srvsFiltrados.length) return;
+
       const cliId = g.cli ? alcanceCliente(g.cli) : 'sin-cliente';
-      rows += `<tr class="sup-cli">
-        <td>▾ ${g.cli?.nombre || 'Sin cliente'}</td>
-        <td class="sm">${g.srvs.length} servicio(s)</td>
-        <td class="sm"></td>
-        <td>${efCli ? `<input type="number" class="sup-pct" value="${efCli.pct.toFixed(2).replace('.', ',')}" step="0.5" min="0" max="100"
-          onchange="setPctClienteSup('${cliId.replace(/'/g, "\\'")}', this.value)" ${edit ? '' : 'disabled'}>%` : '—'}</td>
-        <td>${efCli ? chipOrigen(efCli.origen) : '—'}</td>
-        <td class="sm">% del cliente — hereda a sus servicios</td>
-        <td>${(edit && g.cli && cliOverride) ? `<span class="sup-heredar" onclick="heredarClienteSup('${cliId.replace(/'/g, "\\'")}')">heredar</span>` : ''}</td>
-      </tr>`;
-      g.srvs
-        .sort((a, b) => (a.codigo || '').localeCompare(b.codigo || ''))
-        .forEach(o => {
-          const { pct, origen } = pctEfectivoObjetivo(o, mes);
-          const neta = netaMensual(o);
-          const sup = (neta == null) ? null : Math.round(neta * pct / 100);
-          const svcAlcance = alcanceServicio(o);
-          const tieneOverride = vigenciaAbierta('servicio', svcAlcance) || o.pctSupervision != null;
-          rows += `<tr>
-            <td style="padding-left:34px;">${o.codigo || o.nombre || ''}</td>
-            <td class="sm">${supervisoresDelObjetivo(o).join(', ') || '—'}</td>
-            <td class="money">${neta != null ? Math.round(neta).toLocaleString('es-AR') : '<span class="sm">depende de horas</span>'}</td>
-            <td><input type="number" class="sup-pct" value="${pct.toFixed(2).replace('.', ',')}" step="0.5" min="0" max="100"
-              onchange="setPctServicioSup('${svcAlcance.replace(/'/g, "\\'")}', this.value)" ${edit ? '' : 'disabled'}>%</td>
-            <td>${chipOrigen(origen)}</td>
-            <td class="money">${sup != null ? sup.toLocaleString('es-AR') : '—'}</td>
-            <td>
-              ${(edit && tieneOverride) ? `<span class="sup-heredar" onclick="heredarServicioSup('${svcAlcance.replace(/'/g, "\\'")}')">heredar</span>` : ''}
-              <button class="btn btn-xs" style="background:none;border:none;cursor:pointer;font-size:12px;" title="Historial de % de este servicio"
-                onclick="abrirHistorialServicioSup('${svcAlcance.replace(/'/g, "\\'")}')">🕘</button>
-            </td>
-          </tr>`;
-        });
+      const esSingle = srvsFiltrados.length === 1;
+      const expandido = _clientesExpandidos[cliId] || false;
+
+      if (esSingle) {
+        // CLIENTE CON UN SOLO SERVICIO — fila única, sin expandir
+        const o = srvsFiltrados[0];
+        const { pct, origen } = pctEfectivoObjetivo(o, mes);
+        const neta = netaMensual(o);
+        const sup = (neta == null) ? null : Math.round(neta * pct / 100);
+        if (neta != null) costoTotal += neta * pct / 100;
+        if (fNeta === 'proyectadas' && neta == null) return; // ocultar si solo PROYECTADAS
+        const svcAlcance = alcanceServicio(o);
+        const tieneOverride = vigenciaAbierta('servicio', svcAlcance) || o.pctSupervision != null;
+        const efCli = g.cli ? pctEfectivoCliente(g.cli, mes) : null;
+        const cliOverride = g.cli ? (vigenciaAbierta('cliente', alcanceCliente(g.cli)) || g.cli.pctSupervision != null) : false;
+        const tooltip = origen === 'general' ? 'heredado del GENERAL — editá para pisar' : origen === 'cliente' ? 'heredado del CLIENTE — editá para pisar' : 'override de SERVICIO';
+        const netaHtml = neta != null
+          ? `<td class="money">${Math.round(neta).toLocaleString('es-AR')}</td>`
+          : `<td class="money" style="color:#7c3aed;font-weight:600;">PROYECTADO <span class="chip" style="background:#ede9fe;color:#7c3aed;font-size:9px;">PROYECTADO</span></td>`;
+        const borderColor = tieneOverride ? 'border:2px solid #f59e0b;' : '';
+        rows += `<tr>
+          <td>${g.cli?.nombre || 'Sin cliente'} <span class="sm" style="color:#9aa2c0;">— ${o.codigo || o.nombre || ''}</span></td>
+          <td class="sm">${supervisoresDelObjetivo(o).join(', ') || '—'}</td>
+          ${netaHtml}
+          <td><span style="position:relative;display:inline-block;" title="${tooltip}"><input type="number" class="sup-pct" value="${pct.toFixed(2).replace('.', ',')}" step="0.5" min="0" max="100" style="${borderColor}"
+            onchange="setPctServicioSup('${svcAlcance.replace(/'/g, "\\'")}', this.value)" ${edit ? '' : 'disabled'}>%</span></td>
+          <td>${chipOrigen(origen)}</td>
+          <td class="money">${sup != null ? sup.toLocaleString('es-AR') : '—'}</td>
+          <td>
+            ${(edit && tieneOverride) ? `<span class="sup-heredar" onclick="heredarServicioSup('${svcAlcance.replace(/'/g, "\\'")}')">heredar</span>` : ''}
+            <button class="btn btn-xs" style="background:none;border:none;cursor:pointer;font-size:12px;" title="Historial de % de este servicio"
+              onclick="abrirHistorialServicioSup('${svcAlcance.replace(/'/g, "\\'")}')">🕘</button>
+          </td>
+        </tr>`;
+      } else {
+        // CLIENTE CON VARIOS SERVICIOS — fila-cliente con ▸/▾
+        const efCli = g.cli ? pctEfectivoCliente(g.cli, mes) : null;
+        const cliOverride = g.cli ? (vigenciaAbierta('cliente', alcanceCliente(g.cli)) || g.cli.pctSupervision != null) : false;
+        const flecha = expandido ? '▾' : '▸';
+        const opacity = expandido ? '' : 'style="opacity:.5;"';
+        rows += `<tr class="sup-cli" onclick="toggleClienteSup('${cliId.replace(/'/g, "\\'")}')" style="cursor:pointer;">
+          <td>${flecha} ${g.cli?.nombre || 'Sin cliente'}</td>
+          <td class="sm">${srvsFiltrados.length} servicio(s)</td>
+          <td class="sm"></td>
+          <td>${efCli ? `<span title="heredado del GENERAL — editá para pisar"><input type="number" class="sup-pct" value="${efCli.pct.toFixed(2).replace('.', ',')}" step="0.5" min="0" max="100"
+            onchange="setPctClienteSup('${cliId.replace(/'/g, "\\'")}', this.value)" ${edit ? '' : 'disabled'}>%</span>` : '—'}</td>
+          <td>${efCli ? chipOrigen(efCli.origen) : '—'}</td>
+          <td class="sm">% del cliente — hereda a sus servicios</td>
+          <td>${(edit && g.cli && cliOverride) ? `<span class="sup-heredar" onclick="event.stopPropagation();heredarClienteSup('${cliId.replace(/'/g, "\\'")}')">heredar</span>` : ''}</td>
+        </tr>`;
+        if (expandido) {
+          srvsFiltrados
+            .sort((a, b) => (a.codigo || '').localeCompare(b.codigo || ''))
+            .forEach(o => {
+              const { pct, origen } = pctEfectivoObjetivo(o, mes);
+              const neta = netaMensual(o);
+              const sup = (neta == null) ? null : Math.round(neta * pct / 100);
+              if (neta != null) costoTotal += neta * pct / 100;
+              const svcAlcance = alcanceServicio(o);
+              const tieneOverride = vigenciaAbierta('servicio', svcAlcance) || o.pctSupervision != null;
+              const tooltip = origen === 'general' ? 'heredado del GENERAL — editá para pisar' : origen === 'cliente' ? 'heredado del CLIENTE — editá para pisar' : 'override de SERVICIO';
+              const netaHtml = neta != null
+                ? `<td class="money">${Math.round(neta).toLocaleString('es-AR')}</td>`
+                : `<td class="money" style="color:#7c3aed;font-weight:600;">PROYECTADO <span class="chip" style="background:#ede9fe;color:#7c3aed;font-size:9px;">PROYECTADO</span></td>`;
+              const borderColor = tieneOverride ? 'border:2px solid #f59e0b;' : '';
+              rows += `<tr>
+                <td style="padding-left:34px;">${o.codigo || o.nombre || ''}</td>
+                <td class="sm">${supervisoresDelObjetivo(o).join(', ') || '—'}</td>
+                ${netaHtml}
+                <td><span style="position:relative;display:inline-block;" title="${tooltip}"><input type="number" class="sup-pct" value="${pct.toFixed(2).replace('.', ',')}" step="0.5" min="0" max="100" style="${borderColor}"
+                  onchange="setPctServicioSup('${svcAlcance.replace(/'/g, "\\'")}', this.value)" ${edit ? '' : 'disabled'}>%</span></td>
+                <td>${chipOrigen(origen)}</td>
+                <td class="money">${sup != null ? sup.toLocaleString('es-AR') : '—'}</td>
+                <td>
+                  ${(edit && tieneOverride) ? `<span class="sup-heredar" onclick="heredarServicioSup('${svcAlcance.replace(/'/g, "\\'")}')">heredar</span>` : ''}
+                  <button class="btn btn-xs" style="background:none;border:none;cursor:pointer;font-size:12px;" title="Historial de % de este servicio"
+                    onclick="abrirHistorialServicioSup('${svcAlcance.replace(/'/g, "\\'")}')">🕘</button>
+                </td>
+              </tr>`;
+            });
+        }
+      }
     });
   if (!rows) {
     tbody.innerHTML = `<tr><td colspan="7" style="padding:40px;text-align:center;color:var(--texto-muy-suave);">Sin servicios operativos con supervisor asignado.</td></tr>`;
     return;
   }
-  const costoTotal = servicios.reduce((s, o) => {
-    const neta = netaMensual(o);
-    if (neta == null) return s;
-    return s + neta * pctEfectivoObjetivo(o, mes).pct / 100;
-  }, 0);
   rows += `<tr class="sup-tot"><td colspan="5">COSTO TOTAL DE SUPERVISIÓN DEL MES</td><td class="money">$${Math.round(costoTotal).toLocaleString('es-AR')}</td><td></td></tr>`;
   tbody.innerHTML = rows;
+}
+
+export function toggleClienteSup(cliId) {
+  _clientesExpandidos[cliId] = !_clientesExpandidos[cliId];
+  renderTablaSupervision();
 }
 
 export function renderTablaReporteSup() {
@@ -429,7 +504,7 @@ export function renderHistorialSup() {
       </tr>`;
     }).join('') || `<tr><td colspan="8" style="padding:40px;text-align:center;color:var(--texto-muy-suave);">Sin cambios registrados.</td></tr>`;
   }
-  // Foto por mes — selector
+  // Foto por mes — selector (para el sub-tab "Períodos")
   const sel = $('sup-foto-mes');
   if (sel && !sel.options.length) {
     const meses = new Set();
@@ -451,12 +526,34 @@ export function renderFotoPorMes() {
   const tbody = $('tbody-sup-foto');
   if (!tbody) return;
   const mes = $('sup-foto-mes')?.value || mesActualStr();
-  tbody.innerHTML = serviciosSupervisadosActivos()
-    .sort((a, b) => (a.codigo || '').localeCompare(b.codigo || ''))
-    .map(o => {
-      const { pct, origen } = pctEfectivoObjetivo(o, mes);
-      return `<tr><td>${o.codigo || ''}</td><td>${fmtPct(pct)}</td><td>${chipOrigen(origen)}</td></tr>`;
-    }).join('') || `<tr><td colspan="3" style="padding:40px;text-align:center;color:var(--texto-muy-suave);">Sin servicios.</td></tr>`;
+  const servicios = serviciosSupervisadosActivos().sort((a, b) => (a.codigo || '').localeCompare(b.codigo || ''));
+  const rows = servicios.map(o => {
+    const { pct, origen } = pctEfectivoObjetivo(o, mes);
+    const neta = netaMensual(o);
+    const sup = (neta == null) ? null : Math.round(neta * pct / 100);
+    const netaHtml = neta != null
+      ? `<td class="money">${Math.round(neta).toLocaleString('es-AR')}</td>`
+      : `<td class="money" style="color:#7c3aed;font-weight:600;">PROYECTADO <span class="chip" style="background:#ede9fe;color:#7c3aed;font-size:9px;">PROYECTADO</span></td>`;
+    return `<tr>
+      <td>${o.codigo || ''}</td>
+      ${netaHtml}
+      <td>${fmtPct(pct)}</td>
+      <td>${chipOrigen(origen)}</td>
+      <td class="money">${sup != null ? '$' + sup.toLocaleString('es-AR') : '—'}</td>
+    </tr>`;
+  }).join('');
+  tbody.innerHTML = rows || `<tr><td colspan="5" style="padding:40px;text-align:center;color:var(--texto-muy-suave);">Sin servicios.</td></tr>`;
+}
+
+export function tabHistorialSup(i) {
+  [0, 1].forEach(j => {
+    const t = $('sup-hist-tab-' + j);
+    const p = $('sup-hist-panel-' + j);
+    if (t) t.classList.toggle('active', i === j);
+    if (p) p.style.display = i === j ? '' : 'none';
+  });
+  if (i === 0) renderHistorialSup();
+  if (i === 1) renderFotoPorMes();
 }
 
 // ── EDICIÓN (modal de vigencia) ──
@@ -472,6 +569,7 @@ function ensureModalVigencia() {
     <div class="modal" style="max-width:480px;">
       <div class="modal-header"><h3>Cambiar % de supervisión</h3><button class="btn-close" onclick="cerrarModal('modal-sup-vigencia')">×</button></div>
       <div class="modal-body">
+        <div id="sup-vig-alcance" style="background:#f0f4ff;border:1px solid #c3d4f7;color:#1b2a5e;border-radius:8px;padding:8px 12px;font-size:12px;font-weight:600;margin-bottom:12px;"></div>
         <div class="alerta alerta-info" style="font-size:12px;">El % anterior no se borra: se cierra la vigencia y se abre una nueva desde el mes que elijas. La liquidación de cada mes usa el % vigente de ESE mes.</div>
         <div class="form-section">Nuevo %</div>
         <input type="number" id="sup-vig-pct" step="0.5" min="0" max="100" style="width:110px;padding:6px 10px;border:1px solid var(--borde-fuerte);border-radius:var(--radio);font-size:14px;font-weight:700;">
@@ -495,6 +593,18 @@ function abrirModalVigencia(nivel, alcance, alcanceNombre, pctActual, rigeDesde)
   $('sup-vig-pct').value = String(pctActual).replace('.', ',');
   $('sup-vig-desde').value = rigeDesde || mesActualStr();
   $('sup-vig-motivo').value = '';
+  // Línea de ALCANCE
+  let alcanceHtml = '';
+  if (nivel === 'general') {
+    alcanceHtml = `GENERAL — nivel GLOBAL (afecta a todos los servicios)`;
+  } else if (nivel === 'cliente') {
+    const cantSrvs = (DB.objetivos || []).filter(o => !o.anulado && o.estado === 'Operativo' && String(clienteDeObjetivo(o)?.id) === String(alcance)).length;
+    alcanceHtml = `${alcanceNombre} — nivel CLIENTE (hereda a sus ${cantSrvs} servicio(s))`;
+  } else {
+    const cli = clienteDeObjetivo((DB.objetivos || []).find(x => String(alcanceServicio(x)) === String(alcance)) || {});
+    alcanceHtml = `${alcanceNombre} — nivel SERVICIO${cli ? ' (de ' + cli.nombre + ')' : ''}`;
+  }
+  $('sup-vig-alcance').innerHTML = alcanceHtml;
   abrirModal('modal-sup-vigencia');
 }
 
@@ -548,23 +658,70 @@ export function confirmarVigenciaSup() {
   renderSupervision();
 }
 
+function ensureModalHeredar() {
+  if ($('modal-sup-heredar')) return;
+  const m = document.createElement('div');
+  m.className = 'modal-overlay';
+  m.id = 'modal-sup-heredar';
+  m.innerHTML = `
+    <div class="modal" style="max-width:480px;">
+      <div class="modal-header"><h3>Confirmar heredar</h3><button class="btn-close" onclick="cerrarModal('modal-sup-heredar')">×</button></div>
+      <div class="modal-body">
+        <div id="sup-her-alcance" style="background:#f0f4ff;border:1px solid #c3d4f7;color:#1b2a5e;border-radius:8px;padding:8px 12px;font-size:12px;font-weight:600;margin-bottom:12px;"></div>
+        <div id="sup-her-explicacion" style="font-size:13px;line-height:1.6;margin-bottom:12px;"></div>
+        <div class="form-section">Rige desde</div>
+        <input type="month" id="sup-her-desde" style="padding:6px 10px;border:1px solid var(--borde-fuerte);border-radius:var(--radio);font-size:13px;">
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="cerrarModal('modal-sup-heredar')">Cancelar</button>
+        <button class="btn btn-primary" onclick="confirmarHeredarSup()">Confirmar</button>
+      </div>
+    </div>`;
+  document.body.appendChild(m);
+}
+
+let _heredarPendiente = null; // {nivel, alcance, alcanceNombre, pctActual, pctHeredado}
+
 export function heredarClienteSup(alcance) {
   if (!esEditorSupervision()) { toast('⛔ Solo Finanzas puede editar el % de supervisión'); return; }
   const c = (DB.clientes || []).find(x => String(alcanceCliente(x)) === String(alcance));
   if (!c) return;
-  if (!confirm(`¿Quitar el % propio de ${c.nombre} para que vuelva a heredar el GENERAL?`)) return;
-  heredarVigencia('cliente', alcance, 'Heredar del nivel general');
-  toast(`✓ ${c.nombre} vuelve a heredar el general`);
-  renderSupervision();
+  const ef = pctEfectivoCliente(c, mesActualStr());
+  const gen = pctGeneralVigente(mesActualStr());
+  const cantSrvs = (DB.objetivos || []).filter(o => !o.anulado && o.estado === 'Operativo' && String(clienteDeObjetivo(o)?.id) === String(alcance)).length;
+  _heredarPendiente = { nivel: 'cliente', alcance, alcanceNombre: c.nombre, pctActual: ef.pct, pctHeredado: gen };
+  ensureModalHeredar();
+  $('sup-her-alcance').innerHTML = `${c.nombre} — nivel CLIENTE (hereda a sus ${cantSrvs} servicio(s))`;
+  $('sup-her-explicacion').innerHTML = `Deja el <strong>${fmtPct(ef.pct)}</strong> propio y vuelve a heredar del GENERAL: <strong>${fmtPct(gen)}</strong>`;
+  $('sup-her-desde').value = mesActualStr();
+  abrirModal('modal-sup-heredar');
 }
 
 export function heredarServicioSup(alcance) {
   if (!esEditorSupervision()) { toast('⛔ Solo Finanzas puede editar el % de supervisión'); return; }
   const o = (DB.objetivos || []).find(x => String(alcanceServicio(x)) === String(alcance));
   if (!o) return;
-  if (!confirm(`¿Quitar el % propio de ${o.codigo} para que vuelva a heredar (cliente o general)?`)) return;
-  heredarVigencia('servicio', alcance, 'Heredar del nivel cliente/general');
-  toast(`✓ ${o.codigo} vuelve a heredar`);
+  const ef = pctEfectivoObjetivo(o, mesActualStr());
+  const base = o ? pctEfectivoObjetivo(o, mesActualStr()) : null;
+  const heredado = base ? (base.origen === 'cliente' ? base.pct : pctGeneralVigente(mesActualStr())) : pctGeneralVigente(mesActualStr());
+  const cli = clienteDeObjetivo(o);
+  _heredarPendiente = { nivel: 'servicio', alcance, alcanceNombre: o.codigo || o.nombre || '', pctActual: ef.pct, pctHeredado: heredado };
+  ensureModalHeredar();
+  $('sup-her-alcance').innerHTML = `${o.codigo || o.nombre} — nivel SERVICIO${cli ? ' (de ' + cli.nombre + ')' : ''}`;
+  $('sup-her-explicacion').innerHTML = `Deja el <strong>${fmtPct(ef.pct)}</strong> propio y vuelve a heredar del ${ef.origen === 'cliente' ? 'CLIENTE' : 'GENERAL'}: <strong>${fmtPct(heredado)}</strong>`;
+  $('sup-her-desde').value = mesActualStr();
+  abrirModal('modal-sup-heredar');
+}
+
+export function confirmarHeredarSup() {
+  if (!_heredarPendiente) return;
+  const desde = $('sup-her-desde').value || mesActualStr();
+  if (desde < mesActualStr()) { toast('⚠️ No podés hacer regir en meses anteriores al actual'); return; }
+  const { nivel, alcance, alcanceNombre } = _heredarPendiente;
+  heredarVigencia(nivel, alcance, 'Vuelve a heredar de la cascada');
+  cerrarModal('modal-sup-heredar');
+  _heredarPendiente = null;
+  toast(`✓ ${alcanceNombre} vuelve a heredar`);
   renderSupervision();
 }
 
