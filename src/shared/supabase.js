@@ -1,11 +1,18 @@
 import { createClient } from '@supabase/supabase-js';
 
+// Multi-empresa (18/08/2026): cada empresa cliente tiene su PROPIO
+// proyecto Supabase (aislamiento total, sin empresa_id compartido — ver
+// src/modules/superadmin/). El mismo código/deploy sirve para todas,
+// apuntando a la base correcta según las variables de entorno del build.
+// Fallback a los valores de Ohlimpia si no se configura nada — así el
+// deploy de Ohlimpia sigue funcionando exactamente igual sin tocar nada
+// en Vercel, y solo los deploys de empresas nuevas necesitan setearlas.
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || 'https://caeqsieiuunqvicfpudu.supabase.co';
+const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || 'sb_publishable__SBdO6cSQXYfgR16FrztwA_Cf9sNosd';
+
 // Cliente Supabase — sesión persistida (comportamiento default): el login
 // sobrevive a un reload, no hay que volver a loguearse hasta cerrar sesión.
-export const SUPA = createClient(
-  'https://caeqsieiuunqvicfpudu.supabase.co',
-  'sb_publishable__SBdO6cSQXYfgR16FrztwA_Cf9sNosd'
-);
+export const SUPA = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 // Mapa de claves JS → nombres de tabla en Supabase
 export const _SM = {

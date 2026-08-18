@@ -2,6 +2,17 @@ import { DB, PERFILES, MENU, currentUser } from '@shared/state.js';
 import { $ } from '@shared/helpers.js';
 import { activarOrdenamiento } from '@shared/ui.js';
 
+// Multi-empresa (18/08/2026): qué módulos le vendiste a la empresa de
+// ESTE deploy — ver src/modules/superadmin/ para el registro de todas.
+// Sin esta variable configurada (caso de Ohlimpia hoy), MODULOS_CONTRATADOS
+// queda null y no restringe nada — el menú se arma solo con PERFILES,
+// exactamente como siempre. Solo los deploys de empresas clientes nuevas
+// necesitan setear VITE_MODULOS_CONTRATADOS (lista separada por comas de
+// las mismas keys que usa MENU, ej. "legajos,liquidacion,liq_admin").
+export const MODULOS_CONTRATADOS = import.meta.env.VITE_MODULOS_CONTRATADOS
+  ? import.meta.env.VITE_MODULOS_CONTRATADOS.split(',').map(s => s.trim()).filter(Boolean)
+  : null;
+
 // ========== SCREEN CONFIG ==========
 // Se registra desde fuera con registerScreens() porque las funciones render/fn
 // pertenecen a módulos que aún no están migrados.
@@ -72,17 +83,22 @@ export function construirMenu() {
   // El perfil DEVELOPER solo ve sus propias 4 secciones — nada más del ERP,
   // ni siquiera los placeholders "Próximamente" que ven todos los demás.
   const esDeveloper = currentUser.perfil === 'DEVELOPER';
+  // Además del perfil, tiene que estar entre los módulos contratados de
+  // esta empresa (MODULOS_CONTRATADOS null = sin restricción, caso de
+  // Ohlimpia hoy). Los ítems deshabilitados ("Próximamente") no se filtran
+  // por contrato — son placeholders sin funcionalidad real detrás.
+  const contratado = key => !MODULOS_CONTRATADOS || MODULOS_CONTRATADOS.includes(key);
   MENU.forEach(sec => {
     const items = sec.items.filter(i => esDeveloper
-      ? (perfil && perfil.modulos.includes(i.key))
-      : (i.disabled || !perfil || perfil.modulos.includes(i.key)));
+      ? (perfil && perfil.modulos.includes(i.key) && contratado(i.key))
+      : (i.disabled || !perfil || (perfil.modulos.includes(i.key) && contratado(i.key))));
     if (!items.length) return;
     const sDiv = document.createElement('div');
     sDiv.className = 'nav-section';
     sDiv.textContent = sec.section;
     nav.appendChild(sDiv);
     items.forEach(item => {
-      const tieneAcceso = !item.disabled && perfil && perfil.modulos.includes(item.key);
+      const tieneAcceso = !item.disabled && perfil && perfil.modulos.includes(item.key) && contratado(item.key);
       const div = document.createElement('div');
       div.className = 'nav-item' + (item.disabled || !tieneAcceso ? ' disabled' : '');
       const badgeCount =
