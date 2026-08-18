@@ -60,3 +60,61 @@ export async function aplicarBrandingRemoto(supa) {
     // el logo simplemente se queda con el que ya tenía (env var o default).
   }
 }
+
+function _comprimirImagen(archivo, maxLado = 480, calidad = 0.85) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = reject;
+    reader.onload = () => {
+      const img = new Image();
+      img.onerror = reject;
+      img.onload = () => {
+        let { width, height } = img;
+        if (width > maxLado || height > maxLado) {
+          const escala = maxLado / Math.max(width, height);
+          width = Math.round(width * escala);
+          height = Math.round(height * escala);
+        }
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        canvas.getContext('2d').drawImage(img, 0, 0, width, height);
+        const esTransparente = archivo.type === 'image/png' || archivo.type === 'image/svg+xml';
+        resolve(canvas.toDataURL(esTransparente ? 'image/png' : 'image/jpeg', calidad));
+      };
+      img.src = reader.result;
+    };
+    reader.readAsDataURL(archivo);
+  });
+}
+
+// Botón "✏️ Cambiar logo" del propio Inicio (18/08/2026) — el mismo cambio
+// que hace subirLogoEmpresa() en Superadmin, pero desde ADENTRO de la
+// propia empresa, con su propio SUPA ya logueado — evita el cruce entre
+// dos proyectos de Supabase distintos (URL/anon key a mano) que puede
+// fallar por muchos motivos. Es el camino más simple y más confiable.
+export async function subirLogoPropio(supa, toast) {
+  const input = document.getElementById('inicio-logo-file');
+  const archivo = input && input.files[0];
+  if (!archivo) return;
+  if (archivo.size > 15 * 1024 * 1024) { toast?.('⚠️ La imagen es muy pesada (máx. 15MB)'); return; }
+
+  try {
+    const dataUrl = await _comprimirImagen(archivo);
+    const { data: existente, error: errSelect } = await supa.from('branding_config').select('id').limit(1).maybeSingle();
+    if (errSelect) throw errSelect;
+    const { error: errWrite } = existente
+      ? await supa.from('branding_config').update({ logo_url: dataUrl, updated_at: new Date().toISOString() }).eq('id', existente.id)
+      : await supa.from('branding_config').insert({ logo_url: dataUrl });
+    if (errWrite) throw errWrite;
+
+    const el = document.getElementById('inicio-hero-logo');
+    if (el) el.src = dataUrl;
+    toast?.('✓ Logo actualizado');
+  } catch (err) {
+    console.error('subirLogoPropio:', err);
+    toast?.('⚠️ No se pudo guardar el logo: ' + (err.message || 'error desconocido'));
+  } finally {
+    if (input) input.value = '';
+  }
+}
