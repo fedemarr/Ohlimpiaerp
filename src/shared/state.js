@@ -178,27 +178,15 @@ export const DB = {
   valoresHoraCategoria: [],
   plusAdicionales: [],
   valoresPlus: [],
-  pedidos: [
-    { id: 1, fecha: '09/10/2023', supervisor: 'Claudia Cazenave', servicio: 'HOSPITAL.CAMPANA', zona: 'Buenos Aires', puesto: 'Operario', horario: '22hs a 06hs nocturno 6×1', urgencia: 'Alto', estado: 'Cubierto', candidato: 'Lima Romina', obs: '' },
-    { id: 2, fecha: '27/11/2023', supervisor: 'Alvaro Uballes', servicio: 'HIT.LIBERTADOR.CEL', zona: 'CABA', puesto: 'Retén', horario: 'Rotativos full time 6×1', urgencia: 'Medio', estado: 'Pendiente', candidato: '', obs: '' },
-    { id: 3, fecha: '02/04/2026', supervisor: 'Alejandro Cacciato', servicio: 'SULFOQUIMICA', zona: 'Buenos Aires', puesto: 'Operario', horario: 'L-V 14/22hs', urgencia: 'Alto', estado: 'Pendiente', candidato: '', obs: '' },
-  ],
-  psicos: [
-    { id: 1, nombre: 'Bobadilla Ruiz Laura', dni: '96048133', zona: 'CABA', rrhh: 'Naara', resultado: 'Apto', preocup: 'Realizado', estado: 'Ingreso', fecha: '05/10/2025', obs: '' },
-    { id: 2, nombre: 'Ramirez Gabriel Jonathan', dni: '45397397', zona: 'CABA', rrhh: 'Naara', resultado: 'No apto', preocup: 'No realizó', estado: 'Baja', fecha: '03/10/2025', obs: '' },
-    { id: 3, nombre: 'Jara Fabricio', dni: '52113159', zona: 'CABA', rrhh: 'Naara', resultado: 'Apto', preocup: 'Realizado', estado: 'Ingreso', fecha: '05/10/2025', obs: '' },
-  ],
+  // Multi-empresa (18/08/2026): estos tres arrays tenían datos "semilla"
+  // con apariencia real (nombres, DNI) hardcodeados — se vacían por el
+  // mismo motivo que legacy.js (ver supaInit() en supabase.js): no debe
+  // haber información de Ohlimpia en el bundle de JS de otra empresa.
+  pedidos: [],
+  psicos: [],
   preocupacionales: [],
   documentacionIngreso: [],
-  legajos: [
-    { nro: 2, nombre: 'Peretti Juan Carlos', dni: '6263572', funcion: 'Coordinador de área', servicio: 'ADMINISTRATIVO', supervisor: 'ADMINISTRATIVO', ingreso: '01/02/2011', estado: 'Activo', estadoLegal: '', estadoMedico: '', fechaBaja: '', fechaReincorp: '', seguro: 'Completo', localidad: 'Belgrano', tel: '1131543167', mail: 'juanperetti_46@hotmail.com', cuit: '20062635720', estadoCivil: 'Casado', nac: 'Argentina', banco: 'Banco Nación', calzado: 43, ambo: 'XL', periodoPrueba: 6, fechaIngresoPrueba: '2011-02-01', adjuntosLegal: [], adjuntosMedico: [] },
-    { nro: 32, nombre: 'Tolaba Maximiliano Ezequiel', dni: '32343528', funcion: 'Referente', servicio: 'MIGUELETES.2423', supervisor: 'Alvaro Uballes', ingreso: '15/03/2018', estado: 'Activo', estadoLegal: '', estadoMedico: '', fechaBaja: '', fechaReincorp: '', seguro: 'Completo', localidad: 'Lomas de Zamora', tel: '', mail: '', cuit: '20323435287', estadoCivil: 'Soltero', nac: 'Argentina', banco: '', calzado: 41, ambo: 'M', periodoPrueba: 6, fechaIngresoPrueba: '2018-03-15', adjuntosLegal: [], adjuntosMedico: [] },
-    { nro: 43, nombre: 'Arispe Alfredo Julian', dni: '18348699', funcion: 'Supervisor', servicio: 'ADMINISTRATIVO', supervisor: 'ADMINISTRATIVO', ingreso: '11/03/2011', estado: 'Activo', estadoLegal: '', estadoMedico: '', fechaBaja: '', fechaReincorp: '', seguro: 'Completo', localidad: 'Pompeya', tel: '1122751445', mail: 'alfredoarispe@hotmail.com', cuit: '20183486994', estadoCivil: 'Soltero', nac: 'Argentina', banco: '', calzado: 42, ambo: 'L', periodoPrueba: 6, fechaIngresoPrueba: '2011-03-11', adjuntosLegal: [], adjuntosMedico: [] },
-    { nro: 46, nombre: 'Camacho Solis Katherine', dni: '93991411', funcion: 'Operario', servicio: 'CIBRA', supervisor: 'Alejandro Cacciato', ingreso: '25/04/2014', estado: 'Activo', estadoLegal: 'Carta documento recibida', estadoMedico: '', fechaBaja: '', fechaReincorp: '', seguro: 'Pendiente', localidad: 'Tigre', tel: '1150581888', mail: '', cuit: '27939914116', estadoCivil: 'Soltera', nac: 'Peruana', banco: '', calzado: 38, ambo: 'S', periodoPrueba: 6, fechaIngresoPrueba: '2014-04-25', adjuntosLegal: ['carta_doc_1.pdf'], adjuntosMedico: [] },
-    { nro: 71, nombre: 'Gomez Diego Alejandro', dni: '26148208', funcion: 'Retén', servicio: 'RETEN.GENERAL', supervisor: 'Santiago Ayala', ingreso: '27/05/2022', estado: 'Activo', estadoLegal: '', estadoMedico: 'Activo — sin trabajar', fechaBaja: '', fechaReincorp: '', seguro: 'Completo', localidad: 'Tres de Febrero', tel: '1156072183', mail: '', cuit: '20261482089', estadoCivil: 'Casado', nac: 'Argentina', banco: '', calzado: 43, ambo: 'L', periodoPrueba: 6, fechaIngresoPrueba: '2022-05-27', adjuntosLegal: [], adjuntosMedico: ['certif_medico.pdf'] },
-    { nro: 22, nombre: 'Godoy Alicia Alejandra', dni: '25189767', funcion: 'Operario', servicio: '—', supervisor: '—', ingreso: '28/08/2015', estado: 'Baja', estadoLegal: 'Estado judicial', estadoMedico: '', fechaBaja: '15/03/2024', fechaReincorp: '', seguro: '—', localidad: 'Avellaneda', tel: '', mail: '', cuit: '', estadoCivil: '', nac: '', banco: '', calzado: 38, ambo: 'S', periodoPrueba: 6, fechaIngresoPrueba: '2015-08-28', adjuntosLegal: ['carta_doc_1.pdf', 'escrito_judicial.pdf'], adjuntosMedico: [] },
-    { nro: 97, nombre: 'Sanchez Ocas Segundo', dni: '94243288', funcion: 'Operario', servicio: 'LOS.PINOS', supervisor: 'Alvaro Uballes', ingreso: '12/02/2016', estado: 'Activo', estadoLegal: '', estadoMedico: '', fechaBaja: '05/06/2018', fechaReincorp: '14/01/2020', seguro: 'Completo', localidad: 'CABA', tel: '', mail: '', cuit: '20942432888', estadoCivil: '', nac: '', banco: '', calzado: 42, ambo: 'L', periodoPrueba: 6, fechaIngresoPrueba: '2020-01-14', adjuntosLegal: [], adjuntosMedico: [] },
-  ],
+  legajos: [],
   // Situaciones Legales v1.1 — sin seed mock (confidencialidad: no
   // hardcodear casos, ni siquiera de prueba, en el bundle de JS). Sale
   // entero de Supabase vía supaInit().

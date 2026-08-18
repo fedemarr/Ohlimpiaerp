@@ -972,10 +972,16 @@ export async function supaInit(DB, toast) {
     let cargados = 0;
     for (const { k, t, data, error } of resultados) {
       if (error) { console.warn('supaInit error tabla:', t, error.message); continue; }
-      if (data && data.length > 0) {
+      // Multi-empresa (18/08/2026): antes solo pisaba DB[k] si data.length>0,
+      // así que una tabla real y genuinamente vacía (caso de una empresa
+      // cliente nueva) nunca sobreescribía los arrays "semilla" de
+      // legacy.js/state.js — quedaban mostrando datos de otra empresa
+      // indefinidamente. Ahora siempre refleja lo que hay en Supabase,
+      // vacío o no.
+      if (data) {
         DB[k] = data.map(row => _toCamel(row));
         cargados += data.length;
-        console.log('☁️ Cargado:', k, data.length, 'registros');
+        if (data.length > 0) console.log('☁️ Cargado:', k, data.length, 'registros');
       }
     }
     if (cargados > 0) toast('☁️ ' + cargados + ' registros cargados desde la nube');
