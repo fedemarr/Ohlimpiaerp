@@ -6,7 +6,9 @@ export {
   onChangeZonaCand, onChangePartidoCand, onChangeLocalidadCand, onChangeEstadoCand,
   abrirCitarPorId, guardarCita,
   abrirResultadoPorId, guardarResultadoEntrevista,
-  aprobarCandidatoPorId, rechazarCandidatoPorId, pasarAPsicoPorId,
+  aprobarCandidatoPorId, aprobarPrecandidatoPorId, rechazarCandidatoPorId,
+  onChangeMotivoRechCand, confirmarRechazoCandidato,
+  pasarAPsicoPorId,
   registrarAsistencia, desmarcarAsistenciaPorId,
   getCandById, getIdxById,
   abrirDetalleCandidatoPorId,
@@ -84,7 +86,9 @@ import {
   onChangeZonaCand, onChangePartidoCand, onChangeLocalidadCand, onChangeEstadoCand,
   abrirCitarPorId, guardarCita,
   abrirResultadoPorId, guardarResultadoEntrevista,
-  aprobarCandidatoPorId, rechazarCandidatoPorId, pasarAPsicoPorId,
+  aprobarCandidatoPorId, aprobarPrecandidatoPorId, rechazarCandidatoPorId,
+  onChangeMotivoRechCand, confirmarRechazoCandidato,
+  pasarAPsicoPorId,
   registrarAsistencia, desmarcarAsistenciaPorId,
   abrirDetalleCandidatoPorId,
   abrirBajaCandidatoPorId, confirmarBajaCandidato, onChangeEstadoBajaCand,
@@ -125,7 +129,10 @@ window.guardarCita = guardarCita;
 window.abrirResultadoPorId = abrirResultadoPorId;
 window.guardarResultadoEntrevista = guardarResultadoEntrevista;
 window.aprobarCandidatoPorId = aprobarCandidatoPorId;
+window.aprobarPrecandidatoPorId = aprobarPrecandidatoPorId;
 window.rechazarCandidatoPorId = rechazarCandidatoPorId;
+window.onChangeMotivoRechCand = onChangeMotivoRechCand;
+window.confirmarRechazoCandidato = confirmarRechazoCandidato;
 window.pasarAPsicoPorId = pasarAPsicoPorId;
 window.registrarAsistencia = registrarAsistencia;
 window.desmarcarAsistenciaPorId = desmarcarAsistenciaPorId;
@@ -152,6 +159,12 @@ window.vincularCandidatoTurno = vincularCandidatoTurno;
 
 // Link público de postulación
 window.copiarLinkPostulacion = copiarLinkPostulacion;
+
+// WhatsApp — funciones invocadas desde onclick inline del modal dinámico
+import { onWhatsAppTemplateChange, copiarMensajeWhatsApp, enviarMensajeWhatsApp } from './candidatos.js';
+window.onWhatsAppTemplateChange = onWhatsAppTemplateChange;
+window.copiarMensajeWhatsApp = copiarMensajeWhatsApp;
+window.enviarMensajeWhatsApp = enviarMensajeWhatsApp;
 
 // Importar histórico desde CSV
 window.abrirImportadorCandidatosHistorico = abrirImportadorCandidatosHistorico;

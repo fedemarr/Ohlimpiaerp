@@ -11,6 +11,7 @@ export default defineConfig({
       input: {
         main: resolve(__dirname, 'index.html'),
         postularme: resolve(__dirname, 'postularme.html'),
+        agendarEntrevista: resolve(__dirname, 'agendar-entrevista.html'),
         evaluacion: resolve(__dirname, 'evaluacion.html'),
       },
     },

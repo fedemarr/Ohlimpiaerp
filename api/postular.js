@@ -111,7 +111,7 @@ export default async function handler(req, res) {
       zona,
       localidad,
       medio: 'Formulario web',
-      estado: (fecha && hora) ? 'Citado' : 'Sin citar',
+      estado: 'Precandidato',
       fecha_cita: fecha,
       hora_cita: hora,
       creado_por: 'Formulario público',
@@ -129,26 +129,7 @@ export default async function handler(req, res) {
       return;
     }
 
-    if (fecha && hora) {
-      const nuevoTurno = {
-        id_local: idLocal(1),
-        // El front (candidatos.js) siempre lee/escribe candidato.id como
-        // el id_local truncado (ver _toCamel en shared/supabase.js, que
-        // reemplaza id por id_local al recargar) — usar acá el id
-        // serial de Supabase en vez de id_local rompía la relación
-        // turno→candidato apenas alguien recargaba la pantalla.
-        candidato_id: nuevoCandidato.id_local,
-        nombre: apellido + ' ' + nombre,
-        fecha,
-        hora,
-        estado: 'Confirmado',
-        responsable: '',
-      };
-      const { error: errTurno } = await supa.from('turnos').insert(nuevoTurno);
-      if (errTurno) console.error('postular - error creando turno:', errTurno);
-    }
-
-    res.status(200).json({ ok: true, citado: !!(fecha && hora) });
+    res.status(200).json({ ok: true, citado: false });
   } catch (e) {
     console.error('postular error:', e);
     res.status(500).json({ error: e.message || 'Error interno' });

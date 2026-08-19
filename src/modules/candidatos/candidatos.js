@@ -115,6 +115,7 @@ function ofrecerRestaurarCandidato() {
 // ========== HELPERS ==========
 
 const ESTADO_DISPLAY = {
+  'Precandidato': 'Precandidato',
   'Psicotecnico': 'Psicotécnico',
 };
 
@@ -186,7 +187,7 @@ export function getIdxById(id) {
 
 export function tabCandidatos(tab) {
   _candTab = tab;
-  ['activos', 'historico'].forEach(t => {
+  ['precandidatos', 'activos', 'historico'].forEach(t => {
     const btn = $('tab-cand-' + t);
     if (btn) {
       btn.style.background = t === tab ? '#1e3a8a' : '#f1f5f9';
@@ -209,12 +210,14 @@ function bindTbodyEvents(tbody) {
     if (action === 'citar') abrirCitarPorId(id);
     else if (action === 'resultado') abrirResultadoPorId(id);
     else if (action === 'aprobar') aprobarCandidatoPorId(id);
+    else if (action === 'aprobar-pre') aprobarPrecandidatoPorId(id);
     else if (action === 'rechazar') rechazarCandidatoPorId(id);
     else if (action === 'psico') pasarAPsicoPorId(id);
     else if (action === 'editar') editarCandidatoPorId(id);
     else if (action === 'dar-baja') abrirBajaCandidatoPorId(id);
     else if (action === 'ver-detalle') abrirDetalleCandidatoPorId(id);
     else if (action === 'desmarcar-asistencia') desmarcarAsistenciaPorId(id);
+    else if (action === 'whatsapp') abrirWhatsAppPorId(id);
   };
   tbody.onchange = function (e) {
     const sel = e.target.closest('select[data-action="asistencia"]');
@@ -243,9 +246,11 @@ export function renderCandidatos(lista) {
   const fEstado = (($('cand-filtro-estado') || {}).value || '');
 
   const estadosHist = ['Rechazado', 'Psicotecnico', ...ESTADOS_BAJA];
-  const activos = todos.filter(c => !estadosHist.includes(c.estado));
+  const esPrecandidato = c => c.estado === 'Precandidato';
+  const activos = todos.filter(c => !estadosHist.includes(c.estado) && !esPrecandidato(c));
+  const precandidatos = todos.filter(c => esPrecandidato(c));
   const hist = todos.filter(c => estadosHist.includes(c.estado));
-  let lista2 = _candTab === 'historico' ? hist : activos;
+  let lista2 = _candTab === 'historico' ? hist : _candTab === 'precandidatos' ? precandidatos : activos;
 
   if (buscar) lista2 = lista2.filter(c => {
     const nombreCompleto = ((c.apellido || '') + ' ' + (c.nombre || '')).toLowerCase();
@@ -256,6 +261,7 @@ export function renderCandidatos(lista) {
 
   // Stats
   const ss = (id, v) => { const e = $(id); if (e) e.textContent = v; };
+  ss('st-c-precandidatos', precandidatos.length);
   ss('st-c-sincitar', activos.filter(c => c.estado === 'Sin citar').length);
   ss('st-c-citados', activos.filter(c => c.estado === 'Citado').length);
   ss('st-c-entrevistados', activos.filter(c => c.estado === 'Entrevistado').length);
@@ -282,7 +288,7 @@ export function renderCandidatos(lista) {
 }
 
 function renderFilaCand(c) {
-  const ec = { 'Sin citar': '#64748b', 'Citado': '#2563eb', 'Entrevistado': '#d97706', 'Aprobado': '#16a34a', 'Rechazado': '#dc2626', 'Psicotecnico': '#7c3aed', 'Baja': '#64748b', 'Caducado': '#b45309', 'MT Social': '#0891b2', 'MT con deuda': '#be123c' }[c.estado] || '#64748b';
+  const ec = { 'Precandidato': '#8b5cf6', 'Sin citar': '#64748b', 'Citado': '#2563eb', 'Entrevistado': '#d97706', 'Aprobado': '#16a34a', 'Rechazado': '#dc2626', 'Psicotecnico': '#7c3aed', 'Baja': '#64748b', 'Caducado': '#b45309', 'MT Social': '#0891b2', 'MT con deuda': '#be123c' }[c.estado] || '#64748b';
   const cid = c.id;
   const nombreCompleto = (c.apellido || '') + (c.apellido && c.nombre ? ', ' : '') + (c.nombre || '');
   const fechaDisplay = formatearFechaISO(c.fechaCita);
@@ -291,11 +297,13 @@ function renderFilaCand(c) {
   let btns = '<button data-action="ver-detalle" data-id="' + cid + '" style="' + btnStyle + 'background:#e0e7ff;color:#3730a3;">👁️ Ver</button>';
 
   if (_candTab === 'activos') {
-    if (c.estado === 'Sin citar')
+    if (c.estado === 'Sin citar') {
       btns += '<button data-action="citar" data-id="' + cid + '" style="' + btnStyle + 'background:#2563eb;color:white;">📅 Citar</button>';
-    else if (c.estado === 'Citado')
+      btns += '<button data-action="whatsapp" data-id="' + cid + '" style="' + btnStyle + 'background:#25d366;color:white;">💬</button>';
+    } else if (c.estado === 'Citado') {
       btns += '<button data-action="resultado" data-id="' + cid + '" style="' + btnStyle + 'background:#d97706;color:white;">📋 Resultado</button>';
-    else if (c.estado === 'Entrevistado') {
+      btns += '<button data-action="whatsapp" data-id="' + cid + '" style="' + btnStyle + 'background:#25d366;color:white;">💬</button>';
+    } else if (c.estado === 'Entrevistado') {
       btns += '<button data-action="aprobar" data-id="' + cid + '" style="' + btnStyle + 'background:#16a34a;color:white;">✅ Aprobar</button>';
       btns += '<button data-action="rechazar" data-id="' + cid + '" style="' + btnStyle + 'background:#dc2626;color:white;">❌ Rechazar</button>';
       // Sólo aparece en este estado (justo después de marcar "Sí asistió",
@@ -309,6 +317,13 @@ function renderFilaCand(c) {
     // (Baja, Caducado, MT Social, MT con deuda) — disponible en cualquier
     // estado activo, no sólo en Entrevistado como Rechazar.
     btns += '<button data-action="dar-baja" data-id="' + cid + '" style="' + btnStyle + 'background:#f1f5f9;color:#475569;" title="Baja / Caducado / MT Social / MT con deuda">📁 Baja</button>';
+  }
+
+  // Precandidatos: botones específicos del estado
+  if (_candTab === 'precandidatos' && c.estado === 'Precandidato') {
+    btns += '<button data-action="aprobar-pre" data-id="' + cid + '" style="' + btnStyle + 'background:#16a34a;color:white;">✅ Aprobar</button>';
+    btns += '<button data-action="rechazar" data-id="' + cid + '" style="' + btnStyle + 'background:#dc2626;color:white;">❌ Rechazar</button>';
+    btns += '<button data-action="whatsapp" data-id="' + cid + '" style="' + btnStyle + 'background:#25d366;color:white;">💬 WhatsApp</button>';
   }
 
   // Columna "Motivo": para Baja se muestra el tipo + fecha (ticket "Histórico
@@ -995,14 +1010,17 @@ export async function guardarResultadoEntrevista() {
     if (res === 'Rechazado') {
       c.estado = 'Rechazado';
       c.motivoRechazo = cleanText($('resultado-obs').value);
+      c.fechaTransicion = new Date().toISOString();
     } else {
       c.estado = 'Entrevistado';
       c.obsEntrevista = cleanText($('resultado-obs').value);
+      c.fechaTransicion = new Date().toISOString();
     }
   } else {
     c.estado = 'Sin citar';
     c.fechaCita = null;
     c.horaCita = null;
+    c.fechaTransicion = new Date().toISOString();
   }
   const ok = await supaSync('candidatos', c);
   if (!ok) {
@@ -1022,6 +1040,7 @@ export async function aprobarCandidatoPorId(id) {
   const c = getCandById(id); if (!c) return;
   const estadoAnterior = c.estado;
   c.estado = 'Aprobado';
+  c.fechaTransicion = new Date().toISOString();
   const ok = await supaSync('candidatos', c);
   if (!ok) {
     c.estado = estadoAnterior;
@@ -1032,21 +1051,181 @@ export async function aprobarCandidatoPorId(id) {
   toast('✅ ' + c.nombre + ' aprobado');
 }
 
+export async function aprobarPrecandidatoPorId(id) {
+  const c = getCandById(id); if (!c) return;
+  const estadoAnterior = c.estado;
+  c.estado = 'Sin citar';
+  c.fechaTransicion = new Date().toISOString();
+  const ok = await supaSync('candidatos', c);
+  if (!ok) {
+    c.estado = estadoAnterior;
+    toast(mensajeErrorGuardado('⚠️ No se pudo aprobar en el servidor — reintentá o avisá a sistemas'));
+    return;
+  }
+  renderCandidatos();
+  toast('✅ ' + ((c.apellido ? c.apellido + ', ' : '') + c.nombre) + ' aprobado — ahora podés citarlo');
+}
+
+// ========== WHATSAPP ==========
+
+function abrirWhatsAppPorId(id) {
+  const c = getCandById(id);
+  if (!c) { toast('⚠️ Candidato no encontrado'); return; }
+  if (!$('modal-whatsapp')) {
+    const m = document.createElement('div');
+    m.className = 'modal-overlay';
+    m.id = 'modal-whatsapp';
+    m.innerHTML = [
+      '<div class="modal" style="max-width:520px;">',
+        '<div class="modal-header"><h3>💬 Enviar mensaje WhatsApp</h3><button class="btn-close" onclick="cerrarModal(\'modal-whatsapp\')">×</button></div>',
+        '<div class="modal-body">',
+          '<input type="hidden" id="wa-cand-id">',
+          '<div id="wa-cand-nombre" style="font-weight:600;margin-bottom:10px;"></div>',
+          '<div class="form-group"><label>Teléfono</label><input type="text" id="wa-telefono" style="width:100%;padding:8px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;box-sizing:border-box;"></div>',
+          '<div class="form-group" style="margin-top:8px;"><label>Plantilla</label>',
+            '<select id="wa-template" onchange="onWhatsAppTemplateChange()" style="width:100%;padding:8px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;">',
+              '<option value="disponibilidad">Confirmar disponibilidad</option>',
+              '<option value="link">Link para elegir turno</option>',
+              '<option value="confirmar-cita">Confirmación de cita</option>',
+            '</select>',
+          '</div>',
+          '<div class="form-group" style="margin-top:8px;"><label>Mensaje</label><textarea id="wa-mensaje" rows="5" style="width:100%;padding:8px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;box-sizing:border-box;"></textarea></div>',
+        '</div>',
+        '<div class="modal-footer">',
+          '<button class="btn btn-secondary" onclick="cerrarModal(\'modal-whatsapp\')">Cancelar</button>',
+          '<button class="btn btn-secondary" onclick="copiarMensajeWhatsApp()">📋 Copiar</button>',
+          '<button class="btn" style="background:#25d366;color:white;" onclick="enviarMensajeWhatsApp()">📱 WhatsApp</button>',
+        '</div>',
+      '</div>',
+    ].join('');
+    document.body.appendChild(m);
+  }
+  $('wa-cand-id').value = id;
+  $('wa-cand-nombre').textContent = (c.apellido ? c.apellido + ', ' : '') + (c.nombre || '');
+  $('wa-telefono').value = c.tel || '';
+  $('wa-template').value = c.estado === 'Citado' ? 'confirmar-cita' : 'disponibilidad';
+  onWhatsAppTemplateChange();
+  abrirModal('modal-whatsapp');
+}
+
+function generarMensajeWhatsApp(template, c) {
+  const nombre = c.nombre || '';
+  const tel = c.tel || '';
+  if (template === 'disponibilidad') {
+    return 'Hola ' + nombre + ', te contactamos de Ohlimpia. ¿Podrías confirmarnos tu disponibilidad para una entrevista presencial? ¿Qué día y horario te viene mejor?';
+  }
+  if (template === 'link') {
+    const link = window.location.origin + '/agendar-entrevista?dni=' + (c.dni || '') + '&nombre=' + encodeURIComponent(nombre);
+    return 'Hola ' + nombre + ', quedamos en coordinar una entrevista. Te paso el link para que elijas el día y horario que te quede mejor: ' + link;
+  }
+  if (template === 'confirmar-cita') {
+    const fecha = formatearFechaISO(c.fechaCita);
+    return 'Hola ' + nombre + ', pasaste a la etapa de pre-selección. Te citamos el ' + (fecha || 'próximamente') + ' a las ' + (c.horaCita || 'a confirmar') + '. ¿Confirmás asistencia?';
+  }
+  return '';
+}
+
+export function onWhatsAppTemplateChange() {
+  const id = $('wa-cand-id').value;
+  const c = getCandById(id);
+  if (!c) return;
+  const template = $('wa-template').value;
+  $('wa-mensaje').value = generarMensajeWhatsApp(template, c);
+}
+
+function enviarWhatsApp(telefono, texto) {
+  const telLimpio = (telefono || '').replace(/\D/g, '');
+  if (!telLimpio) {
+    toast('⚠️ El candidato no tiene teléfono válido');
+    return;
+  }
+  window.open('https://wa.me/' + telLimpio + '?text=' + encodeURIComponent(texto), '_blank');
+}
+
+export function copiarMensajeWhatsApp() {
+  const msg = $('wa-mensaje').value;
+  if (!msg) return;
+  navigator.clipboard.writeText(msg).then(
+    () => toast('📋 Mensaje copiado'),
+    () => toast('⚠️ No se pudo copiar — seleccioná y copiá a mano')
+  );
+}
+
+export function enviarMensajeWhatsApp() {
+  const tel = $('wa-telefono').value;
+  const msg = $('wa-mensaje').value;
+  if (!msg) { toast('⚠️ Escribí o elegí un mensaje'); return; }
+  enviarWhatsApp(tel, msg);
+}
+
+const MOTIVOS_RECHAZO = ['No cubre perfil', 'Falta de disponibilidad', 'No asistió', 'Perfil laboral', 'Otro'];
+
 export function rechazarCandidatoPorId(id) {
-  abrirModalInput({ titulo: 'Rechazar candidato', etiqueta: 'Motivo del rechazo' }, async (motivo) => {
-    const c = getCandById(id); if (!c) return;
-    const estadoAnterior = c.estado, motivoAnterior = c.motivoRechazo;
-    c.estado = 'Rechazado';
-    c.motivoRechazo = motivo;
-    const ok = await supaSync('candidatos', c);
-    if (!ok) {
-      c.estado = estadoAnterior; c.motivoRechazo = motivoAnterior;
-      toast(mensajeErrorGuardado('⚠️ No se pudo rechazar en el servidor — reintentá o avisá a sistemas'));
-      return;
-    }
-    renderCandidatos();
-    toast('❌ Candidato rechazado');
-  });
+  const c = getCandById(id);
+  if (!c) { toast('⚠️ Candidato no encontrado'); return; }
+  if (!$('modal-rechazar-cand')) {
+    const m = document.createElement('div');
+    m.className = 'modal-overlay';
+    m.id = 'modal-rechazar-cand';
+    m.innerHTML = [
+      '<div class="modal" style="max-width:420px;">',
+        '<div class="modal-header"><h3>❌ Rechazar candidato</h3><button class="btn-close" onclick="cerrarModal(\'modal-rechazar-cand\')">×</button></div>',
+        '<div class="modal-body">',
+          '<input type="hidden" id="rech-cand-id">',
+          '<div id="rech-cand-nombre" style="font-weight:600;margin-bottom:6px;"></div>',
+          '<div id="rech-cand-datos" style="font-size:12px;color:var(--texto-suave);margin-bottom:12px;"></div>',
+          '<div class="form-group"><label>Motivo</label>',
+            '<select id="rech-cand-motivo" onchange="onChangeMotivoRechCand()" style="width:100%;padding:8px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;">',
+              MOTIVOS_RECHAZO.map(m => '<option>' + m + '</option>').join(''),
+            '</select></div>',
+          '<div id="rech-cand-detalle-row" style="display:none;" class="form-group" style="margin-top:8px;"><label>Detalle</label><textarea id="rech-cand-detalle" rows="3" style="width:100%;padding:8px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;box-sizing:border-box;"></textarea></div>',
+        '</div>',
+        '<div class="modal-footer">',
+          '<button class="btn btn-secondary" onclick="cerrarModal(\'modal-rechazar-cand\')">Cancelar</button>',
+          '<button class="btn btn-danger" onclick="confirmarRechazoCandidato()">Rechazar</button>',
+        '</div>',
+      '</div>',
+    ].join('');
+    document.body.appendChild(m);
+  }
+  $('rech-cand-id').value = id;
+  $('rech-cand-nombre').textContent = (c.apellido ? c.apellido + ', ' : '') + (c.nombre || '');
+  $('rech-cand-datos').textContent = 'DNI: ' + (c.dni || '—') + ' | Tel: ' + (c.tel || '—') + ' | Estado: ' + c.estado;
+  $('rech-cand-motivo').selectedIndex = 0;
+  $('rech-cand-detalle').value = '';
+  onChangeMotivoRechCand();
+  abrirModal('modal-rechazar-cand');
+}
+
+export function onChangeMotivoRechCand() {
+  const sel = $('rech-cand-motivo');
+  const row = $('rech-cand-detalle-row');
+  if (!sel || !row) return;
+  row.style.display = sel.value === 'Otro' ? 'block' : 'none';
+}
+
+export async function confirmarRechazoCandidato() {
+  const id = $('rech-cand-id').value;
+  const c = getCandById(id);
+  if (!c) { toast('⚠️ Candidato no encontrado'); return; }
+  const motivoSelect = $('rech-cand-motivo').value;
+  const detalle = cleanText(($('rech-cand-detalle') || {}).value || '');
+  const motivo = motivoSelect === 'Otro' ? detalle : motivoSelect;
+  if (!motivo) { toast('⚠️ Indicá el motivo del rechazo'); return; }
+
+  const estadoAnterior = c.estado, motivoAnterior = c.motivoRechazo;
+  c.estado = 'Rechazado';
+  c.motivoRechazo = motivo;
+  c.fechaTransicion = new Date().toISOString();
+  const ok = await supaSync('candidatos', c);
+  if (!ok) {
+    c.estado = estadoAnterior; c.motivoRechazo = motivoAnterior;
+    toast(mensajeErrorGuardado('⚠️ No se pudo rechazar en el servidor — reintentá o avisá a sistemas'));
+    return;
+  }
+  cerrarModal('modal-rechazar-cand');
+  renderCandidatos();
+  toast('❌ Candidato rechazado');
 }
 
 export async function pasarAPsicoPorId(id) {
@@ -1069,6 +1248,7 @@ export async function pasarAPsicoPorId(id) {
   DB.psicos.push(p);
   const estadoAnterior = c.estado;
   c.estado = 'Psicotecnico';
+  c.fechaTransicion = new Date().toISOString();
   const okCand = await supaSync('candidatos', c);
   if (!okCand) {
     // El registro de psicotécnico ya quedó creado — no se revierte para
@@ -1089,10 +1269,12 @@ export async function registrarAsistencia(id, valor) {
   c.asistio = (valor === 'si' || valor === 'no') ? valor : null;
   if (valor === 'si') {
     c.estado = 'Entrevistado';
+    c.fechaTransicion = new Date().toISOString();
   } else if (valor === 'no') {
     c.estado = 'Sin citar';
     c.fechaCita = null;
     c.horaCita = null;
+    c.fechaTransicion = new Date().toISOString();
   }
   const ok = await supaSync('candidatos', c);
   if (!ok) {
@@ -1211,6 +1393,7 @@ export async function confirmarBajaCandidato() {
   c.motivoRechazo = motivo;
   c.tipoMotivoBaja = tipoMotivoBaja;
   c.fechaBaja = fechaBaja;
+  c.fechaTransicion = new Date().toISOString();
   const ok = await supaSync('candidatos', c);
   if (!ok) {
     Object.assign(c, snapshot);
