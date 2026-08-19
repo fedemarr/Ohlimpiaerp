@@ -2,6 +2,7 @@ import { DB, PERFILES, setCurrentUser } from '@shared/state.js';
 import { $, initials } from '@shared/helpers.js';
 import { activarOrdenamiento } from '@shared/ui.js';
 import { SUPA } from '@shared/supabase.js';
+import { cargarModulosContratados } from '@shared/nav.js';
 
 // Callbacks que se configuran desde fuera para evitar dependencias circulares.
 // Se registran una vez con registerAuthCallbacks() al inicializar la app.
@@ -79,8 +80,18 @@ export async function restaurarSesion() {
 
 export async function iniciarSesion(usr) {
   setCurrentUser(usr);
-  await _callbacks.cargarDatos();
-  await cargarListaUsuarios();
+  // Cada paso envuelto en su propio try/catch: si alguno falla (tabla que
+  // todavía no existe en esta base, red caída, etc.) el login tiene que
+  // completarse igual — un dato accesorio que no cargó no puede dejar al
+  // usuario trabado en la pantalla de login sin ningún mensaje de error
+  // (pasó con branding_config/mono_tablas antes de tener las migraciones
+  // corridas: iniciarSesion() quedaba a mitad de camino, sin mostrar la
+  // app ni el error de login — parecía "contraseña incorrecta").
+  try { await _callbacks.cargarDatos(); } catch (e) { console.warn('cargarDatos falló:', e.message); }
+  try { await cargarListaUsuarios(); } catch (e) { console.warn('cargarListaUsuarios falló:', e.message); }
+  // Cargar módulos contratados desde branding_config (DB del cliente)
+  // ANTES de construirMenu para que refleje lo que el Superadmin guardó.
+  try { await cargarModulosContratados(SUPA); } catch (e) { console.warn('cargarModulosContratados falló:', e.message); }
   $('login-screen').style.display = 'none';
   $('app').classList.remove('hidden');
   $('sidebar-avatar').textContent = initials(usr.nombre);

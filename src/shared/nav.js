@@ -9,9 +9,33 @@ import { activarOrdenamiento, toast } from '@shared/ui.js';
 // exactamente como siempre. Solo los deploys de empresas clientes nuevas
 // necesitan setear VITE_MODULOS_CONTRATADOS (lista separada por comas de
 // las mismas keys que usa MENU, ej. "legajos,liquidacion,liq_admin").
-export const MODULOS_CONTRATADOS = import.meta.env.VITE_MODULOS_CONTRATADOS
+const MODULOS_CONTRATADOS_ENV = import.meta.env.VITE_MODULOS_CONTRATADOS
   ? import.meta.env.VITE_MODULOS_CONTRATADOS.split(',').map(s => s.trim()).filter(Boolean)
   : null;
+
+// Mutable: se puede actualizar en runtime desde branding_config (DB del
+// cliente). Si la DB tiene módulos, se usan esos; si no, los de la env var.
+let _modulosContratados = MODULOS_CONTRATADOS_ENV;
+
+export { _modulosContratados as MODULOS_CONTRATADOS };
+
+/**
+ * Carga los módulos contratados desde branding_config del cliente.
+ * Si la DB tiene datos, reemplaza los de la env var.
+ * Llamar una vez al login (desde auth.js callbacks).
+ */
+export async function cargarModulosContratados(supa) {
+  if (!supa) return;
+  try {
+    const { data } = await supa.from('branding_config').select('modulos_contratados').limit(1).maybeSingle();
+    if (data && Array.isArray(data.modulos_contratados) && data.modulos_contratados.length) {
+      _modulosContratados = data.modulos_contratados;
+      console.log('📦 Módulos contratados cargados desde DB:', _modulosContratados.length, 'módulo(s)');
+    }
+  } catch {
+    // tabla branding_config no existe todavía o no tiene el campo — fallback a env var
+  }
+}
 
 // ========== SCREEN CONFIG ==========
 // Se registra desde fuera con registerScreens() porque las funciones render/fn
@@ -42,7 +66,7 @@ export function navTo(sec, el) {
   // de acceso directo del Inicio (renderInicio, legacy.js) navegan con
   // navTo() directo, sin pasar por el sidebar — sin este chequeo, el
   // filtro de módulos contratados se podía saltear con un click ahí.
-  if (sec !== 'inicio' && MODULOS_CONTRATADOS && !MODULOS_CONTRATADOS.includes(sec)) {
+  if (sec !== 'inicio' && _modulosContratados && !_modulosContratados.includes(sec)) {
     console.warn('navTo: módulo "' + sec + '" no contratado para esta empresa — navegación bloqueada');
     toast('⚠️ Este módulo no está disponible en tu plan');
     return;
@@ -98,7 +122,7 @@ export function construirMenu() {
   // por contrato — son placeholders sin funcionalidad real detrás. 'inicio'
   // tampoco se filtra — es la pantalla de bienvenida, no algo vendible (por
   // eso ni aparece como checkbox en el alta de empresa, ver superadmin.js).
-  const contratado = key => key === 'inicio' || !MODULOS_CONTRATADOS || MODULOS_CONTRATADOS.includes(key);
+  const contratado = key => key === 'inicio' || !_modulosContratados || _modulosContratados.includes(key);
   MENU.forEach(sec => {
     const items = sec.items.filter(i => esDeveloper
       ? (perfil && perfil.modulos.includes(i.key) && contratado(i.key))

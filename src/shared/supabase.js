@@ -55,6 +55,8 @@ export const _SM = {
   itemsLogisticaServicio: 'items_logistica_servicio',
   monoCambios: 'mono_cambios',
   monoPagosMes: 'mono_pagos_mes',
+  monoTablas: 'mono_tablas',
+  monoCasosImport: 'mono_casos_import',
   supervisoresConfig: 'supervisores_config',
   supervisionVigencias: 'supervision_vigencias',
   reclamos: 'reclamos',
