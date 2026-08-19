@@ -4723,6 +4723,193 @@
   </div>
 </div>
 
+<!-- MÁQUINAS -->
+<div class="screen" id="screen-maquinas">
+  <div class="stats-grid" id="maq-stats"></div>
+  <div class="tabs" style="background:white;border-radius:var(--radio-lg) var(--radio-lg) 0 0;padding:0 20px;box-shadow:var(--sombra);border-bottom:none;">
+    <button class="tab-btn active" onclick="cambiarTabMaquinas('padron',this)">🏭 Padrón</button>
+    <button class="tab-btn" onclick="cambiarTabMaquinas('tickets',this)">🔧 Tickets</button>
+    <button class="tab-btn" onclick="cambiarTabMaquinas('baterias',this)">🔋 Baterías</button>
+    <button class="tab-btn" onclick="cambiarTabMaquinas('economico',this)">💰 Económico</button>
+  </div>
+  <div class="card" style="border-radius:0 var(--radio-lg) var(--radio-lg) var(--radio-lg);">
+    <!-- TAB PADRÓN -->
+    <div id="maq-tab-padron" class="tab-content active">
+      <div class="card-header">
+        <h3>Parque de máquinas</h3>
+        <div class="filtros-bar">
+          <select id="maq-filtro-estado" onchange="filtrarMaquinas()" style="padding:6px 10px;border:1px solid var(--borde-fuerte);border-radius:var(--radio);font-size:13px;outline:none;">
+            <option value="">Todos los estados</option>
+            <option value="activa">Activa</option>
+            <option value="deposito">Depósito</option>
+            <option value="reparacion">En reparación</option>
+            <option value="baja">Baja</option>
+          </select>
+          <input type="text" placeholder="🔍 N°, marca, servicio..." id="maq-buscar" oninput="filtrarMaquinas()">
+          <button class="btn btn-secondary btn-sm" onclick="abrirNuevoTicket()">+ Ticket</button>
+        </div>
+      </div>
+      <div class="tabla-wrap"><table>
+        <thead><tr>
+          <th style="text-align:left;padding:8px 10px;">N°</th>
+          <th style="text-align:left;padding:8px;">Máquina</th>
+          <th style="text-align:center;padding:8px;">Propiedad</th>
+          <th style="text-align:center;padding:8px;">Energía</th>
+          <th style="text-align:center;padding:8px;">Estado</th>
+          <th style="text-align:left;padding:8px;">Ubicación</th>
+          <th style="text-align:right;padding:8px;">Reparaciones</th>
+          <th style="text-align:right;padding:8px;">Alquiler</th>
+        </tr></thead>
+        <tbody id="tbody-maq-patron"></tbody>
+      </table></div>
+    </div>
+    <!-- TAB TICKETS -->
+    <div id="maq-tab-tickets" class="tab-content">
+      <div class="card-header">
+        <h3>Tickets de reparación</h3>
+        <div class="filtros-bar">
+          <select id="maq-ticket-filtro" onchange="filtrarMaquinas()" style="padding:6px 10px;border:1px solid var(--borde-fuerte);border-radius:var(--radio);font-size:13px;outline:none;">
+            <option value="">Todas las etapas</option>
+            <option value="reporte">Reporte</option>
+            <option value="analisis">Análisis remoto</option>
+            <option value="visita_interna">Visita interna</option>
+            <option value="proveedor">Proveedor</option>
+            <option value="factura">Control factura</option>
+            <option value="cerrado">Cerrado</option>
+          </select>
+        </div>
+      </div>
+      <div class="tabla-wrap"><table>
+        <thead><tr>
+          <th style="text-align:left;padding:8px 10px;">#</th>
+          <th style="text-align:left;padding:8px;">Máquina</th>
+          <th style="text-align:left;padding:8px;">Servicio</th>
+          <th style="text-align:left;padding:8px;">Problema</th>
+          <th style="text-align:center;padding:8px;">Etapa</th>
+          <th style="text-align:center;padding:8px;">Días</th>
+          <th style="text-align:left;padding:8px;">Resolución</th>
+        </tr></thead>
+        <tbody id="tbody-maq-tickets"></tbody>
+      </table></div>
+    </div>
+    <!-- TAB BATERÍAS -->
+    <div id="maq-tab-baterias" class="tab-content">
+      <div class="card-header"><h3>Baterías y consumibles</h3></div>
+      <div class="tabla-wrap"><table>
+        <thead><tr>
+          <th style="text-align:left;padding:8px 10px;">Máquina</th>
+          <th style="text-align:left;padding:8px;">Tipo batería</th>
+          <th style="text-align:left;padding:8px;">Colocada</th>
+          <th style="text-align:left;padding:8px;">Vida útil</th>
+          <th style="text-align:left;padding:8px;">Recambio</th>
+          <th style="text-align:right;padding:8px;">Costo estim.</th>
+          <th style="text-align:center;padding:8px;">Estado</th>
+        </tr></thead>
+        <tbody id="tbody-maq-baterias"></tbody>
+      </table></div>
+    </div>
+    <!-- TAB ECONÓMICO -->
+    <div id="maq-tab-economico" class="tab-content">
+      <div class="card-header"><h3>Vista económica — imputación por servicio</h3></div>
+      <div id="maq-economico-body" style="padding:14px;"></div>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: FICHA MÁQUINA -->
+<div class="modal-overlay" id="modal-maquina-ficha">
+  <div class="modal" style="max-width:760px;">
+    <div class="modal-header"><h3 id="maq-ficha-title">Máquina</h3><button class="btn-close" onclick="cerrarModal('modal-maquina-ficha')">×</button></div>
+    <div class="modal-body" id="maq-ficha-body"></div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="cerrarModal('modal-maquina-ficha')">Cerrar</button>
+      <button class="btn btn-secondary" onclick="editarMaquina()">✏️ Editar</button>
+      <button class="btn btn-danger btn-sm" onclick="bajaMaquina()">🗑️ Baja</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: NUEVA / EDITAR MÁQUINA -->
+<div class="modal-overlay" id="modal-maquina-form">
+  <div class="modal" style="max-width:600px;">
+    <div class="modal-header"><h3 id="maq-form-title">Nueva máquina</h3><button class="btn-close" onclick="cerrarModal('modal-maquina-form')">×</button></div>
+    <div class="modal-body">
+      <div class="form-section">Identificación</div>
+      <div class="form-group" style="display:grid;grid-template-columns:1fr 2fr;gap:10px;">
+        <div><label>N° máquina *</label><input id="maq-nro" placeholder="7736"></div>
+        <div><label>Tipo / modelo</label><input id="maq-tipo" placeholder="TASKI SWINGO XP"></div>
+      </div>
+      <div class="form-group" style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+        <div><label>Marca</label><input id="maq-marca" placeholder="TASKI"></div>
+        <div><label>Modelo específico</label><input id="maq-modelo" placeholder="SWINGO XP"></div>
+      </div>
+      <div class="form-section">Propiedad y energía</div>
+      <div class="form-group" style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+        <div><label>Propiedad</label><select id="maq-propiedad"><option value="propia">Propia</option><option value="alquilada">Alquilada</option></select></div>
+        <div><label>Energía</label><select id="maq-energia"><option value="bateria">Batería</option><option value="cable">Cable</option></select></div>
+      </div>
+      <div id="maq-campos-alquiler" style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;">
+        <div class="form-group"><label>Proveedor alquiler</label><input id="maq-proveedor-alquiler" placeholder="OSDA"></div>
+        <div class="form-group"><label>Costo alquiler $/mes</label><input id="maq-costo-alquiler" type="number" placeholder="0"></div>
+        <div class="form-group"><label>Contrato N°</label><input id="maq-contrato" placeholder=""></div>
+      </div>
+      <div class="form-section">Compra y amortización</div>
+      <div class="form-group" style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;">
+        <div><label>Fecha compra</label><input id="maq-fecha-compra" placeholder="DD/MM/AAAA"></div>
+        <div><label>Costo compra $</label><input id="maq-costo-compra" type="number" placeholder="0"></div>
+        <div><label>Vida útil (meses)</label><input id="maq-vida-util" type="number" value="60"></div>
+      </div>
+      <div class="form-section">Batería (si aplica)</div>
+      <div class="form-group" style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:10px;">
+        <div><label>Tipo batería</label><input id="maq-bateria-tipo" placeholder="Gel 12V×2"></div>
+        <div><label>Colocada</label><input id="maq-bateria-colocada" placeholder="DD/MM/AAAA"></div>
+        <div><label>Vida útil (meses)</label><input id="maq-bateria-vida" type="number" value="24"></div>
+        <div><label>Costo $</label><input id="maq-bateria-costo" type="number" placeholder="0"></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="cerrarModal('modal-maquina-form')">Cancelar</button>
+      <button class="btn btn-primary" onclick="guardarMaquina()">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: NUEVO TICKET -->
+<div class="modal-overlay" id="modal-maq-nuevo-ticket">
+  <div class="modal" style="max-width:500px;">
+    <div class="modal-header"><h3>Nuevo ticket de reparación</h3><button class="btn-close" onclick="cerrarModal('modal-maq-nuevo-ticket')">×</button></div>
+    <div class="modal-body">
+      <input type="hidden" id="ticket-maq-id-hidden">
+      <div class="form-group"><label>Máquina</label><div id="ticket-maq-label" style="font-weight:600;padding:6px 0;"></div></div>
+      <div class="form-group"><label>Tipo de problema *</label>
+        <select id="ticket-problema-tipo"><option value="">Seleccionar...</option>
+          <option value="No aspira">No aspira</option><option value="No enciende">No enciende</option><option value="Pierde agua">Pierde agua</option>
+          <option value="Sistema dirección">Sistema dirección</option><option value="Ruido anormal">Ruido anormal</option><option value="No gira">No gira</option>
+          <option value="Fallo electrónico">Fallo electrónico</option><option value="Desgaste general">Desgaste general</option><option value="Otro">Otro</option>
+        </select>
+      </div>
+      <div class="form-group"><label>Descripción</label><textarea id="ticket-problema-desc" rows="2" placeholder="Detalles del problema..."></textarea></div>
+      <div class="form-group"><label>Reportado por</label><input id="ticket-reportado-por" placeholder="Nombre del operario"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="cerrarModal('modal-maq-nuevo-ticket')">Cancelar</button>
+      <button class="btn btn-primary" onclick="guardarNuevoTicket()">Crear ticket</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: DETALLE TICKET -->
+<div class="modal-overlay" id="modal-maq-ticket">
+  <div class="modal" style="max-width:680px;">
+    <div class="modal-header"><h3 id="maq-ticket-title">Ticket</h3><button class="btn-close" onclick="cerrarModal('modal-maq-ticket')">×</button></div>
+    <div class="modal-body" id="maq-ticket-body" style="max-height:400px;overflow-y:auto;"></div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="cerrarModal('modal-maq-ticket')">Cerrar</button>
+      <button class="btn btn-primary" onclick="avanzarTicket()">▶ Avanzar etapa</button>
+    </div>
+  </div>
+</div>
+
 <!-- RETENCIONES -->
 <div class="screen" id="screen-retenciones">
   <div class="stats-grid">

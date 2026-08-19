@@ -45,6 +45,7 @@ import { supervisionScreenConfig } from './modules/supervision/index.js';
 import { descuentosScreenConfig } from './modules/descuentos/index.js';
 import { pedidoProductosScreenConfig } from './modules/pedido_productos/index.js';
 import { superadminScreenConfig } from './modules/superadmin/index.js';
+import { maquinasScreenConfig, filtrarMaquinas } from './modules/maquinas/index.js';
 
 // ========== BIND SHARED A WINDOW (PRIMERO) ==========
 // Estas funciones las llama el HTML con onclick — deben estar en window
@@ -102,6 +103,7 @@ registerScreens(supervisionScreenConfig);
 registerScreens(descuentosScreenConfig);
 registerScreens(pedidoProductosScreenConfig);
 registerScreens(superadminScreenConfig);
+registerScreens(maquinasScreenConfig);
 
 // ========== REGISTRAR FILTROS DE BÚSQUEDA GLOBAL ==========
 
@@ -115,6 +117,7 @@ registerSearchFilters({
   pedidos: filtrarPedidos,
   capacitaciones: filtrarCapacitaciones,
   retenciones: filtrarRetenciones,
+  maquinas: filtrarMaquinas,
 });
 
 // ========== LEGACY (import dinámico) ==========

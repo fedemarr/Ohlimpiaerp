@@ -41,6 +41,11 @@ export const DB = {
   // v095 — Stock de productos de limpieza (ver src/modules/uniformes/stock.js)
   stockProductos: [],
   stockProductosMovimientos: [],
+  // v096 — Módulo Máquinas (padrón, tickets, movimientos)
+  maquinas: [],
+  maquinasMovimientos: [],
+  maquinasTickets: [],
+  maquinasTicketHistorial: [],
   // Superadmin: registro de empresas clientes del sistema (sql/v089) —
   // vive solo en el Supabase de Ohlimpia, no es dato operativo de ninguna
   // empresa cliente. Ver src/modules/superadmin/.
@@ -239,7 +244,7 @@ export const DB = {
 // ========== PERFILES Y ACCESOS ==========
 
 export const PERFILES = {
-  'Administrador total': { color: 'badge-rojo', modulos: ['inicio', 'candidatos', 'pedidos', 'psicotecnico', 'preocupacional', 'documentacion', 'altas', 'legajos', 'reasignaciones', 'legal', 'enfermos', 'capacitaciones', 'vacaciones', 'descansos', 'competencia', 'clientes', 'objetivos', 'precios', 'paritarias', 'categorias', 'crm', 'reclamos', 'cobros', 'comisiones', 'supervisores', 'supervision', 'liquidacion', 'feriados', 'liq_admin', 'liquidaciones', 'retenes', 'mantenimiento', 'configuracion', 'smvm', 'monotributos', 'uniformes', 'stock', 'pedido_productos', 'retenciones', 'descuentos', 'sanciones', 'adelantos', 'pedidos_adelantos', 'gestion_adelantos', 'sugerencias'], desc: 'Acceso completo.' },
+  'Administrador total': { color: 'badge-rojo', modulos: ['inicio', 'candidatos', 'pedidos', 'psicotecnico', 'preocupacional', 'documentacion', 'altas', 'legajos', 'reasignaciones', 'legal', 'enfermos', 'capacitaciones', 'vacaciones', 'descansos', 'competencia', 'clientes', 'objetivos', 'precios', 'paritarias', 'categorias', 'crm', 'reclamos', 'cobros', 'comisiones', 'supervisores', 'supervision', 'liquidacion', 'feriados', 'liq_admin', 'liquidaciones', 'retenes', 'mantenimiento', 'configuracion', 'smvm', 'monotributos', 'uniformes', 'stock', 'pedido_productos', 'retenciones', 'descuentos', 'sanciones', 'adelantos', 'pedidos_adelantos', 'gestion_adelantos', 'sugerencias', 'maquinas'], desc: 'Acceso completo.' },
   // Reorganización de menú/permisos (Lautaro, 12/08/2026): RRHH tiene que
   // VER toda el área Personal — antes no veía 'legal' ni 'enfermos' pese a
   // que esas 2 pantallas ya listaban 'RRHH' en su propio item.perfiles
@@ -249,13 +254,13 @@ export const PERFILES = {
   // sección de menú Finanzas — la sección es organización, no permiso.
   'RRHH': { color: 'badge-azul', modulos: ['inicio', 'candidatos', 'psicotecnico', 'preocupacional', 'documentacion', 'altas', 'legajos', 'reasignaciones', 'legal', 'enfermos', 'capacitaciones', 'vacaciones', 'descansos', 'competencia', 'reclamos', 'paritarias', 'categorias', 'liquidacion', 'liq_admin', 'liquidaciones', 'retenes', 'monotributos', 'uniformes', 'retenciones', 'descuentos', 'sanciones', 'adelantos', 'pedidos_adelantos', 'gestion_adelantos', 'sugerencias'], desc: 'RRHH, legajos, capacitaciones.' },
   'Operaciones': { color: 'badge-verde', modulos: ['inicio', 'pedidos', 'legajos', 'reasignaciones', 'capacitaciones', 'vacaciones', 'descansos', 'competencia', 'clientes', 'objetivos', 'precios', 'paritarias', 'crm', 'reclamos', 'cobros', 'comisiones', 'supervisores', 'supervision', 'liquidacion', 'retenes', 'mantenimiento', 'feriados', 'uniformes', 'sanciones', 'pedidos_adelantos', 'sugerencias'], desc: 'Operaciones y ventas.' },
-  'Finanzas': { color: 'badge-acento', modulos: ['inicio', 'legajos', 'smvm', 'cobros', 'comisiones', 'paritarias', 'supervision', 'liquidacion', 'liq_admin', 'liquidaciones', 'retenes', 'mantenimiento', 'monotributos', 'retenciones', 'descuentos', 'adelantos', 'gestion_adelantos', 'sugerencias'], desc: 'Finanzas y liquidación.' },
+  'Finanzas': { color: 'badge-acento', modulos: ['inicio', 'legajos', 'smvm', 'cobros', 'comisiones', 'paritarias', 'supervision', 'liquidacion', 'liq_admin', 'liquidaciones', 'retenes', 'mantenimiento', 'monotributos', 'retenciones', 'descuentos', 'adelantos', 'gestion_adelantos', 'sugerencias', 'maquinas'], desc: 'Finanzas y liquidación.' },
   'Supervisor': { color: 'badge-gris', modulos: ['inicio', 'pedidos', 'legajos', 'descansos', 'competencia', 'liquidacion', 'liquidaciones', 'adelantos', 'pedidos_adelantos', 'uniformes', 'sanciones', 'sugerencias', 'retenciones', 'pedido_productos'], desc: 'Pedidos, legajos, descansos, competencia y liquidación de horas.' },
   'Comercial': { color: 'badge-naranja', modulos: ['inicio', 'clientes', 'objetivos', 'precios', 'supervision', 'crm', 'reclamos', 'comisiones', 'sugerencias'], desc: 'Clientes, objetivos, precios, CRM, reclamos y comisiones.' },
   // "Auditor interno" (MODULO_PEDIDO_PRODUCTOS.md §3) no tiene perfil propio
   // en el sistema todavía — hasta que se cree uno, la etapa de auditoría del
   // pedido de productos queda dentro de este perfil (Gerente de Logística).
-  'Logística': { color: 'badge-gris', modulos: ['inicio', 'legajos', 'uniformes', 'stock', 'pedido_productos', 'sugerencias'], desc: 'Consulta de legajos, gestión de pedidos de uniformes, stock y pedido de productos.' },
+  'Logística': { color: 'badge-gris', modulos: ['inicio', 'legajos', 'uniformes', 'stock', 'pedido_productos', 'sugerencias', 'maquinas'], desc: 'Consulta de legajos, gestión de pedidos de uniformes, stock, pedido de productos y máquinas.' },
   'Asociado': { color: 'badge-verde', modulos: ['mis_adelantos', 'sugerencias'], desc: 'Portal del asociado — pedidos de adelanto y préstamo.' },
   // 'empresas' agregado acá (18/08/2026, a pedido de Fede) — entra con su
   // login de siempre (fede@ohlimpia.com) en vez de necesitar una cuenta
@@ -316,6 +321,7 @@ export const MENU = [
     { key: 'pedido_productos', icon: '🧴', label: 'Pedido de productos', perfiles: ['Administrador total', 'Logística', 'Supervisor'] },
     { key: 'stock', icon: '📦', label: 'Stock', perfiles: ['Administrador total', 'Logística'] },
     { key: 'uniformes', icon: '👕', label: 'Uniformes', perfiles: ['Administrador total', 'RRHH', 'Operaciones', 'Supervisor', 'Logística'] },
+    { key: 'maquinas', icon: '🏭', label: 'Máquinas', perfiles: ['Administrador total', 'Logística', 'Finanzas'] },
   ]},
   { section: 'Operaciones', items: [
     { key: 'liq_admin', icon: '🏢', label: 'Liquidación Administración', badge: 'liqadm', perfiles: ['Administrador total', 'RRHH', 'Finanzas'] },
@@ -361,9 +367,6 @@ export const MENU = [
     { key: 'sugerencias', icon: '💬', label: 'Reportes y sugerencias', perfiles: ['Administrador total', 'RRHH', 'Operaciones', 'Finanzas', 'Supervisor', 'Comercial', 'Logística', 'Asociado'] },
     { key: 'retenciones', icon: '🔒', label: 'Retenciones', perfiles: ['Administrador total', 'RRHH', 'Finanzas', 'Supervisor'] },
   ]},
-  { section: 'Próximamente', items: [
-    { key: 'maquinas', icon: '🔧', label: 'Máquinas', disabled: true, perfiles: [] },
-  ]},
   { section: 'Desarrollador', items: [
     { key: 'dev_inicio', icon: '🏠', label: 'Inicio Dev', perfiles: ['DEVELOPER'] },
     { key: 'dev_tickets', icon: '🎫', label: 'Tickets', perfiles: ['DEVELOPER'] },
@@ -398,6 +401,7 @@ export const MODULOS_SISTEMA = [
   { key: 'liquidacion',    label: 'Liquidación',   icon: '📊' },
   { key: 'liq_admin',      label: 'Liq. Admin',    icon: '🏢' },
   { key: 'liquidaciones',  label: 'Liquidaciones', icon: '💰' },
+  { key: 'maquinas',       label: 'Máquinas',      icon: '🏭' },
 ];
 
 // ========== BADGE MAP ==========
