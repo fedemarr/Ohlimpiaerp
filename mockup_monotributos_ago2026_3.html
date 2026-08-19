@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mockup — Monotributos con escalas ago-2026 y padrón completo</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; font-family:'Segoe UI', Arial, sans-serif; }
+  body { background:#f2f4f9; color:#1f2a44; }
+  .top { background:#fff; padding:14px 26px; display:flex; align-items:center; gap:18px; box-shadow:0 1px 3px rgba(20,30,70,.06); }
+  .top h1 { font-size:19px; color:#16213e; }
+  .search { flex:1; max-width:420px; margin:0 auto; background:#f2f4f9; border:1px solid #dfe4f0; border-radius:22px; padding:8px 16px; color:#8a93b5; font-size:13px; }
+  .btnP { background:#1b4bd8; color:#fff; border:none; padding:9px 16px; border-radius:20px; font-size:13px; font-weight:600; }
+  .wrap { padding:20px 26px; max-width:1420px; }
+  .cards { display:flex; gap:16px; margin-bottom:16px; flex-wrap:wrap; }
+  .card { background:#fff; border-radius:14px; padding:16px 22px; box-shadow:0 1px 4px rgba(20,30,70,.07); flex:1; min-width:210px; }
+  .card .t { font-size:11px; letter-spacing:.6px; color:#8a93b5; text-transform:uppercase; }
+  .card .v { font-size:27px; font-weight:700; color:#16213e; margin-top:3px; }
+  .card .v.red { color:#d33c50; } .card .v.gold { color:#b07800; } .card .v.green { color:#188a52; }
+  .card .d { font-size:11.5px; color:#9aa2c0; }
+  .tabbar { background:#fff; border-radius:14px 14px 0 0; display:flex; gap:6px; padding:6px 12px 0; box-shadow:0 1px 4px rgba(20,30,70,.07); flex-wrap:wrap; }
+  .tab { padding:11px 16px; font-size:13.5px; font-weight:600; color:#5b6690; cursor:pointer; border-bottom:2.5px solid transparent; }
+  .tab.on { color:#1b4bd8; border-bottom-color:#1b4bd8; }
+  .panel { background:#fff; border-radius:0 0 14px 14px; padding:18px 20px; box-shadow:0 1px 4px rgba(20,30,70,.07); display:none; }
+  .panel.on { display:block; }
+  .bar { display:flex; align-items:center; gap:10px; margin-bottom:12px; flex-wrap:wrap; }
+  .bar h2 { font-size:15px; color:#16213e; flex:1; }
+  .sel { font-size:12.5px; border-radius:9px; padding:7px 13px; border:1.5px solid #dfe4f0; background:#fff; color:#33406e; font-weight:600; }
+  .btnA { font-size:12.5px; border-radius:9px; padding:7px 13px; border:1.5px solid #f5a623; background:#f5a623; color:#fff; font-weight:600; }
+  .btnB { background:#fff; border:1.5px solid #1b4bd8; color:#1b4bd8; font-weight:700; border-radius:9px; padding:7px 13px; font-size:12.5px; }
+  .info { background:#e8f0fe; border:1px solid #c3d4f7; color:#2c4a8a; border-radius:10px; padding:10px 14px; font-size:12.5px; margin-bottom:12px; line-height:1.5; }
+  table { border-collapse:collapse; width:100%; font-size:13px; }
+  th { background:#f7f8fc; color:#5b6690; text-transform:uppercase; font-size:10.5px; letter-spacing:.4px; padding:10px; text-align:left; border-top:1px solid #e6eaf4; border-bottom:1px solid #e6eaf4; }
+  td { padding:9px 10px; border-bottom:1px solid #eef1f7; vertical-align:middle; }
+  .catb { display:inline-block; width:26px; height:26px; border-radius:7px; background:#1b3fae; color:#fff; text-align:center; line-height:26px; font-weight:700; font-size:13px; }
+  .chip { display:inline-block; font-size:10px; font-weight:700; padding:3px 10px; border-radius:20px; }
+  .c-ok { background:#e7f6ec; color:#188a52; }
+  .c-def { background:#fde2e4; color:#b3273e; }
+  .c-ver { background:#fff3d6; color:#a06b00; }
+  .money { text-align:right; font-variant-numeric:tabular-nums; }
+  .sm { font-size:11px; color:#8a93b5; }
+  .gold { color:#b07800; font-weight:700; } .viol { color:#7a3ba0; font-weight:700; }
+  .name { font-weight:600; }
+  .tot td { background:#16213e; color:#fff; font-weight:700; }
+  .proj { min-width:160px; }
+  .pnum { text-align:right; font-size:12.5px; font-variant-numeric:tabular-nums; }
+  .pbar { background:#e6eaf4; border-radius:6px; height:7px; margin-top:4px; overflow:hidden; }
+  .pfill { height:7px; border-radius:6px; background:#188a52; }
+  .pfill.amber { background:#f5a623; }
+  .pfill.red { background:#d33c50; }
+  .ppct { font-size:10.5px; color:#8a93b5; text-align:right; margin-top:2px; }
+  .pill { background:#eef; border:1px solid #ccd; border-radius:8px; padding:6px 12px; font-size:12.5px; color:#33406e; font-weight:600; }
+  .exc { color:#d33c50; font-weight:700; }
+</style>
+</head>
+<body>
+<div class="top"><h1>Monotributos</h1><div class="search">🔍 Buscar en todo el sistema...</div><button class="btnP">+ Nuevo monotributista</button></div>
+<div class="wrap">
+
+  <div class="cards">
+    <div class="card"><div class="t">Registrados</div><div class="v">411</div><div class="d">34 ADM/SUP + 377 operarios</div></div>
+    <div class="card"><div class="t">Fuera de categoría</div><div class="v red">1</div><div class="d">proyección anual supera límite</div></div>
+    <div class="card"><div class="t">Total CUR del mes</div><div class="v gold">$21.213.083</div><div class="d">vigencia ago-2026 · 409 cuotas activas</div></div>
+    <div class="card"><div class="t">Casos a definir (RRHH)</div><div class="v gold">10</div><div class="d">6 definir · 4 verificar monto</div></div>
+  </div>
+
+  <div class="tabbar">
+    <div class="tab on" onclick="tab(0)">📋 Padrón</div>
+    <div class="tab" onclick="tab(1)">⚠️ Fuera de categoría</div>
+    <div class="tab" onclick="tab(2)">📊 Tablas de categorías</div>
+    <div class="tab" onclick="tab(3)">💳 Pago mensual</div>
+    <div class="tab" onclick="tab(4)">📌 Casos del import</div>
+  </div>
+
+  <!-- P0 PADRON -->
+  <div class="panel on" id="p0">
+    <div class="bar"><h2>🌿 Padrón de Monotributistas</h2>
+      <select class="sel"><option>Todos (411)</option><option>Operarios (377)</option><option>ADM (21)</option><option>SUP (13)</option></select>
+      <select class="sel"><option>2026</option></select>
+      <button class="btnA">⚠ Ver fuera de categoría</button>
+      <button class="btnB">📥 Importar CSV</button>
+    </div>
+    <div class="info">Padrón tras importar <b>MONOTRIBUTO_ESCALAS_AGO2026.xlsx</b>: 34 ADM/SUP recategorizados por RRHH + 377 operarios en categoría A. <b>PROYECCIÓN ANUAL</b> (regla definida con Lautaro): <b>suma de los retiros reales de los meses transcurridos del año + el promedio de esos meses aplicado a los meses que faltan</b>. Se compara contra el límite anual de la categoría; si lo supera, el asociado pasa a "Fuera de categoría".</div>
+    <table>
+      <tr><th>Asociado</th><th>N° socio</th><th>Puesto</th><th>Categoría</th><th class="money">Límite anual</th><th class="money">CUR mensual</th><th class="money">Neto últ. mes</th><th class="proj">Proyección anual</th><th>Estado</th></tr>
+      <tr><td class="name">Elicabe Juan Manuel</td><td>107</td><td>ADM</td><td><span class="catb">H</span></td><td class="money">$81.924.660</td><td class="money gold">$522.706,68</td><td class="money">$5.930.150</td>
+        <td class="proj"><div class="pnum">$68.480.000</div><div class="pbar"><div class="pfill" style="width:84%"></div></div><div class="ppct">84% del límite</div></td>
+        <td><span class="chip c-ok">Al día</span></td></tr>
+      <tr><td class="name">Guillen Sacsa Natividad</td><td>140</td><td>ADM</td><td><span class="catb">E</span></td><td class="money">$36.028.231</td><td class="money gold">$119.811,45</td><td class="money">$2.610.400</td>
+        <td class="proj"><div class="pnum">$30.140.000</div><div class="pbar"><div class="pfill amber" style="width:84%"></div></div><div class="ppct">84% del límite</div></td>
+        <td><span class="chip c-ok">Al día</span></td></tr>
+      <tr><td class="name">Recalde S. Richard Andres</td><td>38</td><td>ADM</td><td><span class="catb">D</span></td><td class="money">$30.628.651</td><td class="money gold">$84.612,93</td><td class="money">$2.480.900</td>
+        <td class="proj"><div class="pnum">$28.640.000</div><div class="pbar"><div class="pfill amber" style="width:94%"></div></div><div class="ppct">94% del límite</div></td>
+        <td><span class="chip c-ok">Al día · supera, mantiene</span></td></tr>
+      <tr><td class="name">Peretti Juan Carlos</td><td>2</td><td>ADM</td><td><span class="catb">C</span></td><td class="money">$24.670.494</td><td class="money gold">$66.020,12</td><td class="money">$2.120.300</td>
+        <td class="proj"><div class="pnum">$25.180.000</div><div class="pbar"><div class="pfill red" style="width:100%"></div></div><div class="ppct">102% — FUERA DE CATEGORÍA</div></td>
+        <td><span class="chip c-def">Recategorizar</span></td></tr>
+      <tr><td class="name">Recalde S. Cecilia Raquel</td><td>22</td><td>ADM</td><td><span class="catb">C</span> <span class="sm">bajó de D</span></td><td class="money">$24.670.494</td><td class="money gold">$66.020,12</td><td class="money">$1.890.200</td>
+        <td class="proj"><div class="pnum">$22.400.000</div><div class="pbar"><div class="pfill amber" style="width:91%"></div></div><div class="ppct">91% del límite</div></td>
+        <td><span class="chip c-ver">Verificar monto</span></td></tr>
+      <tr><td class="name">Lage Dario Eduardo</td><td>690</td><td>SUP</td><td><span class="catb">F</span></td><td class="money">$45.151.659</td><td class="money gold">$150.784,21</td><td class="money">$3.310.700</td>
+        <td class="proj"><div class="pnum">$38.900.000</div><div class="pbar"><div class="pfill amber" style="width:86%"></div></div><div class="ppct">86% del límite</div></td>
+        <td><span class="chip c-def">Define RRHH (monto)</span></td></tr>
+      <tr><td class="name">Gonzalez Moure Marcelo</td><td>2565</td><td>SUP</td><td><span class="sm">AUTÓNOMO</span></td><td class="money">—</td><td class="money">—</td><td class="money">—</td>
+        <td class="proj sm">— (autónomo)</td>
+        <td><span class="chip c-def">Define RRHH (régimen)</span></td></tr>
+      <tr><td class="name">Ramirez Recalde Alex Federico</td><td>5538</td><td>ADM</td><td><span class="catb">A</span></td><td class="money">$12.009.410</td><td class="money gold">$49.527,18</td><td class="money">$780.400</td>
+        <td class="proj"><div class="pnum">$9.360.000</div><div class="pbar"><div class="pfill" style="width:78%"></div></div><div class="ppct">78% del límite</div></td>
+        <td><span class="chip c-ok">Al día · nuevo</span></td></tr>
+      <tr><td class="name">Acosta Ramón</td><td>412</td><td class="sm">OPERARIO</td><td><span class="catb">A</span></td><td class="money">$12.009.410</td><td class="money gold">$49.527,18</td><td class="money">$742.100</td>
+        <td class="proj"><div class="pnum">$8.910.000</div><div class="pbar"><div class="pfill" style="width:74%"></div></div><div class="ppct">74% del límite</div></td>
+        <td><span class="chip c-ok">Al día</span></td></tr>
+      <tr><td class="name">Aguilar Marta Susana</td><td>498</td><td class="sm">OPERARIO</td><td><span class="catb">A</span></td><td class="money">$12.009.410</td><td class="money gold">$49.527,18</td><td class="money">$811.300</td>
+        <td class="proj"><div class="pnum">$9.740.000</div><div class="pbar"><div class="pfill amber" style="width:81%"></div></div><div class="ppct">81% del límite</div></td>
+        <td><span class="chip c-ok">Al día · 1 adherente</span></td></tr>
+      <tr><td colspan="9" class="sm" style="text-align:center; padding:12px;">… 401 filas más (377 operarios en A) — la proyección se recalcula con cada liquidación mensual de retiros …</td></tr>
+    </table>
+  </div>
+
+  <!-- P1 FUERA DE CATEGORIA -->
+  <div class="panel" id="p1">
+    <div class="bar"><h2>⚠️ Asociados fuera de categoría</h2><span class="pill">Proyección anual supera el límite de su categoría actual</span></div>
+    <div class="info">Se alimenta de la PROYECCIÓN ANUAL del padrón (retiros reales del año + promedio × meses restantes). Cuando la proyección supera el límite, el asociado aparece acá para que RRHH lo recategorice. Al recategorizar: nueva categoría con vigencia desde el mes que se indique, CUR nuevo, y el movimiento queda en el Historial de cambios.</div>
+    <table>
+      <tr><th>Asociado</th><th>N° socio</th><th>Cat. actual</th><th class="money">Límite anual</th><th class="proj">Proyección anual</th><th class="money">Excedente</th><th>Categoría sugerida</th><th></th></tr>
+      <tr>
+        <td class="name">Peretti Juan Carlos</td><td>2</td>
+        <td><span class="catb">C</span></td>
+        <td class="money">$24.670.494</td>
+        <td class="proj"><div class="pnum">$25.180.000</div><div class="pbar"><div class="pfill red" style="width:100%"></div></div><div class="ppct">102% del límite</div></td>
+        <td class="money exc">+$509.506</td>
+        <td><span class="catb">D</span> <span class="sm">límite $30,6M · CUR $84.612,93</span></td>
+        <td><button class="btnB">Recategorizar</button></td>
+      </tr>
+    </table>
+    <div class="sm" style="margin-top:10px;">Cuando no hay ninguno: tilde verde con "Todos los asociados están dentro de su categoría para 2026", como en la pantalla actual.</div>
+  </div>
+
+  <!-- P2 TABLAS -->
+  <div class="panel" id="p2">
+    <div class="bar"><h2>📊 Tablas de categorías y CUR</h2>
+      <select class="sel"><option>2026-08</option><option>2024-01</option></select>
+      <button class="btnB">+ Nueva vigencia</button><button class="btnB">⬆ Importar tabla</button>
+    </div>
+    <div class="info">Vigencia <b>2026-08</b> importada de la tabla ARCA "Valores de aplicación desde el 1/08/2026". El CUR del asociado es el <b>Total Locaciones y prestaciones de servicios</b>. La vigencia anterior (2024-01) queda en el historial — los meses ya armados no cambian. Nota para Fede: esta tabla ARCA no distingue zona Provincia/Capital; el desglose (impuesto integrado, SIPA, obra social) queda como referencia.</div>
+    <table>
+      <tr><th>Cat.</th><th class="money">Límite anual (ingresos brutos)</th><th class="money">Impuesto integrado</th><th class="money">Aportes SIPA</th><th class="money">Obra social</th><th class="money">CUR (locaciones y servicios)</th><th class="money">En padrón</th></tr>
+      <tr><td><span class="catb">A</span></td><td class="money">$12.009.410,45</td><td class="money">$5.585,77</td><td class="money">$18.246,86</td><td class="money">$25.694,55</td><td class="money gold">$49.527,18</td><td class="money">380</td></tr>
+      <tr><td><span class="catb">B</span></td><td class="money">$17.595.182,74</td><td class="money">$10.612,98</td><td class="money">$20.071,55</td><td class="money">$25.694,55</td><td class="money gold">$56.379,08</td><td class="money">16</td></tr>
+      <tr><td><span class="catb">C</span></td><td class="money">$24.670.494,31</td><td class="money">$18.246,86</td><td class="money">$22.078,71</td><td class="money">$25.694,55</td><td class="money gold">$66.020,12</td><td class="money">8</td></tr>
+      <tr><td><span class="catb">D</span></td><td class="money">$30.628.651,43</td><td class="money">$29.790,79</td><td class="money">$24.286,58</td><td class="money">$30.535,56</td><td class="money gold">$84.612,93</td><td class="money">2</td></tr>
+      <tr><td><span class="catb">E</span></td><td class="money">$36.028.231,33</td><td class="money">$55.857,73</td><td class="money">$26.715,24</td><td class="money">$37.238,48</td><td class="money gold">$119.811,45</td><td class="money">1</td></tr>
+      <tr><td><span class="catb">F</span></td><td class="money">$45.151.659,41</td><td class="money">$78.573,20</td><td class="money">$29.386,76</td><td class="money">$42.824,25</td><td class="money gold">$150.784,21</td><td class="money">1</td></tr>
+      <tr><td><span class="catb">G</span></td><td class="money">$53.995.798,87</td><td class="money">$142.995,76</td><td class="money">$41.141,46</td><td class="money">$46.175,72</td><td class="money gold">$230.312,94</td><td class="money">0</td></tr>
+      <tr><td><span class="catb">H</span></td><td class="money">$81.924.660,37</td><td class="money">$409.623,31</td><td class="money">$57.598,04</td><td class="money">$55.485,33</td><td class="money gold">$522.706,68</td><td class="money">1</td></tr>
+      <tr><td><span class="catb">I</span></td><td class="money">$91.699.761,90</td><td class="money">$814.591,79</td><td class="money">$80.637,26</td><td class="money">$68.518,81</td><td class="money gold">$963.747,86</td><td class="money">0</td></tr>
+      <tr><td><span class="catb">J</span></td><td class="money">$105.012.519,20</td><td class="money">$977.510,14</td><td class="money">$112.892,16</td><td class="money">$76.897,46</td><td class="money gold">$1.167.299,76</td><td class="money">0</td></tr>
+      <tr><td><span class="catb">K</span></td><td class="money">$126.610.838,75</td><td class="money">$1.368.514,20</td><td class="money">$158.049,02</td><td class="money">$87.882,82</td><td class="money gold">$1.614.446,04</td><td class="money">0</td></tr>
+    </table>
+  </div>
+
+  <!-- P3 PAGO MENSUAL -->
+  <div class="panel" id="p3">
+    <div class="bar"><h2>💳 Pago de monotributos del mes</h2><span class="pill">📅 agosto de 2026</span><button class="btnB">📥 Armar lista del mes</button><button class="btnB">⬇ Exportar CSV</button></div>
+    <div class="info">Lista armada: <b>409 asociados</b> (los activos que trabajaron el período; los 2 autónomos quedan fuera hasta que RRHH defina). CUR congelado con la vigencia 2026-08 — cambios posteriores de tabla o categoría no tocan meses ya armados. La liquidación de retiros descuenta estos importes automáticamente.</div>
+    <table>
+      <tr><th>Asociado</th><th>N° socio</th><th class="money">CUR congelado</th><th class="money">Adherentes congelado</th><th class="money">Total</th><th>Método de pago</th><th>Pagado</th></tr>
+      <tr><td class="name">Elicabe Juan Manuel</td><td>107</td><td class="money">$522.706,68</td><td class="money">—</td><td class="money gold">$522.706,68</td><td><select class="sel"><option>Elegir...</option><option>Transferencia</option><option>Cheque</option><option>VEP</option></select></td><td><span class="chip c-ok">Tildar pagado</span></td></tr>
+      <tr><td class="name">Aguilar Marta Susana</td><td>498</td><td class="money">$49.527,18</td><td class="money viol">$25.694,55</td><td class="money gold">$75.221,73</td><td><select class="sel"><option>Elegir...</option></select></td><td><span class="chip c-ok">Tildar pagado</span></td></tr>
+      <tr><td class="name">Acosta Ramón</td><td>412</td><td class="money">$49.527,18</td><td class="money">—</td><td class="money gold">$49.527,18</td><td><select class="sel"><option>Elegir...</option></select></td><td><span class="chip c-ok">Tildar pagado</span></td></tr>
+      <tr><td colspan="7" class="sm" style="text-align:center; padding:10px;">… 406 filas más …</td></tr>
+      <tr class="tot"><td>TOTAL DEL MES</td><td>409</td><td class="money">$21.213.082,84</td><td class="money">+ adherentes</td><td class="money">$21.213.082,84 +adh.</td><td></td><td>0 / 409</td></tr>
+    </table>
+  </div>
+
+  <!-- P4 CASOS DEL IMPORT -->
+  <div class="panel" id="p4">
+    <div class="bar"><h2>📌 Casos del import ago-2026 — los resuelve RRHH</h2><span class="pill">6 DEFINIR · 4 VERIFICAR</span></div>
+    <table>
+      <tr><th>Asociado</th><th>N° socio</th><th>Tipo</th><th>Detalle</th><th>Acción esperada</th></tr>
+      <tr><td class="name">Bianchi Jorgelina</td><td>2271</td><td><span class="chip c-def">DEFINIR</span></td><td>AUTÓNOMO — régimen a definir</td><td>RRHH define si entra al padrón</td></tr>
+      <tr><td class="name">Gonzalez Moure Marcelo</td><td>2565</td><td><span class="chip c-def">DEFINIR</span></td><td>AUTÓNOMO — "iba a pasar a monotributo"</td><td>RRHH define pase y categoría</td></tr>
+      <tr><td class="name">Uballes Alvaro</td><td>521</td><td><span class="chip c-def">DEFINIR</span></td><td>Monto planilla $82.073,63 ≠ B $56.379,08</td><td>RRHH define qué incluye</td></tr>
+      <tr><td class="name">Lage Dario</td><td>690</td><td><span class="chip c-def">DEFINIR</span></td><td>Monto planilla $193.608,47 ≠ F $150.784,21</td><td>RRHH define qué incluye</td></tr>
+      <tr><td class="name">Martinez Jose Luis</td><td>788</td><td><span class="chip c-def">DEFINIR</span></td><td>Monto planilla $95.280,12 ≠ C $66.020,12</td><td>RRHH define qué incluye</td></tr>
+      <tr><td class="name">Ramirez Benitez Martina</td><td>856</td><td><span class="chip c-def">DEFINIR</span></td><td>Monto planilla $75.099,08 ≠ B $56.379,08</td><td>RRHH define qué incluye</td></tr>
+      <tr><td class="name">Recalde S. Cecilia</td><td>22</td><td><span class="chip c-ver">VERIFICAR</span></td><td>Bajó a C pero el monto quedó en D ($84.612,93)</td><td>Actualizar monto a $66.020,12</td></tr>
+      <tr><td class="name">Lascano Fernando</td><td>2212</td><td><span class="chip c-ver">VERIFICAR</span></td><td>Cat B con monto $28.859,84</td><td>Revisar categoría/monto</td></tr>
+      <tr><td class="name">Cacciato Alejandro</td><td>3153</td><td><span class="chip c-ver">VERIFICAR</span></td><td>Monto no coincide con C</td><td>Revisar</td></tr>
+      <tr><td class="name">Rodriguez Naara</td><td>3292</td><td><span class="chip c-ver">VERIFICAR</span></td><td>Monto no coincide con A</td><td>Revisar</td></tr>
+    </table>
+    <div class="sm" style="margin-top:10px;">Resueltos los 10, el padrón queda 100% al día y el Pago mensual congela los montos correctos.</div>
+  </div>
+
+</div>
+<script>
+function tab(i){
+  document.querySelectorAll('.tab').forEach(function(t, j){ t.classList.toggle('on', i === j); });
+  for (var j = 0; j <= 4; j++) {
+    document.getElementById('p' + j).classList.toggle('on', i === j);
+  }
+}
+</script>
+</body>
+</html>

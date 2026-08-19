@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mockup — Módulo Supervisión de servicios</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; font-family:'Segoe UI', Arial, sans-serif; }
+  body { background:#eef1f6; color:#1f2a44; }
+  .app { display:flex; min-height:100vh; }
+  /* Sidebar */
+  .side { width:230px; background:#1b2a5e; color:#cdd6f4; padding:18px 0; flex-shrink:0; }
+  .side .sec { font-size:10px; letter-spacing:1px; color:#7f8fc9; padding:14px 22px 6px; }
+  .side a { display:block; padding:9px 22px; color:#cdd6f4; text-decoration:none; font-size:14px; border-left:3px solid transparent; }
+  .side a.on { background:#152250; color:#fff; border-left-color:#f5b301; font-weight:600; }
+  /* Main */
+  .main { flex:1; padding:24px 30px; max-width:1250px; }
+  h1 { font-size:21px; color:#16213e; margin-bottom:4px; }
+  .sub { color:#69739a; font-size:13px; margin-bottom:18px; }
+  .cards { display:flex; gap:14px; margin-bottom:18px; flex-wrap:wrap; }
+  .card { background:#fff; border-radius:12px; padding:14px 20px; box-shadow:0 1px 4px rgba(20,30,70,.08); min-width:200px; }
+  .card .t { font-size:11px; letter-spacing:.5px; color:#8a93b5; text-transform:uppercase; }
+  .card .v { font-size:24px; font-weight:700; color:#16213e; margin-top:2px; }
+  .card .d { font-size:11px; color:#9aa2c0; }
+  .card .v.green { color:#188a52; }
+  /* Tabs */
+  .tabs { display:flex; gap:4px; margin-bottom:0; }
+  .tab { padding:10px 20px; background:#dde3f0; border-radius:10px 10px 0 0; cursor:pointer; font-size:14px; font-weight:600; color:#5b6690; }
+  .tab.on { background:#fff; color:#1b2a5e; }
+  .panel { background:#fff; border-radius:0 12px 12px 12px; box-shadow:0 1px 4px rgba(20,30,70,.08); padding:18px 20px; display:none; }
+  .panel.on { display:block; }
+  .info { background:#e8f0fe; border:1px solid #c3d4f7; color:#2c4a8a; border-radius:9px; padding:10px 14px; font-size:12.5px; margin-bottom:14px; line-height:1.5; }
+  table { border-collapse:collapse; width:100%; font-size:13.5px; }
+  th { background:#f4f6fb; color:#5b6690; text-transform:uppercase; font-size:11px; letter-spacing:.5px; padding:9px 10px; text-align:left; border-bottom:2px solid #e2e7f2; }
+  td { padding:8px 10px; border-bottom:1px solid #eef1f7; }
+  tr.cli { background:#f0f3fa; font-weight:700; color:#1b2a5e; }
+  tr.cli td { border-top:2px solid #dfe5f1; }
+  .chip { display:inline-block; font-size:10.5px; font-weight:700; padding:2px 9px; border-radius:20px; letter-spacing:.3px; }
+  .chip.gen { background:#e7f6ec; color:#188a52; }
+  .chip.cliC { background:#fff3d6; color:#a06b00; }
+  .chip.srv { background:#fde2e4; color:#b3273e; }
+  .pct { width:64px; text-align:center; padding:4px 4px; border:1.5px solid #c9d3ea; border-radius:7px; font-size:13.5px; font-weight:600; color:#16213e; background:#fffbe8; }
+  .pct:focus { outline:2px solid #f5b301; }
+  .pct[disabled] { background:#f2f4f9; color:#9aa2c0; border-style:dashed; }
+  .heredar { font-size:11px; color:#3a6df0; cursor:pointer; text-decoration:underline; margin-left:6px; white-space:nowrap; }
+  .money { text-align:right; font-variant-numeric:tabular-nums; }
+  .tot td { background:#16213e; color:#fff; font-weight:700; font-size:14px; }
+  .lock { color:#9aa2c0; font-size:11px; }
+  .aj { width:110px; text-align:right; padding:4px 8px; border:1.5px solid #c9d3ea; border-radius:7px; background:#fffbe8; font-weight:600; }
+  .badge-per { background:#eef; border:1px solid #ccd; border-radius:7px; padding:5px 10px; font-size:12.5px; color:#33406e; }
+  .foot { margin-top:10px; font-size:11.5px; color:#8a93b5; line-height:1.6; }
+  .warn { color:#b3273e; font-weight:600; }
+  .name { font-weight:600; }
+  .sm { font-size:11px; color:#8a93b5; }
+  .green { color:#188a52; font-weight:700; }
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="side">
+    <div class="sec">COMERCIAL</div>
+    <a>Clientes</a><a>Comisiones</a><a>CRM Comercial</a><a>Gestión de cobros</a>
+    <a>Gestión de precios</a><a>Reclamos y NC</a><a>Servicios</a>
+    <a class="on">Supervisión de servicios</a>
+    <div class="sec">OPERACIONES</div>
+    <a>Liquidación Administración</a><a>Liquidación de horas</a><a>Retenes</a>
+  </div>
+  <div class="main">
+    <h1>Supervisión de servicios</h1>
+    <div class="sub">El % de supervisión se ajusta POR SERVICIO (nunca se llama "comisión" — eso es de coordinadores de cuenta). Edita: <b>Finanzas</b>.</div>
+
+    <div class="cards">
+      <div class="card"><div class="t">Servicios activos</div><div class="v" id="cSrv">—</div><div class="d">con supervisor asignado</div></div>
+      <div class="card"><div class="t">Costo supervisión · agosto 2026</div><div class="v green" id="cCosto">—</div><div class="d">Σ neta × % vigente</div></div>
+      <div class="card"><div class="t">Servicios fuera del 3% general</div><div class="v" id="cExc">—</div><div class="d">con % de cliente o de servicio</div></div>
+      <div class="card"><div class="t">Vigencia de cambios</div><div class="v" style="font-size:15px; padding-top:6px;"><span class="badge-per">Rige desde: agosto 2026 ▾</span></div><div class="d">meses liquidados no se tocan</div></div>
+    </div>
+
+    <div class="tabs">
+      <div class="tab on" onclick="tab(0)">% por servicio</div>
+      <div class="tab" onclick="tab(1)">Reporte por supervisor</div>
+      <div class="tab" onclick="tab(2)">Vista en Liquidación Administración</div>
+      <div class="tab" onclick="tab(3)">Historial de %</div>
+    </div>
+
+    <!-- TAB 1 -->
+    <div class="panel on" id="p0">
+      <div class="info"><b>Cascada de defaults:</b> GENERAL (3%, en Configuración) → CLIENTE (campo "% supervisión" del cliente) → SERVICIO (override puntual). Gana el más específico. Editá el % amarillo de un <b>cliente</b> y sus servicios lo heredan al instante; editá el de un <b>servicio</b> y queda pisado (chip rojo). "Heredar" limpia el override. Todo cambio pide período de vigencia y queda auditado.</div>
+      <table id="grid">
+        <tr><th style="width:220px">Servicio</th><th>Supervisor(es)</th><th style="width:120px">Neta del mes</th><th style="width:100px">% supervisión</th><th style="width:90px">Origen</th><th style="width:130px">Supervisión ($)</th><th></th></tr>
+      </table>
+      <div class="foot">Los importes son de ejemplo (facturación neta julio 2026). En servicios con 2 supervisores el % se divide en partes iguales.
+      <br>Auditoría: cada celda guarda quién cambió el %, cuándo y desde qué período rige.</div>
+    </div>
+
+    <!-- TAB 2 -->
+    <div class="panel" id="p1">
+      <div class="info">Vista de control (solo lectura): cuánto junta cada supervisor con los % vigentes. Es lo que mira el Gerente General para definir la nivelación, que Finanzas carga en la liquidación.</div>
+      <table id="rep">
+        <tr><th>Supervisor</th><th>Servicios</th><th class="money">Neta supervisada</th><th class="money">Adicional por supervisión</th></tr>
+      </table>
+    </div>
+
+    <!-- TAB 3 -->
+    <div class="panel" id="p2">
+      <div class="info">ESTA PANTALLA VIVE EN EL MÓDULO LIQUIDACIÓN ADMINISTRACIÓN (acá se muestra solo como referencia). El adicional viaja automáticamente desde Supervisión, donde el supervisor ya tiene su fila. La nivelación de la escala se carga en la columna <b>Ajuste de nivelación</b> (edita FINANZAS, con motivo y auditoría; el Gerente General define los valores) — nunca pisa el adicional calculado.</div>
+      <table>
+        <tr><th>Nombre</th><th>Categoría</th><th class="money">HS fijas × Valor/h</th><th class="money">Adicional por supervisión</th><th class="money">Ajuste de nivelación</th><th class="money">Total a pagar</th></tr>
+        <tr>
+          <td class="name">Cazenave Claudia</td><td>Supervisora</td>
+          <td class="money">200 × 1.400 = 280.000</td>
+          <td class="money">2.910.728 <span class="lock">🔒 auto</span></td>
+          <td class="money"><input class="aj" id="aj1" value="-210.000" oninput="liq()"></td>
+          <td class="money green" id="tot1">—</td>
+        </tr>
+        <tr>
+          <td class="name">Unzain Lorena</td><td>Supervisora</td>
+          <td class="money">200 × 1.400 = 280.000</td>
+          <td class="money">1.183.355 <span class="lock">🔒 auto</span></td>
+          <td class="money"><input class="aj" id="aj2" value="+150.000" oninput="liq()"></td>
+          <td class="money green" id="tot2">—</td>
+        </tr>
+      </table>
+      <div class="foot">El ajuste queda como línea propia: se sabe cuánto fue "por fórmula" y cuánto fue nivelación. Permiso de edición: FINANZAS (los valores los define el Gerente General). El costo real de supervisión por servicio no se distorsiona en el Económico.</div>
+    </div>
+
+    <!-- TAB 4 -->
+    <div class="panel" id="p3">
+      <div class="info"><b>Trazabilidad por vigencias:</b> cada % se guarda con vigente-desde / vigente-hasta, usuario y motivo. Cambiar un % nunca borra el anterior: se cierra la vigencia y se abre una nueva. La liquidación de cada mes usa el % vigente de ESE mes — los meses cerrados se reconstruyen exactos siempre.</div>
+      <h3 style="font-size:14px; margin:6px 0 8px; color:#1b2a5e;">Registro de cambios</h3>
+      <table>
+        <tr><th>Fecha</th><th>Usuario</th><th>Nivel</th><th>Alcance</th><th>% anterior</th><th>% nuevo</th><th>Rige desde</th><th>Motivo</th></tr>
+        <tr><td>13/08/2026</td><td>Finanzas · L. Elicabe</td><td><span class="chip cliC">CLIENTE</span></td><td>CHANGO.MAS (26 servicios)</td><td>3,00%</td><td>2,50%</td><td>ago-2026</td><td>Ajuste acordado por la empresa</td></tr>
+        <tr><td>13/08/2026</td><td>Finanzas · L. Elicabe</td><td><span class="chip srv">SERVICIO</span></td><td>DANONE.MIGUELETES</td><td>3,00%</td><td>2,00%</td><td>ago-2026</td><td>Servicio nuevo, esquema especial</td></tr>
+        <tr><td>01/08/2026</td><td>Sistema</td><td><span class="chip gen">GENERAL</span></td><td>Todos los servicios</td><td>—</td><td>3,00%</td><td>ago-2026</td><td>Alta inicial del módulo</td></tr>
+      </table>
+      <h3 style="font-size:14px; margin:16px 0 8px; color:#1b2a5e;">Foto por mes <span class="sm">— ¿cómo estaba la grilla en…?</span> <select style="font-size:13px; padding:4px 8px; border-radius:7px; border:1.5px solid #c9d3ea;"><option>agosto 2026</option><option>julio 2026</option></select></h3>
+      <table>
+        <tr><th>Servicio</th><th>% vigente ese mes</th><th>Origen</th></tr>
+        <tr><td>CHANGO.CATAN</td><td>2,50%</td><td><span class="chip cliC">CLIENTE</span></td></tr>
+        <tr><td>DANONE.MIGUELETES</td><td>2,00%</td><td><span class="chip srv">SERVICIO</span></td></tr>
+        <tr><td>HIT.LIBERTADOR.8614</td><td>3,00%</td><td><span class="chip gen">GENERAL</span></td></tr>
+      </table>
+      <div class="foot">En la grilla principal, cada fila tiene además un ícono 🕘 que abre la línea de tiempo de ese servicio puntual.</div>
+    </div>
+  </div>
+</div>
+
+<script>
+const GENERAL = 3.0;
+// datos de ejemplo (neta julio 2026 real)
+const DATA = [
+ { cli:'CHANGO.MAS', cliPct:2.5, srvs:[
+   ['CHANGO.CATAN','Lorena Uzabain',6519763,null],
+   ['CHANGO.MATADEROS','Claudio Gonzalez',1887300,null],
+   ['CHANGO.MORENO','Alejandro Cacciato',5847820,null],
+ ]},
+ { cli:'HIT.COWORK', cliPct:null, srvs:[
+   ['HIT.LIBERTADOR.8614','Alvaro Uballes',20528974,null],
+   ['MIGUELETES.2423','Alejandro Cacciato',6539821,null],
+   ['DANONE.MIGUELETES','Alejandro Cacciato',1250000,2.0],
+ ]},
+ { cli:'JOSIMAR', cliPct:null, srvs:[
+   ['JOSIMAR.AVELLANEDA','Matias Maidana',1984000,null],
+   ['JOSIMAR.LANUS','Matias Maidana',1920000,null],
+ ]},
+ { cli:'LOS.PINOS', cliPct:null, srvs:[
+   ['LOS.PINOS','Alejandro Cacciato + Claudia Cazenave',33404926,null],
+ ]},
+];
+const $ = id => document.getElementById(id);
+const fmt = n => n.toLocaleString('es-AR', {maximumFractionDigits:0});
+
+function efectivo(g, s){ return s[3] != null ? s[3] : (g.cliPct != null ? g.cliPct : GENERAL); }
+function origen(g, s){ return s[3] != null ? 'srv' : (g.cliPct != null ? 'cliC' : 'gen'); }
+
+function render(){
+  const t = $('grid');
+  while (t.rows.length > 1) t.deleteRow(1);
+  let costo = 0, nSrv = 0, nExc = 0;
+  DATA.forEach((g, gi) => {
+    const rc = t.insertRow();
+    rc.className = 'cli';
+    const efC = g.cliPct != null ? g.cliPct : GENERAL;
+    rc.innerHTML = `<td>▾ ${g.cli}</td><td class="sm">${g.srvs.length} servicios</td><td></td>
+      <td><input class="pct" value="${efC.toFixed(2).replace('.',',')}" onchange="setCli(${gi}, this.value)"> %</td>
+      <td>${g.cliPct != null ? '<span class="chip cliC">CLIENTE</span>' : '<span class="chip gen">GENERAL</span>'}</td>
+      <td class="sm">% del cliente — hereda a sus servicios</td>
+      <td>${g.cliPct != null ? '<span class="heredar" onclick="clrCli(' + gi + ')">heredar</span>' : ''}</td>`;
+    g.srvs.forEach((s, si) => {
+      const ef = efectivo(g, s), o = origen(g, s), sup = ef/100 * s[2];
+      costo += sup; nSrv++;
+      if (ef !== GENERAL) nExc++;
+      const r = t.insertRow();
+      r.innerHTML = `<td style="padding-left:26px">${s[0]}</td><td class="sm">${s[1]}</td>
+        <td class="money">${fmt(s[2])}</td>
+        <td><input class="pct" value="${ef.toFixed(2).replace('.',',')}" onchange="setSrv(${gi},${si},this.value)"> %</td>
+        <td><span class="chip ${o}">${o==='gen'?'GENERAL':o==='cliC'?'CLIENTE':'SERVICIO'}</span></td>
+        <td class="money">${fmt(sup)}</td>
+        <td>${s[3] != null ? '<span class="heredar" onclick="clrSrv(' + gi + ',' + si + ')">heredar</span>' : ''}</td>`;
+    });
+  });
+  const rt = t.insertRow(); rt.className = 'tot';
+  rt.innerHTML = `<td>COSTO TOTAL DE SUPERVISIÓN DEL MES</td><td></td><td></td><td></td><td></td><td class="money">$ ${fmt(costo)}</td><td></td>`;
+  $('cSrv').textContent = nSrv + ' (muestra)';
+  $('cCosto').textContent = '$ ' + fmt(costo);
+  $('cExc').textContent = nExc;
+  rep();
+}
+function parse(v){ const n = parseFloat(String(v).replace(',','.')); return isNaN(n) ? null : n; }
+function setCli(gi, v){ const n = parse(v); if(n != null) DATA[gi].cliPct = (n === GENERAL ? null : n); render(); }
+function clrCli(gi){ DATA[gi].cliPct = null; render(); }
+function setSrv(gi, si, v){ const n = parse(v); if(n != null){ const g = DATA[gi]; const base = g.cliPct != null ? g.cliPct : GENERAL; g.srvs[si][3] = (n === base ? null : n);} render(); }
+function clrSrv(gi, si){ DATA[gi].srvs[si][3] = null; render(); }
+
+function rep(){
+  const by = {};
+  DATA.forEach(g => g.srvs.forEach(s => {
+    const ef = efectivo(g, s), tot = ef/100 * s[2];
+    s[1].split(' + ').forEach((sup, _, arr) => {
+      by[sup] = by[sup] || [0, 0, 0];
+      by[sup][0]++; by[sup][1] += s[2]/arr.length; by[sup][2] += tot/arr.length;
+    });
+  }));
+  const t = $('rep');
+  while (t.rows.length > 1) t.deleteRow(1);
+  Object.entries(by).sort((a,b) => b[1][2]-a[1][2]).forEach(([k, v]) => {
+    const r = t.insertRow();
+    r.innerHTML = `<td class="name">${k}</td><td>${v[0]}</td><td class="money">${fmt(v[1])}</td><td class="money green">${fmt(v[2])}</td>`;
+  });
+}
+function tab(i){ [0,1,2,3].forEach(j => { document.querySelectorAll('.tab')[j].classList.toggle('on', i===j); $('p'+j).classList.toggle('on', i===j); }); }
+function money(v){ return parseFloat(String(v).replace(/\./g,'').replace(',','.').replace('+','')) || 0; }
+function liq(){
+  $('tot1').textContent = fmt(280000 + 2910728 + money($('aj1').value));
+  $('tot2').textContent = fmt(280000 + 1183355 + money($('aj2').value));
+}
+render(); liq();
+</script>
+</body>
+</html>

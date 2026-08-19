@@ -1,0 +1,1133 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pedido de productos — Mockup v3</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;font-family:'Segoe UI',Arial,sans-serif}
+body{background:#f0f2f7;color:#1c2430}
+.top{background:#1b2a5e;color:#fff;padding:14px 26px;display:flex;align-items:center;gap:16px}
+.top h1{font-size:17px;font-weight:600}
+.top .crumb{font-size:12px;opacity:.75}
+.badge-mes{margin-left:auto;display:flex;align-items:center;gap:8px;font-size:13px}
+.badge-mes select{padding:6px 10px;border-radius:6px;border:none;font-size:13px;font-weight:600;color:#1b2a5e}
+.wrap{max-width:1280px;margin:0 auto;padding:18px 22px 60px}
+.tabs{display:flex;gap:4px;border-bottom:2px solid #d8dce8;margin-bottom:16px;flex-wrap:wrap}
+.tab{padding:10px 18px;font-size:13.5px;font-weight:600;color:#5a6478;cursor:pointer;border-radius:8px 8px 0 0;position:relative}
+.tab:hover{background:#e6e9f2}
+.tab.act{color:#1b2a5e;background:#fff;border:2px solid #d8dce8;border-bottom:2px solid #fff;margin-bottom:-2px}
+.tab .n{background:#e8590c;color:#fff;border-radius:10px;font-size:10.5px;padding:1px 7px;margin-left:6px;vertical-align:middle}
+.panel{display:none}.panel.act{display:block}
+.card{background:#fff;border:1px solid #dde1ec;border-radius:10px;padding:16px 18px;margin-bottom:14px;box-shadow:0 1px 3px rgba(20,30,60,.05)}
+.card h2{font-size:14.5px;color:#1b2a5e;margin-bottom:10px}
+.banner{border-radius:8px;padding:10px 14px;font-size:13px;margin-bottom:14px;display:flex;gap:10px;align-items:center}
+.banner.info{background:#e7f0ff;border:1px solid #b9d2f5;color:#1b3f77}
+.banner.warn{background:#fff6e0;border:1px solid #eed49a;color:#7a5a10}
+.banner.lock{background:#f1f2f5;border:1px solid #cfd3dd;color:#555f72}
+table{width:100%;border-collapse:collapse;font-size:12.8px}
+th{background:#f4f6fb;color:#3c4560;text-align:left;padding:8px 10px;font-size:11.5px;text-transform:uppercase;letter-spacing:.3px;border-bottom:2px solid #dde1ec;white-space:nowrap}
+td{padding:8px 10px;border-bottom:1px solid #eceef5;vertical-align:middle}
+tr.clk{cursor:pointer}
+tr.clk:hover td{background:#f2f6ff}
+.num{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+.chip{display:inline-block;padding:2px 10px;border-radius:11px;font-size:11px;font-weight:700;white-space:nowrap}
+.c-gris{background:#eceef3;color:#5a6478}
+.c-azul{background:#dbe7ff;color:#1b3f9e}
+.c-verde{background:#d9f2e2;color:#156a3a}
+.c-nara{background:#ffe8d6;color:#a04a08}
+.c-rojo{background:#fddede;color:#a11c1c}
+.c-viol{background:#ece0fa;color:#5b2ca0}
+.c-teal{background:#d5f0f2;color:#0b6470}
+.tag-prov.nm{background:#e8f3e8;color:#2c6b2f}
+.subtabs{display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap}
+.stab{padding:6px 16px;border-radius:16px;font-size:12.5px;font-weight:700;cursor:pointer;background:#eceef3;color:#5a6478;border:1.5px solid transparent}
+.stab:hover{background:#dfe2ec}
+.stab.act{background:#1b2a5e;color:#fff}
+.sub{display:none}.sub.act{display:block}
+.sug{background:#f0faf3;border:1.5px solid #a9dcbc;border-radius:9px;padding:12px 16px;margin-top:10px;font-size:12.8px}
+.sug b{color:#156a3a}
+.trend{font-size:11px;font-weight:700}
+.t-up{color:#a11c1c}.t-dn{color:#156a3a}
+.barrow{display:flex;align-items:center;gap:10px;margin-bottom:8px;font-size:12.5px}
+.barrow .lb{width:250px}
+.barrow .bx{flex:1;background:#e8eaf1;border-radius:5px;height:16px;overflow:hidden}
+.barrow .bx i{display:block;height:100%;border-radius:5px}
+.bar{height:7px;background:#e8eaf1;border-radius:4px;overflow:hidden;width:130px;display:inline-block;vertical-align:middle}
+.bar i{display:block;height:100%;border-radius:4px}
+.kpis{display:flex;gap:12px;margin-bottom:14px;flex-wrap:wrap}
+.kpi{background:#fff;border:1px solid #dde1ec;border-radius:10px;padding:12px 18px;min-width:150px}
+.kpi .v{font-size:21px;font-weight:700;color:#1b2a5e}
+.kpi .l{font-size:11.5px;color:#6a7386;margin-top:2px}
+.btn{border:none;border-radius:7px;padding:8px 16px;font-size:12.8px;font-weight:600;cursor:pointer}
+.b-pri{background:#1b2a5e;color:#fff}.b-pri:hover{background:#25397c}
+.b-sec{background:#eceef3;color:#39425a}.b-sec:hover{background:#dfe2ec}
+.b-ok{background:#1d7a43;color:#fff}
+.b-warn{background:#c96a10;color:#fff}
+.b-line{background:#fff;color:#1b2a5e;border:1.5px solid #1b2a5e}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.modal-bg{display:none;position:fixed;inset:0;background:rgba(15,22,45,.55);z-index:50;align-items:flex-start;justify-content:center;padding:30px 16px;overflow:auto}
+.modal-bg.open{display:flex}
+.modal{background:#fff;border-radius:12px;max-width:960px;width:100%;box-shadow:0 12px 40px rgba(10,18,45,.35)}
+.m-head{padding:16px 22px;border-bottom:1px solid #e3e6ef;display:flex;align-items:center;gap:14px}
+.m-head h3{font-size:15.5px;color:#1b2a5e}
+.m-head .x{margin-left:auto;font-size:20px;cursor:pointer;color:#8a92a6;background:none;border:none}
+.m-body{padding:16px 22px;max-height:62vh;overflow:auto}
+.m-foot{padding:14px 22px;border-top:1px solid #e3e6ef;display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.qty{width:64px;padding:5px 6px;border:1.5px solid #c6cbda;border-radius:6px;font-size:13px;text-align:right}
+.qty:focus{border-color:#1b2a5e;outline:none}
+.tope-box{background:#f7f8fc;border:1px solid #dde1ec;border-radius:9px;padding:10px 16px;display:flex;gap:26px;align-items:center;flex-wrap:wrap;margin-bottom:12px}
+.tope-box .t{font-size:12px;color:#6a7386}
+.tope-box .b{font-size:16px;font-weight:700}
+.sem{font-size:12.5px;font-weight:700;padding:4px 12px;border-radius:8px}
+.s-ok{background:#d9f2e2;color:#156a3a}.s-mid{background:#fff1cf;color:#8a6404}.s-alto{background:#fddede;color:#a11c1c}
+.mut{color:#7a8296;font-size:11.5px}
+.tag-prov{font-size:10.5px;font-weight:700;padding:1px 7px;border-radius:6px;background:#e4ecf7;color:#2b4d80}
+.tag-prov.dv{background:#f3e8fb;color:#6b2fa8}
+.sub{font-size:12px;color:#5a6478;margin-bottom:10px}
+.flowline{display:flex;gap:0;align-items:stretch;margin:8px 0 14px;flex-wrap:wrap}
+.fstep{background:#f4f6fb;border:1px solid #dde1ec;padding:8px 14px;font-size:12px;font-weight:600;color:#39425a;position:relative;margin-right:18px;border-radius:7px;margin-bottom:6px}
+.fstep:after{content:'→';position:absolute;right:-15px;top:50%;transform:translateY(-50%);color:#9aa2b5}
+.fstep:last-child:after{content:''}
+.remito{font-family:'Courier New',monospace;font-size:12px;background:#fffef8;border:1px solid #d8d3b8;padding:18px 22px;border-radius:6px}
+.remito .rh{text-align:center;font-weight:700;margin-bottom:2px}
+.remito hr{border:none;border-top:1px dashed #b9b28e;margin:8px 0}
+.remito table{font-family:inherit;font-size:11.5px}
+.remito td,.remito th{padding:3px 6px;border:none}
+.hist-lock td{background:#fafbfd;color:#8a92a6}
+.fgrid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+@media(max-width:900px){.fgrid{grid-template-columns:1fr}}
+.fcard{background:#fff;border:1px solid #dde1ec;border-radius:10px;padding:14px 16px;cursor:pointer;box-shadow:0 1px 3px rgba(20,30,60,.05)}
+.fcard:hover{border-color:#1b2a5e;box-shadow:0 3px 10px rgba(20,30,60,.12)}
+.pipe{display:flex;gap:0;margin:10px 0}
+.pstep{flex:1;text-align:center;font-size:10.5px;font-weight:700;padding:5px 2px;background:#eceef3;color:#8a92a6;position:relative}
+.pstep.done{background:#d9f2e2;color:#156a3a}
+.pstep.cur{background:#1b2a5e;color:#fff}
+.pstep:first-child{border-radius:6px 0 0 6px}
+.pstep:last-child{border-radius:0 6px 6px 0}
+.tl{border-left:2.5px solid #dde1ec;margin-left:8px;padding-left:16px}
+.tl .ev{position:relative;margin-bottom:12px;font-size:12.8px}
+.tl .ev:before{content:'';position:absolute;left:-22.5px;top:3px;width:10px;height:10px;border-radius:50%;background:#1b2a5e}
+.tl .ev.pend:before{background:#c9cedb}
+.tl .ev .f{font-size:11px;color:#7a8296}
+</style>
+</head>
+<body>
+<div class="top">
+  <h1>Pedido de productos</h1><span class="crumb">Logística › Pedido de productos · <b id="rol">Vista: SUPERVISOR (Josimar B.)</b></span>
+  <div class="badge-mes">Período:
+    <select id="selMes" onchange="setMes(this.value)">
+      <option value="2026-08" selected>AGOSTO 2026 · ventana ABIERTA</option>
+      <option value="2026-07">JULIO 2026 · cerrado</option>
+      <option value="2026-06">JUNIO 2026 · cerrado</option>
+    </select>
+  </div>
+</div>
+<div class="wrap">
+
+<div class="tabs">
+  <div class="tab act" onclick="tab(0,this)">Catálogo</div>
+  <div class="tab" onclick="tab(1,this)">Pedidos por servicio</div>
+  <div class="tab" onclick="tab(2,this)">Bandeja del auditor <span class="n" id="nAud">4</span></div>
+  <div class="tab" onclick="tab(3,this)">Compras</div>
+  <div class="tab" onclick="tab(6,this)">Hoja de recorrido</div>
+  <div class="tab" onclick="tab(4,this)">Entregas</div>
+  <div class="tab" onclick="tab(5,this)">Auditoría</div>
+</div>
+
+<div id="lockBanner" class="banner lock" style="display:none">🔒 <b>Período cerrado — solo lectura.</b>&nbsp;Estás viendo el historial. Los datos no se pueden modificar.</div>
+
+<!-- ============ TAB 0: CATALOGO ============ -->
+<div class="panel act" id="p0">
+  <div class="banner info">ℹ️ <span><b>Regla de precios:</b> COSTO = precio de lista del PROVEEDOR. PRECIO VENTA = costo × (1 + recargo). Recargo general vigente: <b>30%</b> (hoy lo aplica Richard a mano en Excel — el sistema lo hace solo), con override por producto. El <b>tope del 6% se controla contra COSTO</b>; la venta al cliente va a PRECIO VENTA.</span></div>
+  <div class="kpis">
+    <div class="kpi"><div class="v">443</div><div class="l">Productos THAMES</div></div>
+    <div class="kpi"><div class="v">68</div><div class="l">Productos DIVERSEY/otros</div></div>
+    <div class="kpi"><div class="v">30%</div><div class="l">Recargo general</div></div>
+    <div class="kpi"><div class="v">01/08/2026</div><div class="l">Última actualización de costos</div></div>
+  </div>
+  <div class="card">
+    <div style="display:flex;gap:10px;margin-bottom:12px;flex-wrap:wrap">
+      <button class="btn b-pri" onclick="mOpen('mImp')">⬆ Importar archivo del proveedor</button>
+      <button class="btn b-sec">+ Alta manual</button>
+      <button class="btn b-sec">⚙ Recargo general</button>
+      <span style="margin-left:auto" class="mut">El import matchea por <b>CÓD. PROVEEDOR</b> (Thames usa codificación propia; no trae cód. Mónica)</span>
+    </div>
+    <table>
+      <tr><th>Cód. interno</th><th>Cód. proveedor</th><th>Cód. Mónica</th><th>Producto</th><th>Proveedor</th><th>Tipo de uso</th><th class="num">Costo</th><th class="num">Rec.</th><th class="num">P. venta</th><th></th></tr>
+      <tr><td><b>P-0001</b></td><td class="mut">QUITAC303025L00</td><td class="mut">1000091</td><td>ACONDIC. P/PISOS THAMES PASS × 5L</td><td><span class="tag-prov">THAMES</span></td><td>NORMAL</td><td class="num">$ 8.426,00</td><td class="num">30%</td><td class="num"><b>$ 10.953,80</b></td><td><button class="btn b-sec" style="padding:4px 10px" onclick="mOpen('mEdit')">Editar</button></td></tr>
+      <tr><td><b>P-0002</b></td><td class="mut">QUITDF302135L002</td><td class="mut">1000043</td><td>LAVANDINA THAMES AL 60% BIO-LAV × 5L</td><td><span class="tag-prov">THAMES</span></td><td>NORMAL</td><td class="num">$ 4.559,00</td><td class="num">30%</td><td class="num"><b>$ 5.926,70</b></td><td><button class="btn b-sec" style="padding:4px 10px" onclick="mOpen('mEdit')">Editar</button></td></tr>
+      <tr><td><b>P-0003</b></td><td class="mut">QUITDT313095L00</td><td class="mut">1000044</td><td>DETERGENTE THAMES BIO-DET × 5L</td><td><span class="tag-prov">THAMES</span></td><td>NORMAL</td><td class="num">$ 7.340,00</td><td class="num">30%</td><td class="num"><b>$ 9.542,00</b></td><td><button class="btn b-sec" style="padding:4px 10px" onclick="mOpen('mEdit')">Editar</button></td></tr>
+      <tr><td><b>P-0004</b></td><td class="mut">QUITCE307035L00</td><td class="mut">1000076</td><td>CERA ACRILICA THAMES SELLADOR ACRY SEAL</td><td><span class="tag-prov">THAMES</span></td><td>TRATAMIENTO PISO</td><td class="num">$ 22.260,00</td><td class="num">30%</td><td class="num"><b>$ 28.938,00</b></td><td><button class="btn b-sec" style="padding:4px 10px" onclick="mOpen('mEdit')">Editar</button></td></tr>
+      <tr><td><b>P-0005</b></td><td class="mut">PAPHIG367013001</td><td class="mut">1000054</td><td>PAP HIG ALTO MT BLANCO EXTRA GOF 8×300</td><td><span class="tag-prov">THAMES</span></td><td>NORMAL</td><td class="num">$ 16.350,00</td><td class="num">30%</td><td class="num"><b>$ 21.255,00</b></td><td><button class="btn b-sec" style="padding:4px 10px" onclick="mOpen('mEdit')">Editar</button></td></tr>
+      <tr><td><b>P-0006</b></td><td class="mut">—</td><td class="mut">—</td><td>PLUMERO MICROFIBRA MANGO CORTO <span class="mut">(sin código del proveedor)</span></td><td><span class="tag-prov">THAMES</span></td><td>NORMAL</td><td class="num">$ 4.690,00</td><td class="num">30%</td><td class="num"><b>$ 6.097,00</b></td><td><button class="btn b-sec" style="padding:4px 10px" onclick="mOpen('mEdit')">Editar</button></td></tr>
+      <tr><td><b>P-0047</b></td><td class="mut">—</td><td class="mut">1000023</td><td>SUMA DISH × 5L</td><td><span class="tag-prov dv">DIVERSEY</span></td><td>NORMAL</td><td class="num">$ 14.120,00</td><td class="num">30%</td><td class="num"><b>$ 18.356,00</b></td><td><button class="btn b-sec" style="padding:4px 10px" onclick="mOpen('mEdit')">Editar</button></td></tr>
+      <tr><td><b>P-0048</b></td><td class="mut">—</td><td class="mut">1000015</td><td>VIREX II 256 J-FLEX × 1,5L</td><td><span class="tag-prov dv">DIVERSEY</span></td><td>CON AUTORIZACION</td><td class="num">$ 21.900,00</td><td class="num">30%</td><td class="num"><b>$ 28.470,00</b></td><td><button class="btn b-sec" style="padding:4px 10px" onclick="mOpen('mEdit')">Editar</button></td></tr>
+    </table>
+    <div class="mut" style="margin-top:8px">… 503 productos más · filtros por proveedor / tipo de uso / vigencia de costo</div>
+  </div>
+</div>
+
+<!-- ============ TAB 1: PERIODOS ============ -->
+<div class="panel" id="p1">
+  <div id="perAbierto">
+  <div class="banner warn" id="banVent">⏰ <span><b>Ventana AGOSTO 2026 abierta hasta el 20/08 — 18:00.</b> Al cierre, los <b>borradores no elevados SE ELEVAN AUTOMÁTICAMENTE</b> tal como estén y te llega una notificación. Recordatorio automático 24 hs antes.</span></div>
+  <div class="kpis">
+    <div class="kpi" style="border-left:5px solid #1d7a43;background:#f3fbf6"><div class="v" style="color:#156a3a" id="kElev">0</div><div class="l"><span class="chip c-verde">ELEVADOS</span></div></div>
+    <div class="kpi" style="border-left:5px solid #2f57c9;background:#f4f7ff"><div class="v" style="color:#1b3f9e" id="kBorr">0</div><div class="l"><span class="chip c-azul">BORRADORES</span></div></div>
+    <div class="kpi" style="border-left:5px solid #9aa2b5;background:#f7f8fa"><div class="v" style="color:#5a6478" id="kSin">0</div><div class="l"><span class="chip c-gris">SIN INICIAR</span></div></div>
+    <div class="kpi" style="border-left:5px solid #e8590c;background:#fff8f2"><div class="v" style="color:#a04a08" id="kObs">0</div><div class="l"><span class="chip c-nara">OBSERVADOS</span></div></div>
+  </div>
+  <div class="card">
+    <h2 id="titSrv">Mis servicios — pedido de AGOSTO 2026</h2>
+    <div class="sub">Tocá una fila para abrir el catálogo del servicio. El tope se controla contra <b>COSTO proveedor</b>.</div>
+    <table id="tblSrv">
+      <tr><th>Servicio</th><th class="num">Tope del mes (6% s/ últ. fact., a costo)</th><th class="num">Pedido a costo</th><th>Consumo del tope</th><th>Estado</th></tr>
+    </table>
+  </div>
+  </div>
+</div>
+
+<!-- ============ TAB 2: BANDEJA AUDITOR ============ -->
+<div class="panel" id="p2">
+  <div class="banner info">👤 <span><b>Vista del AUDITOR (función de Logística).</b> Acá caen los pedidos que <b>exceden el tope</b>, los que llevan productos <b>CON AUTORIZACIÓN</b>, los <b>fuera de ventana</b> y los <b>FUERA DE ESTÁNDAR</b> (desvíos contra el historial del servicio y su perfil de alta — umbrales parametrizables). <b>Tocá la fila</b> para abrir el pedido en modo auditor: misma ventana que el supervisor, con edición y diff. Devuelve con propuesta o aprueba con ajuste directo (parametrizable: siempre / solo cerca del cierre / nunca). El resto pasa directo a Compras.</span></div>
+  <div class="card">
+    <h2>Pendientes de revisión — AGOSTO 2026</h2>
+    <table>
+      <tr><th>Servicio</th><th>Supervisor</th><th>Motivo</th><th class="num">Tope (costo)</th><th class="num">Pedido (costo)</th><th class="num">%</th><th>Acción</th></tr>
+      <tr class="clk" id="rowJos" onclick="mOpen('mAud')"><td><b>JOSIMAR.LANUS</b> <span class="mut">👆 tocá la fila para revisar</span></td><td>Josimar B.</td><td><span class="chip c-rojo">EXCEDE TOPE</span></td><td class="num">$ 118.200</td><td class="num">$ 134.750</td><td class="num"><b style="color:#a11c1c">114%</b></td>
+        <td id="cellJos"><button class="btn b-ok" style="padding:4px 10px" onclick="event.stopPropagation();audOk(this)">Aprobar</button> <button class="btn b-warn" style="padding:4px 10px" onclick="event.stopPropagation();audRec(this)">Recortar</button></td></tr>
+      <tr><td><b>EMBA.CABILDO</b></td><td>Josimar B.</td><td><span class="chip c-viol">CON AUTORIZACIÓN</span> <span class="mut">VIREX II 256 × 2</span></td><td class="num">$ 96.400</td><td class="num">$ 71.300</td><td class="num">74%</td>
+        <td><button class="btn b-ok" style="padding:4px 10px" onclick="audOk(this)">Aprobar</button> <button class="btn b-warn" style="padding:4px 10px" onclick="audRec(this)">Recortar</button></td></tr>
+      <tr><td><b>GYM.BELGRANO001</b></td><td>M. Salinas</td><td><span class="chip c-nara">FUERA DE VENTANA</span> <span class="mut">apertura de servicio</span></td><td class="num">$ 54.000</td><td class="num">$ 48.900</td><td class="num">91%</td>
+        <td><button class="btn b-ok" style="padding:4px 10px" onclick="audOk(this)">Aprobar</button> <button class="btn b-warn" style="padding:4px 10px" onclick="audRec(this)">Recortar</button></td></tr>
+      <tr><td><b>HIT.LIBERTADOR</b></td><td>Josimar B.</td><td><span class="chip c-teal">FUERA DE ESTÁNDAR</span><br><span class="mut">CERA ACRILICA: primer pedido en este servicio · total 218% de su promedio<br><b>Justificación:</b> Tratamiento anual de pisos — "lo pidió el cliente para octubre"</span></td><td class="num">$ 152.300</td><td class="num">$ 121.400</td><td class="num">80%</td>
+        <td><button class="btn b-ok" style="padding:4px 10px" onclick="audOk(this)">Aprobar</button> <button class="btn b-warn" style="padding:4px 10px" onclick="audRec(this)">Recortar</button></td></tr>
+    </table>
+  </div>
+  <div class="card">
+    <h2>Resueltos este período</h2>
+    <table>
+      <tr><th>Servicio</th><th>Motivo</th><th>Resolución</th><th>Detalle</th><th>Fecha</th></tr>
+      <tr><td>INDICOM</td><td><span class="chip c-rojo">EXCEDE TOPE</span></td><td><span class="chip c-nara">RECORTADO → DEVUELTO</span></td><td class="mut">"Sacar 2 cajas de papel toalla — 108% del tope" · el supervisor corrige y re-eleva</td><td class="mut">15/08 10:22</td></tr>
+      <tr><td>LOS.PINOS</td><td><span class="chip c-viol">CON AUTORIZACIÓN</span></td><td><span class="chip c-verde">APROBADO</span></td><td class="mut">Cera acrílica p/ tratamiento anual (dentro del tope)</td><td class="mut">14/08 16:40</td></tr>
+    </table>
+  </div>
+</div>
+
+<!-- ============ TAB 3: COMPRAS ============ -->
+<div class="panel" id="p3">
+  <div class="subtabs">
+    <span class="stab act" onclick="stab(1,this)">Comparador de precios</span>
+    <span class="stab" onclick="stab(2,this)">Sugerencias en la compra</span>
+    <span class="stab" onclick="stab(3,this)">Simulación mensual</span>
+    <span class="stab" onclick="stab('C',this)">Órdenes y presupuestos</span>
+  </div>
+  <div class="sub" id="spC">
+  <div class="banner info">🛒 <span>Logística consolida los pedidos <b>aprobados</b> del período por producto y genera la <b>orden de compra por proveedor</b> — a <b>precio proveedor, sin recargo</b>, con observaciones por línea. Antes de la orden firme puede pedir <b>PRESUPUESTO</b>: la solicitud va SIN precios (que cotice el proveedor) y al recibir la cotización el sistema la compara contra la lista vigente. La cotización aceptada se convierte en orden firme y queda como vigencia "cotización puntual".</span></div>
+  <div class="flowline">
+    <div class="fstep">Consolidado aprobado</div>
+    <div class="fstep">Solicitud de presupuesto (opcional, sin precios)</div>
+    <div class="fstep">Cotización recibida → análisis vs lista</div>
+    <div class="fstep">Orden de compra FIRME</div>
+    <div class="fstep">Factura del proveedor → cta cte</div>
+  </div>
+  <div class="kpis">
+    <div class="kpi"><div class="v">51</div><div class="l">Líneas · orden THAMES</div></div>
+    <div class="kpi"><div class="v">$ 9.658.898,64</div><div class="l">Total orden agosto (a costo)</div></div>
+    <div class="kpi"><div class="v">2</div><div class="l">Proveedores con orden</div></div>
+    <div class="kpi"><div class="v" style="color:#c96a10;font-size:15px">PENDIENTE ENVÍO</div><div class="l">Estado orden THAMES</div></div>
+  </div>
+  <div class="card">
+    <h2>Orden de compra — THAMES · AGOSTO 2026</h2>
+    <div class="sub">Consolidado automático de todos los pedidos aprobados. Exportable con el formato del archivo de compra actual.</div>
+    <table>
+      <tr><th>Cód. proveedor</th><th>Producto</th><th class="num">Costo unit.</th><th class="num">Cantidad</th><th class="num">Importe</th><th>Obs. de línea</th></tr>
+      <tr><td class="mut">OZOREP295002201</td><td>AROMATIZADOR REP. SMELL FRESH</td><td class="num">$ 3.190,00</td><td class="num">300</td><td class="num">$ 957.000,00</td><td class="mut">Varias fragancias — que no sea papaya ni canela ni coco</td></tr>
+      <tr><td class="mut">QUITLI316245LLI</td><td>LIMP NEUTRAL THAMES NEUTRAL KLEEN</td><td class="num">$ 7.190,00</td><td class="num">100</td><td class="num">$ 719.000,00</td><td></td></tr>
+      <tr><td class="mut">PAPTOA268040002</td><td>PAP TOALLA INTERC BLANCA</td><td class="num">$ 14.900,00</td><td class="num">40</td><td class="num">$ 596.000,00</td><td></td></tr>
+      <tr><td class="mut">QUITCE307035L00</td><td>CERA ACRILICA SELLADOR ACRY SEAL</td><td class="num">$ 22.260,00</td><td class="num">24</td><td class="num">$ 534.240,00</td><td></td></tr>
+      <tr><td class="mut">PAPHIG367013001</td><td>PAP HIG ALTO MT BLANCO EXTRA GOF</td><td class="num">$ 16.350,00</td><td class="num">25</td><td class="num">$ 408.750,00</td><td></td></tr>
+      <tr><td class="mut">QUITDF302135L002</td><td>LAVANDINA THAMES AL 60% BIO-LAV</td><td class="num">$ 4.559,00</td><td class="num">60</td><td class="num">$ 273.540,00</td><td></td></tr>
+      <tr><td class="mut">—</td><td>PLUMERO MICROFIBRA MANGO CORTO <span class="mut">(sin cód. proveedor)</span></td><td class="num">$ 4.690,00</td><td class="num">24</td><td class="num">$ 112.560,00</td><td></td></tr>
+      <tr><td colspan="6" class="mut">… 44 líneas más</td></tr>
+      <tr><td colspan="4" style="text-align:right"><b>TOTAL ORDEN</b></td><td class="num"><b>$ 9.658.898,64</b></td><td></td></tr>
+    </table>
+    <div style="display:flex;gap:10px;margin-top:12px;flex-wrap:wrap">
+      <button class="btn b-line" onclick="mOpen('mPres')">📄 Solicitar presupuesto</button>
+      <button class="btn b-pri">Enviar orden firme al proveedor</button>
+      <button class="btn b-sec">⬇ Exportar (formato compra actual)</button>
+      <button class="btn b-sec">Registrar factura del proveedor</button>
+    </div>
+    <div class="mut" style="margin-top:8px"><b>Dos caminos:</b> "Enviar orden firme" directo = comprar el pedido del mes a precios de LISTA vigente, sin presupuestar. "Solicitar presupuesto" = cotización previa → la orden firme sale a precios COTIZADOS.</div>
+  </div>
+  <div class="card">
+    <h2>Solicitudes de presupuesto — AGOSTO 2026 <span class="mut" style="font-weight:400">· fichas con seguimiento, como el CRM comercial — tocá la ficha</span></h2>
+    <div class="fgrid">
+      <div class="fcard" onclick="mOpen('mFicha')">
+        <div style="display:flex;align-items:center;gap:10px"><b>SP-2026-014</b> <span class="tag-prov">THAMES</span><span style="margin-left:auto" class="chip c-verde">COTIZACIÓN RECIBIDA</span></div>
+        <div class="pipe">
+          <div class="pstep done">ARMADA</div><div class="pstep done">ENVIADA</div><div class="pstep cur">COTIZACIÓN RECIBIDA</div><div class="pstep">ANALIZADA</div><div class="pstep">ORDEN FIRME</div>
+        </div>
+        <div style="font-size:12.5px">51 líneas (orden completa) · enviada 16/08 · respondió 17/08 (1 día)</div>
+        <div class="mut" style="margin-top:4px">Cotizó <b style="color:#156a3a">2,8% bajo lista</b> ($ 9.388.450) · contacto: Marcela D. (vendedor) · próximo paso: analizar y decidir</div>
+      </div>
+      <div class="fcard" onclick="mOpen('mFicha')">
+        <div style="display:flex;align-items:center;gap:10px"><b>SP-2026-015</b> <span class="tag-prov dv">NIMI PROFESIONAL</span><span style="margin-left:auto" class="chip c-azul">ENVIADA</span></div>
+        <div class="pipe">
+          <div class="pstep done">ARMADA</div><div class="pstep cur">ENVIADA</div><div class="pstep">COTIZACIÓN RECIBIDA</div><div class="pstep">ANALIZADA</div><div class="pstep">ORDEN FIRME</div>
+        </div>
+        <div style="font-size:12.5px">5 líneas (selección manual) · enviada 16/08 · sin respuesta aún</div>
+        <div class="mut" style="margin-top:4px">Recordatorio automático 18/08 · contacto: vendedor Nimi · históricamente responde en 3 días</div>
+      </div>
+    </div>
+    <div class="mut" style="margin-top:10px">El historial lista-vs-cotizado por proveedor queda registrado: con los meses sabés quién mejora precio cuando cotiza y cuánto.</div>
+  </div>
+  <div class="card">
+    <h2>Órdenes del período</h2>
+    <table>
+      <tr><th>Proveedor</th><th class="num">Líneas</th><th class="num">Total (costo)</th><th>Estado</th><th>Factura prov.</th></tr>
+      <tr><td><span class="tag-prov">THAMES</span></td><td class="num">51</td><td class="num">$ 9.658.898,64</td><td><span class="chip c-nara">PENDIENTE ENVÍO</span></td><td class="mut">—</td></tr>
+      <tr><td><span class="tag-prov dv">DIVERSEY</span></td><td class="num">8</td><td class="num">$ 1.240.360,00</td><td><span class="chip c-azul">ENVIADA 12/08</span></td><td class="mut">esperando factura → cta cte proveedor</td></tr>
+    </table>
+  </div>
+  </div><!-- /spC -->
+
+
+  <!-- ===== SUBTAB 1: COMPARADOR DE PRECIOS ===== -->
+  <div class="sub act" id="sp1">
+  <div class="banner info">ℹ️ <span><b>Grupos de equivalencia:</b> Logística vincula productos "iguales" de distintos proveedores. Cada miembro lleva su <b>factor de conversión</b> (1 pack = 50 bolsas, 1 bidón = 5 L) y el comparador trabaja SIEMPRE en <b>precio por unidad común</b>. Los precios salen de las listas importadas (vigencias) — la evolución muestra quién viene aumentando más.</span></div>
+  <div class="kpis">
+    <div class="kpi"><div class="v">14</div><div class="l">Grupos de equivalencia</div></div>
+    <div class="kpi"><div class="v" style="color:#156a3a">9</div><div class="l">Gana THAMES</div></div>
+    <div class="kpi"><div class="v" style="color:#2c6b2f">4</div><div class="l">Gana NIMI</div></div>
+    <div class="kpi"><div class="v">1</div><div class="l">Empate (±2%)</div></div>
+  </div>
+  <div class="card">
+    <div style="display:flex;gap:10px;margin-bottom:12px">
+      <button class="btn b-pri" onclick="mOpen('mGrupo')">+ Nuevo grupo de equivalencia</button>
+      <span class="mut" style="margin-left:auto">Armado manual por Logística — el sistema sugiere candidatos por similitud de nombre</span>
+    </div>
+    <table>
+      <tr><th>Grupo</th><th>Proveedor</th><th>Producto (presentación)</th><th class="num">Precio lista</th><th class="num">Factor</th><th class="num">$ por unidad común</th><th>Evolución 3 meses</th><th></th></tr>
+      <tr style="background:#fbfcff"><td rowspan="2"><b>EQ-001</b><br><span class="mut">Bolsa 60x90 negra<br>unidad: BOLSA</span></td>
+        <td><span class="tag-prov">THAMES</span></td><td>BOLSA 60X90 NEGRA (por unidad)</td><td class="num">$ 63,83</td><td class="num">×1</td><td class="num"><b>$ 63,83</b></td><td><span class="trend t-up">▲ +9,0%</span></td><td><span class="chip c-verde">MÁS BARATO −65%</span></td></tr>
+      <tr style="background:#fbfcff"><td><span class="tag-prov nm">NIMI</span></td><td>02-037 Bolsa 60x90 x50un (Negra) 22mcs</td><td class="num">$ 9.244,37</td><td class="num">÷50</td><td class="num">$ 184,89</td><td><span class="trend t-up">▲ +10,9%</span></td><td></td></tr>
+      <tr><td rowspan="2"><b>EQ-002</b><br><span class="mut">Detergente/lavavajillas 5L<br>unidad: LITRO</span></td>
+        <td><span class="tag-prov">THAMES</span></td><td>DETERGENTE THAMES BIO-DET × 5L</td><td class="num">$ 7.340,00</td><td class="num">÷5</td><td class="num"><b>$ 1.468,00</b></td><td><span class="trend t-up">▲ +8,2%</span></td><td><span class="chip c-verde">MÁS BARATO −53%</span></td></tr>
+      <tr><td><span class="tag-prov nm">NIMI</span></td><td>DV-R03009 Drax lavavajillas limón × 5L</td><td class="num">$ 15.679,48</td><td class="num">÷5</td><td class="num">$ 3.135,90</td><td><span class="trend t-up">▲ +10,9%</span></td><td><span class="mut">calidad distinta — lo evalúa Logística</span></td></tr>
+      <tr style="background:#fbfcff"><td rowspan="2"><b>EQ-003</b><br><span class="mut">Bolsa 45x60 negra<br>unidad: BOLSA</span></td>
+        <td><span class="tag-prov">THAMES</span></td><td>BOLSA 45X60 NEGRA (por unidad)</td><td class="num">$ 31,44</td><td class="num">×1</td><td class="num"><b>$ 31,44</b></td><td><span class="trend t-up">▲ +9,0%</span></td><td><span class="chip c-verde">MÁS BARATO −50%</span></td></tr>
+      <tr style="background:#fbfcff"><td><span class="tag-prov nm">NIMI</span></td><td>02-036 Bolsa 45x60 x50un (Negra) 18mcs</td><td class="num">$ 3.171,31</td><td class="num">÷50</td><td class="num">$ 63,43</td><td><span class="trend t-up">▲ +10,9%</span></td><td></td></tr>
+      <tr><td rowspan="2"><b>EQ-004</b><br><span class="mut">Trapo de piso blanco<br>unidad: UNIDAD</span></td>
+        <td><span class="tag-prov">THAMES</span></td><td>TRAPO PISO SUPER BLANCO</td><td class="num">$ 998,00</td><td class="num">×1</td><td class="num">$ 998,00</td><td><span class="trend t-up">▲ +7,4%</span></td><td></td></tr>
+      <tr><td><span class="tag-prov nm">NIMI</span></td><td>Trapo de piso blanco premium <span class="mut">(demo)</span></td><td class="num">$ 860,00</td><td class="num">×1</td><td class="num"><b>$ 860,00</b></td><td><span class="trend t-up">▲ +4,1%</span></td><td><span class="chip c-verde">MÁS BARATO −14%</span></td></tr>
+    </table>
+    <div class="mut" style="margin-top:8px">… 10 grupos más. El chip verde marca el más barato HOY por unidad común; con cada import de lista, el comparador se recalcula solo.</div>
+  </div>
+  </div><!-- /sp1 -->
+
+  <!-- ===== SUBTAB 2: SUGERENCIAS EN LA COMPRA ===== -->
+  <div class="sub" id="sp2">
+  <div class="banner info">🛒 <span>Al consolidar la compra del período, si una línea pertenece a un grupo de equivalencia con opción más barata en otro proveedor, el sistema <b>SUGIERE el cambio — nunca lo hace solo</b>. Logística decide y la decisión queda registrada. Si cambia, la línea se marca <b>SUSTITUIDO POR EQUIVALENTE</b>: el pedido del supervisor queda vinculado al producto realmente comprado, y "Repetir mes anterior" le carga el producto que realmente recibió.</span></div>
+  <div class="card">
+    <h2>Consolidado AGOSTO 2026 — líneas con sugerencia</h2>
+    <table>
+      <tr><th>Producto pedido</th><th>Proveedor actual</th><th class="num">Cant.</th><th class="num">Costo actual</th><th>Sugerencia</th><th class="num">Ahorro</th><th>Decisión</th></tr>
+      <tr id="rowB"><td>02-037 Bolsa 60x90 negra <span class="mut">(4 packs = 200 bolsas)</span></td><td id="provB"><span class="tag-prov nm">NIMI</span></td><td class="num">200 bolsas</td><td class="num" id="costB">$ 36.977</td>
+        <td class="mut">THAMES a $ 63,83/bolsa (−65%)</td><td class="num" style="color:#156a3a"><b>$ 24.211</b></td>
+        <td id="decB"><button class="btn b-ok" style="padding:4px 10px" onclick="cambiar('B')">Cambiar a THAMES</button> <button class="btn b-sec" style="padding:4px 10px" onclick="mantener('B')">Mantener</button></td></tr>
+      <tr id="rowD" style="cursor:pointer" onclick="mOpen('mServ')" title="Tocá la fila para ver qué servicios lo pidieron"><td>DV-R03009 Drax lavavajillas × 5L <span class="mut">👆 tocá la fila: detalle por servicio</span></td><td id="provD"><span class="tag-prov nm">NIMI</span></td><td class="num">40 bidones</td><td class="num" id="costD">$ 627.179</td>
+        <td class="mut">THAMES BIO-DET a $ 1.468/L (−53%)</td><td class="num" style="color:#156a3a"><b>$ 333.579</b></td>
+        <td id="decD"><button class="btn b-ok" style="padding:4px 10px" onclick="event.stopPropagation();cambiar('D')">Cambiar a THAMES</button> <button class="btn b-sec" style="padding:4px 10px" onclick="event.stopPropagation();mantener('D')">Mantener</button></td></tr>
+      <tr id="rowT"><td>TRAPO PISO SUPER BLANCO</td><td id="provT"><span class="tag-prov">THAMES</span></td><td class="num">100 un.</td><td class="num" id="costT">$ 99.800</td>
+        <td class="mut">NIMI a $ 860/un (−14%) <span class="mut">(demo)</span></td><td class="num" style="color:#156a3a"><b>$ 13.800</b></td>
+        <td id="decT"><button class="btn b-ok" style="padding:4px 10px" onclick="cambiar('T')">Cambiar a NIMI</button> <button class="btn b-sec" style="padding:4px 10px" onclick="mantener('T')">Mantener</button></td></tr>
+    </table>
+    <div class="sug" id="resumenSug">💡 <b>Ahorro posible del período: $ 371.590</b> si tomás las 3 sugerencias. Ahorro tomado hasta ahora: <b id="tomado">$ 0</b>.</div>
+    <div class="mut" style="margin-top:8px">"Mantener" pide motivo (calidad / mínimo de compra / plazo de entrega — parametrizable) y queda registrado para el reporte de ahorro potencial. Los equivalentes NO disparan "fuera de estándar" (el grupo le dice al sistema que es lo mismo).</div>
+  </div>
+  </div><!-- /sp2 -->
+
+  <!-- ===== SUBTAB 3: SIMULACION MENSUAL ===== -->
+  <div class="sub" id="sp3">
+  <div class="banner info">📊 <span>Con el consolidado armado, el botón <b>"Comparar presupuestos"</b> valúa la compra completa del mes en cada escenario: como está hoy vs optimizada por grupo de equivalencia.</span></div>
+  <div class="kpis">
+    <div class="kpi"><div class="v">$ 12.181.634</div><div class="l">Compra del mes (como está)</div></div>
+    <div class="kpi"><div class="v" style="color:#156a3a">$ 11.810.044</div><div class="l">Compra optimizada</div></div>
+    <div class="kpi"><div class="v" style="color:#156a3a">$ 371.590</div><div class="l">Ahorro posible (3,1%)</div></div>
+  </div>
+  <div class="card">
+    <h2>Dónde está el ahorro — AGOSTO 2026</h2>
+    <div class="barrow"><span class="lb">Detergente/lavavajillas → THAMES</span><span class="bx"><i style="width:90%;background:#2e9e5b"></i></span><span class="num" style="width:90px"><b>$ 333.579</b></span></div>
+    <div class="barrow"><span class="lb">Bolsas 60x90 → THAMES</span><span class="bx"><i style="width:7%;background:#2e9e5b"></i></span><span class="num" style="width:90px">$ 24.211</span></div>
+    <div class="barrow"><span class="lb">Trapos de piso → NIMI (demo)</span><span class="bx"><i style="width:4%;background:#2e9e5b"></i></span><span class="num" style="width:90px">$ 13.800</span></div>
+    <div class="mut">El grueso del ahorro suele estar en 2-3 grupos — el comparador lo hace visible al toque.</div>
+  </div>
+  <div class="card">
+    <h2>Reporte anual — valor del comparador</h2>
+    <table>
+      <tr><th>Mes</th><th class="num">Ahorro tomado</th><th class="num">Ahorro no tomado</th><th>Motivos de "mantener"</th></tr>
+      <tr><td>AGOSTO 2026</td><td class="num" style="color:#156a3a">$ 357.790</td><td class="num mut">$ 13.800</td><td class="mut">calidad (trapo premium)</td></tr>
+      <tr><td>JULIO 2026</td><td class="num" style="color:#156a3a">$ 281.400</td><td class="num mut">$ 45.200</td><td class="mut">mínimo de compra Nimi</td></tr>
+      <tr><td><b>Acumulado 2026</b></td><td class="num" style="color:#156a3a"><b>$ 639.190</b></td><td class="num"><b>$ 59.000</b></td><td></td></tr>
+    </table>
+    <div class="mut" style="margin-top:8px">"Ahorro tomado" = decisiones de cambio aplicadas. "No tomado" = sugerencias mantenidas, con su motivo. Número para mostrar al consejo qué aporta el sistema.</div>
+  </div>
+  </div><!-- /sp3 -->
+</div>
+
+<!-- ============ TAB 4: ENTREGAS ============ -->
+<div class="panel" id="p4">
+  <div class="banner info">📦 <span><b>Entregas arranca con la RECEPCIÓN de la mercadería</b> (no con la orden firme). El sistema cruza lo recibido contra los pedidos aprobados y marca qué servicios se pueden armar completos. Armado con <b>checklist por producto</b> → al completarlo se genera el <b>REMITO</b> (duplicado, viaja con el pedido) → EN REPARTO → <b>ENTREGADO</b> con quién recibió + foto del remito firmado. Recién ahí impacta el costo al servicio. <b>PAGAN</b> → remito firmado a Finanzas → factura a PRECIO VENTA.</span></div>
+  <div class="flowline">
+    <div class="fstep">Recepción de mercadería</div>
+    <div class="fstep">EN ARMADO (checklist)</div>
+    <div class="fstep">ARMADO → remito</div>
+    <div class="fstep">EN REPARTO</div>
+    <div class="fstep">ENTREGADO (firma + foto)</div>
+  </div>
+  <div class="card">
+    <h2>Recepción — orden THAMES AGOSTO 2026</h2>
+    <div style="font-size:13px;margin-bottom:6px"><span class="chip c-azul">RECIBIDO PARCIAL 14/08</span>&nbsp; 48 de 51 líneas recibidas · <b>backorder:</b> CERA ACRILICA ACRY SEAL (24 un.) — Thames entrega 22/08</div>
+    <div class="mut">Con lo recibido: <b style="color:#156a3a">12 servicios se pueden armar completos</b> · 2 quedan cortos (el backorder sale después con remito propio).</div>
+  </div>
+  <div class="card">
+    <h2>Entregas por servicio — AGOSTO 2026</h2>
+    <table>
+      <tr><th>Servicio</th><th>Cobro</th><th>Firma requerida</th><th>Entrega límite 🗺</th><th class="num">Costo</th><th class="num">A facturar (venta)</th><th>Estado</th><th>Remito / constancia</th></tr>
+      <tr><td><b>AGENCIA.FIBRA</b></td><td><span class="chip c-verde">PAGAN</span></td><td><span class="chip c-viol">CLIENTE</span></td><td><span class="chip c-verde">ENTREGADO ✔</span><br><span class="mut">límite 16/08 · Zona Norte</span></td><td class="num">$ 106.353,15</td><td class="num"><b>$ 138.259,10</b></td><td><span class="chip c-verde">ENTREGADO 16/08</span><br><span class="mut">Recibió: P. Gómez (recepción del cliente) · 📷 remito firmado adjunto</span></td><td><button class="btn b-line" style="padding:4px 12px" onclick="mOpen('mRem')">R-4720</button></td></tr>
+      <tr><td><b>ASCENSORES.GERHARDT</b></td><td><span class="chip c-verde">PAGAN</span></td><td><span class="chip c-viol">CLIENTE</span></td><td><span class="chip c-nara">HOY 17/08 ⏰</span><br><span class="mut">reprogramado de Zona Norte</span></td><td class="num">$ 26.413,46</td><td class="num"><b>$ 34.337,50</b></td><td id="estG"><span class="chip c-nara">EN REPARTO</span> <span class="mut">salió 10:20 con R-4721</span></td><td id="remG"><button class="btn b-ok" style="padding:4px 10px" onclick="mOpen('mEnt')">Confirmar entrega</button></td></tr>
+      <tr><td><b>JOSIMAR.LANUS</b></td><td><span class="chip c-gris">NO PAGAN</span></td><td><span class="chip c-gris">PROPIO</span></td><td><span class="chip c-azul">FALTAN 2 DÍAS</span><br><span class="mut">límite 19/08 · Zona Sur</span></td><td class="num">$ 110.100,00</td><td class="num mut">— (costo al económico)</td><td id="estJ"><span class="chip c-azul">EN ARMADO</span> <span class="mut" id="progJ">5/8 productos</span></td><td id="remJ"><button class="btn b-line" style="padding:4px 10px" onclick="mOpen('mChk')">Abrir checklist</button></td></tr>
+      <tr><td><b>LOS.PINOS</b></td><td><span class="chip c-verde">PAGAN</span></td><td><span class="chip c-viol">CLIENTE</span></td><td><span class="chip c-verde">FALTAN 3 DÍAS</span><br><span class="mut">límite 20/08 · Zona Oeste</span></td><td class="num">$ 87.020,00</td><td class="num"><b>$ 113.126,00</b></td><td><span class="chip c-teal">ARMADO ✔</span> <span class="mut">listo para salir · remito impreso ×2</span></td><td><button class="btn b-line" style="padding:4px 12px" onclick="mOpen('mRem')">R-4722</button></td></tr>
+      <tr><td><b>CHANGO.MAS.MORON</b></td><td><span class="chip c-gris">NO PAGAN</span></td><td><span class="chip c-gris">PROPIO</span></td><td><span class="chip c-rojo">EN RIESGO ⚠</span><br><span class="mut">límite 20/08 — backorder llega 22/08</span></td><td class="num">$ 96.400,00</td><td class="num mut">—</td><td><span class="chip c-gris">PENDIENTE</span> <span class="mut">corto por backorder (cera) — arma el 22/08</span></td><td class="mut">—</td></tr>
+    </table>
+    <div class="mut" style="margin-top:8px">La firma requerida es parametrizable por servicio: <b>CLIENTE</b> (default en PAGAN — el remito firmado respalda la factura) o <b>PROPIO</b> (NO PAGAN — constancia interna). La diferencia venta − costo del período → Estadísticas.</div>
+  </div>
+</div>
+
+<!-- ============ TAB 6: HOJA DE RECORRIDO ============ -->
+<div class="panel" id="p6">
+  <div class="banner info">🗺 <span><b>Logística proyecta el recorrido del mes</b>: días de salida por zona y <b>FECHA LÍMITE de entrega por servicio</b>. El tab Entregas hereda estos parámetros y muestra cuántos días faltan para cada pedido, con <b>alerta si el límite está cerca y la mercadería no llegó</b>. El recorrido se guarda como <b>PLANTILLA</b> y se repite cada mes (editable).</span></div>
+  <div class="kpis">
+    <div class="kpi"><div class="v">3</div><div class="l">Salidas planificadas</div></div>
+    <div class="kpi"><div class="v">14</div><div class="l">Servicios en el recorrido</div></div>
+    <div class="kpi"><div class="v">LUN 18/08</div><div class="l">Próxima salida (Zona Sur)</div></div>
+    <div class="kpi"><div class="v" style="color:#a11c1c">1</div><div class="l">Entrega EN RIESGO ⚠</div></div>
+  </div>
+  <div class="card">
+    <div style="display:flex;gap:10px;margin-bottom:12px">
+      <button class="btn b-pri" onclick="mOpen('mSalida')">+ Nueva salida</button>
+      <button class="btn b-sec">↺ Repetir recorrido del mes anterior</button>
+      <button class="btn b-sec">⚙ Editar plantilla del mes</button>
+      <span class="mut" style="margin-left:auto">"Repetir" copia todas las salidas del mes pasado con las fechas corridas — Logística ajusta y confirma</span>
+    </div>
+    <table>
+      <tr><th>Salida</th><th>Recorrido / Zona</th><th>Servicios</th><th>Límite de entrega</th><th>Estado</th></tr>
+      <tr><td><b>SÁB 16/08</b></td><td>ZONA NORTE</td><td class="mut">AGENCIA.FIBRA · ASCENSORES.GERHARDT</td><td class="mut">16/08</td><td><span class="chip c-nara">PARCIAL</span> <span class="mut">Agencia ✔ entregado · Gerhardt reprogramado → HOY 17/08</span></td></tr>
+      <tr><td><b>LUN 18/08</b></td><td>ZONA SUR</td><td class="mut">JOSIMAR.LANUS · EMBA.CABILDO · +3</td><td class="mut">19/08</td><td><span class="chip c-azul">EN ARMADO</span> <span class="mut">faltan 2 días — armado 5/8 en Josimar</span></td></tr>
+      <tr><td><b>MIÉ 20/08</b></td><td>ZONA OESTE</td><td class="mut">LOS.PINOS · CHANGO.MAS.MORON · +4</td><td class="mut">20/08</td><td><span class="chip c-rojo">EN RIESGO ⚠</span> <span class="mut">Chango depende del backorder de cera que llega 22/08 → reprogramar o entrega parcial</span></td></tr>
+    </table>
+    <div class="mut" style="margin-top:8px">Cada servicio del recorrido lleva su fecha límite (por defecto la de su zona; override por servicio). Los avisos: recordatorio a Logística N días antes (parametrizable) y alerta roja si hay backorder o armado incompleto con el límite encima.</div>
+  </div>
+</div>
+
+<!-- ============ TAB 5: AUDITORIA ============ -->
+<div class="panel" id="p5">
+  <div class="card">
+    <h2>Auditoría — todo con fecha, hora y responsable</h2>
+    <table>
+      <tr><th>Fecha</th><th>Usuario</th><th>Acción</th><th>Detalle</th></tr>
+      <tr><td class="mut">16/08 09:14</td><td>logistica.richard</td><td><span class="chip c-azul">IMPORT PROVEEDOR</span></td><td class="mut">THAMES ago-2026: 438 costos actualizados, 3 altas, 2 posibles discontinuados</td></tr>
+      <tr><td class="mut">15/08 10:22</td><td>auditor.logistica</td><td><span class="chip c-nara">RECORTE</span></td><td class="mut">INDICOM: −2 cajas papel toalla (108% → 96% del tope)</td></tr>
+      <tr><td class="mut">14/08 18:03</td><td>sup.josimar</td><td><span class="chip c-verde">ELEVADO</span></td><td class="mut">JOSIMAR.LANUS $ 134.750 a costo (114% del tope → pasa al auditor)</td></tr>
+      <tr><td class="mut">01/08 08:00</td><td>sistema</td><td><span class="chip c-gris">APERTURA</span></td><td class="mut">Ventana AGOSTO 2026 abierta · cierre 20/08 18:00 · recordatorio 19/08 · borradores se elevan solos al cierre</td></tr>
+    </table>
+  </div>
+</div>
+
+</div><!-- wrap -->
+
+<!-- ===== MODAL: pedido del servicio ===== -->
+<div class="modal-bg" id="mPed">
+  <div class="modal">
+    <div class="m-head"><h3 id="pedTit">Pedido — SERVICIO</h3><span class="chip c-gris" id="pedChip">BORRADOR</span><button class="x" onclick="mClose('mPed')">✕</button></div>
+    <div class="m-body">
+      <div class="tope-box">
+        <div><div class="t">Tope del mes (6% s/ últ. facturación)</div><div class="b" id="pedTope">$ 0</div></div>
+        <div><div class="t">Pedido a COSTO proveedor</div><div class="b" id="pedTot">$ 0</div></div>
+        <div><div class="t">Consumo</div><div class="b" id="pedPct">0%</div></div>
+        <div style="min-width:230px"><div class="t">Tope</div><span class="bar" style="width:220px;height:10px"><i id="pedBar" style="width:0%;background:#2e9e5b"></i></span></div>
+        <div id="pedSem" class="sem s-ok">DENTRO DEL TOPE</div>
+        <button class="btn b-sec" style="margin-left:auto" onclick="repetir()">↺ Repetir mes anterior</button>
+      </div>
+      <table id="pedTbl">
+        <tr><th>Producto</th><th>Proveedor</th><th>Tipo</th><th class="num">Costo unit.</th><th class="num">Cantidad</th><th class="num">Subtotal (costo)</th></tr>
+      </table>
+      <div class="mut" style="margin-top:8px">El catálogo completo tiene 511 productos — buscador y filtros en la versión real. Productos CON AUTORIZACIÓN pasan siempre por el auditor.</div>
+      <div id="obsBox" style="display:none;margin-top:12px;background:#fff2ea;border:1.5px solid #ecb493;border-radius:9px;padding:12px 16px">
+        <div style="font-size:13px;font-weight:700;color:#a04a08;margin-bottom:6px">↩ PROPUESTA DEL AUDITOR (pedido observado)</div>
+        <div style="font-size:12.5px;color:#7a4210;margin-bottom:8px">PAP TOALLA INTERC BLANCA: <b>2 → 0</b> · Motivo: excede tope (108%) — "Sacar 2 cajas de papel toalla, quedó pedido doble el mes pasado"</div>
+        <div style="display:flex;gap:10px;flex-wrap:wrap">
+          <button class="btn b-ok" onclick="aceptarProp()">✔ Aceptar propuesta — aprueba directo</button>
+          <span class="mut" style="align-self:center">…o modificá las cantidades y re-elevá para volver a acordar.</span>
+        </div>
+      </div>
+      <div id="justBox" style="display:none;margin-top:12px;background:#fff8ee;border:1.5px solid #eccd93;border-radius:9px;padding:12px 16px">
+        <div style="font-size:13px;font-weight:700;color:#8a5a04;margin-bottom:6px">⚠ Tu pedido tiene DESVÍOS respecto del estándar del servicio:</div>
+        <div id="justList" style="font-size:12.5px;color:#6b4a08;margin-bottom:10px"></div>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+          <select id="justSel" class="qty" style="width:260px;text-align:left">
+            <option>Elegí un motivo…</option>
+            <option>Tratamiento anual de pisos</option>
+            <option>Evento del cliente</option>
+            <option>Refuerzo por apertura / obra</option>
+            <option>Corrección de stock del servicio</option>
+            <option>⚙ Motivos parametrizables…</option>
+          </select>
+          <input id="justTxt" class="qty" style="flex:1;min-width:220px;text-align:left" placeholder="Detalle (texto libre)…">
+        </div>
+        <div style="display:flex;gap:10px;margin-top:10px">
+          <button class="btn b-pri" onclick="confirmarElevar()">Confirmar y elevar con justificación</button>
+          <button class="btn b-sec" onclick="document.getElementById('justBox').style.display='none'">← Volver a revisar</button>
+        </div>
+        <div class="mut" style="margin-top:6px">La justificación viaja con el pedido a la bandeja del auditor (motivo FUERA DE ESTÁNDAR). Umbrales de detección parametrizables en Configuración.</div>
+      </div>
+    </div>
+    <div class="m-foot">
+      <button class="btn b-sec" onclick="guardar(false)">💾 Guardar borrador</button>
+      <button class="btn b-pri" onclick="guardar(true)">⬆ Elevar pedido</button>
+      <span class="mut" id="pedMsg"></span>
+      <span class="mut" style="margin-left:auto">Un ELEVADO puede volver a borrador mientras la ventana esté abierta y el auditor no lo haya tomado.</span>
+    </div>
+  </div>
+</div>
+
+<!-- ===== MODAL: revision del auditor ===== -->
+<div class="modal-bg" id="mAud">
+  <div class="modal">
+    <div class="m-head"><h3>Revisión del auditor — JOSIMAR.LANUS · AGOSTO 2026</h3><span class="chip c-rojo">EXCEDE TOPE</span><button class="x" onclick="mClose('mAud')">✕</button></div>
+    <div class="m-body">
+      <div class="tope-box">
+        <div><div class="t">Tope del mes</div><div class="b">$ 118.200</div></div>
+        <div><div class="t">Propuesta a COSTO</div><div class="b" id="audTot">$ 0</div></div>
+        <div><div class="t">Consumo</div><div class="b" id="audPct">0%</div></div>
+        <div style="min-width:230px"><div class="t">Tope</div><span class="bar" style="width:220px;height:10px"><i id="audBar" style="width:0%;background:#2e9e5b"></i></span></div>
+        <div id="audSem" class="sem s-alto">EXCEDE EL TOPE</div>
+      </div>
+      <table id="audTbl">
+        <tr><th>Producto</th><th class="num">Costo unit.</th><th class="num">Pedido del supervisor</th><th class="num">Propuesta del auditor</th><th class="num">Subtotal propuesta</th></tr>
+      </table>
+      <div class="mut" style="margin-top:8px">Las cantidades que el auditor modifica quedan marcadas con el diff (pedido → propuesta). Todo registrado con usuario, fecha y motivo.</div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-top:12px">
+        <select class="qty" style="width:240px;text-align:left">
+          <option>Motivo: excede tope</option>
+          <option>Motivo: producto con autorización</option>
+          <option>Motivo: fuera de estándar</option>
+          <option>⚙ Motivos parametrizables…</option>
+        </select>
+        <input class="qty" style="flex:1;min-width:220px;text-align:left" placeholder="Detalle para el supervisor (texto libre)…" value="Recorto papel para entrar en tope — quedó pedido doble el mes pasado">
+      </div>
+    </div>
+    <div class="m-foot">
+      <button class="btn b-pri" onclick="audDevolver()">↩ Devolver con propuesta al supervisor</button>
+      <button class="btn b-warn" onclick="audDirecto()">✔ Aprobar con ajuste directo</button>
+      <span class="mut" id="audMsg"></span>
+      <span class="mut" style="margin-left:auto">"Ajuste directo" notifica al supervisor. Disponible según Configuración (siempre / cerca del cierre / nunca).</span>
+    </div>
+  </div>
+</div>
+
+<!-- ===== MODAL: import proveedor ===== -->
+<div class="modal-bg" id="mImp">
+  <div class="modal">
+    <div class="m-head"><h3>Import archivo del proveedor — THAMES · lista AGOSTO 2026</h3><button class="x" onclick="mClose('mImp')">✕</button></div>
+    <div class="m-body">
+      <div class="banner info" style="margin-bottom:12px">Vista previa — nada se aplica hasta confirmar. Matching por <b>CÓD. PROVEEDOR</b>; los productos sin código se matchean por descripción (revisión manual).</div>
+      <div class="kpis">
+        <div class="kpi"><div class="v" style="color:#1d7a43">438</div><div class="l">Costos actualizados</div></div>
+        <div class="kpi"><div class="v" style="color:#1b3f9e">3</div><div class="l">Productos nuevos → alta</div></div>
+        <div class="kpi"><div class="v" style="color:#c96a10">2</div><div class="l">No vinieron → ¿discontinuados?</div></div>
+        <div class="kpi"><div class="v" style="color:#a11c1c">45</div><div class="l">Sin código → match por descripción</div></div>
+      </div>
+      <table>
+        <tr><th>Cód. proveedor</th><th>Producto</th><th class="num">Costo actual</th><th class="num">Costo nuevo</th><th class="num">Δ</th><th class="num">P. venta nuevo (30%)</th><th>Acción</th></tr>
+        <tr><td class="mut">QUITDF302135L002</td><td>LAVANDINA BIO-LAV 60% × 5L</td><td class="num">$ 4.180,00</td><td class="num"><b>$ 4.559,00</b></td><td class="num" style="color:#a11c1c">+9,1%</td><td class="num">$ 5.926,70</td><td><span class="chip c-verde">NUEVA VIGENCIA 08-2026</span></td></tr>
+        <tr><td class="mut">PAPTOA268040002</td><td>PAP TOALLA INTERC BLANCA</td><td class="num">$ 13.650,00</td><td class="num"><b>$ 14.900,00</b></td><td class="num" style="color:#a11c1c">+9,2%</td><td class="num">$ 19.370,00</td><td><span class="chip c-verde">NUEVA VIGENCIA 08-2026</span></td></tr>
+        <tr><td class="mut">QUITDF312136L02</td><td>ALCOHOL ETILICO 70% × 500cc C/GATILLO</td><td class="num mut">—</td><td class="num"><b>$ 2.099,00</b></td><td class="num mut">nuevo</td><td class="num">$ 2.728,70</td><td><span class="chip c-azul">ALTA → P-0512</span></td></tr>
+        <tr><td class="mut">QUIJDF303074001</td><td>ALCOHOL AL-DUO-DRY LIMPIA Y DESINFECTA 5L</td><td class="num mut">—</td><td class="num"><b>$ 10.862,00</b></td><td class="num mut">nuevo</td><td class="num">$ 14.120,60</td><td><span class="chip c-azul">ALTA → P-0513</span></td></tr>
+        <tr><td class="mut">TRAPAB236000000</td><td>TRAPO PISO ABRAL GRIS</td><td class="num">$ 890,00</td><td class="num mut">no vino en la lista</td><td class="num mut">—</td><td class="num mut">—</td><td><span class="chip c-nara">POSIBLE DISCONTINUADO</span></td></tr>
+      </table>
+    </div>
+    <div class="m-foot">
+      <button class="btn b-pri" onclick="mClose('mImp')">Confirmar import</button>
+      <button class="btn b-sec" onclick="mClose('mImp')">Cancelar</button>
+      <span class="mut">Queda en Auditoría con usuario y archivo origen. Los costos anteriores se conservan como vigencias históricas.</span>
+    </div>
+  </div>
+</div>
+
+<!-- ===== MODAL: editar producto ===== -->
+<div class="modal-bg" id="mEdit">
+  <div class="modal" style="max-width:560px">
+    <div class="m-head"><h3>Editar producto — P-0002</h3><button class="x" onclick="mClose('mEdit')">✕</button></div>
+    <div class="m-body">
+      <table>
+        <tr><td class="mut" style="width:170px">Nombre</td><td><input class="qty" style="width:100%;text-align:left" value="LAVANDINA THAMES AL 60% BIO-LAV × 5L"></td></tr>
+        <tr><td class="mut">Tipo de uso</td><td><select class="qty" style="width:100%;text-align:left"><option>NORMAL</option><option>CON AUTORIZACION</option><option>TRATAMIENTO PISO</option><option>APERTURA SERVICIO</option></select></td></tr>
+        <tr><td class="mut">Proveedor</td><td><select class="qty" style="width:100%;text-align:left"><option>THAMES</option><option>DIVERSEY</option></select></td></tr>
+        <tr><td class="mut">Costo (proveedor)</td><td><input class="qty" id="eCosto" style="width:140px" value="4559" oninput="eCalc()"> <span class="mut">crea nueva vigencia desde hoy</span></td></tr>
+        <tr><td class="mut">Recargo</td><td><input class="qty" id="eRec" style="width:80px" value="30" oninput="eCalc()"> % <span class="mut">(general 30% · esto es override)</span></td></tr>
+        <tr><td class="mut">Precio venta</td><td><b id="ePV" style="font-size:16px;color:#1b2a5e">$ 5.926,70</b></td></tr>
+      </table>
+    </div>
+    <div class="m-foot"><button class="btn b-pri" onclick="mClose('mEdit')">Guardar</button><button class="btn b-sec" onclick="mClose('mEdit')">Cancelar</button></div>
+  </div>
+</div>
+
+<!-- ===== MODAL: nueva salida (hoja de recorrido) ===== -->
+<div class="modal-bg" id="mSalida">
+  <div class="modal" style="max-width:820px">
+    <div class="m-head"><h3>Nueva salida — AGOSTO 2026</h3><button class="x" onclick="mClose('mSalida')">✕</button></div>
+    <div class="m-body">
+      <div style="display:flex;gap:14px;flex-wrap:wrap;margin-bottom:14px">
+        <div><div class="mut" style="margin-bottom:3px">Fecha de salida</div><input class="qty" style="width:130px;text-align:left" value="18/08/2026"></div>
+        <div><div class="mut" style="margin-bottom:3px">Recorrido / Zona ⚙</div><select class="qty" style="width:170px;text-align:left"><option>ZONA SUR</option><option>ZONA NORTE</option><option>ZONA OESTE</option><option>CABA CENTRO</option><option>⚙ Nueva zona…</option></select></div>
+        <div><div class="mut" style="margin-bottom:3px">Responsable del reparto</div><select class="qty" style="width:190px;text-align:left"><option>Logística — Depósito 1</option><option>Logística — Richard</option><option>⚙ …</option></select></div>
+        <div><div class="mut" style="margin-bottom:3px">Límite de entrega (default)</div><input class="qty" style="width:130px;text-align:left" value="19/08/2026"></div>
+        <div><div class="mut" style="margin-bottom:3px">Recordatorio ⚙</div><select class="qty" style="width:140px;text-align:left"><option>2 días antes</option><option>1 día antes</option><option>Sin aviso</option></select></div>
+      </div>
+      <div class="banner info" style="margin-bottom:10px">El sistema sugiere los servicios <b>de esa zona con pedido aprobado del período</b> y muestra el estado de armado de cada uno — Logística tilda cuáles entran, ordena la visita y puede pisar el límite por servicio.</div>
+      <table>
+        <tr><th></th><th class="num">Orden de visita</th><th>Servicio</th><th>Estado del pedido</th><th>Límite (override)</th><th>Obs.</th></tr>
+        <tr><td>☑</td><td class="num"><input class="qty" style="width:46px" value="1"></td><td><b>JOSIMAR.LANUS</b></td><td><span class="chip c-azul">EN ARMADO 5/8</span></td><td><input class="qty" style="width:110px;text-align:left" value="19/08"></td><td class="mut">—</td></tr>
+        <tr><td>☑</td><td class="num"><input class="qty" style="width:46px" value="2"></td><td><b>EMBA.CABILDO</b></td><td><span class="chip c-teal">ARMADO ✔</span></td><td><input class="qty" style="width:110px;text-align:left" value="19/08"></td><td class="mut">entregar antes de las 10 hs (pedido del cliente)</td></tr>
+        <tr><td>☑</td><td class="num"><input class="qty" style="width:46px" value="3"></td><td><b>REYLAT</b></td><td><span class="chip c-teal">ARMADO ✔</span></td><td><input class="qty" style="width:110px;text-align:left" value="19/08"></td><td class="mut">—</td></tr>
+        <tr><td>☐</td><td class="num mut">—</td><td><b>GYM.BELGRANO001</b> <span class="mut">(otra zona — se puede sumar igual)</span></td><td><span class="chip c-gris">PENDIENTE</span></td><td class="mut">—</td><td class="mut">—</td></tr>
+      </table>
+      <div class="mut" style="margin-top:8px">Un servicio con pedido EN RIESGO (backorder / armado incompleto al límite) aparece marcado para decidir: entrega parcial, reprogramar a otra salida, o esperar la mercadería.</div>
+    </div>
+    <div class="m-foot">
+      <button class="btn b-pri" onclick="mClose('mSalida')">Guardar salida</button>
+      <button class="btn b-sec" onclick="mClose('mSalida')">Cancelar</button>
+      <span class="mut" style="margin-left:auto">La salida guardada alimenta la columna "Entrega límite" del tab Entregas y los avisos.</span>
+    </div>
+  </div>
+</div>
+
+<!-- ===== MODAL: nuevo grupo de equivalencia ===== -->
+<div class="modal-bg" id="mGrupo">
+  <div class="modal" style="max-width:760px">
+    <div class="m-head"><h3>Nuevo grupo de equivalencia — EQ-015</h3><button class="x" onclick="mClose('mGrupo')">✕</button></div>
+    <div class="m-body">
+      <div style="margin-bottom:10px"><span class="mut">Nombre del grupo</span><br><input class="qty" style="width:100%;text-align:left" value="Lavandina 5L"></div>
+      <div style="margin-bottom:10px"><span class="mut">Unidad común de comparación</span><br>
+        <select class="qty" style="width:200px;text-align:left"><option>LITRO</option><option>UNIDAD</option><option>KILO</option><option>METRO</option></select></div>
+      <div class="banner info" style="margin-bottom:10px">El sistema sugiere candidatos por similitud de nombre — Logística confirma cuáles entran y con qué factor:</div>
+      <table>
+        <tr><th></th><th>Proveedor</th><th>Producto</th><th class="num">Precio lista</th><th class="num">Factor → unidad común</th></tr>
+        <tr><td>☑</td><td><span class="tag-prov">THAMES</span></td><td>LAVANDINA THAMES AL 60% BIO-LAV × 5L</td><td class="num">$ 4.559,00</td><td class="num"><input class="qty" style="width:70px" value="5"> L</td></tr>
+        <tr><td>☑</td><td><span class="tag-prov nm">NIMI</span></td><td>Lavandina concentrada × 5L <span class="mut">(demo)</span></td><td class="num">$ 5.120,00</td><td class="num"><input class="qty" style="width:70px" value="5"> L</td></tr>
+        <tr><td>☐</td><td><span class="tag-prov">THAMES</span></td><td>LAVANDINA EN GEL × 1L <span class="mut">(candidato — similitud 71%)</span></td><td class="num">$ 1.730,00</td><td class="num mut">producto distinto — no incluir</td></tr>
+      </table>
+    </div>
+    <div class="m-foot"><button class="btn b-pri" onclick="mClose('mGrupo')">Crear grupo</button><button class="btn b-sec" onclick="mClose('mGrupo')">Cancelar</button></div>
+  </div>
+</div>
+
+<!-- ===== MODAL: detalle por servicio (comparador) ===== -->
+<div class="modal-bg" id="mServ">
+  <div class="modal" style="max-width:860px">
+    <div class="m-head"><h3>Drax lavavajillas × 5L — ¿quién lo pidió? · AGOSTO 2026</h3><button class="x" onclick="mClose('mServ')">✕</button></div>
+    <div class="m-body">
+      <div class="banner info" style="margin-bottom:12px">Logística puede cambiar el proveedor <b>servicio por servicio</b> (por precio o calidad) o usar el cambio completo. Cada decisión queda registrada. El mes siguiente, "Repetir mes anterior" le carga a cada supervisor <b>el producto que realmente recibió</b>.</div>
+      <table>
+        <tr><th>Servicio</th><th>Supervisor</th><th class="num">Cant.</th><th class="num">Costo NIMI (Drax)</th><th class="num">Costo THAMES (Bio-Det)</th><th class="num">Ahorro</th><th>Decisión</th></tr>
+        <tr><td><b>JOSIMAR.LANUS</b></td><td class="mut">Josimar B.</td><td class="num">15</td><td class="num">$ 235.192</td><td class="num">$ 110.100</td><td class="num" style="color:#156a3a">$ 125.092</td>
+          <td id="svA"><button class="btn b-ok" style="padding:3px 9px" onclick="svSet('A',1)">Cambiar</button> <button class="btn b-sec" style="padding:3px 9px" onclick="svSet('A',0)">Mantener</button></td></tr>
+        <tr><td><b>EMBA.CABILDO</b></td><td class="mut">Josimar B.</td><td class="num">10</td><td class="num">$ 156.795</td><td class="num">$ 73.400</td><td class="num" style="color:#156a3a">$ 83.395</td>
+          <td id="svB"><button class="btn b-ok" style="padding:3px 9px" onclick="svSet('B',1)">Cambiar</button> <button class="btn b-sec" style="padding:3px 9px" onclick="svSet('B',0)">Mantener</button></td></tr>
+        <tr><td><b>LOS.PINOS</b></td><td class="mut">M. Salinas</td><td class="num">15</td><td class="num">$ 235.192</td><td class="num">$ 110.100</td><td class="num" style="color:#156a3a">$ 125.092</td>
+          <td id="svC"><button class="btn b-ok" style="padding:3px 9px" onclick="svSet('C',1)">Cambiar</button> <button class="btn b-sec" style="padding:3px 9px" onclick="svSet('C',0)">Mantener</button></td></tr>
+      </table>
+      <div class="sug" id="svResumen">Elegí por servicio, o cambiá todos juntos.</div>
+    </div>
+    <div class="m-foot">
+      <button class="btn b-ok" onclick="svTodos()">✔ Cambiar TODOS a THAMES</button>
+      <button class="btn b-pri" onclick="svAplicar()">Aplicar decisiones</button>
+      <button class="btn b-sec" onclick="mClose('mServ')">Cancelar</button>
+      <span class="mut" style="margin-left:auto">"Mantener" pide motivo (calidad / mínimo / otro — parametrizable).</span>
+    </div>
+  </div>
+</div>
+
+<!-- ===== MODAL: checklist de armado ===== -->
+<div class="modal-bg" id="mChk">
+  <div class="modal" style="max-width:620px">
+    <div class="m-head"><h3>Armado — JOSIMAR.LANUS · AGOSTO 2026</h3><span class="chip c-azul" id="chkChip">EN ARMADO</span><button class="x" onclick="mClose('mChk')">✕</button></div>
+    <div class="m-body">
+      <div class="tope-box" style="margin-bottom:12px">
+        <div><div class="t">Progreso del armado</div><div class="b" id="chkProg">5 / 8</div></div>
+        <div style="min-width:230px"><span class="bar" style="width:220px;height:10px"><i id="chkBar" style="width:62%;background:#2f57c9"></i></span></div>
+        <span class="mut">Tildá cada producto al meterlo en la caja</span>
+      </div>
+      <table id="chkTbl">
+        <tr><th></th><th>Producto</th><th class="num">Cantidad</th></tr>
+      </table>
+      <div class="mut" style="margin-top:8px">El remito se genera recién con el armado completo — refleja exactamente lo que va en la caja. Si un producto quedó en backorder, sale del remito y queda pendiente para una segunda entrega con remito propio.</div>
+    </div>
+    <div class="m-foot">
+      <button class="btn b-pri" id="chkBtn" disabled onclick="completarArmado()">✔ Completar armado → generar remito R-4723</button>
+      <button class="btn b-sec" onclick="mClose('mChk')">Guardar y seguir después</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== MODAL: confirmar entrega ===== -->
+<div class="modal-bg" id="mEnt">
+  <div class="modal" style="max-width:560px">
+    <div class="m-head"><h3>Confirmar entrega — ASCENSORES.GERHARDT · R-4721</h3><button class="x" onclick="mClose('mEnt')">✕</button></div>
+    <div class="m-body">
+      <div class="banner info" style="margin-bottom:12px">Servicio PAGAN → firma requerida: <b>CLIENTE</b>. El remito firmado respalda la factura que envía Finanzas.</div>
+      <table>
+        <tr><td class="mut" style="width:170px">Recibió (nombre y aclaración)</td><td><input class="qty" id="entNom" style="width:100%;text-align:left" placeholder="Ej: Carla Pérez — administración"></td></tr>
+        <tr><td class="mut">Quién firma</td><td><select class="qty" style="width:100%;text-align:left"><option>Personal del CLIENTE (default PAGAN)</option><option>Personal propio (supervisor/operario)</option></select></td></tr>
+        <tr><td class="mut">Remito firmado</td><td><button class="btn b-sec">📷 Adjuntar foto del remito firmado</button> <span class="mut">desde el celular, en el momento</span></td></tr>
+        <tr><td class="mut">Fecha/hora</td><td>17/08/2026 · ahora <span class="mut">(automática)</span></td></tr>
+      </table>
+      <div class="mut" style="margin-top:8px">Al confirmar: estado ENTREGADO, el costo impacta al centro de costos del servicio y — por ser PAGAN — la FOTO DEL REMITO FIRMADO viaja a FINANZAS, que la adjunta al MAIL junto con la factura para el cliente.</div>
+    </div>
+    <div class="m-foot">
+      <button class="btn b-pri" onclick="entConfirmar()">✔ Confirmar ENTREGADO</button>
+      <button class="btn b-sec" onclick="mClose('mEnt')">Cancelar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== MODAL: solicitud de presupuesto ===== -->
+<div class="modal-bg" id="mPres">
+  <div class="modal" style="max-width:680px">
+    <div class="m-head"><h3>Solicitud de presupuesto — THAMES · AGOSTO 2026</h3><button class="x" onclick="mClose('mPres')">✕</button></div>
+    <div class="m-body">
+      <div class="banner info" style="margin-bottom:12px">La solicitud va <b>SIN PRECIOS</b>: solo productos (con el código del proveedor), presentación y cantidad — que el proveedor tire su mejor número. Al cargar la respuesta, el sistema compara contra su lista vigente.</div>
+      <div style="display:flex;gap:10px;align-items:center;margin-bottom:12px;flex-wrap:wrap">
+        <b style="font-size:12.5px">Alcance:</b>
+        <select class="qty" style="width:280px;text-align:left" onchange="void 0">
+          <option>Toda la orden del proveedor (51 líneas)</option>
+          <option>Solo líneas sustituidas por el comparador (2)</option>
+          <option>Selección manual (checkbox por línea)</option>
+        </select>
+        <span class="mut">Si cotizás solo las sustituidas y el ahorro se achica, el comparador recalcula y avisa: "¿mantenés el cambio?"</span>
+      </div>
+      <div style="display:flex;gap:10px;align-items:center;margin-bottom:12px;flex-wrap:wrap">
+        <button class="btn b-sec">+ Presupuestar a un proveedor NUEVO (fuera de cartera)</button>
+        <span class="mut">Alta rápida: razón social + contacto → queda en el padrón de Proveedores como <b>EN EVALUACIÓN</b>. Si cotiza bien y se le compra, se completa la ficha y pasa a ACTIVO.</span>
+      </div>
+      <div class="remito">
+        <div class="rh">COOPERATIVA DE TRABAJO OHLIMPIA LTDA.</div>
+        <div style="text-align:center">SOLICITUD DE PRESUPUESTO N° SP-2026-014 · 16/08/2026</div>
+        <hr>
+        <table><tr><td>Para: <b>THAMES</b> — Aguirre 736, CABA</td><td style="text-align:right">Entrega estimada: 1ra semana SEP · Cotizar validez 30 días</td></tr></table>
+        <hr>
+        <table>
+          <tr><th>✓</th><th>Itm</th><th>Cód. proveedor</th><th>Producto</th><th class="num">Cantidad</th><th class="num">Precio unit.</th></tr>
+          <tr><td>☑</td><td>1</td><td>OZOREP295002201</td><td>AROMATIZADOR REP. SMELL FRESH</td><td class="num">300</td><td class="num mut">a cotizar</td></tr>
+          <tr><td>☑</td><td>2</td><td>QUITLI316245LLI</td><td>LIMP NEUTRAL NEUTRAL KLEEN</td><td class="num">100</td><td class="num mut">a cotizar</td></tr>
+          <tr><td>☑</td><td>3</td><td>PAPTOA268040002</td><td>PAP TOALLA INTERC BLANCA</td><td class="num">40</td><td class="num mut">a cotizar</td></tr>
+          <tr><td colspan="6" class="mut">… 48 líneas más (todas tildadas — default: orden completa) · obs: aromatizador varias fragancias, que no sea papaya ni canela ni coco</td></tr>
+        </table>
+      </div>
+    </div>
+    <div class="m-foot"><button class="btn b-pri" onclick="mClose('mPres')">Enviar al proveedor</button><button class="btn b-sec" onclick="mClose('mPres')">Cancelar</button><span class="mut" style="margin-left:auto">Queda en estado ENVIADA con recordatorio de respuesta.</span></div>
+  </div>
+</div>
+
+<!-- ===== MODAL: ficha de solicitud (estilo CRM) ===== -->
+<div class="modal-bg" id="mFicha">
+  <div class="modal" style="max-width:720px">
+    <div class="m-head"><h3>Ficha SP-2026-014 — THAMES · AGOSTO 2026</h3><span class="chip c-verde">COTIZACIÓN RECIBIDA</span><button class="x" onclick="mClose('mFicha')">✕</button></div>
+    <div class="m-body">
+      <div class="pipe" style="margin-top:0">
+        <div class="pstep done">ARMADA</div><div class="pstep done">ENVIADA</div><div class="pstep cur">COTIZACIÓN RECIBIDA</div><div class="pstep">ANALIZADA</div><div class="pstep">ORDEN FIRME</div>
+      </div>
+      <div style="display:flex;gap:20px;flex-wrap:wrap;font-size:12.8px;margin-bottom:14px">
+        <span><b>Alcance:</b> orden completa (51 líneas)</span>
+        <span><b>Responsable:</b> logistica.richard</span>
+        <span><b>Contacto:</b> Marcela D. (vendedor) — del padrón de Proveedores</span>
+      </div>
+      <h2 style="font-size:13.5px;color:#1b2a5e;margin-bottom:8px">Seguimiento</h2>
+      <div class="tl">
+        <div class="ev"><b>Solicitud armada</b> — 51 líneas, sin precios<div class="f">16/08 09:40 · logistica.richard</div></div>
+        <div class="ev"><b>Enviada al proveedor</b> — mail a Marcela D. con PDF adjunto<div class="f">16/08 09:52 · sistema</div></div>
+        <div class="ev"><b>Cotización recibida</b> — archivo cargado con la plantilla Thames · total $ 9.388.450 (2,8% bajo lista)<div class="f">17/08 15:10 · logistica.richard</div></div>
+        <div class="ev pend"><b>Análisis y decisión</b> — convertir en orden firme o desestimar<div class="f">pendiente</div></div>
+        <div class="ev pend"><b>Orden firme</b><div class="f">pendiente</div></div>
+      </div>
+      <h2 style="font-size:13.5px;color:#1b2a5e;margin:10px 0 6px">Notas</h2>
+      <div class="mut" style="margin-bottom:6px">17/08 — "Marcela ofrece mantener estos precios 60 días si confirmamos antes del viernes" · logistica.richard</div>
+      <input class="qty" style="width:100%;text-align:left" placeholder="Agregar nota…">
+    </div>
+    <div class="m-foot">
+      <button class="btn b-pri" onclick="mClose('mFicha');mOpen('mCot')">Ver análisis de cotización</button>
+      <button class="btn b-sec">Reenviar recordatorio</button>
+      <button class="btn b-sec" onclick="mClose('mFicha')">Cerrar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== MODAL: analisis de cotizacion ===== -->
+<div class="modal-bg" id="mCot">
+  <div class="modal" style="max-width:820px">
+    <div class="m-head"><h3>Cotización THAMES — análisis · AGOSTO 2026</h3><span class="chip c-verde">2,8% BAJO LISTA</span><button class="x" onclick="mClose('mCot')">✕</button></div>
+    <div class="m-body">
+      <table>
+        <tr><th>Producto</th><th class="num">Lista vigente</th><th class="num">Cotizado</th><th class="num">Δ vs lista</th><th class="num">Cant.</th><th class="num">Importe cotizado</th></tr>
+        <tr><td>AROMATIZADOR REP. SMELL FRESH</td><td class="num">$ 3.190,00</td><td class="num"><b>$ 3.090,00</b></td><td class="num" style="color:#156a3a">−3,1%</td><td class="num">300</td><td class="num">$ 927.000</td></tr>
+        <tr><td>LIMP NEUTRAL NEUTRAL KLEEN</td><td class="num">$ 7.190,00</td><td class="num"><b>$ 6.950,00</b></td><td class="num" style="color:#156a3a">−3,3%</td><td class="num">100</td><td class="num">$ 695.000</td></tr>
+        <tr><td>PAP TOALLA INTERC BLANCA</td><td class="num">$ 14.900,00</td><td class="num"><b>$ 14.900,00</b></td><td class="num mut">0%</td><td class="num">40</td><td class="num">$ 596.000</td></tr>
+        <tr><td colspan="6" class="mut">… 48 líneas más</td></tr>
+        <tr><td colspan="5" style="text-align:right"><b>TOTAL COTIZADO</b> <span class="mut">(vs $ 9.658.899 a lista)</span></td><td class="num"><b>$ 9.388.450</b></td></tr>
+      </table>
+      <div class="mut" style="margin-top:8px">La cotización se carga a mano o importando el archivo del proveedor (misma plantilla). Los precios cotizados quedan como vigencia "COTIZACIÓN PUNTUAL" — no pisan la lista general.</div>
+    </div>
+    <div class="m-foot">
+      <button class="btn b-pri" onclick="mClose('mCot')">✔ Convertir en ORDEN FIRME a precios cotizados</button>
+      <button class="btn b-sec" onclick="mClose('mCot')">Desestimar (comprar a lista)</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== MODAL: remito ===== -->
+<div class="modal-bg" id="mRem">
+  <div class="modal" style="max-width:640px">
+    <div class="m-head"><h3>Remito R-4720 — AGENCIA.FIBRA</h3><button class="x" onclick="mClose('mRem')">✕</button></div>
+    <div class="m-body">
+      <div class="remito">
+        <div class="rh">COOPERATIVA DE TRABAJO OHLIMPIA LTDA.</div>
+        <div style="text-align:center">Aguilar 2835 — C.A.B.A. · CUIT 30-XXXXXXXX-X</div>
+        <hr>
+        <table><tr><td><b>REMITO N° 4720</b> <span class="mut">(correlativo continuado de Mónica)</span></td><td style="text-align:right">Fecha: 16/08/2026</td></tr>
+        <tr><td>Presentado a: <b>AGENCIA FIBRA</b> · Cód. cliente 520</td><td style="text-align:right">Términos: Contado · Comprobante: FACTURA A</td></tr></table>
+        <hr>
+        <table>
+          <tr><th>Itm</th><th>Código</th><th>Descripción</th><th class="num">Cant</th><th class="num">Precio venta</th><th class="num">Importe</th></tr>
+          <tr><td>1</td><td>P-0002 <span class="mut">(ex 1000043)</span></td><td>LAVANDINA BIO-LAV 60% × 5L</td><td class="num">10</td><td class="num">5.926,70</td><td class="num">59.267,00</td></tr>
+          <tr><td>2</td><td>P-0005 <span class="mut">(ex 1000054)</span></td><td>PAP HIG ALTO MT BLANCO 8×300</td><td class="num">2</td><td class="num">21.255,00</td><td class="num">42.510,00</td></tr>
+          <tr><td>3</td><td>P-0003 <span class="mut">(ex 1000044)</span></td><td>DETERGENTE BIO-DET × 5L</td><td class="num">2</td><td class="num">9.542,00</td><td class="num">19.084,00</td></tr>
+          <tr><td>4</td><td>P-0038</td><td>TRAPO PISO SUPER BLANCO</td><td class="num">10</td><td class="num">1.297,40</td><td class="num">12.974,00</td></tr>
+          <tr><td>5</td><td>P-0052</td><td>FIBRA ESPONJA TRADICIONAL</td><td class="num">12</td><td class="num">375,70</td><td class="num">4.424,10</td></tr>
+        </table>
+        <hr>
+        <table><tr><td></td><td style="text-align:right"><b>TOTAL $ 138.259,10</b></td></tr>
+        <tr><td class="mut">Firma y aclaración: ______________________</td><td style="text-align:right" class="mut">Servicio PAGAN → pasa a FINANZAS para facturar</td></tr></table>
+      </div>
+    </div>
+    <div class="m-foot"><button class="btn b-pri" onclick="mClose('mRem')">🖨 Imprimir / PDF</button><button class="btn b-sec" onclick="mClose('mRem')">Cerrar</button></div>
+  </div>
+</div>
+
+<script>
+// ---------- datos demo (costos = precio proveedor THAMES real) ----------
+const CAT = [
+  {n:'LAVANDINA BIO-LAV 60% × 5L', prov:'THAMES', tipo:'NORMAL', c:4559},
+  {n:'DETERGENTE BIO-DET × 5L', prov:'THAMES', tipo:'NORMAL', c:7340},
+  {n:'PAP HIG ALTO MT BLANCO 8×300', prov:'THAMES', tipo:'NORMAL', c:16350},
+  {n:'PAP TOALLA INTERC BLANCA', prov:'THAMES', tipo:'NORMAL', c:14900},
+  {n:'BOLSA 60X90 NEGRA (unid.)', prov:'THAMES', tipo:'NORMAL', c:63.83},
+  {n:'TRAPO PISO SUPER BLANCO', prov:'THAMES', tipo:'NORMAL', c:998},
+  {n:'DESOD. PISO THAMES FLOWER × 5L', prov:'THAMES', tipo:'NORMAL', c:5290},
+  {n:'FIBRA ESPONJA TRADICIONAL', prov:'THAMES', tipo:'NORMAL', c:289},
+  {n:'CERA ACRILICA ACRY SEAL', prov:'THAMES', tipo:'TRATAMIENTO PISO', c:22260},
+  {n:'VIREX II 256 J-FLEX × 1,5L', prov:'DIVERSEY', tipo:'CON AUTORIZACION', c:21900},
+];
+// estados: 0 sin iniciar, 1 borrador, 2 elevado, 3 observado
+const SRV = [
+  {n:'JOSIMAR.LANUS',    tope:118200, est:2, q:[10,4,3,2,200,10,4,12,0,0], prev:[8,4,2,2,150,10,4,12,0,0]},
+  {n:'EMBA.CABILDO',     tope:96400,  est:2, q:[6,2,2,1,100,6,2,6,0,2],  prev:[6,2,2,1,100,6,2,6,0,0]},
+  {n:'INDICOM',          tope:74500,  est:3, q:[6,2,2,2,80,6,2,6,0,0],   prev:[5,2,2,1,80,5,2,6,0,0]},
+  {n:'HIT.LIBERTADOR',   tope:152300, est:1, q:[12,6,4,3,250,12,6,12,0,0],prev:[12,5,4,3,220,10,6,12,0,0]},
+  {n:'GYM.BELGRANO001',  tope:54000,  est:1, q:[4,1,1,1,60,4,2,4,0,0],   prev:[4,1,1,1,50,4,2,4,0,0]},
+  {n:'CHANGO.MAS.MORON', tope:187600, est:0, q:[0,0,0,0,0,0,0,0,0,0],    prev:[15,8,6,4,300,15,8,15,1,0]},
+  {n:'LOS.PINOS',        tope:98700,  est:0, q:[0,0,0,0,0,0,0,0,0,0],    prev:[8,3,2,2,120,8,3,8,1,0]},
+  {n:'REYLAT',           tope:61200,  est:0, q:[0,0,0,0,0,0,0,0,0,0],    prev:[5,2,1,1,80,5,2,5,0,0]},
+];
+const EST = [
+  ['SIN INICIAR','c-gris'],['BORRADOR','c-azul'],['ELEVADO','c-verde'],['OBSERVADO POR AUDITOR','c-nara']
+];
+let cur = -1, mesAct = '2026-08';
+
+const fmt = v => '$ ' + v.toLocaleString('es-AR',{minimumFractionDigits:0,maximumFractionDigits:0});
+const costoDe = s => s.q.reduce((a,q,i)=>a+q*CAT[i].c,0);
+const chipEst = e => `<span class="chip ${EST[e][1]}">${EST[e][0]}</span>`;
+
+function renderS(){
+  const t = document.getElementById('tblSrv');
+  t.querySelectorAll('tr:not(:first-child)').forEach(r=>r.remove());
+  const cerrado = mesAct !== '2026-08';
+  document.getElementById('titSrv').textContent = 'Mis servicios — pedido de ' + (mesAct==='2026-08'?'AGOSTO 2026':(mesAct==='2026-07'?'JULIO 2026 (historial)':'JUNIO 2026 (historial)'));
+  SRV.forEach((s,i)=>{
+    const c = cerrado ? costoDe({q:s.prev}) : costoDe(s);
+    const pct = Math.round(c/s.tope*100);
+    const col = pct>100?'#d33':pct>85?'#e0a010':'#2e9e5b';
+    const tr = document.createElement('tr');
+    tr.className = 'clk' + (cerrado?' hist-lock':'');
+    tr.innerHTML = `<td><b>${s.n}</b></td><td class="num">${fmt(s.tope)}</td><td class="num">${c?fmt(c):'—'}</td>
+      <td><span class="bar"><i style="width:${Math.min(pct,100)}%;background:${col}"></i></span> <span class="mut">${c?pct+'%':''}</span></td>
+      <td>${cerrado?'<span class="chip c-verde">ELEVADO · ENTREGADO</span>':chipEst(s.est)}</td>`;
+    if(!cerrado) tr.onclick = ()=>abrirPed(i);
+    t.appendChild(tr);
+  });
+  const n = e => SRV.filter(s=>s.est===e).length;
+  document.getElementById('kElev').textContent = cerrado?8:n(2);
+  document.getElementById('kBorr').textContent = cerrado?0:n(1);
+  document.getElementById('kSin').textContent  = cerrado?0:n(0);
+  document.getElementById('kObs').textContent  = cerrado?0:n(3);
+}
+
+function abrirPed(i){
+  cur = i; const s = SRV[i];
+  document.getElementById('pedTit').textContent = 'Pedido AGOSTO 2026 — ' + s.n;
+  const tbl = document.getElementById('pedTbl');
+  tbl.querySelectorAll('tr:not(:first-child)').forEach(r=>r.remove());
+  CAT.forEach((p,j)=>{
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td>${p.n}</td><td><span class="tag-prov ${p.prov==='DIVERSEY'?'dv':''}">${p.prov}</span></td>
+      <td>${p.tipo==='NORMAL'?'<span class="mut">NORMAL</span>':`<span class="chip ${p.tipo==='CON AUTORIZACION'?'c-viol':'c-nara'}">${p.tipo}</span>`}</td>
+      <td class="num">${'$ '+p.c.toLocaleString('es-AR',{minimumFractionDigits:2})}</td>
+      <td class="num"><input class="qty" type="number" min="0" value="${s.q[j]}" oninput="upd(${j},this.value)"></td>
+      <td class="num" id="sub${j}">${fmt(s.q[j]*p.c)}</td>`;
+    tbl.appendChild(tr);
+  });
+  document.getElementById('pedMsg').textContent='';
+  document.getElementById('obsBox').style.display = s.est===3 ? 'block' : 'none';
+  document.getElementById('justBox').style.display='none';
+  calcM(); mOpen('mPed');
+}
+function aceptarProp(){
+  const s = SRV[cur];
+  s.q[3] = 0; // aplica la propuesta demo (papel toalla 2 -> 0)
+  s.est = 2;
+  document.getElementById('obsBox').style.display='none';
+  document.getElementById('pedMsg').textContent = '✔ Propuesta aceptada — pedido APROBADO directo (no vuelve a la bandeja).';
+  abrirPed(cur);
+  document.getElementById('pedMsg').textContent = '✔ Propuesta aceptada — pedido APROBADO directo (no vuelve a la bandeja).';
+  renderS();
+}
+function upd(j,v){ SRV[cur].q[j] = Math.max(0, parseInt(v||0)); document.getElementById('sub'+j).textContent = fmt(SRV[cur].q[j]*CAT[j].c); calcM(); }
+function calcM(){
+  const s = SRV[cur]; const c = costoDe(s); const pct = Math.round(c/s.tope*100);
+  document.getElementById('pedTope').textContent = fmt(s.tope);
+  document.getElementById('pedTot').textContent  = fmt(c);
+  document.getElementById('pedPct').textContent  = pct + '%';
+  const bar = document.getElementById('pedBar');
+  bar.style.width = Math.min(pct,100)+'%';
+  bar.style.background = pct>100?'#d33':pct>85?'#e0a010':'#2e9e5b';
+  const sem = document.getElementById('pedSem');
+  const auth = CAT.some((p,j)=>p.tipo==='CON AUTORIZACION' && s.q[j]>0);
+  if(pct>100){ sem.className='sem s-alto'; sem.textContent='EXCEDE EL TOPE — al elevar pasa por el AUDITOR'; }
+  else if(auth){ sem.className='sem s-mid'; sem.textContent='CON AUTORIZACIÓN — al elevar pasa por el AUDITOR'; }
+  else if(pct>85){ sem.className='sem s-mid'; sem.textContent='CERCA DEL TOPE ('+pct+'%)'; }
+  else { sem.className='sem s-ok'; sem.textContent='DENTRO DEL TOPE'; }
+  document.getElementById('pedChip').outerHTML = `<span class="chip ${EST[s.est][1]}" id="pedChip">${EST[s.est][0]}</span>`;
+}
+function repetir(){
+  const s = SRV[cur]; s.q = [...s.prev];
+  abrirPed(cur);
+  document.getElementById('pedMsg').textContent = '↺ Cantidades de JULIO cargadas — revisá y guardá.';
+}
+function desvios(s){
+  const d = [];
+  let tPrev = 0, tAct = 0;
+  CAT.forEach((p,j)=>{
+    tPrev += (s.prev[j]||0)*p.c; tAct += (s.q[j]||0)*p.c;
+    if(s.q[j]>0 && (s.prev[j]||0)===0) d.push(`Primer pedido de ${p.n} en este servicio (fuera de perfil)`);
+    else if(s.prev[j]>0 && s.q[j] >= s.prev[j]*3) d.push(`${p.n}: ${s.q[j]} un. vs promedio ${s.prev[j]} (cantidad anómala)`);
+  });
+  if(tPrev>0 && tAct >= tPrev*2) d.push(`Total del pedido ${Math.round(tAct/tPrev*100)}% de su promedio histórico (salto de consumo)`);
+  return d;
+}
+function guardar(elevar){
+  const s = SRV[cur];
+  if(elevar){
+    const d = desvios(s);
+    if(d.length){
+      document.getElementById('justList').innerHTML = d.map(x=>'• '+x).join('<br>');
+      document.getElementById('justBox').style.display='block';
+      document.getElementById('pedMsg').textContent='';
+      return;
+    }
+  }
+  s.est = elevar ? 2 : 1;
+  document.getElementById('pedMsg').textContent = elevar
+    ? '✔ Pedido ELEVADO. ' + (costoDe(s)>s.tope ? 'Excede el tope → queda en la bandeja del auditor.' : 'Dentro del tope → pasa directo a Compras.')
+    : '💾 Borrador guardado. Al cierre (20/08 18:00) los borradores se elevan automáticamente y te llega notificación.';
+  calcM(); renderS();
+}
+function confirmarElevar(){
+  const s = SRV[cur];
+  s.est = 2;
+  document.getElementById('justBox').style.display='none';
+  document.getElementById('pedMsg').textContent = '✔ Pedido ELEVADO con desvíos justificados → bandeja del auditor (FUERA DE ESTÁNDAR).';
+  calcM(); renderS();
+  const n=document.getElementById('nAud'); n.textContent=parseInt(n.textContent)+1;
+}
+
+// auditor demo
+function audOk(b){ const tr=b.closest('tr'); tr.cells[6].innerHTML='<span class="chip c-verde">APROBADO</span>'; dec(); }
+function audRec(b){ const tr=b.closest('tr'); tr.cells[6].innerHTML='<span class="chip c-nara">RECORTADO → DEVUELTO AL SUPERVISOR</span>'; dec(); }
+function dec(){ const n=document.getElementById('nAud'); n.textContent=Math.max(0,parseInt(n.textContent)-1); }
+
+// ventana del auditor (demo JOSIMAR.LANUS)
+const AUD = [
+  {n:'LAVANDINA BIO-LAV 60% × 5L', c:4559,  sup:10},
+  {n:'DETERGENTE BIO-DET × 5L',    c:7340,  sup:3},
+  {n:'PAP HIG ALTO MT BLANCO 8×300',c:16350, sup:3},
+  {n:'PAP TOALLA INTERC BLANCA',   c:14900, sup:1},
+  {n:'DESOD. PISO THAMES FLOWER × 5L',c:5290, sup:2},
+  {n:'TRAPO PISO SUPER BLANCO',    c:998,   sup:9},
+];
+const AUD_TOPE = 118200;
+let audQ = AUD.map(a=>a.sup);
+function audRender(){
+  const tbl = document.getElementById('audTbl');
+  tbl.querySelectorAll('tr:not(:first-child)').forEach(r=>r.remove());
+  AUD.forEach((a,j)=>{
+    const dif = audQ[j]!==a.sup;
+    const tr = document.createElement('tr');
+    if(dif) tr.style.background='#fff6e8';
+    tr.innerHTML = `<td>${a.n}</td><td class="num">${'$ '+a.c.toLocaleString('es-AR')}</td>
+      <td class="num"><span class="mut">${a.sup}</span></td>
+      <td class="num"><input class="qty" type="number" min="0" value="${audQ[j]}" oninput="audUpd(${j},this.value)"> ${dif?'<span class="chip c-nara">'+a.sup+' → '+audQ[j]+'</span>':''}</td>
+      <td class="num">${'$ '+(audQ[j]*a.c).toLocaleString('es-AR')}</td>`;
+    tbl.appendChild(tr);
+  });
+  const tot = AUD.reduce((s,a,j)=>s+audQ[j]*a.c,0);
+  const pct = Math.round(tot/AUD_TOPE*100);
+  document.getElementById('audTot').textContent = '$ ' + tot.toLocaleString('es-AR');
+  document.getElementById('audPct').textContent = pct + '%';
+  const bar = document.getElementById('audBar');
+  bar.style.width = Math.min(pct,100)+'%';
+  bar.style.background = pct>100?'#d33':pct>85?'#e0a010':'#2e9e5b';
+  const sem = document.getElementById('audSem');
+  if(pct>100){ sem.className='sem s-alto'; sem.textContent='EXCEDE EL TOPE'; }
+  else if(pct>85){ sem.className='sem s-mid'; sem.textContent='CERCA DEL TOPE ('+pct+'%)'; }
+  else { sem.className='sem s-ok'; sem.textContent='DENTRO DEL TOPE'; }
+}
+function audUpd(j,v){ audQ[j] = Math.max(0, parseInt(v||0)); audRender(); }
+function audDevolver(){
+  mClose('mAud');
+  document.getElementById('cellJos').innerHTML='<span class="chip c-nara">DEVUELTO CON PROPUESTA</span>';
+  SRV[0].est = 3; renderS(); dec();
+}
+function audDirecto(){
+  mClose('mAud');
+  document.getElementById('cellJos').innerHTML='<span class="chip c-verde">APROBADO CON AJUSTE · supervisor notificado</span>';
+  SRV[0].est = 2; renderS(); dec();
+}
+audRender();
+
+// tabs / mes / modales
+// checklist de armado (demo JOSIMAR.LANUS)
+const CHK = [
+  {n:'LAVANDINA BIO-LAV 60% × 5L', q:10, ok:true},
+  {n:'DETERGENTE BIO-DET × 5L', q:3, ok:true},
+  {n:'PAP HIG ALTO MT BLANCO 8×300', q:3, ok:true},
+  {n:'PAP TOALLA INTERC BLANCA', q:1, ok:true},
+  {n:'DESOD. PISO THAMES FLOWER × 5L', q:2, ok:true},
+  {n:'TRAPO PISO SUPER BLANCO', q:9, ok:false},
+  {n:'BOLSA 60X90 NEGRA', q:200, ok:false},
+  {n:'FIBRA ESPONJA TRADICIONAL', q:12, ok:false},
+];
+function chkRender(){
+  const tbl = document.getElementById('chkTbl');
+  tbl.querySelectorAll('tr:not(:first-child)').forEach(r=>r.remove());
+  CHK.forEach((c,j)=>{
+    const tr = document.createElement('tr');
+    if(c.ok) tr.style.background='#f3fbf6';
+    tr.innerHTML = `<td><input type="checkbox" ${c.ok?'checked':''} onchange="chkTog(${j})" style="width:17px;height:17px;cursor:pointer"></td>
+      <td style="${c.ok?'color:#156a3a':''}">${c.n}</td><td class="num">${c.q}</td>`;
+    tbl.appendChild(tr);
+  });
+  const done = CHK.filter(c=>c.ok).length;
+  document.getElementById('chkProg').textContent = done + ' / ' + CHK.length;
+  document.getElementById('chkBar').style.width = Math.round(done/CHK.length*100)+'%';
+  document.getElementById('chkBar').style.background = done===CHK.length ? '#2e9e5b' : '#2f57c9';
+  document.getElementById('chkBtn').disabled = done!==CHK.length;
+  document.getElementById('progJ').textContent = done + '/' + CHK.length + ' productos';
+}
+function chkTog(j){ CHK[j].ok = !CHK[j].ok; chkRender(); }
+function completarArmado(){
+  mClose('mChk');
+  document.getElementById('estJ').innerHTML = '<span class="chip c-teal">ARMADO ✔</span> <span class="mut">listo para salir · remito impreso ×2</span>';
+  document.getElementById('remJ').innerHTML = '<button class="btn b-line" style="padding:4px 12px" onclick="mOpen(\'mRem\')">R-4723</button>';
+}
+function entConfirmar(){
+  const nom = document.getElementById('entNom').value || 'Carla Pérez — administración';
+  mClose('mEnt');
+  document.getElementById('estG').innerHTML = '<span class="chip c-verde">ENTREGADO 17/08</span><br><span class="mut">Recibió: '+nom+' (cliente) · 📷 remito firmado → FINANZAS: se adjunta al mail con la factura al cliente</span>';
+  document.getElementById('remG').innerHTML = '<button class="btn b-line" style="padding:4px 12px" onclick="mOpen(\'mRem\')">R-4721</button>';
+}
+chkRender();
+
+// ---- comparador (subtabs de Catálogo) ----
+function stab(i,el){ document.querySelectorAll('.stab').forEach(t=>t.classList.remove('act')); el.classList.add('act');
+  document.querySelectorAll('.sub').forEach(p=>p.classList.remove('act')); document.getElementById('sp'+i).classList.add('act'); }
+let tomado = 0;
+const AH = {B:24211, D:333579, T:13800};
+const NEWP = {B:'<span class="tag-prov">THAMES</span> <span class="chip c-nara">SUSTITUIDO POR EQUIVALENTE</span>', D:'<span class="tag-prov">THAMES</span> <span class="chip c-nara">SUSTITUIDO POR EQUIVALENTE</span>', T:'<span class="tag-prov nm">NIMI</span> <span class="chip c-nara">SUSTITUIDO POR EQUIVALENTE</span>'};
+const NEWCOST = {B:'$ 12.766', D:'$ 293.600', T:'$ 86.000'};
+function cambiar(k){
+  document.getElementById('prov'+k).innerHTML = NEWP[k];
+  document.getElementById('cost'+k).textContent = NEWCOST[k];
+  document.getElementById('dec'+k).innerHTML = '<span class="chip c-verde">CAMBIADO ✔ registrado</span>';
+  tomado += AH[k];
+  document.getElementById('tomado').textContent = '$ ' + tomado.toLocaleString('es-AR');
+}
+function mantener(k){
+  document.getElementById('dec'+k).innerHTML = '<span class="chip c-gris">MANTENIDO</span><br><select class="mut" style="margin-top:4px;padding:3px;border:1px solid #c6cbda;border-radius:5px"><option>Motivo: calidad</option><option>Motivo: mínimo de compra</option><option>Motivo: plazo de entrega</option><option>⚙ Parametrizables…</option></select>';
+}
+const SV = {A:{q:15,ah:125092,est:null},B:{q:10,ah:83395,est:null},C:{q:15,ah:125092,est:null}};
+function svSet(k,v){
+  SV[k].est = v;
+  document.getElementById('sv'+k).innerHTML = v===1
+    ? '<span class="chip c-verde">CAMBIA A THAMES</span>'
+    : '<span class="chip c-gris">MANTIENE NIMI</span><br><select class="mut" style="margin-top:3px;padding:2px;border:1px solid #c6cbda;border-radius:5px"><option>Motivo: calidad</option><option>Motivo: mínimo</option><option>⚙…</option></select>';
+  svCalc();
+}
+function svTodos(){ svSet('A',1); svSet('B',1); svSet('C',1); }
+function svCalc(){
+  const ah = Object.values(SV).filter(s=>s.est===1).reduce((a,s)=>a+s.ah,0);
+  const qC = Object.values(SV).filter(s=>s.est===1).reduce((a,s)=>a+s.q,0);
+  document.getElementById('svResumen').innerHTML = `💡 Con lo elegido: <b>${qC} de 40 bidones pasan a THAMES</b> · ahorro de la línea: <b>$ ${ah.toLocaleString('es-AR')}</b>.`;
+}
+function svAplicar(){
+  const cambiados = Object.values(SV).filter(s=>s.est===1);
+  const qC = cambiados.reduce((a,s)=>a+s.q,0);
+  const ah = cambiados.reduce((a,s)=>a+s.ah,0);
+  mClose('mServ');
+  if(qC===0) return;
+  if(qC===40){
+    document.getElementById('provD').innerHTML = NEWP['D'];
+    document.getElementById('costD').textContent = NEWCOST['D'];
+  } else {
+    document.getElementById('provD').innerHTML = `<span class="tag-prov">THAMES</span>+<span class="tag-prov nm">NIMI</span> <span class="chip c-nara">SUSTITUCIÓN PARCIAL: ${qC}/40 a THAMES</span>`;
+    document.getElementById('costD').textContent = '$ ' + (627179 - ah).toLocaleString('es-AR');
+  }
+  document.getElementById('decD').innerHTML = '<span class="chip c-verde">DECIDIDO POR SERVICIO ✔</span>';
+  tomado += ah;
+  document.getElementById('tomado').textContent = '$ ' + tomado.toLocaleString('es-AR');
+}
+
+function tab(i,el){ document.querySelectorAll('.tab').forEach(t=>t.classList.remove('act')); el.classList.add('act');
+  document.querySelectorAll('.panel').forEach(p=>p.classList.remove('act')); document.getElementById('p'+i).classList.add('act'); }
+function setMes(m){ mesAct=m; document.getElementById('lockBanner').style.display = m==='2026-08'?'none':'flex';
+  document.getElementById('banVent').style.display = m==='2026-08'?'flex':'none'; renderS(); }
+function mOpen(id){ document.getElementById(id).classList.add('open'); }
+function mClose(id){ document.getElementById(id).classList.remove('open'); }
+function eCalc(){ const c=parseFloat(document.getElementById('eCosto').value||0), r=parseFloat(document.getElementById('eRec').value||0);
+  document.getElementById('ePV').textContent = '$ ' + (c*(1+r/100)).toLocaleString('es-AR',{minimumFractionDigits:2}); }
+
+renderS();
+</script>
+</body>
+</html>
