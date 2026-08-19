@@ -157,6 +157,12 @@ que construir uno nuevo, cloná este patrón en vez de inventar uno:
   `BEGIN;`/`COMMIT;`, siempre aditivas (nunca editar un archivo `vNNN`
   ya aplicado — si hace falta corregir algo, es un `vNNN+1` nuevo).
 
+## Convenciones de frontend
+
+- **Usar `addEventListener` para elementos dinámicos:** Para botones u otros elementos interactivos creados dinámicamente en JavaScript, siempre use `addEventListener` para adjuntar controladores de eventos en lugar de establecer el atributo `onclick`. Esto evita posibles problemas de alcance con los módulos de ES y es una práctica más sólida y moderna para el manejo de eventos.
+  - **Mal:** `btn.setAttribute('onclick', 'miFuncion()');`
+  - **Bien:** `btn.addEventListener('click', miFuncion);`
+
 ## Deploy
 
 - `npx --no-install vercel deploy --prod --token "$VERCEL_TOKEN" --yes`
