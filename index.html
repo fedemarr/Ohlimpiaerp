@@ -4672,21 +4672,34 @@
   <div class="card" style="border-radius:0 var(--radio-lg) var(--radio-lg) var(--radio-lg);">
     <div id="stock-tab-actual" class="tab-content active">
       <div class="card-header">
-        <h3>Stock actual por prenda/talle</h3>
+        <h3>Stock actual — Productos y Uniformes</h3>
         <div class="filtros-bar">
-          <input type="text" placeholder="🔍 Prenda o talle..." id="stock-buscar" oninput="filtrarStockUniformes()">
+          <div id="stock-chip-categoria" style="display:flex;gap:6px;margin-right:10px;">
+            <button class="chip-filtro active" data-cat="todos" onclick="filtrarCategoriaStock('todos')">Todos</button>
+            <button class="chip-filtro" data-cat="PRODUCTOS" onclick="filtrarCategoriaStock('PRODUCTOS')">🛒 Productos</button>
+            <button class="chip-filtro" data-cat="UNIFORMES" onclick="filtrarCategoriaStock('UNIFORMES')">👔 Uniformes</button>
+          </div>
+          <input type="text" placeholder="🔍 Buscar..." id="stock-buscar" oninput="filtrarStockUniformes()">
           <button class="btn btn-secondary btn-sm" onclick="abrirConteoFisico()">🔢 Conteo físico</button>
         </div>
       </div>
       <div class="tabla-wrap"><table>
-        <thead><tr><th>Prenda</th><th>Talle</th><th>Cantidad</th></tr></thead>
+        <thead><tr>
+          <th style="text-align:left;padding:8px 10px;">Producto</th>
+          <th style="text-align:center;padding:8px;">Categoría</th>
+          <th style="text-align:right;padding:8px;">Existencia</th>
+          <th style="text-align:right;padding:8px;">PPP</th>
+          <th style="text-align:right;padding:8px;">Vigente</th>
+          <th style="text-align:right;padding:8px;">Valorización</th>
+          <th style="text-align:center;padding:8px;">Estado</th>
+        </tr></thead>
         <tbody id="tbody-stock-uniformes"></tbody>
       </table></div>
     </div>
     <div id="stock-tab-movimientos" class="tab-content">
       <div class="card-header"><h3>Movimientos (últimos 300)</h3></div>
       <div class="tabla-wrap"><table>
-        <thead><tr><th>Tipo</th><th>Prenda</th><th>Talle</th><th>Cantidad</th><th>Motivo</th><th>Registrado por</th></tr></thead>
+        <thead><tr><th>Cat.</th><th>Tipo</th><th>Producto</th><th>Cantidad</th><th>Motivo</th><th>Registrado por</th></tr></thead>
         <tbody id="tbody-stock-movimientos"></tbody>
       </table></div>
     </div>

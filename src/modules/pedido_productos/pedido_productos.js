@@ -708,10 +708,16 @@ export function marcarEnCompraPP(pedidoId) {
   renderComprasPP();
   toast('✓ Marcado en compra');
 }
-export function marcarEntregadoPP(pedidoId) {
+export async function marcarEntregadoPP(pedidoId) {
   const pedido = getPedidoPP(pedidoId); if (!pedido || pedido.estado !== 'en_compra') return;
+  const items = (DB.ppItems || []).filter(it => String(it.pedidoIdLocal) === String(pedido.id));
   pedido.estado = 'entregado'; pedido.entregadoEn = new Date().toISOString();
-  supaSync('ppPedidos', pedido);
+  await supaSync('ppPedidos', pedido);
+  // Genera ENTRADAS al stock unificado (v095)
+  try {
+    const { recibirPedidoProductosPP } = await import('@modules/uniformes/stock.js');
+    await recibirPedidoProductosPP(pedido.id, items);
+  } catch (_) { /* stock module no disponible, skip */ }
   renderComprasPP();
-  toast('✓ Marcado como entregado');
+  toast('✓ Pedido entregado — stock actualizado');
 }

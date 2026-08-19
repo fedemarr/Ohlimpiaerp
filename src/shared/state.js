@@ -38,6 +38,9 @@ export const DB = {
   ppItems: [],
   // v094 — Maestro de proveedores (mínimo para conexión con pp_productos)
   proveedores: [],
+  // v095 — Stock de productos de limpieza (ver src/modules/uniformes/stock.js)
+  stockProductos: [],
+  stockProductosMovimientos: [],
   // Superadmin: registro de empresas clientes del sistema (sql/v089) —
   // vive solo en el Supabase de Ohlimpia, no es dato operativo de ninguna
   // empresa cliente. Ver src/modules/superadmin/.

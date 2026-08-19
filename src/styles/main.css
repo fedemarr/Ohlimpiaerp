@@ -196,6 +196,9 @@ tbody tr{cursor:pointer;transition:background .1s;}
 .btn-naranja{background:var(--naranja-suave);color:var(--naranja);border:1px solid #f5c9a0;}
 .btn-sm{padding:5px 12px;font-size:12px;}
 .btn-xs{padding:3px 8px;font-size:11px;}
+.chip-filtro{padding:4px 12px;border-radius:16px;font-size:11px;font-weight:600;border:1px solid var(--borde-fuerte);background:white;color:var(--texto-suave);cursor:pointer;transition:all .15s;}
+.chip-filtro:hover{background:var(--azul-claro);border-color:var(--azul);color:var(--azul);}
+.chip-filtro.active{background:var(--azul);color:white;border-color:var(--azul);}
 
 /* FORMS */
 .form-grid{display:grid;gap:14px;}

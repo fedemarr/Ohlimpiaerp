@@ -36,7 +36,7 @@ export { chequearAlertas24hs, chequear15Dias } from './vencimientos.js';
 
 export {
   cambiarTabStockUniformes, renderStock,
-  filtrarStockUniformes,
+  filtrarStockUniformes, filtrarCategoriaStock,
   abrirConteoFisico, cambiarCantidadContadaConteo, guardarConteoFisico,
 } from './stock.js';
 
@@ -113,7 +113,7 @@ import {
 import { filtrarDescuentosUniformes, exportarDescuentosUniformesExcel } from './descuentos.js';
 import { filtrarDevolucionesBaja, abrirGenerarOrdenManual, abrirCierreDevolucion, confirmarCierreDevolucion, generarOrdenDevolucionUniformes } from './devoluciones.js';
 import {
-  cambiarTabStockUniformes, renderStock, filtrarStockUniformes,
+  cambiarTabStockUniformes, renderStock, filtrarStockUniformes, filtrarCategoriaStock,
   abrirConteoFisico, cambiarCantidadContadaConteo, guardarConteoFisico,
 } from './stock.js';
 
@@ -170,6 +170,7 @@ window.generarOrdenDevolucionUniformes = generarOrdenDevolucionUniformes;
 window.cambiarTabStockUniformes = cambiarTabStockUniformes;
 window.renderStock = renderStock;
 window.filtrarStockUniformes = filtrarStockUniformes;
+window.filtrarCategoriaStock = filtrarCategoriaStock;
 window.abrirConteoFisico = abrirConteoFisico;
 window.cambiarCantidadContadaConteo = cambiarCantidadContadaConteo;
 window.guardarConteoFisico = guardarConteoFisico;

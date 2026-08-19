@@ -128,6 +128,9 @@ export const _SM = {
   stockUniformesMovimientos: 'stock_uniformes_movimientos',
   comprasUniformes: 'compras_uniformes',
   stockConteosUniformes: 'stock_conteos_uniformes',
+  // v095 — Stock de productos de limpieza
+  stockProductos: 'stock_productos',
+  stockProductosMovimientos: 'stock_productos_movimientos',
   objetivos: 'objetivos',
   objetivoResponsables: 'objetivo_responsables',
   objetivoAdjuntos: 'objetivo_adjuntos',
@@ -510,6 +513,10 @@ export function _toSnake(obj) {
     costoCongelado: 'costo_congelado', ajustadoPor: 'ajustado_por',
     ajustadoEn: 'ajustado_en', cantAntesAjuste: 'cant_antes_ajuste',
     proveedorIdLocal: 'proveedor_id_local',
+    // v095 — Stock de productos
+    costoPpp: 'costo_ppp', costoVigente: 'costo_vigente',
+    stockMinimo: 'stock_minimo', stockObjetivo: 'stock_objetivo',
+    costoUnitario: 'costo_unitario',
     // v094 — Proveedores
     // (nombre, codigo, estado, contacto are already snake_case)
     // v089 — Superadmin / empresas cliente
@@ -855,6 +862,10 @@ export function _toCamel(obj) {
     costo_congelado: 'costoCongelado', ajustado_por: 'ajustadoPor',
     ajustado_en: 'ajustadoEn', cant_antes_ajuste: 'cantAntesAjuste',
     proveedor_id_local: 'proveedorIdLocal',
+    // v095 — Stock de productos
+    costo_ppp: 'costoPpp', costo_vigente: 'costoVigente',
+    stock_minimo: 'stockMinimo', stock_objetivo: 'stockObjetivo',
+    costo_unitario: 'costoUnitario',
     // v089 — Superadmin / empresas cliente
     modulos_contratados: 'modulosContratados', supabase_url: 'supabaseUrl', vercel_url: 'vercelUrl',
     supabase_anon_key: 'supabaseAnonKey', // v090
