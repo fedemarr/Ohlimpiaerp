@@ -8230,6 +8230,19 @@ if(!DB.monoCambios) DB.monoCambios = [];
 // Tablas de categorías con vigencia
 // Estructura: DB.monoTablas[vigencia] = [{cat, limiteAnual, curBase, curCapital, curConFamilia, curCapitalConFamilia}]
 if(!DB.monoTablas) DB.monoTablas = {
+  '2026-08': [
+    {cat:'A', limiteAnual:12009410.45,  impuestoIntegrado:5585.77,   aportesSIPA:18246.86,  obraSocial:25694.55,  cur:49527.18},
+    {cat:'B', limiteAnual:17595182.74,  impuestoIntegrado:10612.98,  aportesSIPA:20071.55,  obraSocial:25694.55,  cur:56379.08},
+    {cat:'C', limiteAnual:24670494.31,  impuestoIntegrado:18246.86,  aportesSIPA:22078.71,  obraSocial:25694.55,  cur:66020.12},
+    {cat:'D', limiteAnual:30628651.43,  impuestoIntegrado:29790.79,  aportesSIPA:24286.58,  obraSocial:30535.56,  cur:84612.93},
+    {cat:'E', limiteAnual:36028231.33,  impuestoIntegrado:55857.73,  aportesSIPA:26715.24,  obraSocial:37238.48,  cur:119811.45},
+    {cat:'F', limiteAnual:45151659.41,  impuestoIntegrado:78573.20,  aportesSIPA:29386.76,  obraSocial:42824.25,  cur:150784.21},
+    {cat:'G', limiteAnual:53995798.87,  impuestoIntegrado:142995.76, aportesSIPA:41141.46,  obraSocial:46175.72,  cur:230312.94},
+    {cat:'H', limiteAnual:81924660.37,  impuestoIntegrado:409623.31, aportesSIPA:57598.04,  obraSocial:55485.33,  cur:522706.68},
+    {cat:'I', limiteAnual:91699761.90,  impuestoIntegrado:814591.79, aportesSIPA:80637.26,  obraSocial:68518.81,  cur:963747.86},
+    {cat:'J', limiteAnual:105012519.20, impuestoIntegrado:977510.14, aportesSIPA:112892.16, obraSocial:76897.46,  cur:1167299.76},
+    {cat:'K', limiteAnual:126610838.75, impuestoIntegrado:1368514.20,aportesSIPA:158049.02, obraSocial:87882.82,  cur:1614446.04},
+  ],
   '2024-01': [
     {cat:'A', limiteAnual:2112000,  curBase:8685,  curCapital:10685, curConFamilia:13685, curCapitalConFamilia:15685},
     {cat:'B', limiteAnual:3168000,  curBase:9785,  curCapital:11985, curConFamilia:15985, curCapitalConFamilia:18185},
@@ -8249,6 +8262,20 @@ if(!DB.monoTablas) DB.monoTablas = {
 // [{id, periodo, nroSocio, nombre, curCongelado, adherentesMontoCongelado,
 //   total, pagado, metodoPago, pagadoPor, pagadoEn}]
 if(!DB.monoPagosMes) DB.monoPagosMes = [];
+
+// Casos del import — los 10 casos a resolver por RRHH ( MOCKUP_MONOTRIBUTOS_AGO2026)
+if(!DB.monoCasosImport) DB.monoCasosImport = [
+  {id:1, nroSocio:'2271',  nombre:'Bianchi Jorgelina',         tipo:'DEFINIR',  detalle:'AUTÓNOMO — régimen a definir',                       accionEsperada:'RRHH define si entra al padrón',              resuelto:false, resueltoPor:null, resueltoEn:null},
+  {id:2, nroSocio:'2565',  nombre:'Gonzalez Moure Marcelo',    tipo:'DEFINIR',  detalle:'AUTÓNOMO — "iba a pasar a monotributo"',             accionEsperada:'RRHH define pase y categoría',                resuelto:false, resueltoPor:null, resueltoEn:null},
+  {id:3, nroSocio:'521',   nombre:'Uballes Alvaro',            tipo:'DEFINIR',  detalle:'Monto planilla $82.073,63 ≠ B $56.379,08',          accionEsperada:'RRHH define qué incluye',                    resuelto:false, resueltoPor:null, resueltoEn:null},
+  {id:4, nroSocio:'690',   nombre:'Lage Dario',                tipo:'DEFINIR',  detalle:'Monto planilla $193.608,47 ≠ F $150.784,21',         accionEsperada:'RRHH define qué incluye',                    resuelto:false, resueltoPor:null, resueltoEn:null},
+  {id:5, nroSocio:'788',   nombre:'Martinez Jose Luis',        tipo:'DEFINIR',  detalle:'Monto planilla $95.280,12 ≠ C $66.020,12',           accionEsperada:'RRHH define qué incluye',                    resuelto:false, resueltoPor:null, resueltoEn:null},
+  {id:6, nroSocio:'856',   nombre:'Ramirez Benitez Martina',   tipo:'DEFINIR',  detalle:'Monto planilla $75.099,08 ≠ B $56.379,08',           accionEsperada:'RRHH define qué incluye',                    resuelto:false, resueltoPor:null, resueltoEn:null},
+  {id:7, nroSocio:'22',    nombre:'Recalde S. Cecilia',        tipo:'VERIFICAR',detalle:'Bajó a C pero el monto quedó en D ($84.612,93 → $66.020,12)', accionEsperada:'Actualizar monto a $66.020,12',        resuelto:false, resueltoPor:null, resueltoEn:null},
+  {id:8, nroSocio:'2212',  nombre:'Lascano Fernando',          tipo:'VERIFICAR',detalle:'Cat B con monto $28.859,84',                         accionEsperada:'Revisar categoría/monto',                     resuelto:false, resueltoPor:null, resueltoEn:null},
+  {id:9, nroSocio:'3153',  nombre:'Cacciato Alejandro',        tipo:'VERIFICAR',detalle:'Monto no coincide con C',                             accionEsperada:'Revisar',                                     resuelto:false, resueltoPor:null, resueltoEn:null},
+  {id:10,nroSocio:'3292',  nombre:'Rodriguez Naara',           tipo:'VERIFICAR',detalle:'Monto no coincide con A',                             accionEsperada:'Revisar',                                     resuelto:false, resueltoPor:null, resueltoEn:null},
+];
 
 // ── DB Uniformes ──
 if(!DB.uniformes) DB.uniformes = [];
@@ -10355,8 +10382,19 @@ function renderMonotributos(){
   }
   const anio = parseInt($('mono-anio')?.value)||new Date().getFullYear();
   const filtro = $('mono-filtro')?.value||'';
+  const filtroPuesto = $('mono-filtro-puesto')?.value||'';
   const all = (DB.monotributos||[]).filter(r=>r.estado!=='Baja'||(filtro==='Baja'));
   const vigencia = getVigenciaActual();
+
+  // Helper: derivar puesto del legajo asociado
+  function _puestoDe(r){
+    if(r.puesto) return r.puesto;
+    const leg=(DB.legajos||[]).find(l=>String(l.nro)===String(r.nroSocio));
+    const func=(leg?.funcion||'').toLowerCase();
+    if(func.includes('supervisor')||func.includes('coordinador')) return 'SUP';
+    if(func.includes('auxiliar')||func.includes('administrativ')) return 'ADM';
+    return 'OPERARIO';
+  }
 
   // Stats
   let totalCUR=0, fueraCat=0, alDia=0;
@@ -10372,24 +10410,33 @@ function renderMonotributos(){
   if($('st-mono-fuera')) $('st-mono-fuera').textContent = fueraCat;
   if($('st-mono-cur'))   $('st-mono-cur').textContent   = '$'+totalCUR.toLocaleString('es-AR');
   if($('st-mono-aldia')) $('st-mono-aldia').textContent = alDia;
+  if($('st-mono-casos')) $('st-mono-casos').textContent = (DB.monoCasosImport||[]).filter(c=>!c.resuelto).length;
 
-  const rows = filtro ? all.filter(r=>{
+  const rows = all.filter(r=>{
+    // Filtro por estado
     if(filtro==='Fuera de categoría'){
       const proy=getProyeccionAnual(r.nombre,anio);
       const limite=getLimiteCategoria(r.categoria,vigencia);
-      return proy>limite;
+      if(proy<=limite) return false;
     }
     if(filtro==='Al día'){
       const proy=getProyeccionAnual(r.nombre,anio);
       const limite=getLimiteCategoria(r.categoria,vigencia);
-      return proy<=limite;
+      if(proy>limite) return false;
+    }
+    // Filtro por puesto
+    if(filtroPuesto){
+      const p=_puestoDe(r);
+      if(filtroPuesto==='OPERARIO'&&(p!=='OPERARIO')) return false;
+      if(filtroPuesto==='ADM'&&(p!=='ADM')) return false;
+      if(filtroPuesto==='SUP'&&(p!=='SUP')) return false;
     }
     return true;
-  }) : all;
+  });
 
   const tbody = $('tbody-mono'); if(!tbody)return;
   if(!rows.length){
-    tbody.innerHTML=`<tr><td colspan="9" style="padding:40px;text-align:center;color:var(--texto-muy-suave);">Sin monotributistas registrados. Usá "+ Nuevo registro".</td></tr>`;
+    tbody.innerHTML=`<tr><td colspan="11" style="padding:40px;text-align:center;color:var(--texto-muy-suave);">Sin monotributistas registrados. Usá "+ Nuevo registro".</td></tr>`;
     return;
   }
 
@@ -10401,35 +10448,55 @@ function renderMonotributos(){
     const netoUltimo = getNetoUltimoMes(r.nombre);
     const pct = limite>0 ? Math.round(proy/limite*100) : 0;
     const barColor = pct>=100?'#dc2626':pct>=80?'#f59e0b':'#10b981';
+    const puesto = _puestoDe(r);
+    const esAutonomo = (r.obs||'').toLowerCase().includes('autónomo') || (r.obs||'').toLowerCase().includes('autonomo');
 
-    return`<tr style="background:${fueraCatRow?'#fff5f5':'white'};">
+    // Determinar estado visual
+    let estadoHtml;
+    if(esAutonomo){
+      estadoHtml='<span class="badge badge-naranja" style="font-size:10px;">Define RRHH (régimen)</span>';
+    } else if(fueraCatRow){
+      estadoHtml='<span class="badge badge-rojo" style="font-size:10px;">⚠️ Recategorizar</span>';
+    } else if(r.estado==='Verificar monto'){
+      estadoHtml='<span class="badge badge-naranja" style="font-size:10px;">Verificar monto</span>';
+    } else if(r.estado==='Define RRHH'){
+      estadoHtml='<span class="badge badge-naranja" style="font-size:10px;">Define RRHH</span>';
+    } else {
+      estadoHtml='<span class="badge badge-verde" style="font-size:10px;">✅ Al día</span>';
+    }
+
+    return`<tr style="background:${fueraCatRow?'#fff5f5':esAutonomo?'#fefce8':'white'};">
       <td style="padding:6px 14px;border:1px solid var(--borde);font-weight:500;">
         ${r.nombre}
         ${r.cuit?`<div style="font-size:10px;color:var(--texto-suave);">CUIT: ${r.cuit}</div>`:''}
       </td>
+      <td style="padding:6px 8px;border:1px solid var(--borde);font-size:11px;text-align:center;">${r.nroSocio||'—'}</td>
+      <td style="padding:6px 8px;border:1px solid var(--borde);font-size:11px;text-align:center;">
+        <span class="chip" style="font-size:10px;background:${puesto==='ADM'?'#dbeafe':puesto==='SUP'?'#fef3c7':'#f3f4f6'};color:${puesto==='ADM'?'#1e40af':puesto==='SUP'?'#92400e':'#374151'};">${puesto}</span>
+      </td>
       <td style="padding:6px 8px;border:1px solid var(--borde);font-size:11px;">
         <span class="chip" style="font-size:10px;">${r.zona==='capital'?'🏙️ Capital':'🌿 Provincia'}</span>
-        ${r.obraSocial?'<div style="font-size:9px;color:#7c3aed;margin-top:2px;">👨‍👩‍👧 Con familia</div>':''}
         ${r.adherentesCantidad?`<div style="font-size:9px;color:#0369a1;margin-top:2px;">👥 ${r.adherentesCantidad} adherente${r.adherentesCantidad>1?'s':''}${r.adherentesMonto?' — $'+r.adherentesMonto.toLocaleString('es-AR'):''}</div>`:''}
       </td>
       <td style="padding:6px 8px;border:1px solid var(--borde);text-align:center;">
-        <span style="background:#1e40af;color:white;font-weight:800;border-radius:6px;padding:3px 10px;font-size:13px;">${r.categoria||'—'}</span>
-        <button style="background:none;border:none;cursor:pointer;font-size:10px;color:var(--azul);display:block;margin:2px auto 0;" onclick="verHistorialCat('${r.id}')" title="Ver historial">📋 historial</button>
+        ${esAutonomo
+          ?'<span style="color:var(--texto-suave);font-size:11px;">AUTÓNOMO</span>'
+          :`<span style="background:#1e40af;color:white;font-weight:800;border-radius:6px;padding:3px 10px;font-size:13px;">${r.categoria||'—'}</span>
+            <button style="background:none;border:none;cursor:pointer;font-size:10px;color:var(--azul);display:block;margin:2px auto 0;" onclick="verHistorialCat('${r.id}')" title="Ver historial">📋 historial</button>`}
       </td>
-      <td style="padding:6px 8px;border:1px solid var(--borde);text-align:right;font-size:11px;">$${limite.toLocaleString('es-AR')}</td>
-      <td style="padding:6px 8px;border:1px solid var(--borde);text-align:right;font-weight:600;color:#7c3aed;">$${cur.toLocaleString('es-AR')}</td>
+      <td style="padding:6px 8px;border:1px solid var(--borde);text-align:right;font-size:11px;">${esAutonomo?'—':'$'+limite.toLocaleString('es-AR')}</td>
+      <td style="padding:6px 8px;border:1px solid var(--borde);text-align:right;font-weight:600;color:#7c3aed;">${esAutonomo?'—':'$'+cur.toLocaleString('es-AR')}</td>
       <td style="padding:6px 8px;border:1px solid var(--borde);text-align:right;color:var(--azul);">${netoUltimo>0?'$'+netoUltimo.toLocaleString('es-AR'):'—'}</td>
       <td style="padding:6px 8px;border:1px solid var(--borde);text-align:right;min-width:120px;">
+        ${esAutonomo?'<span class="sm">— (autónomo)</span>':`
         <div style="font-weight:700;color:${fueraCatRow?'#dc2626':'#374151'};">$${proy.toLocaleString('es-AR')}</div>
         <div style="background:#e5e7eb;border-radius:4px;height:6px;margin-top:4px;overflow:hidden;">
           <div style="background:${barColor};height:100%;width:${Math.min(pct,100)}%;transition:width .3s;"></div>
         </div>
-        <div style="font-size:9px;color:var(--texto-suave);margin-top:2px;">${pct}% del límite</div>
+        <div style="font-size:9px;color:var(--texto-suave);margin-top:2px;">${pct}% del límite</div>`}
       </td>
       <td style="padding:6px 8px;border:1px solid var(--borde);text-align:center;">
-        ${fueraCatRow
-          ?`<span class="badge badge-rojo" style="font-size:10px;">⚠️ Fuera de cat.</span>`
-          :`<span class="badge badge-verde" style="font-size:10px;">✅ Al día</span>`}
+        ${estadoHtml}
       </td>
       <td style="padding:6px 8px;border:1px solid var(--borde);">
         <button class="btn btn-xs btn-secondary" onclick="editarMonotributo('${r.id}')" title="Editar">✏️</button>
@@ -10466,6 +10533,9 @@ function getCURPersona(persona, vigencia){
   const tabla = getTablaVigente(vigencia);
   const row = tabla.find(r=>r.cat===persona.categoria);
   if(!row) return 0;
+  // Vigencias nuevas (2026-08): campo cur directo, sin distinción de zona
+  if(row.cur!==undefined && row.impuestoIntegrado!==undefined) return row.cur||0;
+  // Vigencias viejas (2024-01): distinguir por zona y obra social
   const esCapital = persona.zona === 'capital';
   const conFamilia = !!persona.obraSocial;
   if(esCapital && conFamilia)  return row.curCapitalConFamilia||0;
@@ -10493,21 +10563,26 @@ function getNetoUltimoMes(nombre){
 }
 
 function getProyeccionAnual(nombre, anio){
-  // Sumar netos reales de los meses del año y proyectar el resto con el último conocido
-  let totalReal=0, ultimoNeto=0, mesesConDatos=0;
+  // Proyección = suma de retiros REALES de los meses transcurridos
+  //            + (promedio de esos meses × meses que faltan)
+  // Regla definida con Lautaro (MONOTRIBUTOS_CAMBIOS.md §4)
+  let totalReal=0, mesesConDatos=0;
   const pagos = DB.lqsPagos||{};
   for(let m=1; m<=12; m++){
     const mes = `${anio}-${String(m).padStart(2,'0')}`;
     if(pagos[mes]?.[nombre]?.monto > 0){
       totalReal += pagos[mes][nombre].monto;
-      ultimoNeto = pagos[mes][nombre].monto;
       mesesConDatos = m;
     }
   }
-  // Proyectar los meses sin datos usando el último neto conocido
-  if(ultimoNeto === 0) ultimoNeto = getNetoUltimoMes(nombre);
+  if(mesesConDatos === 0){
+    // Sin datos del año: usar último neto conocido como estimación base
+    const ultimoNeto = getNetoUltimoMes(nombre);
+    return ultimoNeto > 0 ? ultimoNeto * 12 : 0;
+  }
+  const promedio = totalReal / mesesConDatos;
   const mesesRestantes = 12 - mesesConDatos;
-  return totalReal + (mesesRestantes * ultimoNeto);
+  return totalReal + (mesesRestantes * promedio);
 }
 
 // ── Tab alertas — con propuesta de recategorización y checkboxes ──
@@ -10690,6 +10765,46 @@ function rechazarPropuesta(idxR, catActual, curActual){
   supaSync('monoCambios', cambio);
   toast('Cambio rechazado y registrado en historial para '+r.nombre);
   renderMonotributos();
+}
+
+// ── Casos del import ──
+function renderCasosImport(){
+  const tbody=$('tbody-mono-casos'); if(!tbody) return;
+  const casos=DB.monoCasosImport||[];
+  const pendientes=casos.filter(c=>!c.resuelto);
+  const definir=pendientes.filter(c=>c.tipo==='DEFINIR').length;
+  const verificar=pendientes.filter(c=>c.tipo==='VERIFICAR').length;
+  if($('mono-casos-resumen')) $('mono-casos-resumen').textContent=definir+' DEFINIR · '+verificar+' VERIFICAR';
+  if($('st-mono-casos')) $('st-mono-casos').textContent=pendientes.length;
+  if(!casos.length){
+    tbody.innerHTML='<tr><td colspan="6" style="padding:40px;text-align:center;color:var(--texto-muy-suave);">Sin casos pendientes.</td></tr>';
+    return;
+  }
+  const tipoBadge=c=>c.tipo==='DEFINIR'
+    ?'<span class="badge badge-rojo" style="font-size:10px;">DEFINIR</span>'
+    :'<span class="badge badge-naranja" style="font-size:10px;">VERIFICAR</span>';
+  tbody.innerHTML=casos.map(c=>`<tr style="background:${c.resuelto?'#f0fdf4':'white'};">
+    <td style="padding:6px 14px;border:1px solid var(--borde);font-weight:500;">${c.nombre}${c.resuelto?' <span style="color:#16a34a;font-size:10px;">✓ Resuelto</span>':''}</td>
+    <td style="padding:6px 8px;border:1px solid var(--borde);font-size:11px;">${c.nroSocio||'—'}</td>
+    <td style="padding:6px 8px;border:1px solid var(--borde);text-align:center;">${tipoBadge(c)}</td>
+    <td style="padding:6px 8px;border:1px solid var(--borde);font-size:11px;">${c.detalle||'—'}</td>
+    <td style="padding:6px 8px;border:1px solid var(--borde);font-size:11px;">${c.accionEsperada||'—'}</td>
+    <td style="padding:6px 8px;border:1px solid var(--borde);text-align:center;">
+      ${c.resuelto
+        ?'<span class="badge badge-verde" style="font-size:10px;">✓ '+c.resueltoPor+'</span>'
+        :'<button class="btn btn-xs" style="background:#dcfce7;color:#065f46;border:1px solid #9fdaba;font-size:10px;" onclick="resolverCasoImport('+c.id+')">Marcar resuelto</button>'}
+    </td>
+  </tr>`).join('');
+}
+function resolverCasoImport(id){
+  const caso=(DB.monoCasosImport||[]).find(c=>c.id===id);
+  if(!caso) return;
+  if(!confirm('¿Marcar como resuelto el caso de '+caso.nombre+'?')) return;
+  caso.resuelto=true;
+  caso.resueltoPor=currentUser?.nombre||'Admin';
+  caso.resueltoEn=new Date().toLocaleDateString('es-AR');
+  toast('✓ Caso de '+caso.nombre+' marcado como resuelto');
+  renderCasosImport();
 }
 
 // ── Historial de cambios ──
@@ -10915,6 +11030,7 @@ function confirmarImportacion(){
   if(!parsed.length){ toast('No se pudieron interpretar los datos'); return; }
   if(!DB.monoTablas) DB.monoTablas={};
   DB.monoTablas[vigencia] = parsed;
+  supaSync('monoTablas', {id:vigencia, vigencia, tabla_data:parsed});
   cerrarModal('modal-importar-tabla');
   toast('✅ Tabla importada — '+parsed.length+' categorías para vigencia '+vigencia);
   renderTablasCategorias();
@@ -11138,6 +11254,147 @@ function confirmarImportMonotributo(){
       crearNotificacion({tipo:'legajo_monotributo_pendiente', entidadTipo:'legajo', entidadIdLocal:'import', destinatarioNombre:nombre, mensaje});
     });
   }
+}
+
+// ══════════════════════════════════════════════════════════
+// IMPORTADOR DE PADRÓN RRHH — carga masiva de categorías y adherentes
+// Cuando RRHH entrega el listado con N° socio, categoría, adherentes.
+// Reutiliza el parser CSV existente (_parseCSVMono) y los alias (_ALIAS_MONO).
+// ══════════════════════════════════════════════════════════
+const _ALIAS_PADRON_RRHH={
+  n_socio:'nroSocio', n_de_socio:'nroSocio', nro_socio:'nroSocio',
+  categoria:'categoria', cat:'categoria',
+  adherentes_cant:'adherentesCant', adherentes:'adherentesCant',
+  monto_adherentes:'adherentesMonto', monto_adherentes_total:'adherentesMonto',
+  adherentes_monto:'adherentesMonto',
+  cur:'curManual', cur_manual:'curManual',
+  observaciones:'obs', obs:'obs',
+  motivo_estado:'motivoEstado',
+  estado:'estado',
+};
+let _padronRRHHFilas=null;
+function abrirImportadorPadronRRHH(){
+  ensureModalImportPadronRRHH();
+  _padronRRHHFilas=null;
+  $('padron-rrhh-resultado').innerHTML='';
+  $('padron-rrhh-file').value='';
+  $('padron-rrhh-btn-confirmar').style.display='none';
+  abrirModal('modal-import-padron-rrhh');
+}
+function ensureModalImportPadronRRHH(){
+  if($('modal-import-padron-rrhh')) return;
+  const m=document.createElement('div');
+  m.className='modal-overlay';
+  m.id='modal-import-padron-rrhh';
+  m.innerHTML=`
+    <div class="modal" style="max-width:640px;">
+      <div class="modal-header"><h3>📥 Importar padrón de RRHH (CSV)</h3><button class="btn-close" onclick="cerrarModal('modal-import-padron-rrhh')">×</button></div>
+      <div class="modal-body">
+        <p style="font-size:12.5px;color:var(--texto-suave);margin-bottom:8px;">
+          Columnas esperadas (con o sin tildes): <strong>N° socio, Categoría, Adherentes cant, Adherentes monto, CUR (opcional), Observaciones (opcional), Estado (opcional), Motivo estado (opcional)</strong>.
+        </p>
+        <p style="font-size:11px;color:var(--texto-suave);margin-bottom:10px;">
+          Matchea por N° de socio contra los monotributistas existentes. Si el N° socio no existe, lo crea. Si existe, actualiza categoría, adherentes y CUR (si se provee). Los meses de pago mensual ya armados NO se tocan.
+        </p>
+        <input type="file" id="padron-rrhh-file" accept=".csv,.txt" onchange="seleccionarArchivoPadronRRHH()">
+        <div id="padron-rrhh-resultado" style="margin-top:14px;"></div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="cerrarModal('modal-import-padron-rrhh')">Cancelar</button>
+        <button class="btn btn-primary" id="padron-rrhh-btn-confirmar" style="display:none;" onclick="confirmarImportPadronRRHH()">Confirmar importación</button>
+      </div>
+    </div>`;
+  document.body.appendChild(m);
+}
+function seleccionarArchivoPadronRRHH(){
+  const input=$('padron-rrhh-file');
+  const file=input?.files?.[0];
+  if(!file) return;
+  const reader=new FileReader();
+  reader.onload=e=>{
+    const texto=String(e.target.result||'');
+    const filas=_parseCSVMono(texto);
+    if(!filas.length){ toast('⚠️ El archivo está vacío'); return; }
+    const headers=filas[0].map(h=>_ALIAS_PADRON_RRHH[_normHeaderMono(h)]||_ALIAS_MONO[_normHeaderMono(h)]||_normHeaderMono(h));
+    const datos=filas.slice(1).filter(f=>f.some(v=>(v||'').trim()!==''))
+      .map(f=>{ const o={}; headers.forEach((h,i)=>{o[h]=(f[i]||'').trim();}); return o; })
+      .filter(o=>o.nroSocio&&/^\d+$/.test(o.nroSocio));
+    if(!datos.length){ toast('⚠️ No se encontraron filas con N° de socio válido'); return; }
+    _padronRRHHFilas=datos;
+    const existentes=datos.filter(o=>(DB.monotributos||[]).some(m=>String(m.nroSocio)===o.nroSocio)).length;
+    const nuevos=datos.length-existentes;
+    $('padron-rrhh-resultado').innerHTML=`
+      <div class="alerta alerta-info" style="font-size:12.5px;">
+        ${datos.length} persona(s) en el archivo — <strong>${existentes}</strong> que ya están en el padrón (se actualizan), <strong>${nuevos}</strong> que se crearán como nuevos registros.
+      </div>`;
+    $('padron-rrhh-btn-confirmar').style.display='inline-flex';
+  };
+  reader.readAsText(file,'UTF-8');
+}
+function confirmarImportPadronRRHH(){
+  if(!_padronRRHHFilas||!_padronRRHHFilas.length){ toast('⚠️ Elegí un archivo primero'); return; }
+  let actualizados=0, creados=0, sinCategoria=0;
+  const nuevosEstado=[];
+  _padronRRHHFilas.forEach(o=>{
+    const cat=(o.categoria||'').trim().toUpperCase();
+    const adherentesCant=parseInt(o.adherentesCant)||0;
+    const adherentesMonto=_numArg(o.adherentesMonto);
+    const curManual=parseFloat(o.curManual)||0;
+    const obs=(o.obs||'').trim();
+    const estado=(o.estado||'').trim();
+    const motivoEstado=(o.motivoEstado||'').trim();
+    if(!cat) sinCategoria++;
+
+    let mono=(DB.monotributos||[]).find(m=>String(m.nroSocio)===o.nroSocio);
+    if(mono){
+      if(cat) mono.categoria=cat;
+      if(adherentesCant>0||adherentesMonto>0){
+        mono.adherentesCantidad=adherentesCant;
+        mono.adherentesMonto=adherentesMonto;
+      }
+      if(curManual>0) mono.cur=curManual;
+      if(obs) mono.obs=obs;
+      if(estado){
+        const estadoAnterior=mono.estado;
+        mono.estado=estado;
+        if(estado!==estadoAnterior&&motivoEstado){
+          if(!DB.monoCambios) DB.monoCambios=[];
+          DB.monoCambios.unshift({
+            id:Date.now()+Math.floor(Math.random()*1000),
+            nombre:mono.nombre, fecha:new Date().toLocaleDateString('es-AR'),
+            catAnterior:mono.categoria, catNueva:mono.categoria,
+            curAnterior:0, curNuevo:0, proyeccionAnual:0,
+            motivo:motivoEstado, decidoPor:currentUser?.nombre||'Admin',
+            resultado:estado==='Baja'?'Rechazado':'Aprobado',
+          });
+        }
+      }
+      supaSync('monotributos', mono);
+      actualizados++;
+    } else {
+      const leg=(DB.legajos||[]).find(l=>String(l.nro)===o.nroSocio);
+      const nuevo={
+        id:Date.now()+Math.floor(Math.random()*1000),
+        nombre:leg?leg.nombre:o.nroSocio, nroSocio:o.nroSocio,
+        cuit:'', categoria:cat, fechaAlta:new Date().toISOString().slice(0,10),
+        zona:'provincia', obraSocial:false, jubilado:false,
+        cur:curManual, estado:estado||'Al día', obs,
+        adherentesCantidad:adherentesCant, adherentesMonto,
+        historialCategorias:[],
+      };
+      DB.monotributos.push(nuevo);
+      supaSync('monotributos', nuevo);
+      creados++;
+      if(estado&&estado!=='Al día') nuevosEstado.push(nuevo.nombre+' (N°'+o.nroSocio+': '+estado+')');
+    }
+  });
+  cerrarModal('modal-import-padron-rrhh');
+  renderMonotributos();
+  const partes=[`${actualizados} actualizado(s)`];
+  if(creados) partes.push(`${creados} creado(s)`);
+  if(sinCategoria) partes.push(`${sinCategoria} sin categoría`);
+  toast('✅ Padrón RRHH importado: '+partes.join(', '),9000);
+  if(nuevosEstado.length) toast('⚠️ Asociados con estado especial: '+nuevosEstado.slice(0,5).join(', ')+(nuevosEstado.length>5?'…':''),12000);
 }
 
 // ========== IMPORTADOR CSV — LIQUIDACIÓN DE HORAS ==========
@@ -11375,6 +11632,7 @@ function tabMonotributos(tab, btn){
   if(tab==='categorias') renderTablasCategorias();
   if(tab==='historial')  renderHistorialMono();
   if(tab==='pagos')      renderMonoPagos();
+  if(tab==='casos')      renderCasosImport();
 }
 
 function renderTablasCategorias(){
@@ -11389,30 +11647,52 @@ function renderTablasCategorias(){
   const tabla=getTablaVigente(vigencia);
   const el=$('mono-tabla-body');if(!el)return;
   if(!tabla.length){el.innerHTML=`<div style="padding:40px;text-align:center;color:var(--texto-muy-suave);">Sin tabla para esta vigencia.</div>`;return;}
+  // Detectar formato: 2026-08 tiene impuestoIntegrado/aportesSIPA/obraSocial/cur
+  const esNuevoFormato=tabla[0]&&tabla[0].impuestoIntegrado!==undefined;
+  const totalMono=(DB.monotributos||[]).filter(r=>r.estado!=='Baja');
   el.innerHTML=`
     <div style="padding:0 20px 16px;">
       <div style="font-size:12px;color:var(--texto-suave);margin-bottom:12px;">
         Los valores de CUR se actualizan según resolución de ARCA. Vigencia desde: <strong>${vigencia}</strong>
+        ${!esNuevoFormato?' — Nota: esta tabla distingue zona Provincia/Capital.':''}
       </div>
       <div class="tabla-wrap" style="overflow-x:auto;">
         <table style="border-collapse:collapse;width:100%;font-size:12px;">
           <thead><tr style="background:#374151;color:white;">
             <th style="padding:8px 12px;border:1px solid #6b7280;text-align:center;">Cat.</th>
-            <th style="padding:8px;border:1px solid #6b7280;text-align:right;">Límite anual</th>
+            <th style="padding:8px;border:1px solid #6b7280;text-align:right;">Límite anual (ingresos brutos)</th>
+            ${esNuevoFormato?`
+            <th style="padding:8px;border:1px solid #6b7280;text-align:right;">Impuesto integrado</th>
+            <th style="padding:8px;border:1px solid #6b7280;text-align:right;">Aportes SIPA</th>
+            <th style="padding:8px;border:1px solid #6b7280;text-align:right;">Obra social</th>
+            <th style="padding:8px;border:1px solid #6b7280;text-align:right;">CUR (locaciones y servicios)</th>
+            `:`
             <th style="padding:8px;border:1px solid #6b7280;text-align:right;">CUR Provincia</th>
             <th style="padding:8px;border:1px solid #6b7280;text-align:right;">CUR Capital</th>
             <th style="padding:8px;border:1px solid #6b7280;text-align:right;">CUR Prov. + familia</th>
             <th style="padding:8px;border:1px solid #6b7280;text-align:right;">CUR Capital + familia</th>
+            `}
+            <th style="padding:8px;border:1px solid #6b7280;text-align:center;">En padrón</th>
           </tr></thead>
           <tbody>
-            ${tabla.map(r=>`<tr>
+            ${tabla.map(r=>{
+              const cantEnPadron=totalMono.filter(m=>m.categoria===r.cat).length;
+              return`<tr>
               <td style="padding:6px 12px;border:1px solid var(--borde);text-align:center;"><span style="background:#1e40af;color:white;font-weight:800;border-radius:6px;padding:2px 8px;">${r.cat}</span></td>
               <td style="padding:6px 8px;border:1px solid var(--borde);text-align:right;">$${(r.limiteAnual||0).toLocaleString('es-AR')}</td>
+              ${esNuevoFormato?`
+              <td style="padding:6px 8px;border:1px solid var(--borde);text-align:right;">$${(r.impuestoIntegrado||0).toLocaleString('es-AR')}</td>
+              <td style="padding:6px 8px;border:1px solid var(--borde);text-align:right;">$${(r.aportesSIPA||0).toLocaleString('es-AR')}</td>
+              <td style="padding:6px 8px;border:1px solid var(--borde);text-align:right;">$${(r.obraSocial||0).toLocaleString('es-AR')}</td>
+              <td style="padding:6px 8px;border:1px solid var(--borde);text-align:right;font-weight:700;color:#7c3aed;">$${(r.cur||0).toLocaleString('es-AR')}</td>
+              `:`
               <td style="padding:6px 8px;border:1px solid var(--borde);text-align:right;">$${(r.curBase||0).toLocaleString('es-AR')}</td>
               <td style="padding:6px 8px;border:1px solid var(--borde);text-align:right;">$${(r.curCapital||0).toLocaleString('es-AR')}</td>
               <td style="padding:6px 8px;border:1px solid var(--borde);text-align:right;">$${(r.curConFamilia||0).toLocaleString('es-AR')}</td>
               <td style="padding:6px 8px;border:1px solid var(--borde);text-align:right;">$${(r.curCapitalConFamilia||0).toLocaleString('es-AR')}</td>
-            </tr>`).join('')}
+              `}
+              <td style="padding:6px 8px;border:1px solid var(--borde);text-align:center;font-weight:700;color:${cantEnPadron>0?'#374151':'var(--texto-suave)'};">${cantEnPadron}</td>
+            </tr>`;}).join('')}
           </tbody>
         </table>
       </div>
@@ -11477,7 +11757,8 @@ function guardarNuevaVigencia(){
   }
   if(!DB.monoTablas) DB.monoTablas={};
   DB.monoTablas[desde]=tabla;
-  supaSync('monoTablas', DB.monoTablas[DB.monoTablas.length-1]); cerrarModal('modal-nueva-vigencia-mono');
+  supaSync('monoTablas', {id:desde, vigencia:desde, tabla_data:tabla});
+  cerrarModal('modal-nueva-vigencia-mono');
   toast('✅ Nueva vigencia guardada: '+desde);
   renderTablasCategorias();
 }
@@ -13733,7 +14014,12 @@ window.tabLiqAdmin = tabLiqAdmin;
 window.tabLiquidacion = tabLiquidacion;
 window.tabMantenimiento = tabMantenimiento;
 window.tabMonotributos = tabMonotributos;
+window.renderCasosImport = renderCasosImport;
+window.resolverCasoImport = resolverCasoImport;
 window.abrirImportadorMonotributo = abrirImportadorMonotributo;
+window.abrirImportadorPadronRRHH = abrirImportadorPadronRRHH;
+window.seleccionarArchivoPadronRRHH = seleccionarArchivoPadronRRHH;
+window.confirmarImportPadronRRHH = confirmarImportPadronRRHH;
 window.seleccionarArchivoImportMono = seleccionarArchivoImportMono;
 window.confirmarImportMonotributo = confirmarImportMonotributo;
 window.abrirImportadorLiquidacion = abrirImportadorLiquidacion;

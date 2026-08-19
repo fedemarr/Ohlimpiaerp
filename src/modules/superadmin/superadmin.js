@@ -211,7 +211,7 @@ function ensureModalEmpresa() {
   document.body.appendChild(m);
 }
 
-export function guardarEmpresa() {
+export async function guardarEmpresa() {
   const nombre = ($('emp-nombre').value || '').trim();
   if (!nombre) { toast('⚠️ Falta el nombre de la empresa'); return; }
   const modulosContratados = Array.from(document.querySelectorAll('#emp-modulos-cont input[type="checkbox"]:checked')).map(cb => cb.value);
@@ -237,6 +237,25 @@ export function guardarEmpresa() {
     DB.empresasCliente.push(empresa);
   }
   supaSync('empresasCliente', empresa);
+
+  // Escribir módulos contratados en la base del cliente (branding_config)
+  // para que lea desde ahí en vez de la env var — sin redeploy.
+  const url = ($('emp-supabase-url').value || '').trim();
+  const key = ($('emp-supabase-anon-key').value || '').trim();
+  if (url && key) {
+    try {
+      const cliente = createClient(url, key);
+      const { data: existente } = await cliente.from('branding_config').select('id').limit(1).maybeSingle();
+      if (existente) {
+        await cliente.from('branding_config').update({ modulos_contratados: modulosContratados }).eq('id', existente.id);
+      } else {
+        await cliente.from('branding_config').insert({ modulos_contratados: modulosContratados });
+      }
+    } catch (err) {
+      console.warn('No se pudieron sincronizar módulos contratados al cliente:', err.message);
+    }
+  }
+
   cerrarModal('modal-empresa');
   renderEmpresas();
   toast(`✓ ${nombre} guardada — ${modulosContratados.length} módulo(s) contratado(s)`);
