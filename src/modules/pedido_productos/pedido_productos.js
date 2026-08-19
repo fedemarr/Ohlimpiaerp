@@ -31,6 +31,7 @@ function _money(n) { return '$ ' + (Number(n) || 0).toLocaleString('es-AR', { mi
 function getProductoPP(id) { return (DB.ppProductos || []).find(p => String(p.id) === String(id)); }
 function getPedidoPP(id) { return (DB.ppPedidos || []).find(p => String(p.id) === String(id)); }
 function getPeriodoPP(id) { return (DB.ppPeriodos || []).find(p => String(p.id) === String(id)); }
+function getProveedorPP(id) { return (DB.proveedores || []).find(p => String(p.id) === String(id) && !p.anulado); }
 function itemsDePedido(pedidoId) { return (DB.ppItems || []).filter(i => String(i.pedidoIdLocal) === String(pedidoId) && !i.anulado); }
 
 function precioVigente(productoId, fechaISO = hoyStr()) {
@@ -101,9 +102,24 @@ function renderSemaforoHTML(pedido) {
     </div>`;
 }
 
+// ========== PROVEEDORES DEMO (seed si la tabla está vacía) ==========
+function _seedProveedoresDemo() {
+  if ((DB.proveedores || []).length > 0) return;
+  const demo = [
+    { nombre: 'THAMES', codigo: 'PROV-001', estado: 'activo', contacto: '' },
+    { nombre: 'DIVERSEY', codigo: 'PROV-002', estado: 'activo', contacto: '' },
+  ];
+  demo.forEach(d => {
+    const prov = { id: _id('PROV'), ...d, anulado: false };
+    DB.proveedores.push(prov);
+    supaSync('proveedores', prov);
+  });
+}
+
 // ========== PANTALLA PRINCIPAL / TABS ==========
 
 export function renderPedidoProductos() {
+  _seedProveedoresDemo();
   const esLogistica = ['Administrador total', 'Logística'].includes(currentUser?.perfil);
   const esSupervisor = currentUser?.perfil === 'Supervisor';
   ['pp-tab-btn-catalogo', 'pp-tab-btn-periodos', 'pp-tab-btn-auditoria', 'pp-tab-btn-compras'].forEach(id => {
@@ -135,6 +151,15 @@ export function poblarSelectsPeriodoPP() {
     sel.innerHTML = periodos.map(p => `<option value="${p.id}">${p.mes}${p.estado === 'cerrado' ? ' (cerrado)' : ''}</option>`).join('');
     if (actual && periodos.some(p => String(p.id) === actual)) sel.value = actual;
   });
+  _poblarFiltroProveedorPP();
+}
+
+function _poblarFiltroProveedorPP() {
+  const sel = $('pp-cat-filtro-prov'); if (!sel) return;
+  const actual = sel.value;
+  const provs = (DB.proveedores || []).filter(p => !p.anulado).sort((a, b) => a.nombre.localeCompare(b.nombre));
+  sel.innerHTML = '<option value="">Todos los proveedores</option>' + provs.map(p => `<option value="${p.id}">${p.nombre}</option>`).join('');
+  if (actual && provs.some(p => String(p.id) === actual)) sel.value = actual;
 }
 
 // ========== CATÁLOGO ==========
@@ -143,16 +168,20 @@ export function renderCatalogoPP() {
   const tbody = $('tbody-pp-catalogo'); if (!tbody) return;
   const q = ($('pp-cat-buscar') || { value: '' }).value.toLowerCase();
   const filtroTipo = ($('pp-cat-filtro-tipo') || { value: '' }).value;
+  const filtroProv = ($('pp-cat-filtro-prov') || { value: '' }).value;
   const rows = (DB.ppProductos || []).filter(p => !p.anulado)
     .filter(p => !q || p.descripcion.toLowerCase().includes(q) || (p.codigoMonica || '').toLowerCase().includes(q))
     .filter(p => !filtroTipo || p.tipoUso === filtroTipo)
+    .filter(p => !filtroProv || String(p.proveedorIdLocal || '') === String(filtroProv))
     .sort((a, b) => a.descripcion.localeCompare(b.descripcion));
-  if (!rows.length) { tbody.innerHTML = '<tr><td colspan="5" style="padding:40px;text-align:center;color:var(--texto-muy-suave);">Sin productos en el catálogo.</td></tr>'; return; }
+  if (!rows.length) { tbody.innerHTML = '<tr><td colspan="6" style="padding:40px;text-align:center;color:var(--texto-muy-suave);">Sin productos en el catálogo.</td></tr>'; return; }
   tbody.innerHTML = rows.map(p => {
     const costo = precioVigente(p.id);
+    const prov = p.proveedorIdLocal ? getProveedorPP(p.proveedorIdLocal) : null;
     return `<tr>
       <td style="padding:6px 12px;border:1px solid var(--borde);">${p.codigoMonica || '—'}</td>
       <td style="padding:6px 12px;border:1px solid var(--borde);font-weight:500;">${p.descripcion}</td>
+      <td style="padding:6px 8px;border:1px solid var(--borde);text-align:center;">${prov ? `<span class="badge" style="background:#0ea5e9;color:white;font-size:10.5px;">${prov.nombre}</span>` : '<span style="color:var(--texto-suave);">—</span>'}</td>
       <td style="padding:6px 8px;border:1px solid var(--borde);text-align:center;">${badgeTipoUsoPP(p.tipoUso)}</td>
       <td style="padding:6px 8px;border:1px solid var(--borde);text-align:right;">${costo ? _money(costo) : '<span style="color:var(--rojo);">sin precio</span>'}</td>
       <td style="padding:6px 8px;border:1px solid var(--borde);text-align:center;white-space:nowrap;">
@@ -165,18 +194,24 @@ export function renderCatalogoPP() {
 }
 
 let _ppProductoEditandoId = null;
+function _poblarSelectProveedorPP() {
+  const sel = $('pp-prod-proveedor'); if (!sel) return;
+  const provs = (DB.proveedores || []).filter(p => !p.anulado).sort((a, b) => a.nombre.localeCompare(b.nombre));
+  sel.innerHTML = '<option value="">Sin proveedor</option>' + provs.map(p => `<option value="${p.id}">${p.nombre}</option>`).join('');
+}
 export function abrirNuevoProductoPP() {
   _ppProductoEditandoId = null;
-  ensureModalProductoPP();
-  $('pp-prod-descripcion').value = ''; $('pp-prod-codigo').value = ''; $('pp-prod-tipo-uso').value = 'normal'; $('pp-prod-costo-inicial').value = '';
+  ensureModalProductoPP(); _poblarSelectProveedorPP();
+  $('pp-prod-descripcion').value = ''; $('pp-prod-codigo').value = ''; $('pp-prod-tipo-uso').value = 'normal'; $('pp-prod-costo-inicial').value = ''; $('pp-prod-proveedor').value = '';
   $('pp-prod-modal-titulo').textContent = 'Nuevo producto';
   abrirModal('modal-pp-producto');
 }
 export function abrirEditarProductoPP(id) {
   const p = getProductoPP(id); if (!p) return;
   _ppProductoEditandoId = id;
-  ensureModalProductoPP();
+  ensureModalProductoPP(); _poblarSelectProveedorPP();
   $('pp-prod-descripcion').value = p.descripcion; $('pp-prod-codigo').value = p.codigoMonica || ''; $('pp-prod-tipo-uso').value = p.tipoUso || 'normal';
+  $('pp-prod-proveedor').value = p.proveedorIdLocal || '';
   $('pp-prod-costo-inicial').value = '';
   $('pp-prod-modal-titulo').textContent = 'Editar producto';
   abrirModal('modal-pp-producto');
@@ -200,6 +235,10 @@ function ensureModalProductoPP() {
           <option value="tratamiento_piso">Tratamiento de piso</option>
           <option value="con_autorizacion">Con autorización</option>
         </select>
+        <label style="font-size:12px;font-weight:600;">Proveedor</label>
+        <select id="pp-prod-proveedor" style="width:100%;padding:7px 10px;border:1px solid var(--borde-fuerte);border-radius:var(--radio);margin:4px 0 10px;">
+          <option value="">Sin proveedor</option>
+        </select>
         <label style="font-size:12px;font-weight:600;">Costo unitario inicial (opcional, vigente desde hoy)</label>
         <input type="number" id="pp-prod-costo-inicial" min="0" step="0.01" style="width:100%;padding:7px 10px;border:1px solid var(--borde-fuerte);border-radius:var(--radio);margin-top:4px;">
       </div>
@@ -215,13 +254,14 @@ export function guardarProductoPP() {
   if (!descripcion) { toast('⚠️ Falta la descripción'); return; }
   const codigoMonica = ($('pp-prod-codigo').value || '').trim();
   const tipoUso = $('pp-prod-tipo-uso').value;
+  const proveedorIdLocal = $('pp-prod-proveedor').value || null;
   const costoInicial = parseFloat($('pp-prod-costo-inicial').value) || 0;
   let prod;
   if (_ppProductoEditandoId) {
     prod = getProductoPP(_ppProductoEditandoId); if (!prod) return;
-    prod.descripcion = descripcion; prod.codigoMonica = codigoMonica; prod.tipoUso = tipoUso;
+    prod.descripcion = descripcion; prod.codigoMonica = codigoMonica; prod.tipoUso = tipoUso; prod.proveedorIdLocal = proveedorIdLocal;
   } else {
-    prod = { id: _id('PPP'), descripcion, codigoMonica, tipoUso, anulado: false };
+    prod = { id: _id('PPP'), descripcion, codigoMonica, tipoUso, proveedorIdLocal, anulado: false };
     if (!DB.ppProductos) DB.ppProductos = [];
     DB.ppProductos.push(prod);
   }

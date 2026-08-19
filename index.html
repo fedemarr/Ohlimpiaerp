@@ -168,6 +168,7 @@
   <!-- TAB: Base de candidatos -->
   <div id="cand-section-base">
     <div class="stats-grid">
+      <div class="stat-card" style="background:#ede9fe;border-left:4px solid #8b5cf6;"><div class="stat-label">Precandidatos</div><div class="stat-valor" id="st-c-precandidatos">0</div></div>
       <div class="stat-card azul"><div class="stat-label">Sin citar</div><div class="stat-valor" id="st-c-sincitar">0</div></div>
       <div class="stat-card acento"><div class="stat-label">Citados</div><div class="stat-valor" id="st-c-citados">0</div></div>
       <div class="stat-card verde"><div class="stat-label">Entrevistados</div><div class="stat-valor" id="st-c-entrevistados">0</div></div>
@@ -175,14 +176,15 @@
     </div>
     <div style="margin:0 20px;">
       <div style="display:flex;gap:0;border-bottom:2px solid #e2e8f0;">
-        <button onclick="tabCandidatos('activos')" id="tab-cand-activos" style="padding:10px 20px;border:none;background:#1e3a8a;color:white;font-size:13px;font-weight:600;cursor:pointer;border-radius:8px 8px 0 0;">👥 Activos</button>
+        <button onclick="tabCandidatos('precandidatos')" id="tab-cand-precandidatos" style="padding:10px 20px;border:none;background:#f1f5f9;color:#64748b;font-size:13px;font-weight:600;cursor:pointer;border-radius:8px 8px 0 0;">🆕 Precandidatos</button>
+        <button onclick="tabCandidatos('activos')" id="tab-cand-activos" style="padding:10px 20px;border:none;background:#f1f5f9;color:#64748b;font-size:13px;font-weight:600;cursor:pointer;border-radius:8px 8px 0 0;">👥 Activos</button>
         <button onclick="tabCandidatos('historico')" id="tab-cand-historico" style="padding:10px 20px;border:none;background:#f1f5f9;color:#64748b;font-size:13px;font-weight:600;cursor:pointer;border-radius:8px 8px 0 0;">📁 Histórico</button>
       </div>
     </div>
     <div style="margin:12px 20px;display:flex;gap:8px;flex-wrap:wrap;">
       <input type="text" id="cand-buscar" placeholder="🔍 Buscar nombre o DNI..." oninput="filtrarCandidatos()" style="padding:7px 12px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;width:220px;">
       <select id="cand-filtro-zona" onchange="filtrarCandidatos()" style="padding:7px 10px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;"><option value="">Todas las zonas</option></select>
-      <select id="cand-filtro-estado" onchange="filtrarCandidatos()" style="padding:7px 10px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;"><option value="">Todos los estados</option><option>Sin citar</option><option>Citado</option><option>Entrevistado</option><option>Aprobado</option><option value="Psicotecnico">Psicotécnico</option><option>Rechazado</option><option>Baja</option><option>Caducado</option><option>MT Social</option><option>MT con deuda</option></select>
+      <select id="cand-filtro-estado" onchange="filtrarCandidatos()" style="padding:7px 10px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;"><option value="">Todos los estados</option><option>Precandidato</option><option>Sin citar</option><option>Citado</option><option>Entrevistado</option><option>Aprobado</option><option value="Psicotecnico">Psicotécnico</option><option>Rechazado</option><option>Baja</option><option>Caducado</option><option>MT Social</option><option>MT con deuda</option></select>
     </div>
     <div class="tabla-wrap" style="margin:0 20px;overflow-x:auto;">
       <table style="width:100%;border-collapse:collapse;font-size:13px;">
@@ -4177,6 +4179,7 @@
     <div class="stat-card rojo"><div class="stat-label">Fuera de categoría</div><div class="stat-valor" id="st-mono-fuera">0</div><div class="stat-sub">Proyección supera límite</div></div>
     <div class="stat-card acento"><div class="stat-label">Total CUR del mes</div><div class="stat-valor" id="st-mono-cur" style="font-size:14px;">$0</div><div class="stat-sub">Suma de cuotas activas</div></div>
     <div class="stat-card verde"><div class="stat-label">Al día</div><div class="stat-valor" id="st-mono-aldia">0</div><div class="stat-sub">Dentro de categoría</div></div>
+    <div class="stat-card acento" style="background:linear-gradient(135deg,#fef3c7,#fde68a);"><div class="stat-label">Casos a definir (RRHH)</div><div class="stat-valor" id="st-mono-casos" style="color:#92400e;">0</div><div class="stat-sub">6 definir · 4 verificar</div></div>
   </div>
 
   <div class="tabs" style="background:white;border-radius:var(--radio-lg) var(--radio-lg) 0 0;padding:0 20px;box-shadow:var(--sombra);border-bottom:none;">
@@ -4185,6 +4188,7 @@
     <button class="tab-btn" onclick="tabMonotributos('categorias',this)">📊 Tablas de categorías</button>
     <button class="tab-btn" onclick="tabMonotributos('historial',this)">📜 Historial de cambios</button>
     <button class="tab-btn" onclick="tabMonotributos('pagos',this)">💳 Pago mensual</button>
+    <button class="tab-btn" onclick="tabMonotributos('casos',this)">📌 Casos del import</button>
   </div>
 
   <!-- TAB PADRÓN -->
@@ -4193,6 +4197,12 @@
       <div class="card-header">
         <h3>💸 Padrón de Monotributistas</h3>
         <div style="display:flex;gap:8px;align-items:center;">
+          <select id="mono-filtro-puesto" onchange="renderMonotributos()" style="padding:6px 10px;border:1px solid var(--borde-fuerte);border-radius:var(--radio);font-size:13px;outline:none;">
+            <option value="">Todos</option>
+            <option value="OPERARIO">Operarios</option>
+            <option value="ADM">ADM</option>
+            <option value="SUP">SUP</option>
+          </select>
           <select id="mono-filtro" onchange="renderMonotributos()" style="padding:6px 10px;border:1px solid var(--borde-fuerte);border-radius:var(--radio);font-size:13px;outline:none;">
             <option value="">Todos</option>
             <option value="Al día">Al día</option>
@@ -4201,6 +4211,7 @@
           </select>
           <select id="mono-anio" onchange="renderMonotributos()" style="padding:6px 10px;border:1px solid var(--borde-fuerte);border-radius:var(--radio);font-size:13px;outline:none;"></select>
           <button class="btn btn-sm" style="background:#f59e0b;color:white;border:none;" onclick="tabMonotributos('alerta',null)">⚠️ Ver fuera de categoría</button>
+          <button class="btn btn-secondary btn-sm" onclick="abrirImportadorPadronRRHH()">📥 Importar padrón RRHH</button>
           <button class="btn btn-secondary btn-sm" onclick="abrirImportadorMonotributo()">📥 Importar CSV</button>
         </div>
       </div>
@@ -4208,6 +4219,8 @@
       <div class="tabla-wrap"><table style="width:100%;border-collapse:collapse;font-size:12px;">
         <thead><tr style="background:#374151;color:white;">
           <th style="padding:8px 14px;border:1px solid #6b7280;text-align:left;min-width:180px;">Asociado</th>
+          <th style="padding:8px;border:1px solid #6b7280;text-align:center;">N° socio</th>
+          <th style="padding:8px;border:1px solid #6b7280;">Puesto</th>
           <th style="padding:8px;border:1px solid #6b7280;">Zona</th>
           <th style="padding:8px;border:1px solid #6b7280;text-align:center;">Categoría</th>
           <th style="padding:8px;border:1px solid #6b7280;text-align:right;">Límite anual</th>
@@ -4309,9 +4322,32 @@
     </div>
   </div>
 
-</div>
+  <!-- TAB CASOS DEL IMPORT -->
+  <div id="mono-tab-casos" class="tab-content" style="padding-top:0;">
+    <div class="card" style="margin-top:0;border-radius:0 var(--radio-lg) var(--radio-lg) var(--radio-lg);">
+      <div class="card-header">
+        <h3>📌 Casos del import — los resuelve RRHH</h3>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <span style="font-size:12px;color:var(--texto-suave);" id="mono-casos-resumen">6 DEFINIR · 4 VERIFICAR</span>
+        </div>
+      </div>
+      <div class="tabla-wrap">
+        <table style="width:100%;border-collapse:collapse;font-size:12px;">
+          <thead><tr style="background:#374151;color:white;">
+            <th style="padding:8px 14px;border:1px solid #6b7280;text-align:left;">Asociado</th>
+            <th style="padding:8px;border:1px solid #6b7280;">N° socio</th>
+            <th style="padding:8px;border:1px solid #6b7280;text-align:center;">Tipo</th>
+            <th style="padding:8px;border:1px solid #6b7280;">Detalle</th>
+            <th style="padding:8px;border:1px solid #6b7280;">Acción esperada</th>
+            <th style="padding:8px;border:1px solid #6b7280;text-align:center;">Estado</th>
+          </tr></thead>
+          <tbody id="tbody-mono-casos"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
 
-<!-- UNIFORMES -->
+</div>
 <div class="screen" id="screen-uniformes">
   <!-- TABS -->
   <div class="tabs" style="background:white;border-radius:var(--radio-lg) var(--radio-lg) 0 0;padding:0 20px;box-shadow:var(--sombra);border-bottom:none;">
@@ -4535,12 +4571,16 @@
             <option value="tratamiento_piso">Tratamiento de piso</option>
             <option value="con_autorizacion">Con autorización</option>
           </select>
+          <select id="pp-cat-filtro-prov" onchange="renderCatalogoPP()">
+            <option value="">Todos los proveedores</option>
+          </select>
           <button class="btn btn-primary btn-sm" onclick="abrirNuevoProductoPP()">+ Nuevo producto</button>
         </div>
       </div>
       <div class="tabla-wrap"><table style="width:100%;border-collapse:collapse;font-size:12.5px;">
         <thead><tr style="background:#374151;color:white;">
           <th style="padding:8px 12px;">Cód. Mónica</th><th style="padding:8px 12px;text-align:left;">Producto</th>
+          <th style="padding:8px 12px;">Proveedor</th>
           <th style="padding:8px 12px;">Tipo de uso</th><th style="padding:8px 12px;">Costo vigente</th><th style="padding:8px 12px;">Acciones</th>
         </tr></thead>
         <tbody id="tbody-pp-catalogo"></tbody>

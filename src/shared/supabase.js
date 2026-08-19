@@ -156,6 +156,8 @@ export const _SM = {
   ppPrecios: 'pp_precios',
   ppPedidos: 'pp_pedidos',
   ppItems: 'pp_items',
+  // v094 — Maestro de proveedores
+  proveedores: 'proveedores',
   // v089 — Superadmin: registro de empresas clientes (solo en el Supabase
   // de Ohlimpia — no es dato operativo de ninguna empresa cliente).
   empresasCliente: 'empresas_cliente',
@@ -507,6 +509,9 @@ export function _toSnake(obj) {
     cantSolicitada: 'cant_solicitada', cantAutorizada: 'cant_autorizada',
     costoCongelado: 'costo_congelado', ajustadoPor: 'ajustado_por',
     ajustadoEn: 'ajustado_en', cantAntesAjuste: 'cant_antes_ajuste',
+    proveedorIdLocal: 'proveedor_id_local',
+    // v094 — Proveedores
+    // (nombre, codigo, estado, contacto are already snake_case)
     // v089 — Superadmin / empresas cliente
     modulosContratados: 'modulos_contratados', supabaseUrl: 'supabase_url', vercelUrl: 'vercel_url',
     supabaseAnonKey: 'supabase_anon_key', // v090
@@ -849,6 +854,7 @@ export function _toCamel(obj) {
     cant_solicitada: 'cantSolicitada', cant_autorizada: 'cantAutorizada',
     costo_congelado: 'costoCongelado', ajustado_por: 'ajustadoPor',
     ajustado_en: 'ajustadoEn', cant_antes_ajuste: 'cantAntesAjuste',
+    proveedor_id_local: 'proveedorIdLocal',
     // v089 — Superadmin / empresas cliente
     modulos_contratados: 'modulosContratados', supabase_url: 'supabaseUrl', vercel_url: 'vercelUrl',
     supabase_anon_key: 'supabaseAnonKey', // v090

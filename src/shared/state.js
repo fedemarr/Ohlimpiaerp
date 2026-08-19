@@ -36,6 +36,8 @@ export const DB = {
   ppPrecios: [],
   ppPedidos: [],
   ppItems: [],
+  // v094 — Maestro de proveedores (mínimo para conexión con pp_productos)
+  proveedores: [],
   // Superadmin: registro de empresas clientes del sistema (sql/v089) —
   // vive solo en el Supabase de Ohlimpia, no es dato operativo de ninguna
   // empresa cliente. Ver src/modules/superadmin/.
