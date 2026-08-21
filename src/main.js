@@ -46,6 +46,8 @@ import { descuentosScreenConfig } from './modules/descuentos/index.js';
 import { pedidoProductosScreenConfig } from './modules/pedido_productos/index.js';
 import { superadminScreenConfig } from './modules/superadmin/index.js';
 import { maquinasScreenConfig, filtrarMaquinas } from './modules/maquinas/index.js';
+import { negociacionesScreenConfig } from './modules/negociaciones/index.js';
+import { preciosScreenConfig } from './modules/precios/index.js';
 
 // ========== BIND SHARED A WINDOW (PRIMERO) ==========
 // Estas funciones las llama el HTML con onclick — deben estar en window
@@ -104,6 +106,8 @@ registerScreens(descuentosScreenConfig);
 registerScreens(pedidoProductosScreenConfig);
 registerScreens(superadminScreenConfig);
 registerScreens(maquinasScreenConfig);
+registerScreens(negociacionesScreenConfig);
+registerScreens(preciosScreenConfig);
 
 // ========== REGISTRAR FILTROS DE BÚSQUEDA GLOBAL ==========
 
@@ -150,7 +154,7 @@ async function loadLegacy() {
       comisiones: { title: 'Comisiones', btn: '', fn: null, render: () => { if (window.renderComisiones) window.renderComisiones(); } },
       crm: { title: 'CRM Comercial', btn: '+ Nuevo lead', fn: () => { if (window.abrirNuevoLead) window.abrirNuevoLead(); }, render: () => { if (window.renderCRM) window.renderCRM(); } },
       reclamos: { title: 'Reclamos y NC', btn: '+ Nuevo reclamo', fn: () => abrirModal('modal-reclamo'), render: () => { if (window.renderReclamos) window.renderReclamos(); if (window.renderReclamosBoard) window.renderReclamosBoard(); } },
-      precios: { title: 'Gestión de precios', btn: '', fn: null, render: () => { if (window.renderPrecios) window.renderPrecios(); } },
+      // precios: migrado a módulo independiente (v097) — src/modules/precios/
       liquidacion: { title: 'Liquidación de horas', btn: '', fn: null, render: () => { if (window.renderLiquidacion) window.renderLiquidacion(); } },
       liq_admin: {
         title: 'Liquidación Administración', btn: '+ Agregar',

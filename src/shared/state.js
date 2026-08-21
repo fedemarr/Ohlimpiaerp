@@ -46,6 +46,24 @@ export const DB = {
   maquinasMovimientos: [],
   maquinasTickets: [],
   maquinasTicketHistorial: [],
+  // v097 — CRM de Negociación
+  negociaciones: [],
+  negociacionesAcciones: [],
+  negociacionesGestiones: [],
+  negociacionesGestionTipos: [],
+  // v097 — Precios LIGE
+  preciosObjetivos: [],
+  preciosEscalas: [],
+  preciosEscalasDetalle: [],
+  preciosGrupos: [],
+  preciosNotasConfig: [],
+  preciosNotasEmitidas: [],
+  preciosSnapshots: [],
+  preciosSnapshotDetalle: [],
+  preciosAplicaciones: [],
+  preciosAuditoria: [],
+  preciosAuditoriaObjetivos: [],
+  sucursales: [],
   // Superadmin: registro de empresas clientes del sistema (sql/v089) —
   // vive solo en el Supabase de Ohlimpia, no es dato operativo de ninguna
   // empresa cliente. Ver src/modules/superadmin/.
@@ -244,7 +262,7 @@ export const DB = {
 // ========== PERFILES Y ACCESOS ==========
 
 export const PERFILES = {
-  'Administrador total': { color: 'badge-rojo', modulos: ['inicio', 'candidatos', 'pedidos', 'psicotecnico', 'preocupacional', 'documentacion', 'altas', 'legajos', 'reasignaciones', 'legal', 'enfermos', 'capacitaciones', 'vacaciones', 'descansos', 'competencia', 'clientes', 'objetivos', 'precios', 'paritarias', 'categorias', 'crm', 'reclamos', 'cobros', 'comisiones', 'supervisores', 'supervision', 'liquidacion', 'feriados', 'liq_admin', 'liquidaciones', 'retenes', 'mantenimiento', 'configuracion', 'smvm', 'monotributos', 'uniformes', 'stock', 'pedido_productos', 'retenciones', 'descuentos', 'sanciones', 'adelantos', 'pedidos_adelantos', 'gestion_adelantos', 'sugerencias', 'maquinas'], desc: 'Acceso completo.' },
+  'Administrador total': { color: 'badge-rojo', modulos: ['inicio', 'candidatos', 'pedidos', 'psicotecnico', 'preocupacional', 'documentacion', 'altas', 'legajos', 'reasignaciones', 'legal', 'enfermos', 'capacitaciones', 'vacaciones', 'descansos', 'competencia', 'clientes', 'objetivos', 'precios', 'paritarias', 'categorias', 'crm', 'negociaciones', 'reclamos', 'cobros', 'comisiones', 'supervisores', 'supervision', 'liquidacion', 'feriados', 'liq_admin', 'liquidaciones', 'retenes', 'mantenimiento', 'configuracion', 'smvm', 'monotributos', 'uniformes', 'stock', 'pedido_productos', 'retenciones', 'descuentos', 'sanciones', 'adelantos', 'pedidos_adelantos', 'gestion_adelantos', 'sugerencias', 'maquinas'], desc: 'Acceso completo.' },
   // Reorganización de menú/permisos (Lautaro, 12/08/2026): RRHH tiene que
   // VER toda el área Personal — antes no veía 'legal' ni 'enfermos' pese a
   // que esas 2 pantallas ya listaban 'RRHH' en su propio item.perfiles
@@ -253,10 +271,10 @@ export const PERFILES = {
   // los tenía y los sigue teniendo aunque esos módulos ahora vivan en la
   // sección de menú Finanzas — la sección es organización, no permiso.
   'RRHH': { color: 'badge-azul', modulos: ['inicio', 'candidatos', 'psicotecnico', 'preocupacional', 'documentacion', 'altas', 'legajos', 'reasignaciones', 'legal', 'enfermos', 'capacitaciones', 'vacaciones', 'descansos', 'competencia', 'reclamos', 'paritarias', 'categorias', 'liquidacion', 'liq_admin', 'liquidaciones', 'retenes', 'monotributos', 'uniformes', 'retenciones', 'descuentos', 'sanciones', 'adelantos', 'pedidos_adelantos', 'gestion_adelantos', 'sugerencias'], desc: 'RRHH, legajos, capacitaciones.' },
-  'Operaciones': { color: 'badge-verde', modulos: ['inicio', 'pedidos', 'legajos', 'reasignaciones', 'capacitaciones', 'vacaciones', 'descansos', 'competencia', 'clientes', 'objetivos', 'precios', 'paritarias', 'crm', 'reclamos', 'cobros', 'comisiones', 'supervisores', 'supervision', 'liquidacion', 'retenes', 'mantenimiento', 'feriados', 'uniformes', 'sanciones', 'pedidos_adelantos', 'sugerencias'], desc: 'Operaciones y ventas.' },
+  'Operaciones': { color: 'badge-verde', modulos: ['inicio', 'pedidos', 'legajos', 'reasignaciones', 'capacitaciones', 'vacaciones', 'descansos', 'competencia', 'clientes', 'objetivos', 'precios', 'paritarias', 'crm', 'negociaciones', 'reclamos', 'cobros', 'comisiones', 'supervisores', 'supervision', 'liquidacion', 'retenes', 'mantenimiento', 'feriados', 'uniformes', 'sanciones', 'pedidos_adelantos', 'sugerencias'], desc: 'Operaciones y ventas.' },
   'Finanzas': { color: 'badge-acento', modulos: ['inicio', 'legajos', 'smvm', 'cobros', 'comisiones', 'paritarias', 'supervision', 'liquidacion', 'liq_admin', 'liquidaciones', 'retenes', 'mantenimiento', 'monotributos', 'retenciones', 'descuentos', 'adelantos', 'gestion_adelantos', 'sugerencias', 'maquinas'], desc: 'Finanzas y liquidación.' },
   'Supervisor': { color: 'badge-gris', modulos: ['inicio', 'pedidos', 'legajos', 'descansos', 'competencia', 'liquidacion', 'liquidaciones', 'adelantos', 'pedidos_adelantos', 'uniformes', 'sanciones', 'sugerencias', 'retenciones', 'pedido_productos'], desc: 'Pedidos, legajos, descansos, competencia y liquidación de horas.' },
-  'Comercial': { color: 'badge-naranja', modulos: ['inicio', 'clientes', 'objetivos', 'precios', 'supervision', 'crm', 'reclamos', 'comisiones', 'sugerencias'], desc: 'Clientes, objetivos, precios, CRM, reclamos y comisiones.' },
+  'Comercial': { color: 'badge-naranja', modulos: ['inicio', 'clientes', 'objetivos', 'precios', 'supervision', 'crm', 'negociaciones', 'reclamos', 'comisiones', 'sugerencias'], desc: 'Clientes, objetivos, precios, CRM, negociación, reclamos y comisiones.' },
   // "Auditor interno" (MODULO_PEDIDO_PRODUCTOS.md §3) no tiene perfil propio
   // en el sistema todavía — hasta que se cree uno, la etapa de auditoría del
   // pedido de productos queda dentro de este perfil (Gerente de Logística).
@@ -334,6 +352,7 @@ export const MENU = [
     { key: 'clientes', icon: '🏢', label: 'Clientes', perfiles: ['Administrador total', 'Operaciones', 'Comercial'] },
     { key: 'comisiones', icon: '🤝', label: 'Comisiones', perfiles: ['Administrador total', 'Finanzas', 'Operaciones', 'Comercial'] },
     { key: 'crm', icon: '📊', label: 'CRM Comercial', badge: 'crm', perfiles: ['Administrador total', 'Operaciones', 'Comercial'] },
+    { key: 'negociaciones', icon: '📈', label: 'CRM Negociación', perfiles: ['Administrador total', 'Operaciones', 'Comercial'] },
     { key: 'cobros', icon: '💳', label: 'Gestión de cobros', perfiles: ['Administrador total', 'Finanzas', 'Operaciones'] },
     { key: 'precios', icon: '💲', label: 'Gestión de precios', badge: 'prec', perfiles: ['Administrador total', 'Operaciones', 'Comercial'] },
     { key: 'reclamos', icon: '📣', label: 'Reclamos y NC', badge: 'rec', perfiles: ['Administrador total', 'RRHH', 'Operaciones', 'Comercial'] },

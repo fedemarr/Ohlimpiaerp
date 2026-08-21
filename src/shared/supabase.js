@@ -169,6 +169,24 @@ export const _SM = {
   // v089 — Superadmin: registro de empresas clientes (solo en el Supabase
   // de Ohlimpia — no es dato operativo de ninguna empresa cliente).
   empresasCliente: 'empresas_cliente',
+  // v097 — CRM de Negociación + Precios LIGE
+  negociaciones: 'crm_casos',
+  negociacionesAcciones: 'crm_acciones',
+  negociacionesGestiones: 'crm_gestiones',
+  negociacionesGestionTipos: 'crm_gestion_tipos',
+  negociacionesGestionAdjuntos: 'crm_gestion_adjuntos',
+  preciosObjetivos: 'objetivo_precios',
+  preciosEscalas: 'escalas_aumento',
+  preciosEscalasDetalle: 'escalas_aumento_detalle',
+  preciosGrupos: 'grupos_clientes',
+  preciosNotasConfig: 'notas_config',
+  preciosNotasEmitidas: 'notas_emitidas',
+  preciosSnapshots: 'precios_snapshots',
+  preciosSnapshotDetalle: 'precios_snapshot_detalle',
+  preciosAplicaciones: 'aplicaciones_escala',
+  preciosAuditoria: 'auditoria',
+  preciosAuditoriaObjetivos: 'auditoria_objetivo_precios',
+  sucursales: 'sucursales',
 };
 
 // camelCase → snake_case para guardar en Supabase
@@ -549,6 +567,40 @@ export function _toSnake(obj) {
     // v089 — Superadmin / empresas cliente
     modulosContratados: 'modulos_contratados', supabaseUrl: 'supabase_url', vercelUrl: 'vercel_url',
     supabaseAnonKey: 'supabase_anon_key', // v090
+    // v097 — CRM de Negociación
+    clienteId: 'cliente_id', paritariaId: 'paritaria_id',
+    responsableId: 'responsable_id', proximaAccionId: 'proxima_accion_id',
+    proximaAccionDetalle: 'proxima_accion_detalle', fechaProximaAccion: 'fecha_proxima_accion',
+    precerradaAt: 'precerrada_at', precerradaPor: 'precerrada_por',
+    precerradaEmail: 'precerrada_email', precerradaMotivo: 'precerrada_motivo',
+    cerradaAt: 'cerrada_at', casoId: 'caso_id',
+    negociadoPorPersonaId: 'negociado_por_persona_id', negociadoPorTexto: 'negociado_por_texto',
+    cargadoPor: 'cargado_por', cargadoPorEmail: 'cargado_por_email',
+    tipoId: 'tipo_id', cumpleAccionId: 'cumple_accion_id',
+    cumplioAccionId: 'cumplio_accion_id', requiereDetalle: 'requiere_detalle',
+    dependeDe: 'depende_de', gestionId: 'gestion_id',
+    subidoPor: 'subido_por', subidoPorEmail: 'subido_por_email',
+    // v097 — Precios LIGE
+    sucursalId: 'sucursal_id', codigoObjetivo: 'codigo_objetivo',
+    precioHora: 'precio_hora', precioHoraB: 'precio_hora_b',
+    horasVendidas: 'horas_vendidas', tipoPrecio: 'tipo_precio',
+    tipoServicio: 'tipo_servicio', escalaId: 'escala_id',
+    vigenteDesde: 'vigente_desde', vigenteHasta: 'vigente_hasta',
+    grupoId: 'grupo_id', firmanteNombre: 'firmante_nombre',
+    firmanteCargo: 'firmante_cargo', firmaImagen: 'firma_imagen',
+    membreteHeader: 'membrete_header', membreteFooter: 'membrete_footer',
+    textoNota: 'texto_nota', fechaGenerada: 'fecha_generada',
+    fechaEnviada: 'fecha_enviada', fechaNota: 'fecha_nota',
+    incluyePrecio: 'incluye_precio', origenId: 'origen_id',
+    creadoAt: 'creado_at', nFilas: 'n_filas',
+    snapshotId: 'snapshot_id', descripcionFiltro: 'descripcion_filtro',
+    clientesIds: 'clientes_ids', fechaAplicacion: 'fecha_aplicacion',
+    filaId: 'fila_id', usuarioId: 'usuario_id', usuarioEmail: 'usuario_email',
+    hechoAt: 'hecho_at', datosAnteriores: 'datos_anteriores',
+    datosNuevos: 'datos_nuevos', auditoriaId: 'auditoria_id',
+    precioAntes: 'precio_antes', precioDespues: 'precio_despues',
+    pdfPath: 'pdf_path', pdfNombre: 'pdf_nombre', pdfSubidoEn: 'pdf_subido_en',
+    claveFiscal: 'claveFiscal', // already exists above, dedup handled by object literal
   };
   const r = {};
   for (const [k, v] of Object.entries(obj)) {
@@ -563,6 +615,7 @@ export function _toSnake(obj) {
   if ('antec_excepcion' in r) r.antec_excepcion = r.antec_excepcion === true || r.antec_excepcion === 'true';
   if ('libreta_aplica' in r) r.libreta_aplica = r.libreta_aplica === true || r.libreta_aplica === 'true';
   if ('curso_tiene' in r) r.curso_tiene = r.curso_tiene === true || r.curso_tiene === 'true';
+  if ('incluye_precio' in r) r.incluye_precio = r.incluye_precio === true || r.incluye_precio === 'true';
   return r;
 }
 
@@ -918,6 +971,39 @@ export function _toCamel(obj) {
     // v089 — Superadmin / empresas cliente
     modulos_contratados: 'modulosContratados', supabase_url: 'supabaseUrl', vercel_url: 'vercelUrl',
     supabase_anon_key: 'supabaseAnonKey', // v090
+    // v097 — CRM de Negociación
+    cliente_id: 'clienteId', paritaria_id: 'paritariaId',
+    responsable_id: 'responsableId', proxima_accion_id: 'proximaAccionId',
+    proxima_accion_detalle: 'proximaAccionDetalle', fecha_proxima_accion: 'fechaProximaAccion',
+    precerrada_at: 'precerradaAt', precerrada_por: 'precerradaPor',
+    precerrada_email: 'precerradaEmail', precerrada_motivo: 'precerradaMotivo',
+    cerrada_at: 'cerradaAt', caso_id: 'casoId',
+    negociado_por_persona_id: 'negociadoPorPersonaId', negociado_por_texto: 'negociadoPorTexto',
+    cargado_por: 'cargadoPor', cargado_por_email: 'cargadoPorEmail',
+    tipo_id: 'tipoId', cumple_accion_id: 'cumpleAccionId',
+    cumplio_accion_id: 'cumplioAccionId', requiere_detalle: 'requiereDetalle',
+    depende_de: 'dependeDe', gestion_id: 'gestionId',
+    subido_por: 'subidoPor', subido_por_email: 'subidoPorEmail',
+    // v097 — Precios LIGE
+    sucursal_id: 'sucursalId', codigo_objetivo: 'codigoObjetivo',
+    precio_hora: 'precioHora', precio_hora_b: 'precioHoraB',
+    horas_vendidas: 'horasVendidas', tipo_precio: 'tipoPrecio',
+    tipo_servicio: 'tipoServicio', escala_id: 'escalaId',
+    vigente_desde: 'vigenteDesde', vigente_hasta: 'vigenteHasta',
+    grupo_id: 'grupoId', firmante_nombre: 'firmanteNombre',
+    firmante_cargo: 'firmanteCargo', firma_imagen: 'firmaImagen',
+    membrete_header: 'membreteHeader', membrete_footer: 'membreteFooter',
+    texto_nota: 'textoNota', fecha_generada: 'fechaGenerada',
+    fecha_enviada: 'fechaEnviada', fecha_nota: 'fechaNota',
+    incluye_precio: 'incluyePrecio', origen_id: 'origenId',
+    creado_at: 'creadoAt', n_filas: 'nFilas',
+    snapshot_id: 'snapshotId', descripcion_filtro: 'descripcionFiltro',
+    clientes_ids: 'clientesIds', fecha_aplicacion: 'fechaAplicacion',
+    fila_id: 'filaId', usuario_id: 'usuarioId', usuario_email: 'usuarioEmail',
+    hecho_at: 'hechoAt', datos_anteriores: 'datosAnteriores',
+    datos_nuevos: 'datosNuevos', auditoria_id: 'auditoriaId',
+    precio_antes: 'precioAntes', precio_despues: 'precioDespues',
+    pdf_path: 'pdfPath', pdf_nombre: 'pdfNombre', pdf_subido_en: 'pdfSubidoEn',
   };
   const r = {};
   for (const [k, v] of Object.entries(obj)) {
