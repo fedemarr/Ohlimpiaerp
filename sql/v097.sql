@@ -50,6 +50,117 @@ create index if not exists idx_sucursales_odoo_id on public.sucursales(odoo_id);
 comment on table public.sucursales is 'Sucursales/locales de un cliente. FK desde objetivo_precios.';
 
 -- =====================================================================
+-- BLOQUE 0c — Adaptación Ohlimpia: tablas/columnas de FinFlow que la base
+-- de Ohlimpia NO tenía (venían de migraciones previas de FinFlow que no
+-- forman parte de esta carpeta). Sin este bloque, v097 falla:
+--   · paritarias_detalle      → no existe (la usa el trigger de auditoría
+--                               y el módulo Precios)
+--   · personas                → no existe (FK de crm_gestiones y la usa
+--                               Precios para coordinadores)
+--   · industrias              → no existe (Precios la lee al iniciar)
+--   · indices_economicos      → no existe (Precios lee horizonte_meses)
+--   · clientes: industria_id, responsable_id, descuento_pronto_pago,
+--     email_para, email_cc    → columnas que FinFlow ya tenía y el CRM/
+--                               Precios escriben o leen (grupo_id lo agrega
+--                               abm_26 más abajo)
+--   · paritarias: codigo, descripcion, color, nota_generica, activa,
+--     acta_*/homologacion_*   → columnas del modelo FinFlow que Precios
+--                               gestiona desde su pantalla de paritarias
+-- Todo es idempotente (if not exists / add column if not exists), así que
+-- re-ejecutar el archivo completo no rompe nada.
+-- =====================================================================
+
+-- 1) industrias — catálogo simple para filtrar clientes en Precios
+create table if not exists public.industrias (
+  id         uuid primary key default gen_random_uuid(),
+  nombre     text not null,
+  created_at timestamptz not null default now()
+);
+alter table public.industrias enable row level security;
+drop policy if exists industrias_all on public.industrias;
+create policy industrias_all on public.industrias for all to authenticated using (true) with check (true);
+
+-- 2) personas — coordinadores de cuenta / firmantes (CRM + Precios)
+create table if not exists public.personas (
+  id         uuid primary key default gen_random_uuid(),
+  nombre     text not null,
+  activo     boolean not null default true,
+  created_at timestamptz not null default now()
+);
+alter table public.personas enable row level security;
+drop policy if exists personas_all on public.personas;
+create policy personas_all on public.personas for all to authenticated using (true) with check (true);
+
+-- 3) indices_economicos — Precios lee 'horizonte_meses' para el ancho de
+-- la matriz. Seed con el default si todavía no hay ninguna fila.
+create table if not exists public.indices_economicos (
+  id         bigint generated always as identity primary key,
+  mes        text not null,
+  tipo       text not null,
+  valor      numeric not null,
+  created_at timestamptz not null default now()
+);
+alter table public.indices_economicos enable row level security;
+drop policy if exists indices_economicos_all on public.indices_economicos;
+create policy indices_economicos_all on public.indices_economicos for all to authenticated using (true) with check (true);
+insert into public.indices_economicos (mes, tipo, valor)
+select to_char(now(), 'YYYY-MM') || '-01', 'horizonte_meses', 12
+where not exists (select 1 from public.indices_economicos where tipo = 'horizonte_meses');
+
+-- 4) Columnas nuevas en clientes (modelo FinFlow)
+alter table public.clientes
+  add column if not exists industria_id uuid references public.industrias(id) on delete set null,
+  add column if not exists responsable_id uuid,          -- FK a grupos_clientes se agrega en abm_26/CRM
+  add column if not exists descuento_pronto_pago numeric not null default 0,
+  add column if not exists email_para text,
+  add column if not exists email_cc text;
+
+-- 5) Columnas del modelo FinFlow sobre la paritarias de Ohlimpia
+alter table public.paritarias
+  add column if not exists codigo text,
+  add column if not exists descripcion text,
+  add column if not exists color text,
+  add column if not exists nota_generica text,
+  add column if not exists activa boolean not null default true,
+  add column if not exists acta_url text,
+  add column if not exists acta_path text,
+  add column if not exists acta_nombre text,
+  add column if not exists homologacion_path text,
+  add column if not exists homologacion_nombre text;
+
+-- 6) paritarias_detalle — renglones mes/% de cada paritaria (Precios los
+-- carga, borra y reguarda al editar). UNIQUE (paritaria_id, mes).
+create table if not exists public.paritarias_detalle (
+  id           bigint generated always as identity primary key,
+  paritaria_id uuid not null references public.paritarias(id) on delete cascade,
+  mes          date not null,
+  pct_aumento  numeric not null,
+  unique (paritaria_id, mes)
+);
+alter table public.paritarias_detalle enable row level security;
+drop policy if exists paritarias_detalle_all on public.paritarias_detalle;
+create policy paritarias_detalle_all on public.paritarias_detalle for all to authenticated using (true) with check (true);
+
+-- 7) Código auto-generado de paritaria (en FinFlow lo sellaba un trigger
+-- de su migración base; acá reproducimos ese comportamiento). Solo llena
+-- el código cuando viene vacío: P-001, P-002, ...
+create or replace function public.generar_codigo_paritaria()
+returns trigger language plpgsql as $$
+declare proximo int;
+begin
+  if new.codigo is null or new.codigo = '' then
+    select coalesce(max((regexp_match(codigo, '^P-(\d+)$'))[1]::int), 0) + 1 into proximo from public.paritarias where codigo ~ '^P-\d+$';
+    new.codigo := 'P-' || lpad(proximo::text, 3, '0');
+  end if;
+  return new;
+end;
+$$;
+drop trigger if exists trg_paritarias_codigo on public.paritarias;
+create trigger trg_paritarias_codigo
+  before insert on public.paritarias
+  for each row execute function public.generar_codigo_paritaria();
+
+-- =====================================================================
 -- CONTENIDO DE: carpeta implementacion ohlimpia\sql\precios\abm_18_objetivo_precios.sql
 -- =====================================================================
 
@@ -308,6 +419,22 @@ alter table public.clientes
 
 comment on column public.clientes.grupo_id is
   'Grupo de clientes al que pertenece (para aplicar escalas de paritaria). Un cliente pertenece a un solo grupo, o a ninguno (null).';
+
+-- 1b) clientes.responsable_id — Resp. Neg. del cliente (FK a grupos_clientes
+-- con tipo='responsable'). La columna se crea en el BLOQUE 0c sin FK porque
+-- grupos_clientes todavía no existía; acá ya existe, se agrega la referencia.
+do $$
+begin
+  if not exists (
+    select 1 from pg_constraint
+     where conname = 'clientes_responsable_fk'
+       and conrelid = 'public.clientes'::regclass
+  ) then
+    alter table public.clientes
+      add constraint clientes_responsable_fk
+      foreign key (responsable_id) references public.grupos_clientes(id) on delete set null;
+  end if;
+end $$;
 
 -- 2) indice por grupo (para listar/filtrar los clientes de un grupo)
 create index if not exists idx_clientes_grupo on public.clientes (grupo_id);
