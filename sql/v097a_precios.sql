@@ -50,6 +50,15 @@ create index if not exists idx_sucursales_odoo_id on public.sucursales(odoo_id);
 
 comment on table public.sucursales is 'Sucursales/locales de un cliente. FK desde objetivo_precios.';
 
+-- Fix (revision de codigo, 23/08): precios.js (el loader masivo, linea
+-- ~4382) lee codigo_objetivo y tipo_servicio directo de sucursales —
+-- ninguna de las dos se habia agregado a esta tabla.
+alter table public.sucursales
+  add column if not exists codigo_objetivo text,
+  add column if not exists tipo_servicio   text check (tipo_servicio in ('vigilancia','custodia','otro'));
+comment on column public.sucursales.codigo_objetivo is 'Codigo del objetivo/sucursal para cruce con sistemas externos (LIGE, etc.).';
+comment on column public.sucursales.tipo_servicio    is 'Tipo de servicio de esta sucursal — hereda a objetivo_precios.tipo_servicio.';
+
 -- =====================================================================
 -- BLOQUE 0c - Adaptacion Ohlimpia: tablas/columnas de FinFlow que la base
 -- de Ohlimpia NO tenia. Sin este bloque, el resto del archivo falla.
@@ -76,6 +85,30 @@ create table if not exists public.personas (
 alter table public.personas enable row level security;
 drop policy if exists personas_all on public.personas;
 create policy personas_all on public.personas for all to authenticated using (true) with check (true);
+
+-- 2b) objetivo_comisionistas - de acá sale el coordinador de cuenta de cada
+-- sucursal/objetivo (ver docs/Diseno_CRM_Negociacion.md §4: "quién habló
+-- con el cliente" sale de acá, distinto de "quién cargó el registro").
+-- Fix (revision de codigo, 23/08): precios.js:4385 la lee directo — la
+-- tabla nunca se había creado en ningún script (ni siquiera en el original
+-- de FinFlow), solo se la menciona en comentarios/docs. Sin datos por
+-- ahora — falta el proceso que la puebla (a mano o desde otro sistema).
+create table if not exists public.objetivo_comisionistas (
+  id            uuid primary key default gen_random_uuid(),
+  sucursal_id   uuid not null references public.sucursales(id) on delete cascade,
+  persona_id    uuid not null references public.personas(id) on delete cascade,
+  rol           text,
+  vigente_hasta date,
+  created_at    timestamptz not null default now(),
+  unique (sucursal_id, persona_id, rol)
+);
+comment on table public.objetivo_comisionistas is
+  'Coordinador/comisionista a cargo de cada sucursal (objetivo). De acá sale "quién negoció" en el CRM — distinto de quién cargó el registro.';
+alter table public.objetivo_comisionistas enable row level security;
+drop policy if exists objetivo_comisionistas_all on public.objetivo_comisionistas;
+create policy objetivo_comisionistas_all on public.objetivo_comisionistas for all to authenticated using (true) with check (true);
+create index if not exists idx_obj_comisionistas_sucursal on public.objetivo_comisionistas (sucursal_id);
+create index if not exists idx_obj_comisionistas_persona  on public.objetivo_comisionistas (persona_id);
 
 -- 3) indices_economicos - Precios lee 'horizonte_meses' para el ancho de
 -- la matriz. Seed con el default si todavia no hay ninguna fila.
@@ -186,6 +219,15 @@ create table if not exists public.objetivo_precios (
 comment on column public.objetivo_precios.precio_hora   is 'Importe Hora A de LIGE: es el valor que SE FACTURA (o monto mensual si tipo_precio=fijo).';
 comment on column public.objetivo_precios.precio_hora_b is 'Importe Hora B de LIGE: espejado/de referencia. SIN uso actual (no se factura); se guarda hasta aclarar que significa.';
 
+-- Fix (revision de codigo, 23/08): precios.js (cargarPrecios y el loader
+-- masivo) lee paritaria_id/escala_id junto con pct_aumento para saber CON
+-- QUE paritaria/escala se generó ese precio — nunca se habian agregado.
+-- paritaria_id va acá (paritarias ya existe a esta altura del archivo);
+-- escala_id se agrega más abajo, después de crear escalas_aumento.
+alter table public.objetivo_precios
+  add column if not exists paritaria_id uuid references public.paritarias(id) on delete set null;
+comment on column public.objetivo_precios.paritaria_id is 'Paritaria que originó este precio (trazabilidad, complementa pct_aumento).';
+
 create index if not exists idx_obj_precios_suc_mes on public.objetivo_precios (sucursal_id, mes);
 create index if not exists idx_obj_precios_cli_mes on public.objetivo_precios (cliente_id, mes);
 create index if not exists idx_obj_precios_cod     on public.objetivo_precios (codigo_objetivo);
@@ -264,6 +306,20 @@ comment on column public.escalas_aumento.nombre      is 'Nombre descriptivo de l
 comment on column public.escalas_aumento.paritaria   is 'Etiqueta para agrupar escalas de una misma paritaria. Ej. "Jul-Dic 2026".';
 comment on column public.escalas_aumento.activa      is 'Si la escala esta vigente/usable (soft-disable sin borrar).';
 
+-- Fix (revision de codigo, 23/08): guardarEscala() en precios.js lee/escribe
+-- paritaria_id (FK real a public.paritarias) ademas de la etiqueta de texto
+-- "paritaria" de arriba — nunca se habia agregado la columna.
+alter table public.escalas_aumento
+  add column if not exists paritaria_id uuid references public.paritarias(id) on delete set null;
+comment on column public.escalas_aumento.paritaria_id is 'FK real a la paritaria de origen (complementa la etiqueta de texto "paritaria").';
+
+-- objetivo_precios.escala_id se agrega recién acá (no en la definición de
+-- objetivo_precios, más arriba en el archivo) porque escalas_aumento
+-- todavía no existía en ese punto — referenciarla antes rompía el script.
+alter table public.objetivo_precios
+  add column if not exists escala_id uuid references public.escalas_aumento(id) on delete set null;
+comment on column public.objetivo_precios.escala_id is 'Escala de aumento que originó este precio, si vino de aplicar una escala a un grupo.';
+
 
 -- ---------------------------------------------------------------------
 -- 2) escalas_aumento_detalle (renglones: mes + % de aumento)
@@ -336,6 +392,17 @@ comment on table public.grupos_clientes is
   'Grupo estable de clientes para aplicar escalas de aumento (paritarias). Es un estado actual, sin historizacion: se reusa y se reconfigura entre paritarias.';
 comment on column public.grupos_clientes.nombre is 'Nombre del grupo. Ej. "Consorcios", "Zona Lopez", "Zona Bettolli".';
 comment on column public.grupos_clientes.activo is 'Si el grupo esta en uso (soft-disable sin borrar).';
+
+-- Fix (revision de codigo, 23/08): tipo/color se usan en precios.js y
+-- negociaciones.js (cargarGrupos, el embed grupos_clientes!responsable_id
+-- de crm_casos, crm_asignar_responsable) para distinguir filas
+-- tipo='grupo' (agrupacion comercial) de tipo='responsable' (persona a
+-- cargo de la negociacion) — nunca se habian agregado a esta tabla.
+alter table public.grupos_clientes
+  add column if not exists tipo  text not null default 'grupo' check (tipo in ('grupo','responsable')),
+  add column if not exists color text;
+comment on column public.grupos_clientes.tipo  is 'grupo = agrupacion comercial de clientes; responsable = persona a cargo de la negociacion (mismo catalogo, discriminado por tipo).';
+comment on column public.grupos_clientes.color is 'Color para mostrar en UI (chips de Precios/CRM). Opcional.';
 
 
 -- ---------------------------------------------------------------------
@@ -489,6 +556,19 @@ comment on column public.notas_config.firmante_cargo  is 'Cargo del firmante (ej
 comment on column public.notas_config.firma_imagen    is 'Imagen de la firma escaneada, base64 (data URI).';
 comment on column public.notas_config.membrete_header is 'Imagen del encabezado/logo del membrete, base64 (data URI). A futuro cambiable.';
 comment on column public.notas_config.membrete_footer is 'Imagen del pie institucional del membrete, base64 (data URI).';
+
+-- Fix (revision de codigo, 23/08): precios.js (abrirModalConfig,
+-- guardarConfig, migrarImagenesNotas) lee/escribe logo_path/logo_nombre/
+-- firma_path/firma_nombre — punteros a Supabase Storage, para migrar las
+-- imagenes de base64 (arriba) a Storage. Nunca se habian agregado; sin
+-- esto, abrir "Configuración de notas" en Precios tira error.
+alter table public.notas_config
+  add column if not exists logo_path   text,
+  add column if not exists logo_nombre text,
+  add column if not exists firma_path  text,
+  add column if not exists firma_nombre text;
+comment on column public.notas_config.logo_path    is 'Path en Supabase Storage del logo/membrete (reemplaza membrete_header en base64).';
+comment on column public.notas_config.firma_path   is 'Path en Supabase Storage de la firma escaneada (reemplaza firma_imagen en base64).';
 
 
 -- ---------------------------------------------------------------------
@@ -1510,9 +1590,9 @@ grant  execute on function public.restaurar_precios_snapshot(uuid) to authentica
 -- 
 -- -- 12.3 Grants: authenticated solo SELECT, anon sin nada
 -- select table_name, grantee, privilege_type
-  from information_schema.role_table_grants
- where table_schema = 'public' and table_name in ('auditoria','auditoria_objetivo_precios')
- order by table_name, grantee, privilege_type;
+--   from information_schema.role_table_grants
+--  where table_schema = 'public' and table_name in ('auditoria','auditoria_objetivo_precios')
+--  order by table_name, grantee, privilege_type;
 
 
 -- =====================================================================

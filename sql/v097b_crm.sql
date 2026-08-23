@@ -1634,6 +1634,18 @@ comment on column public.crm_gestiones.canal is
 
 create index if not exists idx_crm_gestiones_tipo on public.crm_gestiones (tipo_id);
 
+-- Fix (revision de codigo, 23/08): el BLOQUE 4 de mas abajo (relleno de
+-- gestiones existentes) y crm_generar_casos() ya usan g.origen /
+-- origen='envio_nota', y ese INSERT hace "ON CONFLICT (caso_id) WHERE
+-- origen='envio_nota'" — pero la columna origen y el indice unico parcial
+-- que ese ON CONFLICT necesita nunca se habian creado.
+alter table public.crm_gestiones
+  add column if not exists origen text;
+comment on column public.crm_gestiones.origen is
+  'Quien/que generó esta gestión automáticamente (ej. "envio_nota" cuando el sistema manda la nota de aumento). NULL para gestiones cargadas a mano.';
+create unique index if not exists idx_crm_gestiones_origen_envio_nota
+  on public.crm_gestiones (caso_id) where origen = 'envio_nota';
+
 
 -- =====================================================================
 -- BLOQUE 4 — RELLENO de las gestiones que ya existen
