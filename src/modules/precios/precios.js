@@ -1989,7 +1989,7 @@ function abrirMenuColumnas(btn) {
   const cols = COLS_MENU.filter((c) => c.k !== "nota" || notasOK);
   // Meses: se ofrecen todos (no solo los de la ventana corta) para poder ocultar
   // uno puntual sin importar si "Todos los meses" está activo o no.
-  const mesesHtml = (MESES || []).map((m) => {
+  const mesesHtml = (DATA?.MESES || []).map((m) => {
     const iso = m.slice(0, 10);
     const [y, mm] = iso.split("-");
     return `<label><input type="checkbox" data-mes="${iso}" ${mesesOcultos.has(iso) ? "" : "checked"}/> ${mm}/${y}</label>`;
