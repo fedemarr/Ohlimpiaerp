@@ -1369,8 +1369,8 @@ function render() {
   // Una sola fuente para el encabezado y para las celdas, así no se pueden desalinear.
   const { desde, hasta } = ventanaMeses();
   const fueraVentana = (m) => !verTodosLosMeses && (m.slice(0, 10) < desde || m.slice(0, 10) > hasta);
-  const clsMes = (m, i) => `${i % 2 === 1 ? " m-alt" : ""}${fueraVentana(m) ? " mes-off" : ""}`;
-  nMesesVisibles = MESES.filter((m) => !fueraVentana(m)).length;
+  const clsMes = (m, i) => `${i % 2 === 1 ? " m-alt" : ""}${fueraVentana(m) ? " mes-off" : ""}${mesesOcultos.has(m.slice(0, 10)) ? " mes-oculto-manual" : ""}`;
+  nMesesVisibles = MESES.filter((m) => !fueraVentana(m) && !mesesOcultos.has(m.slice(0, 10))).length;
   const tabla = document.querySelector("[data-role=tabla-precios]");
   if (tabla) tabla.classList.toggle("ventana-corta", !verTodosLosMeses);
 
@@ -1904,6 +1904,10 @@ function limpiarPopupCol() {
 // ---- Columnas fijas: ancho (redimensionable) y visibilidad (menú ☰). Estado de sesión. ----
 const anchoCol = { obj: 300, tipo: 40, ind: 180, coord: 180, grupo: 150, resp: 110, nota: 150 };   // ancho real (cuando visible)
 const ocultas = { tipo: false, ind: false, coord: false, grupo: false, resp: true, nota: false };   // Resp. Neg. OCULTA por defecto; Nota VISIBLE
+// Meses ocultos A MANO desde el menú ☰ (distinto de "mes-off" — eso es la ventana
+// corta automática, esto es "no quiero ver este mes puntual, ni con Todos los
+// meses activado"). Guarda 'YYYY-MM-01'. Persiste junto con ocultas/anchoCol.
+const mesesOcultos = new Set();
 const LIM_COL = { obj: [200, 600], tipo: [24, 120], ind: [60, 360], coord: [60, 360], grupo: [60, 300], resp: [60, 300], nota: [90, 300] };
 // Nota se oculta también cuando no hay dato utilizable: sin esto quedaría una columna
 // vacía que se lee como error. Un solo lugar decide, para que el menú ☰ y la grilla
@@ -1923,8 +1927,9 @@ function aplicarColsFijas() {
 
 // ---- Persistencia de la vista (columnas visibles + anchos) en localStorage. Por PC/usuario, NO en la base. ----
 const VISTA_KEY = "finflow.precios.vista";
-const VISTA_VER = 3;   // subir este número cada vez que cambien las columnas fijas (agregar, sacar o reordenar), para invalidar lo guardado
+const VISTA_VER = 4;   // subir este número cada vez que cambien las columnas fijas (agregar, sacar o reordenar), para invalidar lo guardado
                        // 3 = entra la columna Nota (27-jul-2026): con la 2, el navegador restauraba un layout sin ella
+                       // 4 = entra mesesOcultos (24-ago-2026): ocultar meses puntuales a mano
 function cargarVista() {
   try {
     const raw = localStorage.getItem(VISTA_KEY);
@@ -1942,11 +1947,13 @@ function cargarVista() {
           anchoCol[k] = Math.max(mn, Math.min(mx, w));   // clamp a límites: un valor corrupto no rompe el layout
         }
       }
+    if (Array.isArray(data.mesesOcultos))
+      for (const m of data.mesesOcultos) if (typeof m === "string") mesesOcultos.add(m);
   } catch (e) { /* JSON corrupto o storage bloqueado → defaults, la pantalla sigue funcionando */ }
 }
 function guardarVista() {
   try {
-    localStorage.setItem(VISTA_KEY, JSON.stringify({ v: VISTA_VER, ocultas: { ...ocultas }, anchoCol: { ...anchoCol } }));
+    localStorage.setItem(VISTA_KEY, JSON.stringify({ v: VISTA_VER, ocultas: { ...ocultas }, anchoCol: { ...anchoCol }, mesesOcultos: [...mesesOcultos] }));
   } catch (e) { /* storage bloqueado/lleno → se ignora */ }
 }
 
@@ -1980,8 +1987,17 @@ function abrirMenuColumnas(btn) {
   if (!pop.hidden) { pop.hidden = true; return; }   // toggle
   // Si la lectura de notas falló, Nota ni se ofrece: tildarla mostraría una columna vacía.
   const cols = COLS_MENU.filter((c) => c.k !== "nota" || notasOK);
+  // Meses: se ofrecen todos (no solo los de la ventana corta) para poder ocultar
+  // uno puntual sin importar si "Todos los meses" está activo o no.
+  const mesesHtml = (MESES || []).map((m) => {
+    const iso = m.slice(0, 10);
+    const [y, mm] = iso.split("-");
+    return `<label><input type="checkbox" data-mes="${iso}" ${mesesOcultos.has(iso) ? "" : "checked"}/> ${mm}/${y}</label>`;
+  }).join("");
   pop.innerHTML = `<div class="fp-title" style="font-weight:600;margin-bottom:4px">Columnas</div>`
-    + cols.map((c) => `<label><input type="checkbox" data-col="${c.k}" ${ocultas[c.k] ? "" : "checked"}/> ${esc(c.lbl)}</label>`).join("");
+    + cols.map((c) => `<label><input type="checkbox" data-col="${c.k}" ${ocultas[c.k] ? "" : "checked"}/> ${esc(c.lbl)}</label>`).join("")
+    + `<div class="fp-title" style="font-weight:600;margin:10px 0 4px">Meses</div>`
+    + `<div style="max-height:220px;overflow:auto;">${mesesHtml}</div>`;
   const r = btn.getBoundingClientRect();
   pop.hidden = false;
   pop.style.left = Math.max(8, Math.min(r.left, window.innerWidth - pop.offsetWidth - 8)) + "px";
@@ -2013,6 +2029,21 @@ function wireColumnaNota() {
 function wireMenuColumnas() {
   const pop = document.querySelector("[data-role=col-menu-pop]");
   pop?.addEventListener("change", (e) => {
+    const mes = e.target.dataset.mes;
+    if (mes) {
+      // Los meses no tienen --w-*/hide-* como las columnas fijas: se resuelven
+      // en clsMes() al armar el HTML, así que hace falta un render() completo
+      // (mismo patrón que el toggle "Todos los meses").
+      if (pendingChanges.size) {
+        mostrarMsgEdicion("Guardá o descartá los cambios pendientes antes de cambiar los meses a la vista.");
+        e.target.checked = !e.target.checked;   // no se puede aplicar ahora: el check vuelve a como estaba
+        return;
+      }
+      if (e.target.checked) mesesOcultos.delete(mes); else mesesOcultos.add(mes);
+      guardarVista();
+      render();
+      return;
+    }
     const col = e.target.dataset.col; if (!col) return;
     ocultas[col] = !e.target.checked;   // destildado → oculta
     aplicarColsFijas();

@@ -493,6 +493,14 @@ tr.sup-cli{background:#f8f9fd;}
       position: sticky; top: 0; z-index: 2;
       background: var(--azul-oscuro); color: #ffffff; font-weight: 700; font-size: 12.5px;   /* encabezado destacado (banda casi negra) */
     }
+    /* Fix retema (24/08): .funnel y .col-menu-btn son globales (pensados para
+       fondo claro, como en la tabla de Negociaciones) — acá el fondo del
+       encabezado es azul oscuro, así que necesitan su propio color claro. */
+    #screen-precios table[data-role=tabla-precios] thead th .funnel { color: rgba(255,255,255,.7); }
+    #screen-precios table[data-role=tabla-precios] thead th .funnel:hover { color: #ffffff; }
+    #screen-precios table[data-role=tabla-precios] thead th .funnel.activo { color: var(--acento); }
+    #screen-precios table[data-role=tabla-precios] thead th .col-menu-btn { color: rgba(255,255,255,.7); }
+    #screen-precios table[data-role=tabla-precios] thead th .col-menu-btn:hover { color: #ffffff; }
 
     /* columna fija a la izquierda (horizontal): Cliente/Objetivo */#screen-precios table[data-role=tabla-precios] .sticky-col {
       position: sticky; z-index: 1;
@@ -554,7 +562,7 @@ tr.sup-cli{background:#f8f9fd;}
 
     /* encabezados AGRUPADOS por mes (2 filas de thead) */
     /* Fila 1 (meses): altura FIJA (border-box) para que el top de la fila 2 la iguale exacto y no se superpongan. */#screen-precios thead tr.grp th.mes-grp { top: 0; box-sizing: border-box; height: 26px; padding: 2px 6px; z-index: 2; text-align: center; font-weight: 700; color: #ffffff;
-                              border-left: 2px solid var(--borde-fuerte); }#screen-precios thead tr.sub th.sub { top: 26px; z-index: 2; font-weight: 700; font-size: 12px; color: var(--texto);
+                              border-left: 2px solid var(--borde-fuerte); }#screen-precios thead tr.sub th.sub { top: 26px; z-index: 2; font-weight: 700; font-size: 12px; color: #ffffff;
                               border-bottom: 2px solid rgba(27,79,168,0.55); box-shadow: 0 2px 8px rgba(27,79,168,.12); }   /* sombra: las filas pasan POR DEBAJO */#screen-precios thead tr.grp th.sticky-col { top: 0; border-bottom: 2px solid rgba(27,79,168,0.55); box-shadow: 0 2px 8px rgba(27,79,168,.12); }   /* col-obj/tipo/ind/coord/grupo (rowspan 2) */
 
     /* sub-columnas de cada mes: % Aum | Precio | % Desc */#screen-precios td.sub,
@@ -565,7 +573,10 @@ tr.sup-cli{background:#f8f9fd;}
     /* sombreado ALTERNADO por mes (bandas verticales sutiles; abarca las 3 sub-columnas, header + filas) */#screen-precios td.sub.m-alt { background: var(--borde); }#screen-precios .rel-cliente td.sub.m-alt { background: var(--azul-claro); }             /* banda sobre el fondo sólido del cliente */#screen-precios table[data-role=tabla-precios] thead th.m-alt { background: var(--azul-suave); }   /* banda alternada sobre el encabezado casi negro */
 
     /* Ventana de meses: las columnas de afuera SE DIBUJAN (el JS las necesita para poder
-       escribirles un precio) y solo se ocultan acá. El ahorro es el layout de la tabla. */#screen-precios table[data-role=tabla-precios].ventana-corta .mes-off { display: none; }#screen-precios td.sub-pre.proj { color: var(--texto-muy-suave); }                            /* solo el precio proyectado se atenúa; los % mantienen su color */#screen-precios td.sub-pre.marca-dif,
+       escribirles un precio) y solo se ocultan acá. El ahorro es el layout de la tabla. */#screen-precios table[data-role=tabla-precios].ventana-corta .mes-off { display: none; }
+/* Ocultar mes a mano desde el menú ☰ (24/08) — a diferencia de .mes-off, esto
+   aplica SIEMPRE, esté o no activado "Todos los meses". */
+#screen-precios table[data-role=tabla-precios] .mes-oculto-manual { display: none; }#screen-precios td.sub-pre.proj { color: var(--texto-muy-suave); }                            /* solo el precio proyectado se atenúa; los % mantienen su color */#screen-precios td.sub-pre.marca-dif,
 #screen-precios .rel-cliente td.sub-pre.marca-dif { background: rgba(240,194,48,0.16); }  /* diferenciados: gana al sombreado */
 
     /* edición (Capas 1-4): celdas de precio y % (objetivo y cliente) editables + marca de modificado sin guardar */#screen-precios td.sub-pre.editable,
@@ -1021,3 +1032,38 @@ tr.sup-cli{background:#f8f9fd;}
 .crm-chip-punto { display: inline-block; width: 8px; height: 8px; border-radius: 50%;
                   margin-right: 6px; vertical-align: middle; }
 
+
+
+/* ============================================================
+   v098 — Matriz de accesos y perfiles (Configuración → Acceso y perfiles)
+   ============================================================ */
+.acc-aviso { background: #fff8e1; border: 1px solid #f0d060; color: #6d5408;
+  border-radius: var(--radio); padding: 10px 14px; font-size: 12.5px; margin-bottom: 12px; }
+.acc-tabla { width: 100%; border-collapse: collapse; font-size: 12.5px; min-width: 780px; }
+.acc-tabla th, .acc-tabla td { padding: 4px 6px; text-align: center; white-space: nowrap; }
+.acc-tabla thead th { position: sticky; top: 0; background: var(--fondo); z-index: 2;
+  font-size: 11px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); }
+.acc-mod { position: sticky; left: 0; background: #fff; z-index: 1; text-align: left !important;
+  font-weight: 600; padding-left: 12px !important; max-width: 260px;
+  overflow: hidden; text-overflow: ellipsis; box-shadow: 1px 0 0 var(--borde); }
+thead .acc-mod { z-index: 3; }
+.acc-area td { background: var(--fondo); font-weight: 700; font-size: 11px;
+  letter-spacing: .06em; color: var(--muted); text-align: left !important;
+  padding: 6px 12px !important; }
+.acc-celda { width: 34px; height: 26px; border: 1px solid transparent; border-radius: 6px;
+  cursor: pointer; font-size: 13px; line-height: 1; transition: transform .06s; }
+.acc-celda:hover { transform: scale(1.08); }
+.acc-n2 { background: #e3f4e4; color: #1c6b28; border-color: #bfe3c2; }
+.acc-n1 { background: #fff4d6; color: #8a6a00; border-color: #efd98f; }
+.acc-n0 { background: #f1f2f4; color: #9aa0a6; border-color: #e2e4e8; }
+.acc-override { outline: 2px solid var(--acento); outline-offset: -2px; }
+.acc-plantilla { color: var(--muted); font-size: 11.5px; }
+.acc-leyenda { display: flex; align-items: center; gap: 16px; margin-top: 10px;
+  font-size: 12px; flex-wrap: wrap; }
+.acc-leyenda .acc-celda { cursor: default; width: 28px; height: 22px; }
+
+/* Áreas colapsables de la matriz (REGLAS #2) */
+.acc-area-row { cursor: pointer; user-select: none; }
+.acc-area-row:hover .acc-area { color: var(--texto); }
+.acc-area-n { margin-left: 8px; font-weight: 400; font-size: 10px;
+  background: var(--borde); border-radius: 8px; padding: 1px 7px; color: var(--muted); }
