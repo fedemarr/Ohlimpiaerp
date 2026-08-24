@@ -181,12 +181,15 @@ export const _SM = {
   preciosGrupos: 'grupos_clientes',
   preciosNotasConfig: 'notas_config',
   preciosNotasEmitidas: 'notas_emitidas',
-  preciosSnapshots: 'precios_snapshots',
   preciosSnapshotDetalle: 'precios_snapshot_detalle',
-  preciosAplicaciones: 'aplicaciones_escala',
-  preciosAuditoria: 'auditoria',
-  preciosAuditoriaObjetivos: 'auditoria_objetivo_precios',
   sucursales: 'sucursales',
+  // preciosSnapshots/preciosAplicaciones/preciosAuditoria/preciosAuditoriaObjetivos
+  // (precios_snapshots, aplicaciones_escala, auditoria, auditoria_objetivo_precios)
+  // NO van acá a propósito: supaInit()/_pedirTabla() ordena TODA tabla de _SM
+  // por 'created_at' (columna estándar en el resto del sistema), pero estas 4
+  // usan otros nombres (creado_at, hecho_at) o no la tienen — tirarían 400 en
+  // cada login. precios.js ya las consulta directo con supabase.from(), sin
+  // pasar por DB.*, así que no hace falta que estén acá.
 };
 
 // camelCase → snake_case para guardar en Supabase

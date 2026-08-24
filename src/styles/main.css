@@ -378,3 +378,645 @@ tr.sup-cli{background:#f8f9fd;}
 .money.green{color:var(--verde);font-weight:700;}
 .sm{font-size:11px;color:var(--texto-suave);}
 .foot{font-size:11.5px;color:var(--texto-muy-suave);line-height:1.6;}
+
+/* ============================================================
+   Precios LIGE + CRM de Negociación — CSS portado de FinFlow
+   (carpeta implementacion ohlimpia/css/styles.css + pages/precios.html +
+   pages/crm.html). Escopado bajo #screen-precios / #screen-negociaciones
+   para no tocar el resto de la app — es un tema oscuro propio, deliberado,
+   sobre el estilo claro del resto de Ohlimpia.
+   ============================================================ */
+
+#screen-precios, #screen-negociaciones {
+  --bg: #0f1419;
+  --panel: #171d25;
+  --border: #2a313c;
+  --text: #e6e9ef;
+  --muted: #8a93a2;
+  --accent: #4f8cff;
+  --ok: #38c172;
+  --warn: #f6b040;
+  --err: #e3524f;
+  background: var(--bg);
+  color: var(--text);
+}
+
+/* --- Base compartida (botones, tablas, controles) --- */
+#screen-precios * { box-sizing: border-box; }#screen-precios,
+#screen-precios { margin: 0; padding: 0; background: var(--bg); color: var(--text); font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; }#screen-precios header {
+  padding: 1rem 1.5rem;
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: space-between;
+}#screen-precios header h1 { margin: 0; font-size: 1.1rem; font-weight: 600; }#screen-precios nav a { color: var(--muted); text-decoration: none; margin-left: 1rem; font-size: 0.9rem; }#screen-precios nav a:hover { color: var(--text); }#screen-precios main { padding: 1.5rem; max-width: 1200px; margin: 0 auto; }#screen-precios .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem; margin-bottom: 2rem; }#screen-precios .stat { background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 1rem; }#screen-precios .stat .label { color: var(--muted); font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.05em; }#screen-precios .stat .value { font-size: 1.8rem; font-weight: 600; margin-top: 0.25rem; }#screen-precios .status { color: var(--muted); font-size: 0.85rem; }#screen-precios button,
+#screen-precios .btn {
+  background: var(--accent); color: white; border: none; border-radius: 6px;
+  padding: 0.5rem 1rem; font-size: 0.9rem; cursor: pointer;
+}#screen-precios button:hover { opacity: 0.9; }#screen-precios table { width: 100%; border-collapse: collapse; }#screen-precios th,
+#screen-precios td { text-align: left; padding: 0.5rem 0.75rem; border-bottom: 1px solid var(--border); font-size: 0.9rem; white-space: nowrap; }#screen-precios th { color: var(--muted); font-weight: 500; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.05em; }#screen-precios h2 { font-size: 1rem; font-weight: 600; margin: 0 0 0.5rem; }#screen-precios h2 .muted { color: var(--muted); font-weight: 400; }#screen-precios .importer,
+#screen-precios .normalizer { background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 1rem 1.25rem; margin-bottom: 1.25rem; }#screen-precios .importer .row,
+#screen-precios .normalizer .row { display: flex; align-items: center; gap: 0.75rem; margin: 0.5rem 0 1rem; flex-wrap: wrap; }#screen-precios button:disabled,
+#screen-precios .btn:disabled { opacity: 0.5; cursor: not-allowed; }#screen-precios details { margin: 0.5rem 0; }#screen-precios details summary { cursor: pointer; color: var(--muted); font-size: 0.85rem; padding: 0.25rem 0; }#screen-precios details[open] summary { color: var(--text); }#screen-precios .log {
+  background: #0b0e12; border: 1px solid var(--border); border-radius: 6px;
+  padding: 0.75rem; font-family: ui-monospace, Consolas, monospace; font-size: 0.8rem;
+  color: var(--text); white-space: pre-wrap; max-height: 320px; overflow: auto; margin: 0;
+}#screen-precios .scroll-x { overflow-x: auto; max-width: 100%; }#screen-precios .preview-summary { margin: 0.5rem 0; }#screen-precios .status.ok { color: var(--ok); }#screen-precios .lookup-input {
+  background: #0b0e12; color: var(--text); border: 1px solid var(--border);
+  border-radius: 6px; padding: 0.4rem 0.6rem; font-family: ui-monospace, Consolas, monospace;
+  font-size: 0.85rem; min-width: 280px;
+}#screen-precios .grid-controls {
+  display: flex; align-items: center; gap: 0.5rem;
+  margin: 0 0 0.5rem 0;
+}#screen-precios .grid-controls input[type=search],
+#screen-precios .grid-controls select {
+  background: #0b0e12; color: var(--text); border: 1px solid var(--border);
+  border-radius: 6px; padding: 0.4rem 0.6rem; font-size: 0.9rem;
+  font-family: inherit;
+}#screen-precios .grid-controls input[type=search] { min-width: 280px; }#screen-precios .controls { margin-bottom: 1.5rem; }#screen-precios .controls label { display: inline-flex; flex-direction: column; font-size: 0.75rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; }#screen-precios .controls select,
+#screen-precios .controls input[type=number] {
+  background: #0b0e12; color: var(--text); border: 1px solid var(--border);
+  border-radius: 6px; padding: 0.4rem 0.6rem; margin-top: 0.25rem;
+  font-family: inherit; font-size: 0.9rem;
+}#screen-precios .controls input[type=number] { width: 6rem; }#screen-precios td.num,
+#screen-precios th.num { text-align: right; font-variant-numeric: tabular-nums; }#screen-precios th.period-current { color: var(--accent); }#screen-precios th.period-future { color: var(--muted); font-style: italic; }
+
+#screen-negociaciones * { box-sizing: border-box; }#screen-negociaciones,
+#screen-negociaciones { margin: 0; padding: 0; background: var(--bg); color: var(--text); font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; }#screen-negociaciones header {
+  padding: 1rem 1.5rem;
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: space-between;
+}#screen-negociaciones header h1 { margin: 0; font-size: 1.1rem; font-weight: 600; }#screen-negociaciones nav a { color: var(--muted); text-decoration: none; margin-left: 1rem; font-size: 0.9rem; }#screen-negociaciones nav a:hover { color: var(--text); }#screen-negociaciones main { padding: 1.5rem; max-width: 1200px; margin: 0 auto; }#screen-negociaciones .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem; margin-bottom: 2rem; }#screen-negociaciones .stat { background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 1rem; }#screen-negociaciones .stat .label { color: var(--muted); font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.05em; }#screen-negociaciones .stat .value { font-size: 1.8rem; font-weight: 600; margin-top: 0.25rem; }#screen-negociaciones .status { color: var(--muted); font-size: 0.85rem; }#screen-negociaciones button,
+#screen-negociaciones .btn {
+  background: var(--accent); color: white; border: none; border-radius: 6px;
+  padding: 0.5rem 1rem; font-size: 0.9rem; cursor: pointer;
+}#screen-negociaciones button:hover { opacity: 0.9; }#screen-negociaciones table { width: 100%; border-collapse: collapse; }#screen-negociaciones th,
+#screen-negociaciones td { text-align: left; padding: 0.5rem 0.75rem; border-bottom: 1px solid var(--border); font-size: 0.9rem; white-space: nowrap; }#screen-negociaciones th { color: var(--muted); font-weight: 500; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.05em; }#screen-negociaciones h2 { font-size: 1rem; font-weight: 600; margin: 0 0 0.5rem; }#screen-negociaciones h2 .muted { color: var(--muted); font-weight: 400; }#screen-negociaciones .importer,
+#screen-negociaciones .normalizer { background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 1rem 1.25rem; margin-bottom: 1.25rem; }#screen-negociaciones .importer .row,
+#screen-negociaciones .normalizer .row { display: flex; align-items: center; gap: 0.75rem; margin: 0.5rem 0 1rem; flex-wrap: wrap; }#screen-negociaciones button:disabled,
+#screen-negociaciones .btn:disabled { opacity: 0.5; cursor: not-allowed; }#screen-negociaciones details { margin: 0.5rem 0; }#screen-negociaciones details summary { cursor: pointer; color: var(--muted); font-size: 0.85rem; padding: 0.25rem 0; }#screen-negociaciones details[open] summary { color: var(--text); }#screen-negociaciones .log {
+  background: #0b0e12; border: 1px solid var(--border); border-radius: 6px;
+  padding: 0.75rem; font-family: ui-monospace, Consolas, monospace; font-size: 0.8rem;
+  color: var(--text); white-space: pre-wrap; max-height: 320px; overflow: auto; margin: 0;
+}#screen-negociaciones .scroll-x { overflow-x: auto; max-width: 100%; }#screen-negociaciones .preview-summary { margin: 0.5rem 0; }#screen-negociaciones .status.ok { color: var(--ok); }#screen-negociaciones .lookup-input {
+  background: #0b0e12; color: var(--text); border: 1px solid var(--border);
+  border-radius: 6px; padding: 0.4rem 0.6rem; font-family: ui-monospace, Consolas, monospace;
+  font-size: 0.85rem; min-width: 280px;
+}#screen-negociaciones .grid-controls {
+  display: flex; align-items: center; gap: 0.5rem;
+  margin: 0 0 0.5rem 0;
+}#screen-negociaciones .grid-controls input[type=search],
+#screen-negociaciones .grid-controls select {
+  background: #0b0e12; color: var(--text); border: 1px solid var(--border);
+  border-radius: 6px; padding: 0.4rem 0.6rem; font-size: 0.9rem;
+  font-family: inherit;
+}#screen-negociaciones .grid-controls input[type=search] { min-width: 280px; }#screen-negociaciones .controls { margin-bottom: 1.5rem; }#screen-negociaciones .controls label { display: inline-flex; flex-direction: column; font-size: 0.75rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; }#screen-negociaciones .controls select,
+#screen-negociaciones .controls input[type=number] {
+  background: #0b0e12; color: var(--text); border: 1px solid var(--border);
+  border-radius: 6px; padding: 0.4rem 0.6rem; margin-top: 0.25rem;
+  font-family: inherit; font-size: 0.9rem;
+}#screen-negociaciones .controls input[type=number] { width: 6rem; }#screen-negociaciones td.num,
+#screen-negociaciones th.num { text-align: right; font-variant-numeric: tabular-nums; }#screen-negociaciones th.period-current { color: var(--accent); }#screen-negociaciones th.period-future { color: var(--muted); font-style: italic; }
+
+/* --- Precios LIGE --- */
+
+    /* ancho COMPLETO de la ventana */#screen-precios main { max-width: none; width: 100%; padding: 1rem 1.2rem 2rem; box-sizing: border-box; }#screen-precios .rel-cliente { cursor: pointer; }#screen-precios .rel-arrow { display: inline-block; width: 1.1em; color: var(--muted); }#screen-precios .rel-obj td.nombre { padding-left: 2rem; color: var(--muted); font-weight: 400; }#screen-precios .rel-franq,
+#screen-precios .pp { color: #e0b34d; font-weight: 600; }#screen-precios .rel-none { color: var(--muted); }
+
+    /* contenedor con scroll propio (vertical y horizontal); el sticky se pega contra él */#screen-precios [data-role=precios-container] { overflow: auto; height: calc(100vh - 190px); }   /* altura fija (no elástica); JS la ajusta al alto real. La barra horizontal queda clavada abajo. */#screen-precios table[data-role=tabla-precios] { border-collapse: separate; border-spacing: 0;
+      --w-obj: 300px; --w-tipo: 40px; --w-ind: 180px; --w-coord: 180px; --w-grupo: 150px; --w-resp: 110px; --w-nota: 150px; }   /* anchos redimensionables de las columnas fijas */#screen-precios table[data-role=tabla-precios] th,
+#screen-precios table[data-role=tabla-precios] td {
+      white-space: nowrap; font-variant-numeric: tabular-nums;
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+    }
+
+    /* encabezado fijo (vertical) */#screen-precios table[data-role=tabla-precios] thead th {
+      position: sticky; top: 0; z-index: 2;
+      background: #0a1018; color: #f4f8ff; font-weight: 700; font-size: 12.5px;   /* encabezado destacado (banda casi negra) */
+    }
+
+    /* columna fija a la izquierda (horizontal): Cliente/Objetivo */#screen-precios table[data-role=tabla-precios] .sticky-col {
+      position: sticky; z-index: 1;
+      background: var(--panel, #1a1f27);
+      border-right: 1px solid rgba(255,255,255,0.22);   /* línea divisoria entre columnas fijas (box-border global → dentro del ancho) */
+    }
+    /* Columnas fijas: ancho por variable (redimensionables); offsets left = suma acumulada de las anteriores. */#screen-precios .col-obj { left: 0; width: var(--w-obj, 300px); min-width: var(--w-obj, 300px); max-width: var(--w-obj, 300px);
+                 overflow: hidden; text-overflow: ellipsis; }#screen-precios .col-tipo { left: var(--w-obj, 300px); width: var(--w-tipo, 40px); min-width: var(--w-tipo, 40px); max-width: var(--w-tipo, 40px);
+                 text-align: center; font-weight: 400; overflow: hidden; }#screen-precios .col-ind { left: calc(var(--w-obj, 300px) + var(--w-tipo, 40px)); width: var(--w-ind, 180px); min-width: var(--w-ind, 180px); max-width: var(--w-ind, 180px);
+                 text-align: left; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }#screen-precios .col-coord { left: calc(var(--w-obj, 300px) + var(--w-tipo, 40px) + var(--w-ind, 180px)); width: var(--w-coord, 180px); min-width: var(--w-coord, 180px); max-width: var(--w-coord, 180px);
+                 text-align: left; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 400; }#screen-precios .col-grupo { left: calc(var(--w-obj, 300px) + var(--w-tipo, 40px) + var(--w-ind, 180px) + var(--w-coord, 180px)); width: var(--w-grupo, 150px); min-width: var(--w-grupo, 150px); max-width: var(--w-grupo, 150px);
+                 text-align: left; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 400; cursor: pointer; }#screen-precios .col-resp { left: calc(var(--w-obj, 300px) + var(--w-tipo, 40px) + var(--w-ind, 180px) + var(--w-coord, 180px) + var(--w-grupo, 150px)); width: var(--w-resp, 110px); min-width: var(--w-resp, 110px); max-width: var(--w-resp, 110px);
+                 text-align: left; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 400; cursor: pointer; }
+    /* Nota de aumento: ULTIMA del bloque fijo. Va al final a propósito — su left suma
+       las seis anteriores y ningún offset ya existente cambia. Intercalarla obligaría
+       a reescribir la cadena de calc() de todas las que quedaran a su derecha. */#screen-precios .col-nota { left: calc(var(--w-obj, 300px) + var(--w-tipo, 40px) + var(--w-ind, 180px) + var(--w-coord, 180px) + var(--w-grupo, 150px) + var(--w-resp, 110px)); width: var(--w-nota, 150px); min-width: var(--w-nota, 150px); max-width: var(--w-nota, 150px);
+                 text-align: left; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 400; }
+    /* (columna col-menu eliminada: el ☰ ahora vive en el encabezado de Cliente/Objetivo) */#screen-precios thead th.col-obj { padding-right: 14px; }   /* reserva los 6px del handle: el ☰/embudo (centrados) nunca lo pisan */
+    /* handle de redimensión en el borde derecho de cada encabezado fijo */#screen-precios .sticky-col .col-resize { position: absolute; top: 0; right: 0; width: 6px; height: 100%; cursor: col-resize; user-select: none; z-index: 5; }#screen-precios .sticky-col .col-resize:hover { background: rgba(56,189,248,0.5); }#screen-precios table[data-role=tabla-precios] thead th.sticky-col:has(.col-resize:hover) { border-right-color: rgba(56,189,248,0.5); }   /* resalta la línea al apuntar el handle */#screen-precios td.col-ind,
+#screen-precios td.col-coord { font-size: 11px; }   /* Industria y Coordinador: contenido más chico */
+    /* ocultar columnas fijas por completo (menú ☰); su var va a 0 para recorrer los offsets siguientes */#screen-precios table[data-role=tabla-precios].hide-tipo  .col-tipo { display: none; }#screen-precios table[data-role=tabla-precios].hide-ind   .col-ind { display: none; }#screen-precios table[data-role=tabla-precios].hide-coord .col-coord { display: none; }#screen-precios table[data-role=tabla-precios].hide-grupo .col-grupo { display: none; }#screen-precios table[data-role=tabla-precios].hide-resp  .col-resp { display: none; }#screen-precios table[data-role=tabla-precios].hide-nota  .col-nota { display: none; }
+    /* botón ☰ y menú de columnas */#screen-precios .col-menu-btn { cursor: pointer; user-select: none; font-size: 14px; color: #9fb4d8; margin-left: 6px; opacity: .8; }#screen-precios .col-menu-btn:hover { color: #38bdf8; opacity: 1; }#screen-precios .col-menu-pop { position: fixed; z-index: 120; background: #1a1f27; border: 1px solid rgba(255,255,255,0.25); border-radius: 6px; padding: 6px 10px; box-shadow: 0 10px 30px rgba(0,0,0,0.6); font-size: 13px; }#screen-precios .col-menu-pop[hidden] { display: none; }#screen-precios .col-menu-pop label { display: block; cursor: pointer; padding: 2px 0; white-space: nowrap; }
+    /* paleta de colores desplegable (grupos) */#screen-precios .color-pop { position: fixed; z-index: 210; background: #1a1f27; border: 1px solid rgba(255,255,255,0.25); border-radius: 8px; padding: 8px; box-shadow: 0 10px 30px rgba(0,0,0,0.6); }#screen-precios .color-pop[hidden] { display: none; }#screen-precios .color-pop .cp-grid { display: grid; grid-template-columns: repeat(6, 22px); gap: 6px; }#screen-precios .color-pop .cp-sw { width: 22px; height: 22px; border-radius: 4px; cursor: pointer; box-shadow: 0 0 0 1px rgba(0,0,0,0.4); box-sizing: border-box; }#screen-precios .color-pop .cp-sw:hover { transform: scale(1.12); }#screen-precios .color-pop .cp-acc { display: flex; gap: 8px; margin-top: 8px; justify-content: space-between; }#screen-precios .color-pop .cp-acc button { font-size: 12px; }
+    /* encabezados de columnas fijas centrados (los valores del cuerpo mantienen su alineación) */#screen-precios thead th.sticky-col { text-align: center; }
+    /* cartuchos (chips) de Grupo / Resp. Neg.: sin asignación → celda vacía (sin cartucho) */#screen-precios td.col-grupo,
+#screen-precios td.col-resp,
+#screen-precios td.col-nota { vertical-align: middle; }
+    /* Nota: a diferencia de Grupo/Resp., "sin nota" se ESCRIBE con un guión gris.
+       Una celda en blanco acá se leería como que el dato no cargó. */#screen-precios .nota-sin { display: block; text-align: center; color: var(--muted); }
+    /* Nota CON PDF guardado: la celda entera abre el archivo. El 📄 es la señal visible
+       de que hay algo para abrir; sin PDF no se pinta ninguno de los dos.
+       display:block (y no flex): así el cartucho de adentro se sigue comportando igual
+       que en las celdas sin nota — bloque centrado con su margin auto. */#screen-precios .nota-ver { cursor: pointer; display: block; }#screen-precios .nota-ver:hover .chip-etq { filter: brightness(1.15); }
+    /* El 📄 va FUERA del cartucho y anclado al borde derecho de la columna. Adentro lo
+       ensanchaba, y los cartuchos quedaban de distinto ancho según la nota tuviera
+       archivo o no.
+       EL ESPACIO SE RESERVA EN TODAS LAS CELDAS de la columna (el padding-right de acá
+       abajo), tengan ícono o no: reservándolo solo en las que lo tienen volvería la
+       diferencia de ancho que esto viene a arreglar.
+       El ancla es la propia celda: position:sticky ya la vuelve contenedor de los
+       absolutos, así que NO hay que agregarle position:relative — eso rompería la
+       columna fija. */#screen-precios td.col-nota { padding-right: 18px; }#screen-precios .nota-pdf { position: absolute; right: 4px; top: 50%; transform: translateY(-50%);
+                font-size: 11px; opacity: .85; }#screen-precios .nota-ver:hover .nota-pdf { opacity: 1; }
+    /* Selector de paritaria dentro del encabezado. Ancho tope: 6px se los lleva el
+       handle de redimensión y el select no lo puede tapar (quedaría inagarrable). */#screen-precios .nota-sel { display: block; width: calc(100% - 8px); margin: 2px auto 0; font-size: 11px; font-weight: 400;
+                background: #0a1018; color: #d7e2f2; border: 1px solid rgba(255,255,255,0.25); border-radius: 4px; padding: 1px 2px; }#screen-precios .nota-sel:focus { outline: 1px solid #38bdf8; }
+    /* Tope de ancho y centrado (margin auto): al ensanchar la columna, sin el tope
+       el cartucho se estiraba hasta ocuparla entera y se leía como una barra de
+       color en vez de una etiqueta. Mismo valor que el CRM. */#screen-precios .chip-etq { display: block; max-width: 150px; margin: 3px auto; padding: 1px 6px; border-radius: 9px;
+                font-size: 11px; line-height: 15px; font-weight: 600; text-align: center;
+                overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    /* checkbox de "armar grupo": oculto salvo en modo armar */#screen-precios .chk-grupo { display: none; margin-right: 4px; }#screen-precios table[data-role=tabla-precios].modo-grupo .rel-cliente .chk-grupo { display: inline-block; }#screen-precios .armar-bar { gap: .5rem; align-items: center; flex-wrap: wrap; background: rgba(56,189,248,0.10);
+                 border: 1px solid rgba(56,189,248,0.4); border-radius: 6px; padding: 6px 10px; margin-top: .4rem; }#screen-precios .armar-bar .ag-info { color: #38bdf8; font-weight: 600; }
+    /* lista de grupos en el modal */#screen-precios .mg-lista-grupos { display: flex; flex-direction: column; gap: 4px; max-height: 320px; overflow: auto; margin: 8px 0; }#screen-precios .mg-item { display: flex; align-items: center; gap: 10px; padding: 4px 6px; border: 1px solid rgba(255,255,255,0.10); border-radius: 4px; }#screen-precios .mg-item-nom { font-weight: 600; flex: 1; }#screen-precios .mg-item-n { color: var(--muted); font-size: 12px; }#screen-precios .mg-swatches { flex: none; white-space: nowrap; }   /* picker de color por grupo */#screen-precios .mg-item button { margin-left: 4px; }#screen-precios .ap-resumen { font-size: 13px; margin-bottom: 8px; min-height: 1.2em; }#screen-precios .ap-tabla { border-collapse: collapse; font-size: 13px; min-width: 180px; }#screen-precios .ap-tabla th,
+#screen-precios .ap-tabla td { border: 1px solid rgba(255,255,255,0.14); padding: 3px 10px; }#screen-precios .ap-tabla th { color: var(--muted); font-weight: 600; text-align: left; }#screen-precios .ap-tabla td.ap-pct { text-align: right; color: #4ade80; font-variant-numeric: tabular-nums; }
+    /* esquina (fija en ambos ejes) por encima de todo */#screen-precios table[data-role=tabla-precios] thead th.sticky-col { z-index: 4; }
+
+    /* filas de cliente: fondo sólido (para que la columna fija tape el scroll horizontal) */#screen-precios .rel-cliente td { background: #232b38; font-weight: 600; }#screen-precios .rel-cliente td.sticky-col { background: #232b38; }
+
+    /* encabezados AGRUPADOS por mes (2 filas de thead) */
+    /* Fila 1 (meses): altura FIJA (border-box) para que el top de la fila 2 la iguale exacto y no se superpongan. */#screen-precios thead tr.grp th.mes-grp { top: 0; box-sizing: border-box; height: 26px; padding: 2px 6px; z-index: 2; text-align: center; font-weight: 700; color: #eef3fa;
+                              border-left: 2px solid rgba(255,255,255,0.14); }#screen-precios thead tr.sub th.sub { top: 26px; z-index: 2; font-weight: 700; font-size: 12px; color: #d7e2f2;
+                              border-bottom: 2px solid rgba(56,189,248,0.55); box-shadow: 0 4px 8px rgba(0,0,0,0.6); }   /* sombra: las filas pasan POR DEBAJO */#screen-precios thead tr.grp th.sticky-col { top: 0; border-bottom: 2px solid rgba(56,189,248,0.55); box-shadow: 0 4px 8px rgba(0,0,0,0.6); }   /* col-obj/tipo/ind/coord/grupo (rowspan 2) */
+
+    /* sub-columnas de cada mes: % Aum | Precio | % Desc */#screen-precios td.sub,
+#screen-precios th.sub { text-align: right; padding: 3px 6px; font-variant-numeric: tabular-nums; vertical-align: middle; }
+    /* los tres sub-valores (% Aum, Precio, % Desc) al MISMO font-size (heredado, como el precio) */#screen-precios .sub-aum { width: 88px;  min-width: 88px;  max-width: 88px;  color: #4ade80;   /* % de aumento: verde (ancho p/ valores grandes) */
+                border-left: 2px solid rgba(255,255,255,0.10); }   /* separador entre meses */#screen-precios .sub-pre { width: 120px; min-width: 120px; max-width: 120px; color: #d7e0ee; }   /* precio: ancho p/ millones */#screen-precios .sub-desc { width: 60px;  min-width: 60px;  max-width: 60px;  color: #f87171; }  /* % de descuento: rojo */
+
+    /* sombreado ALTERNADO por mes (bandas verticales sutiles; abarca las 3 sub-columnas, header + filas) */#screen-precios td.sub.m-alt { background: rgba(255,255,255,0.03); }#screen-precios .rel-cliente td.sub.m-alt { background: #283040; }             /* banda sobre el fondo sólido del cliente */#screen-precios table[data-role=tabla-precios] thead th.m-alt { background: #131c28; }   /* banda alternada sobre el encabezado casi negro */
+
+    /* Ventana de meses: las columnas de afuera SE DIBUJAN (el JS las necesita para poder
+       escribirles un precio) y solo se ocultan acá. El ahorro es el layout de la tabla. */#screen-precios table[data-role=tabla-precios].ventana-corta .mes-off { display: none; }#screen-precios td.sub-pre.proj { color: #8ea3c7; }                            /* solo el precio proyectado se atenúa; los % mantienen su color */#screen-precios td.sub-pre.marca-dif,
+#screen-precios .rel-cliente td.sub-pre.marca-dif { background: rgba(224,179,77,0.16); }  /* diferenciados: gana al sombreado */
+
+    /* edición (Capas 1-4): celdas de precio y % (objetivo y cliente) editables + marca de modificado sin guardar */#screen-precios td.sub-pre.editable,
+#screen-precios td.sub-aum.editable-pct,
+#screen-precios td.sub-pre.editable-b,
+#screen-precios td.sub-aum.editable-pct-b,
+#screen-precios td.sub-pre.editable-cli-precio,
+#screen-precios td.sub-aum.editable-cli-pct { cursor: cell; }#screen-precios td.sub-pre.resaltado-dif { outline: 2px solid #38bdf8; outline-offset: -2px; }   /* objetivo con valor diferente al del cliente */#screen-precios .msg-edicion { color: #38bdf8; font-size: 12px; }
+
+    /* filtros */
+    /* .funnel base (+ :hover y .activo) está en css/styles.css: la comparten
+       Precios y el CRM. Acá queda solo el modificador de las columnas de mes. */#screen-precios .funnel-mes { font-size: 13px; padding: 0 1px; }#screen-precios .filtros-bar { gap: .6rem; align-items: center; flex-wrap: wrap; }
+    /* marca MUY visible de la columna/mes con filtro activo */#screen-precios thead th.sub.col-filtrada { background: #eab308 !important; color: #12161c !important; }#screen-precios thead th.sub.col-filtrada .funnel { color: #12161c !important; }   /* flechita oscura, visible sobre el dorado */#screen-precios thead th.mes-grp.mes-filtrado { box-shadow: inset 0 -3px 0 #eab308; color: #eab308; }
+    /* al filtrar, los nombres (columna Cliente/Objetivo) en azul */#screen-precios table[data-role=tabla-precios].filtrando td.col-obj { color: #38bdf8; }
+    /* El CSS del popup de filtro (.filtro-popup y sus .fp-*) se movió a
+       css/styles.css al empezar a usarlo el CRM. Acá quedan solo las piezas
+       propias de esta pantalla: el aviso de "filtrando" y los chips de los
+       filtros de mes. */
+    /* Ancho RESERVADO: el indicador aparece y desaparece según haya filtros, y si ocupara
+       espacio solo cuando hay texto empujaría los botones y mandaría la barra a dos filas
+       justo al filtrar. Reserva fija = la barra nunca cambia de alto. */#screen-precios .filtros-info { color: #eab308; font-weight: 600; margin-left: .6rem; display: inline-block; min-width: 7rem; }#screen-precios .chips { display: flex; gap: .4rem; flex-wrap: wrap; }#screen-precios .chip { background: rgba(56,189,248,0.18); border: 1px solid rgba(56,189,248,0.5); border-radius: 12px;
+            padding: 1px 8px; font-size: 12px; }#screen-precios .chip-x { cursor: pointer; color: #9fb4d8; margin-left: .2rem; }#screen-precios .chip-x:hover { color: #fff; }
+
+    /* modal de escalas de aumento */#screen-precios .modal-escala { position: fixed; inset: 0; z-index: 100; background: rgba(0,0,0,0.55); display: flex; align-items: flex-start; justify-content: center; }#screen-precios .modal-escala[hidden] { display: none; }
+    /* El cartel de confirmación (.cfm-*) se mudó a css/styles.css: lo comparten
+       Precios y el CRM. Acá no queda nada suyo. */#screen-precios .modal-box { background: #1a1f27; border: 1px solid rgba(255,255,255,0.25); border-radius: 8px; padding: 16px 18px;
+                 margin-top: 8vh; width: 460px; max-width: 92vw; max-height: 80vh; overflow: auto; box-shadow: 0 10px 40px rgba(0,0,0,0.6); }#screen-precios .modal-box .me-title { font-weight: 600; margin-bottom: 10px; }#screen-precios .modal-box .me-fila { display: flex; gap: 8px; align-items: center; margin-bottom: 8px; font-size: 13px; }#screen-precios .modal-box .me-fila input,
+#screen-precios .modal-box .me-fila select { flex: 1; }#screen-precios .modal-box .me-sub { font-size: 12px; color: var(--muted); margin: 8px 0 4px; }#screen-precios .modal-box .me-ayuda { font-size: 11px; color: var(--muted); margin: 0 0 6px; line-height: 1.4; }
+    /* documentación respaldatoria de la paritaria */#screen-precios .modal-box .me-doc { margin: 6px 0 10px; padding: 6px 8px; border: 1px solid rgba(255,255,255,0.10); border-radius: 5px; }#screen-precios .modal-box .me-doc-label { font-weight: 600; font-size: 13px; margin-bottom: 3px; }#screen-precios .modal-box .me-doc-actual { font-size: 12px; color: var(--muted); margin-bottom: 4px; }#screen-precios .modal-box .me-doc-actual a { color: #38bdf8; }#screen-precios .modal-box .me-doc-file { display: block; font-size: 12px; margin-bottom: 4px; }
+    /* config de notas: estado + preview de logo/firma */#screen-precios .cfg-img { margin: 6px 0 10px; padding: 6px 8px; border: 1px solid rgba(255,255,255,0.10); border-radius: 5px; }#screen-precios .cfg-img-head { font-size: 13px; margin-bottom: 5px; }#screen-precios .cfg-badge { font-size: 11px; padding: 1px 7px; border-radius: 9px; margin-left: 6px; }#screen-precios .cfg-badge.cfg-ok { background: #14432a; color: #7ee2a8; }#screen-precios .cfg-badge.cfg-local { background: #4a3b12; color: #f0c866; }#screen-precios .cfg-preview { display: block; max-width: 220px; max-height: 90px; background: #fff; border-radius: 4px; padding: 4px; margin-bottom: 6px; object-fit: contain; }#screen-precios .cfg-preview.cfg-nopreview { background: #2a323d; color: var(--muted); font-size: 12px; padding: 18px; text-align: center; width: 220px; box-sizing: border-box; }#screen-precios .modal-box .me-texto { width: 100%; box-sizing: border-box; resize: vertical; font-family: inherit; font-size: 13px; line-height: 1.4; padding: 8px; }#screen-precios .modal-box .snap-list { max-height: 52vh; overflow: auto; margin: 10px 0; }
+    /* Modal de Generar notas: más ancho para que entre la tabla de aplicaciones. */#screen-precios .modal-box[data-role="modal-notas-box"] { width: 1280px; max-width: 92vw; }#screen-precios .modal-box[data-role="modal-nota-texto-box"] { width: 680px; max-width: 92vw; }#screen-precios .modal-box .st-badge { display: inline-block; font-size: 11px; padding: 1px 8px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.2); white-space: nowrap; }#screen-precios .modal-box .st-pendiente { color: var(--muted); }#screen-precios .modal-box .st-generada { color: #bcd6f2; border-color: rgba(90,150,220,0.6); }#screen-precios .modal-box .st-enviada { color: #a6e0a6; border-color: rgba(80,180,90,0.6); }
+    /* Opciones del modal de notas apiladas y alineadas a la izquierda (prolijo con los checkboxes grandes). */#screen-precios .modal-box .nt-controls { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; }
+    /* Legibilidad del modal de notas: letra más grande y checkboxes más fáciles de tildar. */#screen-precios .modal-box[data-role="modal-notas-box"] .me-fila,
+#screen-precios .modal-box[data-role="modal-notas-box"] .me-ayuda,
+#screen-precios .modal-box[data-role="modal-notas-box"] .me-sub,
+#screen-precios .modal-box[data-role="modal-notas-box"] .me-msg,
+#screen-precios .modal-box[data-role="modal-notas-box"] .snap-table { font-size: 14px; }#screen-precios .modal-box[data-role="modal-notas-box"] .nt-controls .me-fila { cursor: pointer; margin: 0; }
+    /* Tamaño explícito (no scale) para no romper el layout de la fila. */#screen-precios .modal-box[data-role="modal-notas-box"] input[type=checkbox] { width: 17px; height: 17px; flex: none; margin-right: 6px; cursor: pointer; }
+    /* Modal de Restaurar: más ancho y alto para ver los backups completos de una. */#screen-precios .modal-box[data-role="modal-restore-box"] { width: 820px; max-width: 90vw; max-height: 88vh; margin-top: 5vh; }
+    /* La tabla es el único contenedor con scroll; se reserva lugar para título + ayuda + botones. */#screen-precios .modal-box[data-role="modal-restore-box"] .snap-list { max-height: calc(88vh - 180px); }#screen-precios .modal-box .snap-table { width: 100%; border-collapse: collapse; font-size: 12px; }#screen-precios .modal-box .snap-table th { text-align: left; font-weight: 600; color: var(--muted); padding: 6px 8px; border-bottom: 1px solid rgba(255,255,255,0.22); position: sticky; top: 0; background: #1a1f27; }#screen-precios .modal-box .snap-table td { padding: 6px 8px; border-bottom: 1px solid rgba(255,255,255,0.08); vertical-align: middle; }#screen-precios .modal-box .snap-table tr.snap-auto td { color: var(--muted); }#screen-precios .modal-box .snap-fecha { white-space: nowrap; font-variant-numeric: tabular-nums; }#screen-precios .modal-box .snap-filas { text-align: right; font-variant-numeric: tabular-nums; }#screen-precios .modal-box .snap-acc { white-space: nowrap; text-align: right; }#screen-precios .modal-box .snap-acc button { margin-left: 6px; }#screen-precios .modal-box .snap-acc .snap-borrar { color: #e88; }
+    /* Botón "Crear" de la columna Casos: botón normal, solo cambia el color.
+       Verde (--ok) porque comunica "crear" sin leer el title; rojo se leería
+       como borrar. Se distingue del azul --accent de las otras acciones sin
+       perder aspecto de botón. */#screen-precios .modal-box .snap-acc .nt-sec { background: var(--ok); }
+    /* Encabezados de las columnas de acción alineados con sus botones: las
+       celdas .snap-acc van a la derecha, y el th por defecto iba a la izquierda. */#screen-precios .modal-box .snap-table th.snap-acc { text-align: right; }#screen-precios .modal-box .snap-origen { display: inline-block; font-size: 11px; padding: 1px 8px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.28); }#screen-precios .modal-box .snap-origen-auto { color: var(--muted); border-color: rgba(255,255,255,0.16); }#screen-precios .modal-box .me-renglon { display: flex; gap: 6px; align-items: center; margin-bottom: 5px; }#screen-precios .modal-box .me-renglon .me-pct { width: 70px; }#screen-precios .modal-box .me-x { cursor: pointer; color: #9fb4d8; }#screen-precios .modal-box .me-x:hover { color: #f87171; }#screen-precios .modal-box .me-acc { display: flex; gap: 8px; margin-top: 12px; }#screen-precios .modal-box .me-msg { margin-top: 8px; font-size: 12px; color: #eab308; min-height: 1em; }
+    /* botones al pie SIEMPRE visibles (aunque el modal scrollee) */#screen-precios .modal-box .me-acc { position: sticky; bottom: 0; background: #1a1f27; padding-bottom: 4px; }
+    /* modal de grupos más ancho */#screen-precios [data-role=modal-grupo-box] { width: 600px; }#screen-precios .modal-box .mg-tools { display: flex; gap: 10px; align-items: center; margin-bottom: 8px; }#screen-precios .modal-box .mg-tools input { flex: 1; }
+    /* lista de clientes: una fila por cliente (como .fp-list), con scroll interno */#screen-precios .modal-box .mg-list { display: flex; flex-direction: column; gap: 2px; max-height: 300px; overflow: auto;
+                          font-size: 13px; border: 1px solid rgba(255,255,255,0.12); border-radius: 4px; padding: 4px; }#screen-precios .modal-box .mg-list label { display: flex; gap: 6px; align-items: center; cursor: pointer; padding: 1px 2px; white-space: nowrap; }#screen-precios td.sub-pre.modificado { background: rgba(234,179,8,0.42) !important; color: #fff; }  /* amarillo: precio modificado */#screen-precios td.sub-aum.modificado { background: rgba(234,179,8,0.42) !important; }                /* amarillo: % modificado (mantiene verde) */#screen-precios td.sub-pre .edit-input,
+#screen-precios td.sub-aum .edit-input { box-sizing: border-box; text-align: right; font: inherit;
+                             background: #0f141b; color: #fff; border: 1px solid #eab308; border-radius: 3px; padding: 1px 3px; }#screen-precios td.sub-pre .edit-input { width: 88px; }#screen-precios td.sub-aum .edit-input { width: 50px; }#screen-precios .cambios { color: #eab308; font-weight: 600; margin-left: 1rem; }
+    /* Toolbar por grupos funcionales: poco espacio dentro del grupo, más entre grupos + separador sutil. */#screen-precios .page-precios .controls > .row:first-child { display: flex; flex-wrap: wrap; gap: 6px 0; align-items: center; }
+    /* padding/gap ajustados para que los 6 grupos entren en UNA fila: la barra en dos
+       renglones le roba alto a la grilla, que es lo que se mira. */#screen-precios .page-precios .controls .tb-group { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 5px; padding: 0 8px; }#screen-precios .page-precios .controls .tb-group:first-child { padding-left: 0; }#screen-precios .page-precios .controls .tb-group:not(:first-child) { border-left: 1px solid rgba(255,255,255,0.18); }
+    /* Botones de la toolbar algo más chicos que el estándar: son 14 y tienen que entrar en
+       una fila. Achicar el botón es preferible a recortar rótulos que Comercial ya conoce. */#screen-precios .page-precios .controls .tb-group button { padding: 0.38rem 0.7rem; font-size: 0.85rem; }
+    /* Botón de VISTA, no de acción: cambia lo que se ve, no los datos. Por eso no lleva el
+       azul de los que escriben, va más chico y separado, al extremo derecho de la barra. */
+    /* .tb-group.tb-vista (y no solo .tb-vista): la regla del separador de arriba usa
+       :not(:first-child), que suma especificidad y si no le empatamos le gana al border. */#screen-precios .page-precios .controls .tb-group.tb-vista { margin-left: auto; padding-right: 0; border-left: none; }#screen-precios .page-precios .controls .tb-group.tb-vista button {
+      background: transparent; color: var(--muted); border: 1px solid var(--border);
+      padding: 0.22rem 0.6rem; font-size: 0.78rem; border-radius: 5px;
+    }#screen-precios .page-precios .controls .tb-group.tb-vista button:hover { color: var(--text); border-color: var(--accent); opacity: 1; }
+    /* Selector "Paritaria activa" COMPACTO en una sola línea (gana en especificidad a `.controls label`,
+       que lo ponía en columna + MAYÚSCULAS y agrandaba la toolbar, tapando el scroll horizontal). */#screen-precios .controls label.pari-activa { display: inline-flex; flex-direction: row; align-items: center; gap: 6px;
+                                  font-size: 13px; text-transform: none; letter-spacing: normal; color: #fbbf24;
+                                  border: 1px solid rgba(251,191,36,0.4); border-radius: 6px; padding: 2px 8px; }#screen-precios .controls label.pari-activa select { font-size: 13px; max-width: 170px; text-transform: none; }
+    /* Paritaria elegida → más marcado (borde y fondo ámbar); "— ninguna —" → neutro (borde tenue). */#screen-precios .controls label.pari-activa:not(:has(option[value=""]:checked)) { border-color: #fbbf24; background: rgba(251,191,36,0.12); }
+
+    /* modales de gestión (paritarias / escalas): más anchos + lista en tabla */#screen-precios .modal-box[data-role="modal-paritarias-box"],
+#screen-precios .modal-box[data-role="modal-escalas-box"] { width: 1200px; max-width: 92vw; }#screen-precios .modal-box .gm-table { width: 100%; border-collapse: collapse; font-size: 13px; margin: 6px 0 4px; }#screen-precios .modal-box .gm-table th { text-align: left; font-weight: 600; color: var(--muted); padding: 6px 8px; border-bottom: 1px solid rgba(255,255,255,0.22); }#screen-precios .modal-box .gm-table td { padding: 6px 8px; border-bottom: 1px solid rgba(255,255,255,0.08); vertical-align: middle; }#screen-precios .modal-box .gm-color { width: 30px; text-align: center; }#screen-precios .modal-box .gm-color span { display: inline-block; width: 14px; height: 14px; border-radius: 3px; vertical-align: middle; box-shadow: 0 0 0 1px rgba(0,0,0,0.4); }#screen-precios .modal-box .gm-elip { width: 280px; max-width: 280px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    /* Descripción: columna elástica, se queda con todo el espacio sobrante (max-width:0 + width:100% = truco de ellipsis en tabla) */#screen-precios .modal-box .gm-desc { width: 100%; max-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }#screen-precios .modal-box .gm-tramos { text-align: right; font-variant-numeric: tabular-nums; width: 60px; }
+    /* Paritaria (tabla de escalas): ancho fijo, "código · nombre"; completo en el title */#screen-precios .modal-box .gm-pari { width: 230px; max-width: 230px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }#screen-precios .modal-box .gm-acc { white-space: nowrap; text-align: right; width: 1%; }#screen-precios .modal-box .gm-acc button { margin-left: 6px; }
+
+    /* leyenda real vs proyectado */#screen-precios .leyenda-precios { display: flex; flex-wrap: wrap; gap: .5rem 1.2rem; font-size: 12px; color: var(--muted); align-items: center; margin-top: .4rem; }#screen-precios .leyenda-precios .sw { display: inline-block; width: 12px; height: 12px; border-radius: 2px; margin-right: .35rem; vertical-align: middle; }#screen-precios .leyenda-precios .sw-real { background: #d7e0ee; }#screen-precios .leyenda-precios .sw-proj { background: #8ea3c7; }#screen-precios .leyenda-precios .sw-dif { background: rgba(224,179,77,0.7); }
+    /* referencia de colores de paritarias (dinámica): cada ítem con su cuadradito + nombre */#screen-precios .leyenda-paritarias { display: inline-flex; flex-wrap: wrap; align-items: center; gap: .3rem .9rem; }
+  
+
+/* --- CRM de Negociación --- */
+
+    /* Ancho completo: la lista es de trabajo masivo, el max-width global estorba. */#screen-negociaciones main { max-width: none; width: 100%; padding: 1rem 1.2rem 2rem; box-sizing: border-box; }
+    /* El contenedor es el único con scroll, para que el thead sticky tenga contra qué pegarse.
+       El ALTO lo mide js/shared/alto-tabla.js: acá no va ningún número. El
+       `calc(100vh - 190px)` que había era la suma de encabezado + filtros a un
+       escalado de pantalla, y con Windows al 125% la tabla se pasaba del viewport. */#screen-negociaciones [data-role=crm-container] { overflow: auto; }#screen-negociaciones table[data-role=tabla-casos] { table-layout: fixed; width: 100%; }
+    /* Títulos centrados (igual que las columnas fijas de Precios); los valores del
+       cuerpo mantienen su alineación a la izquierda. El padding lateral reserva los
+       6px del handle de redimensión, para que el título centrado no se le monte. */#screen-negociaciones table[data-role=tabla-casos] th { position: sticky; top: 0; background: var(--panel, #1a1f27); z-index: 2;
+                                      text-align: center; padding-left: 10px; padding-right: 10px; }#screen-negociaciones table[data-role=tabla-casos] td { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }#screen-negociaciones table[data-role=tabla-casos] td.crm-sel { text-align: center; overflow: visible; }
+    /* Lo vacío se escribe, no se deja en blanco: una celda vacía se lee como error,
+       un texto en gris se lee como dato conocido. */#screen-negociaciones .crm-vacio { color: var(--muted); font-style: italic; }#screen-negociaciones .crm-cliente { font-weight: 600; }
+    /* Al filtrar, los nombres de Cliente en azul: mismo criterio que Precios. Avisa
+       de un vistazo que lo que se ve es un recorte, sin tener que leer el contador. */#screen-negociaciones table[data-role=tabla-casos].filtrando td.crm-cliente { color: #38bdf8; }#screen-negociaciones .crm-fecha { font-variant-numeric: tabular-nums; }
+    /* Marca de que la celda tiene detalle en el hover. Un dato que solo aparece al
+       pasar el mouse, sin nada que lo anuncie, es un dato escondido. */#screen-negociaciones .crm-prox-det { color: var(--muted); font-size: 11px; }
+
+    /* SEMÁFORO. Umbral del amarillo: 3 días (ver crm.js).
+       PUNTO y a la IZQUIERDA de la fecha: se lee de izquierda a derecha y lo primero
+       que hay que saber es si urge. Y MÁS GRANDE que el de naturaleza porque es la
+       señal que hay que poder leer sin fijar la vista. */#screen-negociaciones .crm-sem { display: inline-block; width: 14px; height: 14px; border-radius: 50%;
+               margin-right: 8px; vertical-align: middle; }#screen-negociaciones .crm-sem-verde { background: #22c55e; }#screen-negociaciones .crm-sem-amarillo { background: #facc15; }#screen-negociaciones .crm-sem-rojo { background: #ef4444; }
+
+    /* ANCHOS FIJOS. La fecha con cifras de ancho parejo, y el "(en N d)" con caja
+       fija: sin eso, "(hoy)" y "(hace 12 d)" corren todo lo que sigue, y al recorrer
+       300 filas hay que buscar cada elemento en cada una en vez de leer una columna. */#screen-negociaciones td.crm-prox .crm-fecha,
+#screen-negociaciones td.crm-prox-fija .crm-fecha {
+      display: inline-block; font-variant-numeric: tabular-nums; }#screen-negociaciones .crm-dias { display: inline-block; width: 64px; margin-left: 5px;
+                font-size: 11px; color: var(--muted); }
+
+    /* DE QUIÉN DEPENDE la acción. CUADRADITO, no círculo: distinta FORMA que el
+       semáforo a propósito. Son dos señales distintas y el naranja de acá vive cerca
+       del amarillo de allá, así que el tono solo no alcanza para separarlas. Además
+       nunca están pegadas — la fecha entera va en el medio.
+       NARANJA = lo tengo que hacer yo, tiene que saltar.
+       AZUL    = depende de un tercero, puede pasar más desapercibido. */#screen-negociaciones .crm-dep { display: inline-block; width: 11px; height: 11px; border-radius: 2px;
+               margin-right: 6px; vertical-align: middle; }#screen-negociaciones .crm-dep-nosotros { background: #f97316; }#screen-negociaciones .crm-dep-terceros { background: #5b87c5; }
+    /* Sin clasificar: hueco, no invisible. Que se note que falta el dato. */#screen-negociaciones .crm-dep-nada { background: transparent; box-shadow: inset 0 0 0 1px var(--muted); }
+
+    /* Flechita de expandir. Control PROPIO, separado de la selección: solo ella
+       abre el detalle, el resto de la fila sigue libre para tildar. */#screen-negociaciones .crm-exp { display: inline-block; width: 1.1em; color: var(--muted);
+               cursor: pointer; user-select: none; font-size: 10px; }#screen-negociaciones .crm-exp:hover { color: #38bdf8; }
+
+    /* Fila de detalle. Va como una fila más y no como panel flotante: acompaña el
+       scroll y no tapa las filas de al lado. Tiene que ANULAR el nowrap/ellipsis
+       que llevan todas las celdas de esta tabla, que es justo lo que impedía
+       mostrar acá el historial. */#screen-negociaciones tr.crm-detalle > td { white-space: normal; overflow: visible; text-overflow: clip;
+                          background: rgba(255,255,255,0.03); padding: 10px 14px 12px 34px; }#screen-negociaciones .crm-det-tit { font-size: 11px; text-transform: uppercase; letter-spacing: .05em;
+                   color: var(--muted); margin: 4px 0 4px; }#screen-negociaciones .crm-det-tit + .crm-det-tit,
+#screen-negociaciones .crm-det-obs + .crm-det-tit,
+#screen-negociaciones .crm-det-linea + .crm-det-tit,
+#screen-negociaciones .crm-det-vacio + .crm-det-tit { margin-top: 12px; }#screen-negociaciones .crm-det-linea { font-size: 13px; }#screen-negociaciones .crm-det-sub { font-size: 12px; color: var(--muted); margin-top: 2px; }#screen-negociaciones .crm-det-vacio { font-size: 12px; color: var(--muted); font-style: italic; }#screen-negociaciones .crm-det-obs { margin: 0; padding-left: 18px; font-size: 12.5px; line-height: 1.55; }#screen-negociaciones .crm-det-obs li { margin-bottom: 2px; }
+    /* Gestiones: cada una es un bloque, no una línea suelta, porque puede llevar
+       debajo quién negoció. */#screen-negociaciones .crm-det-ges { margin: 0; padding-left: 18px; font-size: 12.5px; line-height: 1.5; }#screen-negociaciones .crm-det-ges li { margin-bottom: 6px; }
+    /* El botón vive dentro del título de la sección: queda pegado a lo que agrega,
+       en vez de perdido al pie del panel. */#screen-negociaciones .crm-det-btn { font-size: 11px; padding: 1px 8px; margin-left: 10px;
+                   text-transform: none; letter-spacing: 0; vertical-align: middle; }
+    /* Cartuchos de estado. MISMA CAJA para todos, como los de responsable: antes
+       "Enviada" quedaba mucho más chico que "Pendiente de envío" y la columna se
+       leía como un serrucho. display:block + tope + centrado.
+
+       EL padding-right RESERVA EL LUGAR DEL 📄 EN TODAS LAS CELDAS, tengan ícono o
+       no. Reservarlo solo en las que lo tienen dejaría los cartuchos de distinto
+       ancho según el caso tuviera PDF guardado, que es justo el serrucho que estas
+       reglas vienen a evitar.
+       El position:relative es el ancla del ícono. Acá SÍ hace falta declararlo: a
+       diferencia del th (que ya es sticky) y de la columna Nota de Precios, esta
+       celda no tiene ningún position propio. */#screen-negociaciones td.crm-est { vertical-align: middle; position: relative; padding-right: 18px; }
+
+    /* Ver la nota de aumento. Solo aparece si ESE caso tiene el PDF guardado; sin
+       archivo no se pinta nada, porque no habría nada que abrir.
+
+       ANCLADO AL BORDE DERECHO de la columna y centrado en el alto, igual que el 📄
+       de la columna Nota de Precios. Antes vivía en la celda del cliente y ahí se
+       perdía: el nombre largo se corta con puntos suspensivos y se llevaba el ícono
+       puesto, justo en las filas de nombre más largo.
+       FUERA DEL FLUJO (absolute), así no empuja al cartucho ni le cambia el ancho.
+       El padding propio agranda el área clickeable sin agrandar el dibujo: el ícono
+       mide once píxeles y comparte celda con una celda-acción, así que errarle no
+       puede ser fácil. */#screen-negociaciones .crm-nota-pdf { position: absolute; right: 2px; top: 50%; transform: translateY(-50%);
+                    padding: 3px 2px; cursor: pointer; font-size: 11px; line-height: 1;
+                    opacity: .8; user-select: none; }#screen-negociaciones .crm-nota-pdf:hover { opacity: 1; }
+
+    /* CELDAS-ACCIÓN: Estado, Responsable, Últ. gestión y Próxima acción abren el
+       formulario de ESE caso. Tienen que anunciarse: si no, la única forma de
+       descubrirlas es tropezárselas.
+       El subrayado punteado es la señal en reposo —discreta, no compite con los
+       cartuchos de color— y el fondo aparece al pasar el mouse.
+
+       LAS CUATRO responden igual, a propósito. Que dos respondan al clic y dos no
+       sería peor que si ninguna lo hiciera: nunca se sabría cuál es cuál. */#screen-negociaciones td.crm-est,
+#screen-negociaciones td.crm-ult,
+#screen-negociaciones td.crm-resp,
+#screen-negociaciones td.crm-prox { cursor: pointer; }#screen-negociaciones td.crm-est .crm-badge,
+#screen-negociaciones td.crm-resp .crm-etq,
+#screen-negociaciones td.crm-ult,
+#screen-negociaciones td.crm-prox { text-decoration: underline dotted rgba(255,255,255,0.35); text-underline-offset: 3px; }#screen-negociaciones td.crm-est:hover,
+#screen-negociaciones td.crm-ult:hover,
+#screen-negociaciones td.crm-resp:hover,
+#screen-negociaciones td.crm-prox:hover { background: rgba(56,189,248,0.12); }#screen-negociaciones td.crm-est:hover .crm-badge,
+#screen-negociaciones td.crm-resp:hover .crm-etq,
+#screen-negociaciones td.crm-ult:hover,
+#screen-negociaciones td.crm-prox:hover { text-decoration-color: #38bdf8; }#screen-negociaciones .crm-badge { display: block; max-width: 150px; margin: 3px auto; padding: 1px 8px;
+                 border-radius: 10px; border: 1px solid rgba(255,255,255,0.18);
+                 font-size: 11px; line-height: 15px; font-weight: 600; text-align: center;
+                 overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+    /* UN COLOR POR ESTADO, y RELLENO, no solo el texto y el borde.
+       Antes había dos pares con el color IDÉNTICO —sin_respuesta con
+       en_renegociacion, y precerrada con cerrada— así que el color no distinguía
+       nada: había que leer el texto igual.
+       Ahora los siete tienen TONO propio. La separación es principalmente por
+       tono; el brillo solo ayuda en el par verde (precerrada clara, cerrada
+       oscura), que comparten matiz.
+         gris    = todavía no salió           azul    = en la cancha del cliente
+         ámbar   = se pasó el tiempo          violeta = negociación abierta
+         rojo    = volvió atrás               verde   = resuelto
+         verde oscuro = cobrado y archivado
+       El azul es #0284c7 y no un azul más oscuro porque contra el violeta de
+       "en renegociación" quedaban parecidos en tono Y en brillo a la vez. */#screen-negociaciones .crm-e-pendiente_envio { background: #4b5563; color: #e5e7eb; }#screen-negociaciones .crm-e-enviada { background: #0284c7; color: #ffffff; }#screen-negociaciones .crm-e-sin_respuesta { background: #b45309; color: #ffffff; }#screen-negociaciones .crm-e-en_renegociacion { background: #6d28d9; color: #ffffff; }#screen-negociaciones .crm-e-reclamo_posterior { background: #b91c1c; color: #ffffff; }#screen-negociaciones .crm-e-precerrada { background: #15803d; color: #ffffff; }
+    /* Cerrada va más apagada a propósito: está terminada y cobrada, no compite
+       por atención con lo que todavía hay que trabajar. */#screen-negociaciones .crm-e-cerrada { background: #14532d; color: #86efac; }
+
+    /* Cartucho de responsable con SU color. El color y el contraste del texto los
+       calcula js/shared/etiquetas-color.js, la misma función que usa Precios.
+       display:block (no inline-block) para que TODOS midan igual: el cartucho
+       llena el ancho de la columna y lo sigue si cambia, en vez de encogerse al
+       largo del nombre — así la columna se lee como una sola pila de etiquetas
+       parejas y no como un serrucho. Mismas medidas que .chip-etq de Precios.
+
+       Con TOPE de ancho y centrado (margin auto): sin el tope, al ensanchar la
+       columna el cartucho se estiraba hasta ocuparla entera y se leía como una
+       barra de color, no como una etiqueta. Llena hasta 150px y ahí se queda. */#screen-negociaciones td.crm-resp { vertical-align: middle; }#screen-negociaciones .crm-etq { display: block; max-width: 150px; margin: 3px auto; padding: 1px 6px; border-radius: 9px;
+               font-size: 11px; line-height: 15px; font-weight: 600; text-align: center;
+               overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    /* "Sin asignar": sin color, pero MISMA caja que el cartucho. Como texto suelto
+       medía menos de alto y dejaba la tabla con renglones desparejos según la fila
+       tuviera responsable o no. */#screen-negociaciones .crm-etq-vacio { background: none; font-weight: 400; font-style: italic; color: var(--muted); }
+
+    /* Líneas divisorias entre columnas: mismo criterio que Precios (24-jul), donde
+       sin ellas no se veía dónde terminaba cada columna. NO suman ancho: styles.css
+       declara `* { box-sizing: border-box }` (l.13) y `border-collapse: collapse`
+       (l.40) para toda tabla, así que el borde cae dentro del ancho del colgroup.
+       La última columna no lleva: sería una línea suelta contra el borde de la tabla. */#screen-negociaciones table[data-role=tabla-casos] th:not(:last-child),
+#screen-negociaciones table[data-role=tabla-casos] td:not(:last-child) { border-right: 1px solid rgba(255,255,255,0.22); }
+
+    /* Handle de redimensión, igual que en Precios: una franja de 6px pegada al
+       borde derecho del encabezado. No necesita position:relative en el th porque
+       el th ya es sticky, y sticky alcanza para anclar un absolute. */#screen-negociaciones table[data-role=tabla-casos] thead th { overflow: hidden; }#screen-negociaciones .col-resize { position: absolute; top: 0; right: 0; width: 6px; height: 100%;
+                  cursor: col-resize; user-select: none; z-index: 5; }#screen-negociaciones .col-resize:hover { background: rgba(56,189,248,0.5); }
+    /* La divisoria se resalta al apuntar el handle: avisa QUÉ borde se va a mover. */#screen-negociaciones table[data-role=tabla-casos] thead th:has(.col-resize:hover) { border-right-color: rgba(56,189,248,0.5); }
+
+    /* Barra de controles (primera fila). Va con su propia clase y no sobre .row
+       porque las filas de chips de abajo también son .row y no se tocan.
+
+       Es flex con align-items:flex-end. Antes no era flex —no existe un .row
+       genérico en styles.css— y cada control caía donde lo dejaba su línea de base.
+       Se alinea por el FINAL y no por el centro porque los <label> de .controls son
+       columnas (rótulo arriba, control abajo): alineando abajo, los controles quedan
+       a la misma altura tengan rótulo o no. */#screen-negociaciones .crm-barra { display: flex; align-items: flex-end; flex-wrap: wrap; gap: .75rem; }
+    /* El buscador venía SIN estilo: styles.css solo contempla `.controls select` e
+       `input[type=number]`, así que quedaba un input crudo del navegador al lado de
+       controles con fondo y borde. Mismos valores que el select, para que combinen. */#screen-negociaciones .page-crm .controls .crm-barra input[type=search] {
+      background: #0b0e12; color: var(--text); border: 1px solid var(--border);
+      border-radius: 6px; padding: 0.4rem 0.6rem; margin-top: 0.25rem;
+      font-family: inherit; font-size: 0.9rem; min-width: 200px;
+    }
+    /* «Vencidos»: casillero y texto EN LÍNEA. Sin esto hereda el flex-direction:column
+       de `.controls label` y el texto queda debajo del casillero. */#screen-negociaciones .crm-barra label.crm-check { flex-direction: row; align-items: center; gap: .4rem;
+                                 text-transform: none; letter-spacing: .02em; font-size: .8rem;
+                                 padding-bottom: .45rem; }#screen-negociaciones .crm-barra label.crm-check input { margin: 0; }
+    /* El botón, con la misma caja que los inputs: igual padding vertical y un borde
+       transparente que ocupa el lugar del borde del input, así miden lo mismo de alto. */#screen-negociaciones .crm-barra button { font-size: .85rem; padding: .4rem .8rem; border: 1px solid transparent; }
+    /* El estado no es un control: se va a la derecha para que los controles se lean
+       como un grupo y no como una lista donde el último es distinto. */#screen-negociaciones .crm-barra .status { margin-left: auto; padding-bottom: .5rem; }
+
+    /* Barra de acciones en bloque. Mismo criterio de alineación que la barra de
+       controles, y separada del grupo de chips por una línea: lo de arriba filtra,
+       lo de acá ESCRIBE en la base. Que se lean como dos cosas distintas es a
+       propósito. */#screen-negociaciones .crm-acc { display: flex; align-items: center; flex-wrap: wrap; gap: .5rem;
+               margin-top: .6rem; padding-top: .6rem; border-top: 1px solid var(--border); }#screen-negociaciones .crm-acc button { font-size: .85rem; padding: .35rem .8rem; border: 1px solid transparent; }#screen-negociaciones .crm-acc-n { font-size: .85rem; color: var(--muted); min-width: 190px; }
+    /* Con selección, el contador deja de ser gris: es el dato que dice cuántos
+       casos va a tocar el botón de al lado. */#screen-negociaciones .crm-acc-n.crm-acc-hay { color: var(--text); font-weight: 600; }
+    /* Resultado de la última acción. En ámbar cuando la base tocó MENOS casos de
+       los seleccionados: una acción que no hizo nada no se puede ver igual que una
+       que funcionó. */#screen-negociaciones .crm-acc-msg { font-size: .85rem; color: var(--muted); margin-left: auto; }#screen-negociaciones .crm-acc-msg.crm-acc-alerta { color: #eab308; font-weight: 600; }
+
+    /* Modal de acción. Reusa el fondo y la caja del cartel compartido
+       (css/styles.css, .cfm-*): es la misma chapa de modal, no vale duplicarla. */#screen-negociaciones .crm-modal-msg { font-size: 13px; line-height: 1.5; margin: 6px 0 12px; }#screen-negociaciones .crm-modal-fila { display: flex; gap: 8px; align-items: center; font-size: 13px; margin-bottom: 10px; }#screen-negociaciones .crm-modal-fila select { flex: 1; }#screen-negociaciones .crm-modal-chk { display: flex; gap: 8px; align-items: center; font-size: 13px; margin-bottom: 8px; cursor: pointer; }
+    /* La advertencia del efecto sobre la ficha del cliente. No es letra chica
+       decorativa: esta acción escribe en una tabla que no es la que estás mirando. */#screen-negociaciones .crm-modal-nota { font-size: 12px; line-height: 1.45; color: var(--muted);
+                      border-left: 2px solid rgba(234,179,8,0.6); padding-left: 8px; margin: 10px 0 14px; }
+    /* "Avanzar el caso": el cuadro del camino principal. Tres bloques con su
+       encabezado — ¿qué pasó? / ¿en qué queda? / ¿qué sigue? — para que no se lea
+       como una lista de siete campos sino como tres preguntas cortas. */#screen-negociaciones .crm-av-tit { font-size: 11px; text-transform: uppercase; letter-spacing: .05em;
+                  color: #38bdf8; font-weight: 700; margin: 14px 0 6px;
+                  border-top: 1px solid var(--border); padding-top: 10px; }
+    /* Contexto, no campo: qué venías a cumplir. */#screen-negociaciones .crm-av-pend { font-size: 12.5px; margin: 2px 0 4px; }
+    /* Cuándo y Canal comparten renglón: son cortos, y en renglones separados el
+       cuadro se estira sin ganar nada. */#screen-negociaciones .crm-av-fila2 { display: flex; gap: 10px; }#screen-negociaciones .crm-av-fila2 > label { flex: 1; }
+    /* La TRANSICIÓN. La flecha muestra el movimiento —lo que era, lo que pasa a
+       ser—; un separador marcaría dos secciones, que no es lo que está pasando. */#screen-negociaciones .crm-av-trans { display: flex; align-items: center; gap: 8px; font-size: 13px; }#screen-negociaciones .crm-av-trans .crm-badge { margin: 0; max-width: 150px; flex: none; }#screen-negociaciones .crm-av-trans select { flex: 1; }#screen-negociaciones .crm-av-flecha { color: #38bdf8; font-size: 15px; flex: none; }
+
+    /* Aviso de validación DENTRO del modal: la barra de acciones queda tapada por
+       el fondo oscuro, así que un aviso allá no se vería. Vacío no ocupa lugar. */#screen-negociaciones .crm-modal-err { font-size: 12.5px; color: var(--err, #e3524f); font-weight: 600; margin-bottom: 8px; }#screen-negociaciones .crm-modal-err:empty { display: none; }
+
+    /* Los chips de filtro (.crm-chip*) se mudaron a css/styles.css al usarlos una
+       segunda pantalla (Deuda por cliente y mes). Ahí está el bloque completo con
+       sus comentarios y la verificación de cascada. */#screen-negociaciones .crm-off { color: var(--muted); }
+  
+
+/* --- Compartido entre ambas (funnel, filtro-popup, confirmar, chips) --- */
+/* =====================================================================
+   Popup de filtro por columna (embudo ▾). Motor en js/shared/filtro-popup.js.
+   Lo usan Precios y el CRM.
+
+   VINO DE precios.html, donde estaba inline. Se movio acá al usarlo una segunda
+   pantalla: repetir 15 reglas en cada HTML es la misma trampa que las tres copias
+   de la abreviatura de consorcios, que ya derivaron entre si.
+
+   VA AL FINAL DEL ARCHIVO A PROPOSITO: al salir del <style> de la pagina, estas
+   reglas perdieron la ultima palabra en la cascada. Puestas al final de styles.css
+   le siguen ganando a cualquier regla anterior de este archivo con la misma
+   especificidad. Si se mueven mas arriba, hay que revisar los cinco popups.
+
+   Todas las reglas estan colgadas de .filtro-popup: fuera de ese contenedor no
+   alcanzan a nada, asi que agregarlas al CSS global no toca las otras pantallas.
+   ===================================================================== */
+/* =====================================================================
+   Confirmacion in-modal (js/shared/confirmar.js). La usan Precios y el CRM.
+
+   Clases PROPIAS (cfm-*) y no las .modal-escala/.modal-box de Precios: esas las
+   comparten ocho modales de esa pantalla y arrastrarlas al CSS global habria
+   mudado mucho mas que la confirmacion. Los valores son los mismos que tenia
+   .modal-confirm, para que el cartel se vea igual que siempre.
+   ===================================================================== */
+.cfm-fondo { position: fixed; inset: 0; z-index: 200; background: rgba(0,0,0,0.55);
+             display: flex; align-items: center; justify-content: center; }
+.cfm-fondo[hidden] { display: none; }
+.cfm-caja { background: #1a1f27; border: 1px solid rgba(255,255,255,0.25); border-radius: 8px;
+            padding: 16px 18px; width: 460px; max-width: 92vw; max-height: 80vh; overflow: auto;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.6); }
+.cfm-titulo { font-weight: 600; margin-bottom: 10px; }
+.cfm-msg { font-size: 13px; line-height: 1.5; margin: 6px 0 14px; }
+.cfm-acc { display: flex; gap: 10px; justify-content: flex-end; }
+.cfm-acc .cfm-si { font-weight: 600; }
+/* Rojo para lo destructivo: el color es la ultima advertencia antes del clic. */
+.cfm-acc .cfm-peligro { background: #7a2230; color: #fff; border-color: #7a2230; }
+
+/* El embudo del encabezado, que abre el popup. Base compartida; cada pantalla
+   puede agregarle modificadores propios (Precios tiene .funnel-mes para las
+   columnas de mes, que sigue en su HTML porque solo existe ahi). */
+.funnel { cursor: pointer; color: #9fb4d8; font-size: 14px; padding: 0 3px; user-select: none; }
+.funnel:hover { color: #38bdf8; }                        /* acento al pasar el mouse */
+.funnel.activo { color: #eab308; font-weight: 700; }     /* columna con filtro activo: mas marcada */
+
+.filtro-popup { position: fixed; z-index: 50; background: #1a1f27; border: 1px solid rgba(255,255,255,0.25);
+                border-radius: 6px; padding: 8px; width: 520px; min-width: 220px; max-width: 92vw; box-shadow: 0 6px 20px rgba(0,0,0,0.5); }
+.filtro-popup input[data-role=fp-buscar] { width: 100%; box-sizing: border-box; margin-bottom: 6px; }
+.filtro-popup .fp-title { font-weight: 600; font-size: 12px; margin-bottom: 6px; color: var(--muted); }
+.filtro-popup .fp-sub { font-size: 11px; color: var(--muted); margin: 8px 0 3px; }
+.filtro-popup input[type=text] { width: 100%; box-sizing: border-box; }
+/* Casillas del ENCABEZADO del popup (la seccion de arriba, fuera de .fp-list).
+   Quedan afuera de la lista a proposito: el buscador y "Seleccionar todos" operan
+   sobre .fp-list, y no tienen que tocar una seccion que es de otra dimension. */
+.filtro-popup .fp-venc { display: flex; gap: 8px; align-items: center; cursor: pointer;
+                         font-size: 13px; padding: 3px 4px; }
+.filtro-popup .fp-venc:hover { background: rgba(255,255,255,0.05); }
+.filtro-popup .fp-venc input { flex: none; }
+
+/* barra Seleccionar/Deseleccionar todos + contador de visibles */
+/* "Seleccionar todos" es una CASILLA tri-estado, no dos botones: su propio estado
+   dice si lo de abajo esta todo, algo o nada marcado, cosa que dos botones no
+   pueden hacer. Es un <label> entero para que se pueda apretar el texto tambien. */
+.filtro-popup .fp-selbar { display: flex; gap: 8px; align-items: center; margin-bottom: 6px;
+                           font-size: 12px; cursor: pointer; padding: 2px 4px; }
+.filtro-popup .fp-selbar:hover { background: rgba(255,255,255,0.05); }
+.filtro-popup .fp-selbar input[type=checkbox] { flex: none; }
+.filtro-popup .fp-vis-count { font-size: 11px; color: var(--muted); margin-left: auto; }
+/* Contador por opcion (Deuda). flex:none para que no lo aplaste el nombre. */
+.filtro-popup .fp-n { flex: none; color: var(--muted); font-size: 12px; font-variant-numeric: tabular-nums; }
+/* lista: una fila por item, en una linea, con divisoria y alto comodo */
+.filtro-popup .fp-list { max-height: 340px; overflow: auto; display: flex; flex-direction: column; font-size: 13px; }
+.filtro-popup .fp-list label { display: flex; gap: 8px; align-items: center; cursor: pointer; padding: 6px 4px;
+                               border-bottom: 1px solid rgba(255,255,255,0.07); white-space: nowrap; }
+.filtro-popup .fp-list label:hover { background: rgba(255,255,255,0.05); }
+.filtro-popup .fp-list input[type=checkbox] { flex: none; }
+.filtro-popup .fp-nom { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.filtro-popup .fp-acc { display: flex; gap: 6px; margin-top: 8px; justify-content: flex-end; }
+/* Cuadradito de color a la izquierda del nombre (grupos, responsables). En Precios
+   venia como estilo inline armado en el JS; acá es una clase para que el motor
+   compartido no tenga que saber como se pinta. */
+.filtro-popup .fp-sw { display: inline-block; width: 11px; height: 11px; border-radius: 2px;
+                       margin-right: 4px; vertical-align: middle; flex: none; }
+
+/* =====================================================================
+   Chips de filtro con contador. Los pinta cada pantalla; el criterio de los
+   contadores está comentado arriba de crm.js.
+
+   VINO DE crm.html, donde estaba inline. Se movió acá al usarlos una segunda
+   pantalla (Deuda por cliente y mes), por el mismo motivo que el popup de filtro:
+   duplicar el bloque garantiza que en unos meses los chips se vean distinto en
+   dos pantallas y nadie sepa cuál es el correcto.
+
+   LAS CLASES SIGUEN LLAMÁNDOSE crm-* aunque ya no sean sólo del CRM. Renombrarlas
+   obliga a tocar el JS de una pantalla en producción para un cambio puramente
+   cosmético; el nombre miente un poco, y es más barato que el riesgo.
+
+   VA AL FINAL, igual que el popup: al salir del <style> de la página estas reglas
+   perdieron la última palabra en la cascada. Se verificó que ninguna regla de este
+   archivo les gane — `button` es (0,0,1) y pierde contra la clase; `button:hover`
+   y `button:disabled` empatan en (0,1,1) pero tocan otras propiedades; y
+   `.crm-barra button` no las alcanza porque los .crm-chips son HERMANOS de la
+   barra, no hijos. Si algún día se agrega una regla de botón más específica, hay
+   que revisar esto de nuevo.
+   ===================================================================== */
+.crm-chips { align-items: flex-start; margin-top: .35rem; }
+.crm-chips-tit { color: var(--muted); font-size: 12px; display: inline-block; min-width: 88px; padding-top: 4px; }
+/* Los DOS estados llevan fondo: sin él, el chip no seleccionado se leía como
+   texto suelto y no invitaba a hacer clic. Azul claro = disponible, azul pleno
+   = elegido. La jerarquía se lee y los dos se ven apretables.
+
+   El azul claro es el mismo de los chips de Precios (rgba 56,189,248), para que
+   el sistema se vea de una pieza. */
+/* EL BORDE VA COMPLETO, no sólo el color: el botón base de este archivo es fondo
+   --accent y `border: none`, así que declarar únicamente border-color dejaría al
+   chip sin seleccionar sin borde ninguno. */
+.crm-chip { font-size: 12px; padding: 2px 10px; margin: 0 6px 4px 0; border-radius: 12px;
+            border: 1px solid rgba(56,189,248,0.45); background: rgba(56,189,248,0.14);
+            color: var(--text); cursor: pointer; }
+.crm-chip:hover { background: rgba(56,189,248,0.26); }
+.crm-chip[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: #fff; }
+/* El ✓ es la señal PRINCIPAL de "prendido", no el color. Tiene que ser así por
+   los chips de responsable: al prenderlos se llenan con SU color, que puede ser
+   claro u oscuro, así que el tono ya está ocupado y no puede además significar
+   "seleccionado". El ✓ vale igual para todos los chips y para todos los colores. */
+.crm-chip[aria-pressed="true"]::before { content: "✓ "; font-weight: 700; }
+/* Prendido, el chip ENTERO es el color del responsable: el punto pasa a ser
+   ruido. Se oculta, y el ✓ ocupa casi exactamente su lugar, así que el chip no
+   cambia de ancho al prenderse y la fila no se mueve. */
+.crm-chip[aria-pressed="true"] .crm-chip-punto { display: none; }
+/* Chip en CERO: atenuado pero SIEMPRE CLICKEABLE. Deshabilitarlo dejaba
+   trabado al que se deseleccionaba y caía a cero: se sentía como una falla.
+   Es peor perder el control que apretar un filtro que no cambia nada. */
+/* En CERO: el MISMO chip, más flojo. El borde sigue siendo azul (más tenue), no
+   gris: cambiarle el tono lo convertía en otra clase de control en vez de en una
+   versión atenuada, y "Pendiente de envío" en cero parecía un recuadro distinto
+   al de al lado. Solo el texto cambia de color, que es lo que baja la jerarquía. */
+.crm-chip-cero { color: var(--muted); background: rgba(56,189,248,0.05); border-color: rgba(56,189,248,0.18); }
+/* El punto de color se atenúa con su chip: un punto a full brillo dentro de un
+   chip apagado rompe la jerarquía que el fondo acaba de establecer. */
+.crm-chip-cero .crm-chip-punto { opacity: .45; }
+/* Meta-chips ("Todos", "Abiertos"): son MODOS excluyentes entre sí, no valores
+   que se suman. Se ven distinto A PROPÓSITO —esquinas rectas y sin fondo cuando
+   están apagados— para que el ojo no los compare con los chips de valor. Cuando
+   los dos tipos tenían la misma pinta, "Todos" apagado parecía prendido al lado
+   de un chip de valor encendido, y la fila se leía como una contradicción. */
+.crm-chip[data-meta] { border-radius: 4px; background: transparent; border-color: var(--border); }
+.crm-chip[data-meta]:hover { background: rgba(255,255,255,0.07); }
+.crm-chip[data-meta][aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: #fff; }
+/* Separados del grupo de valores. */
+.crm-chip-sep { margin-right: 16px; }
+.crm-chip-n { margin-left: 5px; font-variant-numeric: tabular-nums; opacity: .75; }
+/* Los casos cuya acción todavía no está clasificada. No es un chip: no se puede
+   filtrar por "sin clasificar" —no es una respuesta, es un dato que falta—,
+   pero tampoco pueden desaparecer sin que se sepa que están. */
+.crm-chip-nota { font-size: 11px; color: var(--muted); font-style: italic; margin-left: 10px; }
+/* "Sin agenda" no es un dato que falta: es un caso vivo que no le aparece a
+   nadie. Va en ámbar porque hay que hacer algo al respecto. */
+.crm-chip-alerta { color: #eab308; font-style: normal; font-weight: 600; }
+/* Punto de color del chip de responsable: se ve SIEMPRE, con el filtro puesto
+   o no, para no tener que activar un filtro para saber de quién es el color. */
+.crm-chip-punto { display: inline-block; width: 8px; height: 8px; border-radius: 50%;
+                  margin-right: 6px; vertical-align: middle; }
+

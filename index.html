@@ -2176,119 +2176,168 @@
 
 <!-- GESTIÓN DE PRECIOS -->
 <div class="screen" id="screen-precios">
-  <div class="stats-grid">
-    <div class="stat-card acento"><div class="stat-label">Pendientes de aprobación</div><div class="stat-valor" id="st-prec-pend">0</div><div class="stat-sub">Requieren gerente</div></div>
-    <div class="stat-card verde"><div class="stat-label">Aprobados este año</div><div class="stat-valor" id="st-prec-aprobados">0</div><div class="stat-sub">Impacto en facturación</div></div>
-    <div class="stat-card azul"><div class="stat-label">Objetivos con cláusula</div><div class="stat-valor" id="st-prec-clausula">0</div><div class="stat-sub">Con actualización pactada</div></div>
-    <div class="stat-card rojo"><div class="stat-label">Sin cláusula</div><div class="stat-valor" id="st-prec-sin">0</div><div class="stat-sub">Libre negociación</div></div>
-  </div>
+  <main>
+    <section class="controls">
+      <div class="row">
+        <span class="tb-group"><!-- Vista -->
+          <button data-role="expandir" title="Expandir todos los clientes">Expandir</button>
+          <button data-role="colapsar" title="Colapsar todos los clientes">Colapsar</button>
+          <button data-role="limpiar-filtros" disabled>Limpiar filtros</button>
+          <span class="filtros-info" data-role="filtros-info"></span>
+        </span>
+        <span class="tb-group"><!-- Respaldo -->
+          <button data-role="backup" title="Guardar una foto de todos los precios (backup)">Backup</button>
+          <button data-role="restaurar" title="Restaurar los precios desde un backup">Restaurar</button>
+        </span>
+        <span class="tb-group"><!-- Cambios -->
+          <button data-role="guardar" disabled title="Guardar los cambios pendientes en la base">Guardar cambios</button>
+          <button data-role="descartar" disabled>Descartar</button>
+          <span class="cambios" data-role="contador-cambios"></span>
+        </span>
+        <span class="tb-group"><!-- Aumentos -->
+          <button data-role="paritarias">Paritarias</button>
+          <button data-role="escalas">Escalas</button>
+          <button data-role="grupos">Grupos</button>
+          <button data-role="responsables">Responsables</button>
+          <button data-role="aplicar-escala">Aplicar escala</button>
+        </span>
+        <span class="tb-group"><!-- Notas -->
+          <button data-role="config-notas" title="Editar el firmante de las notas">Config notas</button>
+          <button data-role="generar-notas">Generar notas</button>
+        </span>
+        <span class="tb-group"><!-- Otros -->
+          <button data-role="exportar">Exportar</button>
+        </span>
+        <span class="tb-group tb-vista"><!-- Vista de la grilla: no es una acción sobre los datos -->
+          <button data-role="ver-meses">Todos los meses</button>
+        </span>
+      </div>
+      <div class="row leyenda-precios">
+        <span><span class="sw sw-real"></span>Real (precio cargado)</span>
+        <span><span class="sw sw-proj"></span>Proyectado (forward-fill del último precio)</span>
+        <span><span class="sw sw-dif"></span>Precios diferenciados por objetivo (ver detalle)</span>
+        <span class="leyenda-paritarias" data-role="leyenda-paritarias"></span>
+        <span class="status" data-role="status"></span>
+        <label class="pari-activa" title="Paritaria con la que se marcarán los precios editados a mano">Paritaria activa para carga manual: <select data-role="paritaria-activa"><option value="">— ninguna —</option></select></label>
+      </div>
+      <div class="row"><span class="msg-edicion" data-role="msg-edicion"></span></div>
+      <div class="row"><span class="chips" data-role="fm-chips"></span></div>
+      <div class="row armar-bar" data-role="armar-bar" hidden>
+        <strong data-role="ag-titulo">Armar grupo:</strong>
+        <input type="text" data-role="ag-nombre" placeholder="nombre" />
+        <span class="ag-color-lbl" style="font-size:12px;color:var(--muted)">Color:</span>
+        <span class="cp-anchor" data-role="ag-color-sw" title="Elegir color (opcional)" style="display:inline-block;width:20px;height:20px;border-radius:4px;cursor:pointer;vertical-align:middle;border:1px solid rgba(255,255,255,0.5);background:repeating-linear-gradient(45deg,#3a3a3a,#3a3a3a 3px,#555 3px,#555 6px)"></span>
+        <input type="hidden" data-role="ag-color" value="" />
+        <button data-role="ag-todos">Seleccionar todos</button>
+        <button data-role="ag-ninguno">Deseleccionar todos</button>
+        <span class="ag-info" data-role="ag-info"></span>
+        <button data-role="ag-crear">Crear grupo</button>
+        <button data-role="ag-cancelar">Cancelar</button>
+      </div>
+    </section>
+    <div class="filtro-popup" data-role="filtro-popup" hidden></div>
+    <div class="col-menu-pop" data-role="col-menu-pop" hidden></div>
+    <div class="color-pop" data-role="color-pop" hidden></div>
 
-  <div class="tabs" style="background:white;border-radius:var(--radio-lg) var(--radio-lg) 0 0;padding:0 20px;box-shadow:var(--sombra);border-bottom:none;">
-    <button class="tab-btn active" onclick="tabPrecios('propuestas',this)">⏳ Propuestas pendientes</button>
-    <button class="tab-btn" onclick="tabPrecios('historial',this)">📋 Historial de precios</button>
-    <button class="tab-btn" onclick="tabPrecios('proyeccion',this)">📈 Proyección financiera</button>
-  </div>
+    <section class="zone-grow">
+      <div class="scroll-x" data-role="precios-container">
+        <table data-role="tabla-precios">
+          <thead></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </section>
+  </main>
 
-  <!-- TAB PROPUESTAS -->
-  <div id="prec-tab-propuestas" class="tab-content active">
-    <div class="card" style="border-radius:0 var(--radio-lg) var(--radio-lg) var(--radio-lg);">
-      <div class="card-header">
-        <h3>⏳ Propuestas de modificación de precio</h3>
-        <div style="display:flex;gap:8px;">
-          <button class="btn btn-secondary btn-sm" onclick="abrirModalLotePrecios()">📦 Carga masiva por cliente</button>
-          <button class="btn btn-primary btn-sm" onclick="abrirModalPropuestaPrecio()">+ Nueva propuesta</button>
-        </div>
-      </div>
-      <div class="alerta alerta-info" style="margin:0 0 0;">
-        <strong>🔒 Flujo de convalidación (Secuencia A):</strong> Se carga la propuesta → el <strong>Gerente autoriza la salida</strong> (o rechaza internamente, se puede rearmar) → se envía la carta al cliente → si el cliente acepta, el <strong>Gerente confirma el cierre</strong> y el precio queda Vigente desde la fecha pactada; si rechaza, se puede abrir una nueva ronda con un aumento más bajo, sin pisar la anterior.
-      </div>
-      <div class="tabla-wrap"><table>
-        <thead><tr>
-          <th>Servicio</th><th>Cliente</th><th>Tipo</th><th>Cláusula</th>
-          <th>Valor actual</th><th>Valor final</th><th>% total</th>
-          <th>Tramos</th>
-          <th>Vigencia (1er tramo)</th>
-          <th>Estado</th><th>Proyección</th><th></th>
-        </tr></thead>
-        <tbody id="tbody-propuestas-precio"></tbody>
-      </table></div>
-    </div>
+  <div class="modal-escala" data-role="modal-escala" hidden>
+    <div class="modal-box" data-role="modal-box"></div>
   </div>
-
-  <!-- TAB HISTORIAL -->
-  <div id="prec-tab-historial" class="tab-content">
-    <div class="card" style="border-radius:0 var(--radio-lg) var(--radio-lg) var(--radio-lg);">
-      <div class="card-header">
-        <h3>📋 Historial completo de precios por objetivo</h3>
-        <div class="filtros-bar">
-          <select id="cf-hist-obj" onchange="renderHistorialPrecios()"><option value="">Todos los objetivos</option></select>
-          <select id="cf-hist-cli" onchange="renderHistorialPrecios()"><option value="">Todos los clientes</option></select>
-        </div>
-      </div>
-      <div id="historial-precios-lista" style="padding:16px;display:flex;flex-direction:column;gap:14px;"></div>
-    </div>
+  <div class="modal-escala" data-role="modal-grupo" hidden>
+    <div class="modal-box" data-role="modal-grupo-box"></div>
   </div>
+  <div class="modal-escala" data-role="modal-escalas" hidden>
+    <div class="modal-box" data-role="modal-escalas-box"></div>
+  </div>
+  <div class="modal-escala" data-role="modal-paritarias" hidden>
+    <div class="modal-box" data-role="modal-paritarias-box"></div>
+  </div>
+  <div class="modal-escala" data-role="modal-notas" hidden>
+    <div class="modal-box" data-role="modal-notas-box"></div>
+  </div>
+  <div class="modal-escala" data-role="modal-nota-texto" hidden>
+    <div class="modal-box" data-role="modal-nota-texto-box"></div>
+  </div>
+  <div class="modal-escala" data-role="modal-config" hidden>
+    <div class="modal-box" data-role="modal-config-box"></div>
+  </div>
+  <div class="modal-escala" data-role="modal-restore" hidden>
+    <div class="modal-box" data-role="modal-restore-box"></div>
+  </div>
+</div>
 
-  <!-- TAB PROYECCIÓN -->
-  <div id="prec-tab-proyeccion" class="tab-content">
-    <div style="display:grid;grid-template-columns:340px 1fr;gap:18px;">
-      <div class="card">
-        <div class="card-header"><h3>⚙️ Configurar proyección</h3></div>
-        <div class="card-body">
-          <div class="form-grid gap-12">
-            <div class="form-group"><label>Vista</label>
-              <select id="proy-vista" onchange="actualizarProyeccion()">
-                <option value="servicio">Por servicio</option>
-                <option value="cliente">Agrupada por cliente</option>
-              </select>
-            </div>
-            <div class="form-group"><label>Cliente</label>
-              <select id="proy-cliente" onchange="poblarObjetivosProyeccion();actualizarProyeccion()"><option value="">— Todos —</option></select>
-            </div>
-            <div class="form-group"><label>Servicio a proyectar</label>
-              <select id="proy-objetivo" onchange="actualizarProyeccion()"><option value="">— Todos los activos —</option></select>
-            </div>
-            <div class="form-group"><label>Unidad</label>
-              <select id="proy-unidad" onchange="actualizarProyeccion()">
-                <option value="monto">Monto ($/mes)</option>
-                <option value="hora">Valor hora ($/hora — de referencia en abono fijo)</option>
-              </select>
-            </div>
-            <div class="form-group"><label>Meses a proyectar</label>
-              <select id="proy-meses" onchange="actualizarProyeccion()">
-                <option value="3">3 meses</option><option value="6">6 meses</option><option value="12" selected>12 meses</option>
-              </select>
-            </div>
-            <div class="form-group"><label>Incluir propuestas pendientes</label>
-              <select id="proy-incluir-pend" onchange="actualizarProyeccion()">
-                <option value="1">Sí — proyectar con aumentos/rebajas pendientes</option>
-                <option value="0">No — solo precios vigentes</option>
-              </select>
-            </div>
-            <div class="form-section" style="margin:0;">Simulación adicional</div>
-            <div class="form-grid form-grid-2">
-              <div class="form-group"><label>Tipo</label>
-                <select id="proy-pct-extra-signo" onchange="actualizarProyeccion()">
-                  <option value="1">📈 Aumento</option><option value="-1">📉 Rebaja</option>
-                </select>
-              </div>
-              <div class="form-group"><label>%</label>
-                <input type="number" id="proy-pct-extra" value="0" min="0" max="200" step="5" oninput="actualizarProyeccion()" placeholder="0">
-              </div>
-            </div>
-            <div class="form-group"><label>A partir de qué mes (desde hoy)</label>
-              <input type="number" id="proy-pct-extra-desde" value="6" min="0" max="60" step="1" oninput="actualizarProyeccion()">
-              <span class="form-hint">Simulá un aumento o rebaja futuro adicional, no cargado todavía como propuesta</span>
-            </div>
-            <div class="alerta alerta-info" style="font-size:12px;">Los valores propuestos pendientes se muestran como proyección pero <strong>no son definitivos</strong> hasta que el Gerente los apruebe (Secuencia A: autoriza, se envía, confirma el cierre).</div>
-          </div>
-        </div>
+<div class="screen" id="screen-negociaciones">
+  <main>
+    <section class="controls" data-role="crm-filtros">
+      <div class="row crm-barra">
+        <label>Paritaria <select data-role="f-paritaria"></select></label>
+        <label>Cliente <input type="search" data-role="f-texto" placeholder="Buscar…" /></label>
+        <button type="button" data-role="expandir" title="Abrir el detalle de todos los casos filtrados">Expandir todos</button>
+        <button type="button" data-role="contraer" title="Cerrar todos los detalles abiertos">Contraer todos</button>
+        <button type="button" data-role="limpiar-filtros"
+                title="Vuelve la pantalla al estado inicial: Estado en «Abiertos», la paritaria vigente y el resto sin filtro">Limpiar filtros</button>
+        <span class="status" data-role="crm-status">Cargando…</span>
       </div>
-      <div class="card">
-        <div class="card-header"><h3>📈 Proyección de facturación mensual</h3></div>
-        <div class="card-body" id="tabla-proyeccion" style="overflow-x:auto;"></div>
+      <div class="row crm-chips">
+        <span class="crm-chips-tit">Estado</span>
+        <span data-role="f-estados"></span>
       </div>
-    </div>
+      <div class="row crm-chips">
+        <span class="crm-chips-tit">Responsable</span>
+        <span data-role="f-responsables"></span>
+      </div>
+      <div class="row crm-chips">
+        <span class="crm-chips-tit">Agenda</span>
+        <span data-role="f-agenda"></span>
+      </div>
+      <div class="row crm-acc">
+        <span class="crm-acc-n" data-role="sel-n">Ningún caso seleccionado</span>
+        <button type="button" data-role="acc-estado" disabled>Cambiar estado</button>
+        <button type="button" data-role="acc-resp" disabled>Asignar responsable</button>
+        <button type="button" data-role="sel-limpiar" disabled>Limpiar selección</button>
+        <span class="crm-acc-msg" data-role="acc-msg"></span>
+      </div>
+    </section>
+
+    <section class="zone-grow">
+      <div class="scroll-x" data-role="crm-container">
+        <table data-role="tabla-casos">
+          <colgroup>
+            <col style="width:38px" />
+            <col data-col="cliente" style="width:320px" />
+            <col data-col="estado" style="width:150px" />
+            <col data-col="resp" style="width:150px" />
+            <col data-col="ult" style="width:180px" />
+            <col />
+          </colgroup>
+          <thead>
+            <tr>
+              <th class="crm-sel"><input type="checkbox" data-role="sel-todos" title="Seleccionar todo lo que está filtrado" /></th>
+              <th>Cliente <span class="funnel" data-fcol="cliente" title="Filtrar por esta columna">▾</span><span class="col-resize" data-col="cliente" title="Arrastrar para ajustar el ancho"></span></th>
+              <th>Estado <span class="funnel" data-fcol="estado" title="Filtrar por esta columna">▾</span><span class="col-resize" data-col="estado" title="Arrastrar para ajustar el ancho"></span></th>
+              <th>Responsable <span class="funnel" data-fcol="responsable" title="Filtrar por esta columna">▾</span><span class="col-resize" data-col="resp" title="Arrastrar para ajustar el ancho"></span></th>
+              <th>Últ. gestión <span class="funnel" data-fcol="ult" title="Filtrar por esta columna">▾</span><span class="col-resize" data-col="ult" title="Arrastrar para ajustar el ancho"></span></th>
+              <th>Próxima acción <span class="funnel" data-fcol="prox" title="Filtrar por esta columna">▾</span></th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+
+  <!-- Modal de acción en bloque. El fondo y la caja son los del cartel compartido. -->
+  <div class="cfm-fondo" data-role="modal-acc" hidden>
+    <div class="cfm-caja" data-role="modal-acc-box"></div>
   </div>
 </div>
 
