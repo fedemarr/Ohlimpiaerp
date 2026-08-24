@@ -388,17 +388,18 @@ tr.sup-cli{background:#f8f9fd;}
    ============================================================ */
 
 #screen-precios, #screen-negociaciones {
-  --bg: #0f1419;
-  --panel: #171d25;
-  --border: #2a313c;
-  --text: #e6e9ef;
-  --muted: #8a93a2;
-  --accent: #4f8cff;
-  --ok: #38c172;
-  --warn: #f6b040;
-  --err: #e3524f;
+  --bg: var(--fondo);
+  --panel: #ffffff;
+  --border: var(--borde);
+  --text: var(--texto);
+  --muted: var(--texto-suave);
+  --accent: var(--azul);
+  --ok: var(--verde);
+  --warn: var(--naranja);
+  --err: var(--rojo);
   background: var(--bg);
   color: var(--text);
+  font-family: 'DM Sans', sans-serif;
 }
 
 /* --- Base compartida (botones, tablas, controles) --- */
@@ -407,34 +408,34 @@ tr.sup-cli{background:#f8f9fd;}
   padding: 1rem 1.5rem;
   border-bottom: 1px solid var(--border);
   display: flex; align-items: center; justify-content: space-between;
-}#screen-precios header h1 { margin: 0; font-size: 1.1rem; font-weight: 600; }#screen-precios nav a { color: var(--muted); text-decoration: none; margin-left: 1rem; font-size: 0.9rem; }#screen-precios nav a:hover { color: var(--text); }#screen-precios main { padding: 1.5rem; max-width: 1200px; margin: 0 auto; }#screen-precios .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem; margin-bottom: 2rem; }#screen-precios .stat { background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 1rem; }#screen-precios .stat .label { color: var(--muted); font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.05em; }#screen-precios .stat .value { font-size: 1.8rem; font-weight: 600; margin-top: 0.25rem; }#screen-precios .status { color: var(--muted); font-size: 0.85rem; }#screen-precios button,
+}#screen-precios header h1 { margin: 0; font-size: 1.1rem; font-weight: 600; }#screen-precios nav a { color: var(--muted); text-decoration: none; margin-left: 1rem; font-size: 0.9rem; }#screen-precios nav a:hover { color: var(--text); }#screen-precios main { padding: 1.5rem; max-width: 1200px; margin: 0 auto; }#screen-precios .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem; margin-bottom: 2rem; }#screen-precios .stat { background: var(--panel); border: 1px solid var(--border); border-radius: var(--radio-lg); padding: 1rem; }#screen-precios .stat .label { color: var(--muted); font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.05em; }#screen-precios .stat .value { font-size: 1.8rem; font-weight: 600; margin-top: 0.25rem; }#screen-precios .status { color: var(--muted); font-size: 0.85rem; }#screen-precios button,
 #screen-precios .btn {
-  background: var(--accent); color: white; border: none; border-radius: 6px;
+  background: var(--accent); color: white; border: none; border-radius: var(--radio);
   padding: 0.5rem 1rem; font-size: 0.9rem; cursor: pointer;
 }#screen-precios button:hover { opacity: 0.9; }#screen-precios table { width: 100%; border-collapse: collapse; }#screen-precios th,
 #screen-precios td { text-align: left; padding: 0.5rem 0.75rem; border-bottom: 1px solid var(--border); font-size: 0.9rem; white-space: nowrap; }#screen-precios th { color: var(--muted); font-weight: 500; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.05em; }#screen-precios h2 { font-size: 1rem; font-weight: 600; margin: 0 0 0.5rem; }#screen-precios h2 .muted { color: var(--muted); font-weight: 400; }#screen-precios .importer,
-#screen-precios .normalizer { background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 1rem 1.25rem; margin-bottom: 1.25rem; }#screen-precios .importer .row,
+#screen-precios .normalizer { background: var(--panel); border: 1px solid var(--border); border-radius: var(--radio-lg); padding: 1rem 1.25rem; margin-bottom: 1.25rem; }#screen-precios .importer .row,
 #screen-precios .normalizer .row { display: flex; align-items: center; gap: 0.75rem; margin: 0.5rem 0 1rem; flex-wrap: wrap; }#screen-precios button:disabled,
 #screen-precios .btn:disabled { opacity: 0.5; cursor: not-allowed; }#screen-precios details { margin: 0.5rem 0; }#screen-precios details summary { cursor: pointer; color: var(--muted); font-size: 0.85rem; padding: 0.25rem 0; }#screen-precios details[open] summary { color: var(--text); }#screen-precios .log {
-  background: #0b0e12; border: 1px solid var(--border); border-radius: 6px;
+  background: var(--azul-claro); border: 1px solid var(--border); border-radius: var(--radio);
   padding: 0.75rem; font-family: ui-monospace, Consolas, monospace; font-size: 0.8rem;
   color: var(--text); white-space: pre-wrap; max-height: 320px; overflow: auto; margin: 0;
 }#screen-precios .scroll-x { overflow-x: auto; max-width: 100%; }#screen-precios .preview-summary { margin: 0.5rem 0; }#screen-precios .status.ok { color: var(--ok); }#screen-precios .lookup-input {
-  background: #0b0e12; color: var(--text); border: 1px solid var(--border);
-  border-radius: 6px; padding: 0.4rem 0.6rem; font-family: ui-monospace, Consolas, monospace;
+  background: var(--azul-claro); color: var(--text); border: 1px solid var(--border);
+  border-radius: var(--radio); padding: 0.4rem 0.6rem; font-family: ui-monospace, Consolas, monospace;
   font-size: 0.85rem; min-width: 280px;
 }#screen-precios .grid-controls {
   display: flex; align-items: center; gap: 0.5rem;
   margin: 0 0 0.5rem 0;
 }#screen-precios .grid-controls input[type=search],
 #screen-precios .grid-controls select {
-  background: #0b0e12; color: var(--text); border: 1px solid var(--border);
-  border-radius: 6px; padding: 0.4rem 0.6rem; font-size: 0.9rem;
+  background: var(--azul-claro); color: var(--text); border: 1px solid var(--border);
+  border-radius: var(--radio); padding: 0.4rem 0.6rem; font-size: 0.9rem;
   font-family: inherit;
 }#screen-precios .grid-controls input[type=search] { min-width: 280px; }#screen-precios .controls { margin-bottom: 1.5rem; }#screen-precios .controls label { display: inline-flex; flex-direction: column; font-size: 0.75rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; }#screen-precios .controls select,
 #screen-precios .controls input[type=number] {
-  background: #0b0e12; color: var(--text); border: 1px solid var(--border);
-  border-radius: 6px; padding: 0.4rem 0.6rem; margin-top: 0.25rem;
+  background: var(--azul-claro); color: var(--text); border: 1px solid var(--border);
+  border-radius: var(--radio); padding: 0.4rem 0.6rem; margin-top: 0.25rem;
   font-family: inherit; font-size: 0.9rem;
 }#screen-precios .controls input[type=number] { width: 6rem; }#screen-precios td.num,
 #screen-precios th.num { text-align: right; font-variant-numeric: tabular-nums; }#screen-precios th.period-current { color: var(--accent); }#screen-precios th.period-future { color: var(--muted); font-style: italic; }
@@ -444,34 +445,34 @@ tr.sup-cli{background:#f8f9fd;}
   padding: 1rem 1.5rem;
   border-bottom: 1px solid var(--border);
   display: flex; align-items: center; justify-content: space-between;
-}#screen-negociaciones header h1 { margin: 0; font-size: 1.1rem; font-weight: 600; }#screen-negociaciones nav a { color: var(--muted); text-decoration: none; margin-left: 1rem; font-size: 0.9rem; }#screen-negociaciones nav a:hover { color: var(--text); }#screen-negociaciones main { padding: 1.5rem; max-width: 1200px; margin: 0 auto; }#screen-negociaciones .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem; margin-bottom: 2rem; }#screen-negociaciones .stat { background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 1rem; }#screen-negociaciones .stat .label { color: var(--muted); font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.05em; }#screen-negociaciones .stat .value { font-size: 1.8rem; font-weight: 600; margin-top: 0.25rem; }#screen-negociaciones .status { color: var(--muted); font-size: 0.85rem; }#screen-negociaciones button,
+}#screen-negociaciones header h1 { margin: 0; font-size: 1.1rem; font-weight: 600; }#screen-negociaciones nav a { color: var(--muted); text-decoration: none; margin-left: 1rem; font-size: 0.9rem; }#screen-negociaciones nav a:hover { color: var(--text); }#screen-negociaciones main { padding: 1.5rem; max-width: 1200px; margin: 0 auto; }#screen-negociaciones .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem; margin-bottom: 2rem; }#screen-negociaciones .stat { background: var(--panel); border: 1px solid var(--border); border-radius: var(--radio-lg); padding: 1rem; }#screen-negociaciones .stat .label { color: var(--muted); font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.05em; }#screen-negociaciones .stat .value { font-size: 1.8rem; font-weight: 600; margin-top: 0.25rem; }#screen-negociaciones .status { color: var(--muted); font-size: 0.85rem; }#screen-negociaciones button,
 #screen-negociaciones .btn {
-  background: var(--accent); color: white; border: none; border-radius: 6px;
+  background: var(--accent); color: white; border: none; border-radius: var(--radio);
   padding: 0.5rem 1rem; font-size: 0.9rem; cursor: pointer;
 }#screen-negociaciones button:hover { opacity: 0.9; }#screen-negociaciones table { width: 100%; border-collapse: collapse; }#screen-negociaciones th,
 #screen-negociaciones td { text-align: left; padding: 0.5rem 0.75rem; border-bottom: 1px solid var(--border); font-size: 0.9rem; white-space: nowrap; }#screen-negociaciones th { color: var(--muted); font-weight: 500; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.05em; }#screen-negociaciones h2 { font-size: 1rem; font-weight: 600; margin: 0 0 0.5rem; }#screen-negociaciones h2 .muted { color: var(--muted); font-weight: 400; }#screen-negociaciones .importer,
-#screen-negociaciones .normalizer { background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 1rem 1.25rem; margin-bottom: 1.25rem; }#screen-negociaciones .importer .row,
+#screen-negociaciones .normalizer { background: var(--panel); border: 1px solid var(--border); border-radius: var(--radio-lg); padding: 1rem 1.25rem; margin-bottom: 1.25rem; }#screen-negociaciones .importer .row,
 #screen-negociaciones .normalizer .row { display: flex; align-items: center; gap: 0.75rem; margin: 0.5rem 0 1rem; flex-wrap: wrap; }#screen-negociaciones button:disabled,
 #screen-negociaciones .btn:disabled { opacity: 0.5; cursor: not-allowed; }#screen-negociaciones details { margin: 0.5rem 0; }#screen-negociaciones details summary { cursor: pointer; color: var(--muted); font-size: 0.85rem; padding: 0.25rem 0; }#screen-negociaciones details[open] summary { color: var(--text); }#screen-negociaciones .log {
-  background: #0b0e12; border: 1px solid var(--border); border-radius: 6px;
+  background: var(--azul-claro); border: 1px solid var(--border); border-radius: var(--radio);
   padding: 0.75rem; font-family: ui-monospace, Consolas, monospace; font-size: 0.8rem;
   color: var(--text); white-space: pre-wrap; max-height: 320px; overflow: auto; margin: 0;
 }#screen-negociaciones .scroll-x { overflow-x: auto; max-width: 100%; }#screen-negociaciones .preview-summary { margin: 0.5rem 0; }#screen-negociaciones .status.ok { color: var(--ok); }#screen-negociaciones .lookup-input {
-  background: #0b0e12; color: var(--text); border: 1px solid var(--border);
-  border-radius: 6px; padding: 0.4rem 0.6rem; font-family: ui-monospace, Consolas, monospace;
+  background: var(--azul-claro); color: var(--text); border: 1px solid var(--border);
+  border-radius: var(--radio); padding: 0.4rem 0.6rem; font-family: ui-monospace, Consolas, monospace;
   font-size: 0.85rem; min-width: 280px;
 }#screen-negociaciones .grid-controls {
   display: flex; align-items: center; gap: 0.5rem;
   margin: 0 0 0.5rem 0;
 }#screen-negociaciones .grid-controls input[type=search],
 #screen-negociaciones .grid-controls select {
-  background: #0b0e12; color: var(--text); border: 1px solid var(--border);
-  border-radius: 6px; padding: 0.4rem 0.6rem; font-size: 0.9rem;
+  background: var(--azul-claro); color: var(--text); border: 1px solid var(--border);
+  border-radius: var(--radio); padding: 0.4rem 0.6rem; font-size: 0.9rem;
   font-family: inherit;
 }#screen-negociaciones .grid-controls input[type=search] { min-width: 280px; }#screen-negociaciones .controls { margin-bottom: 1.5rem; }#screen-negociaciones .controls label { display: inline-flex; flex-direction: column; font-size: 0.75rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; }#screen-negociaciones .controls select,
 #screen-negociaciones .controls input[type=number] {
-  background: #0b0e12; color: var(--text); border: 1px solid var(--border);
-  border-radius: 6px; padding: 0.4rem 0.6rem; margin-top: 0.25rem;
+  background: var(--azul-claro); color: var(--text); border: 1px solid var(--border);
+  border-radius: var(--radio); padding: 0.4rem 0.6rem; margin-top: 0.25rem;
   font-family: inherit; font-size: 0.9rem;
 }#screen-negociaciones .controls input[type=number] { width: 6rem; }#screen-negociaciones td.num,
 #screen-negociaciones th.num { text-align: right; font-variant-numeric: tabular-nums; }#screen-negociaciones th.period-current { color: var(--accent); }#screen-negociaciones th.period-future { color: var(--muted); font-style: italic; }
@@ -479,24 +480,24 @@ tr.sup-cli{background:#f8f9fd;}
 /* --- Precios LIGE --- */
 
     /* ancho COMPLETO de la ventana */#screen-precios main { max-width: none; width: 100%; padding: 1rem 1.2rem 2rem; box-sizing: border-box; }#screen-precios .rel-cliente { cursor: pointer; }#screen-precios .rel-arrow { display: inline-block; width: 1.1em; color: var(--muted); }#screen-precios .rel-obj td.nombre { padding-left: 2rem; color: var(--muted); font-weight: 400; }#screen-precios .rel-franq,
-#screen-precios .pp { color: #e0b34d; font-weight: 600; }#screen-precios .rel-none { color: var(--muted); }
+#screen-precios .pp { color: var(--acento); font-weight: 600; }#screen-precios .rel-none { color: var(--muted); }
 
     /* contenedor con scroll propio (vertical y horizontal); el sticky se pega contra él */#screen-precios [data-role=precios-container] { overflow: auto; height: calc(100vh - 190px); }   /* altura fija (no elástica); JS la ajusta al alto real. La barra horizontal queda clavada abajo. */#screen-precios table[data-role=tabla-precios] { border-collapse: separate; border-spacing: 0;
       --w-obj: 300px; --w-tipo: 40px; --w-ind: 180px; --w-coord: 180px; --w-grupo: 150px; --w-resp: 110px; --w-nota: 150px; }   /* anchos redimensionables de las columnas fijas */#screen-precios table[data-role=tabla-precios] th,
 #screen-precios table[data-role=tabla-precios] td {
       white-space: nowrap; font-variant-numeric: tabular-nums;
-      border-bottom: 1px solid rgba(255,255,255,0.06);
+      border-bottom: 1px solid var(--borde);
     }
 
     /* encabezado fijo (vertical) */#screen-precios table[data-role=tabla-precios] thead th {
       position: sticky; top: 0; z-index: 2;
-      background: #0a1018; color: #f4f8ff; font-weight: 700; font-size: 12.5px;   /* encabezado destacado (banda casi negra) */
+      background: var(--azul-oscuro); color: #ffffff; font-weight: 700; font-size: 12.5px;   /* encabezado destacado (banda casi negra) */
     }
 
     /* columna fija a la izquierda (horizontal): Cliente/Objetivo */#screen-precios table[data-role=tabla-precios] .sticky-col {
       position: sticky; z-index: 1;
-      background: var(--panel, #1a1f27);
-      border-right: 1px solid rgba(255,255,255,0.22);   /* línea divisoria entre columnas fijas (box-border global → dentro del ancho) */
+      background: var(--panel, #ffffff);
+      border-right: 1px solid var(--borde-fuerte);   /* línea divisoria entre columnas fijas (box-border global → dentro del ancho) */
     }
     /* Columnas fijas: ancho por variable (redimensionables); offsets left = suma acumulada de las anteriores. */#screen-precios .col-obj { left: 0; width: var(--w-obj, 300px); min-width: var(--w-obj, 300px); max-width: var(--w-obj, 300px);
                  overflow: hidden; text-overflow: ellipsis; }#screen-precios .col-tipo { left: var(--w-obj, 300px); width: var(--w-tipo, 40px); min-width: var(--w-tipo, 40px); max-width: var(--w-tipo, 40px);
@@ -510,11 +511,11 @@ tr.sup-cli{background:#f8f9fd;}
        a reescribir la cadena de calc() de todas las que quedaran a su derecha. */#screen-precios .col-nota { left: calc(var(--w-obj, 300px) + var(--w-tipo, 40px) + var(--w-ind, 180px) + var(--w-coord, 180px) + var(--w-grupo, 150px) + var(--w-resp, 110px)); width: var(--w-nota, 150px); min-width: var(--w-nota, 150px); max-width: var(--w-nota, 150px);
                  text-align: left; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 400; }
     /* (columna col-menu eliminada: el ☰ ahora vive en el encabezado de Cliente/Objetivo) */#screen-precios thead th.col-obj { padding-right: 14px; }   /* reserva los 6px del handle: el ☰/embudo (centrados) nunca lo pisan */
-    /* handle de redimensión en el borde derecho de cada encabezado fijo */#screen-precios .sticky-col .col-resize { position: absolute; top: 0; right: 0; width: 6px; height: 100%; cursor: col-resize; user-select: none; z-index: 5; }#screen-precios .sticky-col .col-resize:hover { background: rgba(56,189,248,0.5); }#screen-precios table[data-role=tabla-precios] thead th.sticky-col:has(.col-resize:hover) { border-right-color: rgba(56,189,248,0.5); }   /* resalta la línea al apuntar el handle */#screen-precios td.col-ind,
+    /* handle de redimensión en el borde derecho de cada encabezado fijo */#screen-precios .sticky-col .col-resize { position: absolute; top: 0; right: 0; width: 6px; height: 100%; cursor: col-resize; user-select: none; z-index: 5; }#screen-precios .sticky-col .col-resize:hover { background: rgba(27,79,168,0.5); }#screen-precios table[data-role=tabla-precios] thead th.sticky-col:has(.col-resize:hover) { border-right-color: rgba(27,79,168,0.5); }   /* resalta la línea al apuntar el handle */#screen-precios td.col-ind,
 #screen-precios td.col-coord { font-size: 11px; }   /* Industria y Coordinador: contenido más chico */
     /* ocultar columnas fijas por completo (menú ☰); su var va a 0 para recorrer los offsets siguientes */#screen-precios table[data-role=tabla-precios].hide-tipo  .col-tipo { display: none; }#screen-precios table[data-role=tabla-precios].hide-ind   .col-ind { display: none; }#screen-precios table[data-role=tabla-precios].hide-coord .col-coord { display: none; }#screen-precios table[data-role=tabla-precios].hide-grupo .col-grupo { display: none; }#screen-precios table[data-role=tabla-precios].hide-resp  .col-resp { display: none; }#screen-precios table[data-role=tabla-precios].hide-nota  .col-nota { display: none; }
-    /* botón ☰ y menú de columnas */#screen-precios .col-menu-btn { cursor: pointer; user-select: none; font-size: 14px; color: #9fb4d8; margin-left: 6px; opacity: .8; }#screen-precios .col-menu-btn:hover { color: #38bdf8; opacity: 1; }#screen-precios .col-menu-pop { position: fixed; z-index: 120; background: #1a1f27; border: 1px solid rgba(255,255,255,0.25); border-radius: 6px; padding: 6px 10px; box-shadow: 0 10px 30px rgba(0,0,0,0.6); font-size: 13px; }#screen-precios .col-menu-pop[hidden] { display: none; }#screen-precios .col-menu-pop label { display: block; cursor: pointer; padding: 2px 0; white-space: nowrap; }
-    /* paleta de colores desplegable (grupos) */#screen-precios .color-pop { position: fixed; z-index: 210; background: #1a1f27; border: 1px solid rgba(255,255,255,0.25); border-radius: 8px; padding: 8px; box-shadow: 0 10px 30px rgba(0,0,0,0.6); }#screen-precios .color-pop[hidden] { display: none; }#screen-precios .color-pop .cp-grid { display: grid; grid-template-columns: repeat(6, 22px); gap: 6px; }#screen-precios .color-pop .cp-sw { width: 22px; height: 22px; border-radius: 4px; cursor: pointer; box-shadow: 0 0 0 1px rgba(0,0,0,0.4); box-sizing: border-box; }#screen-precios .color-pop .cp-sw:hover { transform: scale(1.12); }#screen-precios .color-pop .cp-acc { display: flex; gap: 8px; margin-top: 8px; justify-content: space-between; }#screen-precios .color-pop .cp-acc button { font-size: 12px; }
+    /* botón ☰ y menú de columnas */#screen-precios .col-menu-btn { cursor: pointer; user-select: none; font-size: 14px; color: var(--texto-suave); margin-left: 6px; opacity: .8; }#screen-precios .col-menu-btn:hover { color: var(--azul); opacity: 1; }#screen-precios .col-menu-pop { position: fixed; z-index: 120; background: #ffffff; border: 1px solid var(--borde-fuerte); border-radius: var(--radio); padding: 6px 10px; box-shadow: 0 16px 40px rgba(27,79,168,.16); font-size: 13px; }#screen-precios .col-menu-pop[hidden] { display: none; }#screen-precios .col-menu-pop label { display: block; cursor: pointer; padding: 2px 0; white-space: nowrap; }
+    /* paleta de colores desplegable (grupos) */#screen-precios .color-pop { position: fixed; z-index: 210; background: #ffffff; border: 1px solid var(--borde-fuerte); border-radius: var(--radio-lg); padding: 8px; box-shadow: 0 16px 40px rgba(27,79,168,.16); }#screen-precios .color-pop[hidden] { display: none; }#screen-precios .color-pop .cp-grid { display: grid; grid-template-columns: repeat(6, 22px); gap: 6px; }#screen-precios .color-pop .cp-sw { width: 22px; height: 22px; border-radius: 4px; cursor: pointer; box-shadow: 0 0 0 1px rgba(27,79,168,.12); box-sizing: border-box; }#screen-precios .color-pop .cp-sw:hover { transform: scale(1.12); }#screen-precios .color-pop .cp-acc { display: flex; gap: 8px; margin-top: 8px; justify-content: space-between; }#screen-precios .color-pop .cp-acc button { font-size: 12px; }
     /* encabezados de columnas fijas centrados (los valores del cuerpo mantienen su alineación) */#screen-precios thead th.sticky-col { text-align: center; }
     /* cartuchos (chips) de Grupo / Resp. Neg.: sin asignación → celda vacía (sin cartucho) */#screen-precios td.col-grupo,
 #screen-precios td.col-resp,
@@ -537,65 +538,65 @@ tr.sup-cli{background:#f8f9fd;}
                 font-size: 11px; opacity: .85; }#screen-precios .nota-ver:hover .nota-pdf { opacity: 1; }
     /* Selector de paritaria dentro del encabezado. Ancho tope: 6px se los lleva el
        handle de redimensión y el select no lo puede tapar (quedaría inagarrable). */#screen-precios .nota-sel { display: block; width: calc(100% - 8px); margin: 2px auto 0; font-size: 11px; font-weight: 400;
-                background: #0a1018; color: #d7e2f2; border: 1px solid rgba(255,255,255,0.25); border-radius: 4px; padding: 1px 2px; }#screen-precios .nota-sel:focus { outline: 1px solid #38bdf8; }
+                background: var(--azul-oscuro); color: var(--texto); border: 1px solid var(--borde-fuerte); border-radius: 4px; padding: 1px 2px; }#screen-precios .nota-sel:focus { outline: 1px solid var(--azul); }
     /* Tope de ancho y centrado (margin auto): al ensanchar la columna, sin el tope
        el cartucho se estiraba hasta ocuparla entera y se leía como una barra de
        color en vez de una etiqueta. Mismo valor que el CRM. */#screen-precios .chip-etq { display: block; max-width: 150px; margin: 3px auto; padding: 1px 6px; border-radius: 9px;
                 font-size: 11px; line-height: 15px; font-weight: 600; text-align: center;
                 overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    /* checkbox de "armar grupo": oculto salvo en modo armar */#screen-precios .chk-grupo { display: none; margin-right: 4px; }#screen-precios table[data-role=tabla-precios].modo-grupo .rel-cliente .chk-grupo { display: inline-block; }#screen-precios .armar-bar { gap: .5rem; align-items: center; flex-wrap: wrap; background: rgba(56,189,248,0.10);
-                 border: 1px solid rgba(56,189,248,0.4); border-radius: 6px; padding: 6px 10px; margin-top: .4rem; }#screen-precios .armar-bar .ag-info { color: #38bdf8; font-weight: 600; }
-    /* lista de grupos en el modal */#screen-precios .mg-lista-grupos { display: flex; flex-direction: column; gap: 4px; max-height: 320px; overflow: auto; margin: 8px 0; }#screen-precios .mg-item { display: flex; align-items: center; gap: 10px; padding: 4px 6px; border: 1px solid rgba(255,255,255,0.10); border-radius: 4px; }#screen-precios .mg-item-nom { font-weight: 600; flex: 1; }#screen-precios .mg-item-n { color: var(--muted); font-size: 12px; }#screen-precios .mg-swatches { flex: none; white-space: nowrap; }   /* picker de color por grupo */#screen-precios .mg-item button { margin-left: 4px; }#screen-precios .ap-resumen { font-size: 13px; margin-bottom: 8px; min-height: 1.2em; }#screen-precios .ap-tabla { border-collapse: collapse; font-size: 13px; min-width: 180px; }#screen-precios .ap-tabla th,
-#screen-precios .ap-tabla td { border: 1px solid rgba(255,255,255,0.14); padding: 3px 10px; }#screen-precios .ap-tabla th { color: var(--muted); font-weight: 600; text-align: left; }#screen-precios .ap-tabla td.ap-pct { text-align: right; color: #4ade80; font-variant-numeric: tabular-nums; }
+    /* checkbox de "armar grupo": oculto salvo en modo armar */#screen-precios .chk-grupo { display: none; margin-right: 4px; }#screen-precios table[data-role=tabla-precios].modo-grupo .rel-cliente .chk-grupo { display: inline-block; }#screen-precios .armar-bar { gap: .5rem; align-items: center; flex-wrap: wrap; background: rgba(27,79,168,0.10);
+                 border: 1px solid rgba(27,79,168,0.4); border-radius: var(--radio); padding: 6px 10px; margin-top: .4rem; }#screen-precios .armar-bar .ag-info { color: var(--azul); font-weight: 600; }
+    /* lista de grupos en el modal */#screen-precios .mg-lista-grupos { display: flex; flex-direction: column; gap: 4px; max-height: 320px; overflow: auto; margin: 8px 0; }#screen-precios .mg-item { display: flex; align-items: center; gap: 10px; padding: 4px 6px; border: 1px solid var(--borde-fuerte); border-radius: 4px; }#screen-precios .mg-item-nom { font-weight: 600; flex: 1; }#screen-precios .mg-item-n { color: var(--muted); font-size: 12px; }#screen-precios .mg-swatches { flex: none; white-space: nowrap; }   /* picker de color por grupo */#screen-precios .mg-item button { margin-left: 4px; }#screen-precios .ap-resumen { font-size: 13px; margin-bottom: 8px; min-height: 1.2em; }#screen-precios .ap-tabla { border-collapse: collapse; font-size: 13px; min-width: 180px; }#screen-precios .ap-tabla th,
+#screen-precios .ap-tabla td { border: 1px solid var(--borde-fuerte); padding: 3px 10px; }#screen-precios .ap-tabla th { color: var(--muted); font-weight: 600; text-align: left; }#screen-precios .ap-tabla td.ap-pct { text-align: right; color: var(--verde); font-variant-numeric: tabular-nums; }
     /* esquina (fija en ambos ejes) por encima de todo */#screen-precios table[data-role=tabla-precios] thead th.sticky-col { z-index: 4; }
 
-    /* filas de cliente: fondo sólido (para que la columna fija tape el scroll horizontal) */#screen-precios .rel-cliente td { background: #232b38; font-weight: 600; }#screen-precios .rel-cliente td.sticky-col { background: #232b38; }
+    /* filas de cliente: fondo sólido (para que la columna fija tape el scroll horizontal) */#screen-precios .rel-cliente td { background: var(--azul-claro); font-weight: 600; }#screen-precios .rel-cliente td.sticky-col { background: var(--azul-claro); }
 
     /* encabezados AGRUPADOS por mes (2 filas de thead) */
-    /* Fila 1 (meses): altura FIJA (border-box) para que el top de la fila 2 la iguale exacto y no se superpongan. */#screen-precios thead tr.grp th.mes-grp { top: 0; box-sizing: border-box; height: 26px; padding: 2px 6px; z-index: 2; text-align: center; font-weight: 700; color: #eef3fa;
-                              border-left: 2px solid rgba(255,255,255,0.14); }#screen-precios thead tr.sub th.sub { top: 26px; z-index: 2; font-weight: 700; font-size: 12px; color: #d7e2f2;
-                              border-bottom: 2px solid rgba(56,189,248,0.55); box-shadow: 0 4px 8px rgba(0,0,0,0.6); }   /* sombra: las filas pasan POR DEBAJO */#screen-precios thead tr.grp th.sticky-col { top: 0; border-bottom: 2px solid rgba(56,189,248,0.55); box-shadow: 0 4px 8px rgba(0,0,0,0.6); }   /* col-obj/tipo/ind/coord/grupo (rowspan 2) */
+    /* Fila 1 (meses): altura FIJA (border-box) para que el top de la fila 2 la iguale exacto y no se superpongan. */#screen-precios thead tr.grp th.mes-grp { top: 0; box-sizing: border-box; height: 26px; padding: 2px 6px; z-index: 2; text-align: center; font-weight: 700; color: #ffffff;
+                              border-left: 2px solid var(--borde-fuerte); }#screen-precios thead tr.sub th.sub { top: 26px; z-index: 2; font-weight: 700; font-size: 12px; color: var(--texto);
+                              border-bottom: 2px solid rgba(27,79,168,0.55); box-shadow: 0 2px 8px rgba(27,79,168,.12); }   /* sombra: las filas pasan POR DEBAJO */#screen-precios thead tr.grp th.sticky-col { top: 0; border-bottom: 2px solid rgba(27,79,168,0.55); box-shadow: 0 2px 8px rgba(27,79,168,.12); }   /* col-obj/tipo/ind/coord/grupo (rowspan 2) */
 
     /* sub-columnas de cada mes: % Aum | Precio | % Desc */#screen-precios td.sub,
 #screen-precios th.sub { text-align: right; padding: 3px 6px; font-variant-numeric: tabular-nums; vertical-align: middle; }
-    /* los tres sub-valores (% Aum, Precio, % Desc) al MISMO font-size (heredado, como el precio) */#screen-precios .sub-aum { width: 88px;  min-width: 88px;  max-width: 88px;  color: #4ade80;   /* % de aumento: verde (ancho p/ valores grandes) */
-                border-left: 2px solid rgba(255,255,255,0.10); }   /* separador entre meses */#screen-precios .sub-pre { width: 120px; min-width: 120px; max-width: 120px; color: #d7e0ee; }   /* precio: ancho p/ millones */#screen-precios .sub-desc { width: 60px;  min-width: 60px;  max-width: 60px;  color: #f87171; }  /* % de descuento: rojo */
+    /* los tres sub-valores (% Aum, Precio, % Desc) al MISMO font-size (heredado, como el precio) */#screen-precios .sub-aum { width: 88px;  min-width: 88px;  max-width: 88px;  color: var(--verde);   /* % de aumento: verde (ancho p/ valores grandes) */
+                border-left: 2px solid var(--borde-fuerte); }   /* separador entre meses */#screen-precios .sub-pre { width: 120px; min-width: 120px; max-width: 120px; color: var(--texto); }   /* precio: ancho p/ millones */#screen-precios .sub-desc { width: 60px;  min-width: 60px;  max-width: 60px;  color: var(--rojo); }  /* % de descuento: rojo */
 
-    /* sombreado ALTERNADO por mes (bandas verticales sutiles; abarca las 3 sub-columnas, header + filas) */#screen-precios td.sub.m-alt { background: rgba(255,255,255,0.03); }#screen-precios .rel-cliente td.sub.m-alt { background: #283040; }             /* banda sobre el fondo sólido del cliente */#screen-precios table[data-role=tabla-precios] thead th.m-alt { background: #131c28; }   /* banda alternada sobre el encabezado casi negro */
+    /* sombreado ALTERNADO por mes (bandas verticales sutiles; abarca las 3 sub-columnas, header + filas) */#screen-precios td.sub.m-alt { background: var(--borde); }#screen-precios .rel-cliente td.sub.m-alt { background: var(--azul-claro); }             /* banda sobre el fondo sólido del cliente */#screen-precios table[data-role=tabla-precios] thead th.m-alt { background: var(--azul-suave); }   /* banda alternada sobre el encabezado casi negro */
 
     /* Ventana de meses: las columnas de afuera SE DIBUJAN (el JS las necesita para poder
-       escribirles un precio) y solo se ocultan acá. El ahorro es el layout de la tabla. */#screen-precios table[data-role=tabla-precios].ventana-corta .mes-off { display: none; }#screen-precios td.sub-pre.proj { color: #8ea3c7; }                            /* solo el precio proyectado se atenúa; los % mantienen su color */#screen-precios td.sub-pre.marca-dif,
-#screen-precios .rel-cliente td.sub-pre.marca-dif { background: rgba(224,179,77,0.16); }  /* diferenciados: gana al sombreado */
+       escribirles un precio) y solo se ocultan acá. El ahorro es el layout de la tabla. */#screen-precios table[data-role=tabla-precios].ventana-corta .mes-off { display: none; }#screen-precios td.sub-pre.proj { color: var(--texto-muy-suave); }                            /* solo el precio proyectado se atenúa; los % mantienen su color */#screen-precios td.sub-pre.marca-dif,
+#screen-precios .rel-cliente td.sub-pre.marca-dif { background: rgba(240,194,48,0.16); }  /* diferenciados: gana al sombreado */
 
     /* edición (Capas 1-4): celdas de precio y % (objetivo y cliente) editables + marca de modificado sin guardar */#screen-precios td.sub-pre.editable,
 #screen-precios td.sub-aum.editable-pct,
 #screen-precios td.sub-pre.editable-b,
 #screen-precios td.sub-aum.editable-pct-b,
 #screen-precios td.sub-pre.editable-cli-precio,
-#screen-precios td.sub-aum.editable-cli-pct { cursor: cell; }#screen-precios td.sub-pre.resaltado-dif { outline: 2px solid #38bdf8; outline-offset: -2px; }   /* objetivo con valor diferente al del cliente */#screen-precios .msg-edicion { color: #38bdf8; font-size: 12px; }
+#screen-precios td.sub-aum.editable-cli-pct { cursor: cell; }#screen-precios td.sub-pre.resaltado-dif { outline: 2px solid var(--azul); outline-offset: -2px; }   /* objetivo con valor diferente al del cliente */#screen-precios .msg-edicion { color: var(--azul); font-size: 12px; }
 
     /* filtros */
     /* .funnel base (+ :hover y .activo) está en css/styles.css: la comparten
        Precios y el CRM. Acá queda solo el modificador de las columnas de mes. */#screen-precios .funnel-mes { font-size: 13px; padding: 0 1px; }#screen-precios .filtros-bar { gap: .6rem; align-items: center; flex-wrap: wrap; }
-    /* marca MUY visible de la columna/mes con filtro activo */#screen-precios thead th.sub.col-filtrada { background: #eab308 !important; color: #12161c !important; }#screen-precios thead th.sub.col-filtrada .funnel { color: #12161c !important; }   /* flechita oscura, visible sobre el dorado */#screen-precios thead th.mes-grp.mes-filtrado { box-shadow: inset 0 -3px 0 #eab308; color: #eab308; }
-    /* al filtrar, los nombres (columna Cliente/Objetivo) en azul */#screen-precios table[data-role=tabla-precios].filtrando td.col-obj { color: #38bdf8; }
+    /* marca MUY visible de la columna/mes con filtro activo */#screen-precios thead th.sub.col-filtrada { background: var(--acento) !important; color: var(--azul-oscuro) !important; }#screen-precios thead th.sub.col-filtrada .funnel { color: var(--azul-oscuro) !important; }   /* flechita oscura, visible sobre el dorado */#screen-precios thead th.mes-grp.mes-filtrado { box-shadow: inset 0 -3px 0 var(--acento); color: var(--acento); }
+    /* al filtrar, los nombres (columna Cliente/Objetivo) en azul */#screen-precios table[data-role=tabla-precios].filtrando td.col-obj { color: var(--azul); }
     /* El CSS del popup de filtro (.filtro-popup y sus .fp-*) se movió a
        css/styles.css al empezar a usarlo el CRM. Acá quedan solo las piezas
        propias de esta pantalla: el aviso de "filtrando" y los chips de los
        filtros de mes. */
     /* Ancho RESERVADO: el indicador aparece y desaparece según haya filtros, y si ocupara
        espacio solo cuando hay texto empujaría los botones y mandaría la barra a dos filas
-       justo al filtrar. Reserva fija = la barra nunca cambia de alto. */#screen-precios .filtros-info { color: #eab308; font-weight: 600; margin-left: .6rem; display: inline-block; min-width: 7rem; }#screen-precios .chips { display: flex; gap: .4rem; flex-wrap: wrap; }#screen-precios .chip { background: rgba(56,189,248,0.18); border: 1px solid rgba(56,189,248,0.5); border-radius: 12px;
-            padding: 1px 8px; font-size: 12px; }#screen-precios .chip-x { cursor: pointer; color: #9fb4d8; margin-left: .2rem; }#screen-precios .chip-x:hover { color: #fff; }
+       justo al filtrar. Reserva fija = la barra nunca cambia de alto. */#screen-precios .filtros-info { color: var(--acento); font-weight: 600; margin-left: .6rem; display: inline-block; min-width: 7rem; }#screen-precios .chips { display: flex; gap: .4rem; flex-wrap: wrap; }#screen-precios .chip { background: rgba(27,79,168,0.18); border: 1px solid rgba(27,79,168,0.5); border-radius: 12px;
+            padding: 1px 8px; font-size: 12px; }#screen-precios .chip-x { cursor: pointer; color: var(--texto-suave); margin-left: .2rem; }#screen-precios .chip-x:hover { color: #fff; }
 
-    /* modal de escalas de aumento */#screen-precios .modal-escala { position: fixed; inset: 0; z-index: 100; background: rgba(0,0,0,0.55); display: flex; align-items: flex-start; justify-content: center; }#screen-precios .modal-escala[hidden] { display: none; }
+    /* modal de escalas de aumento */#screen-precios .modal-escala { position: fixed; inset: 0; z-index: 100; background: rgba(15,45,107,.35); display: flex; align-items: flex-start; justify-content: center; }#screen-precios .modal-escala[hidden] { display: none; }
     /* El cartel de confirmación (.cfm-*) se mudó a css/styles.css: lo comparten
-       Precios y el CRM. Acá no queda nada suyo. */#screen-precios .modal-box { background: #1a1f27; border: 1px solid rgba(255,255,255,0.25); border-radius: 8px; padding: 16px 18px;
-                 margin-top: 8vh; width: 460px; max-width: 92vw; max-height: 80vh; overflow: auto; box-shadow: 0 10px 40px rgba(0,0,0,0.6); }#screen-precios .modal-box .me-title { font-weight: 600; margin-bottom: 10px; }#screen-precios .modal-box .me-fila { display: flex; gap: 8px; align-items: center; margin-bottom: 8px; font-size: 13px; }#screen-precios .modal-box .me-fila input,
+       Precios y el CRM. Acá no queda nada suyo. */#screen-precios .modal-box { background: #ffffff; border: 1px solid var(--borde-fuerte); border-radius: var(--radio-lg); padding: 16px 18px;
+                 margin-top: 8vh; width: 460px; max-width: 92vw; max-height: 80vh; overflow: auto; box-shadow: 0 20px 60px rgba(27,79,168,.18); }#screen-precios .modal-box .me-title { font-weight: 600; margin-bottom: 10px; }#screen-precios .modal-box .me-fila { display: flex; gap: 8px; align-items: center; margin-bottom: 8px; font-size: 13px; }#screen-precios .modal-box .me-fila input,
 #screen-precios .modal-box .me-fila select { flex: 1; }#screen-precios .modal-box .me-sub { font-size: 12px; color: var(--muted); margin: 8px 0 4px; }#screen-precios .modal-box .me-ayuda { font-size: 11px; color: var(--muted); margin: 0 0 6px; line-height: 1.4; }
-    /* documentación respaldatoria de la paritaria */#screen-precios .modal-box .me-doc { margin: 6px 0 10px; padding: 6px 8px; border: 1px solid rgba(255,255,255,0.10); border-radius: 5px; }#screen-precios .modal-box .me-doc-label { font-weight: 600; font-size: 13px; margin-bottom: 3px; }#screen-precios .modal-box .me-doc-actual { font-size: 12px; color: var(--muted); margin-bottom: 4px; }#screen-precios .modal-box .me-doc-actual a { color: #38bdf8; }#screen-precios .modal-box .me-doc-file { display: block; font-size: 12px; margin-bottom: 4px; }
-    /* config de notas: estado + preview de logo/firma */#screen-precios .cfg-img { margin: 6px 0 10px; padding: 6px 8px; border: 1px solid rgba(255,255,255,0.10); border-radius: 5px; }#screen-precios .cfg-img-head { font-size: 13px; margin-bottom: 5px; }#screen-precios .cfg-badge { font-size: 11px; padding: 1px 7px; border-radius: 9px; margin-left: 6px; }#screen-precios .cfg-badge.cfg-ok { background: #14432a; color: #7ee2a8; }#screen-precios .cfg-badge.cfg-local { background: #4a3b12; color: #f0c866; }#screen-precios .cfg-preview { display: block; max-width: 220px; max-height: 90px; background: #fff; border-radius: 4px; padding: 4px; margin-bottom: 6px; object-fit: contain; }#screen-precios .cfg-preview.cfg-nopreview { background: #2a323d; color: var(--muted); font-size: 12px; padding: 18px; text-align: center; width: 220px; box-sizing: border-box; }#screen-precios .modal-box .me-texto { width: 100%; box-sizing: border-box; resize: vertical; font-family: inherit; font-size: 13px; line-height: 1.4; padding: 8px; }#screen-precios .modal-box .snap-list { max-height: 52vh; overflow: auto; margin: 10px 0; }
-    /* Modal de Generar notas: más ancho para que entre la tabla de aplicaciones. */#screen-precios .modal-box[data-role="modal-notas-box"] { width: 1280px; max-width: 92vw; }#screen-precios .modal-box[data-role="modal-nota-texto-box"] { width: 680px; max-width: 92vw; }#screen-precios .modal-box .st-badge { display: inline-block; font-size: 11px; padding: 1px 8px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.2); white-space: nowrap; }#screen-precios .modal-box .st-pendiente { color: var(--muted); }#screen-precios .modal-box .st-generada { color: #bcd6f2; border-color: rgba(90,150,220,0.6); }#screen-precios .modal-box .st-enviada { color: #a6e0a6; border-color: rgba(80,180,90,0.6); }
+    /* documentación respaldatoria de la paritaria */#screen-precios .modal-box .me-doc { margin: 6px 0 10px; padding: 6px 8px; border: 1px solid var(--borde-fuerte); border-radius: 5px; }#screen-precios .modal-box .me-doc-label { font-weight: 600; font-size: 13px; margin-bottom: 3px; }#screen-precios .modal-box .me-doc-actual { font-size: 12px; color: var(--muted); margin-bottom: 4px; }#screen-precios .modal-box .me-doc-actual a { color: var(--azul); }#screen-precios .modal-box .me-doc-file { display: block; font-size: 12px; margin-bottom: 4px; }
+    /* config de notas: estado + preview de logo/firma */#screen-precios .cfg-img { margin: 6px 0 10px; padding: 6px 8px; border: 1px solid var(--borde-fuerte); border-radius: 5px; }#screen-precios .cfg-img-head { font-size: 13px; margin-bottom: 5px; }#screen-precios .cfg-badge { font-size: 11px; padding: 1px 7px; border-radius: 9px; margin-left: 6px; }#screen-precios .cfg-badge.cfg-ok { background: var(--verde-claro); color: var(--verde); }#screen-precios .cfg-badge.cfg-local { background: var(--acento-suave); color: var(--acento); }#screen-precios .cfg-preview { display: block; max-width: 220px; max-height: 90px; background: #fff; border-radius: 4px; padding: 4px; margin-bottom: 6px; object-fit: contain; }#screen-precios .cfg-preview.cfg-nopreview { background: var(--gris-suave); color: var(--muted); font-size: 12px; padding: 18px; text-align: center; width: 220px; box-sizing: border-box; }#screen-precios .modal-box .me-texto { width: 100%; box-sizing: border-box; resize: vertical; font-family: inherit; font-size: 13px; line-height: 1.4; padding: 8px; }#screen-precios .modal-box .snap-list { max-height: 52vh; overflow: auto; margin: 10px 0; }
+    /* Modal de Generar notas: más ancho para que entre la tabla de aplicaciones. */#screen-precios .modal-box[data-role="modal-notas-box"] { width: 1280px; max-width: 92vw; }#screen-precios .modal-box[data-role="modal-nota-texto-box"] { width: 680px; max-width: 92vw; }#screen-precios .modal-box .st-badge { display: inline-block; font-size: 11px; padding: 1px 8px; border-radius: 10px; border: 1px solid var(--borde-fuerte); white-space: nowrap; }#screen-precios .modal-box .st-pendiente { color: var(--muted); }#screen-precios .modal-box .st-generada { color: var(--azul-claro); border-color: rgba(27,79,168,0.6); }#screen-precios .modal-box .st-enviada { color: var(--verde); border-color: rgba(26,122,74,0.6); }
     /* Opciones del modal de notas apiladas y alineadas a la izquierda (prolijo con los checkboxes grandes). */#screen-precios .modal-box .nt-controls { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; }
     /* Legibilidad del modal de notas: letra más grande y checkboxes más fáciles de tildar. */#screen-precios .modal-box[data-role="modal-notas-box"] .me-fila,
 #screen-precios .modal-box[data-role="modal-notas-box"] .me-ayuda,
@@ -604,22 +605,22 @@ tr.sup-cli{background:#f8f9fd;}
 #screen-precios .modal-box[data-role="modal-notas-box"] .snap-table { font-size: 14px; }#screen-precios .modal-box[data-role="modal-notas-box"] .nt-controls .me-fila { cursor: pointer; margin: 0; }
     /* Tamaño explícito (no scale) para no romper el layout de la fila. */#screen-precios .modal-box[data-role="modal-notas-box"] input[type=checkbox] { width: 17px; height: 17px; flex: none; margin-right: 6px; cursor: pointer; }
     /* Modal de Restaurar: más ancho y alto para ver los backups completos de una. */#screen-precios .modal-box[data-role="modal-restore-box"] { width: 820px; max-width: 90vw; max-height: 88vh; margin-top: 5vh; }
-    /* La tabla es el único contenedor con scroll; se reserva lugar para título + ayuda + botones. */#screen-precios .modal-box[data-role="modal-restore-box"] .snap-list { max-height: calc(88vh - 180px); }#screen-precios .modal-box .snap-table { width: 100%; border-collapse: collapse; font-size: 12px; }#screen-precios .modal-box .snap-table th { text-align: left; font-weight: 600; color: var(--muted); padding: 6px 8px; border-bottom: 1px solid rgba(255,255,255,0.22); position: sticky; top: 0; background: #1a1f27; }#screen-precios .modal-box .snap-table td { padding: 6px 8px; border-bottom: 1px solid rgba(255,255,255,0.08); vertical-align: middle; }#screen-precios .modal-box .snap-table tr.snap-auto td { color: var(--muted); }#screen-precios .modal-box .snap-fecha { white-space: nowrap; font-variant-numeric: tabular-nums; }#screen-precios .modal-box .snap-filas { text-align: right; font-variant-numeric: tabular-nums; }#screen-precios .modal-box .snap-acc { white-space: nowrap; text-align: right; }#screen-precios .modal-box .snap-acc button { margin-left: 6px; }#screen-precios .modal-box .snap-acc .snap-borrar { color: #e88; }
+    /* La tabla es el único contenedor con scroll; se reserva lugar para título + ayuda + botones. */#screen-precios .modal-box[data-role="modal-restore-box"] .snap-list { max-height: calc(88vh - 180px); }#screen-precios .modal-box .snap-table { width: 100%; border-collapse: collapse; font-size: 12px; }#screen-precios .modal-box .snap-table th { text-align: left; font-weight: 600; color: var(--muted); padding: 6px 8px; border-bottom: 1px solid var(--borde-fuerte); position: sticky; top: 0; background: #ffffff; }#screen-precios .modal-box .snap-table td { padding: 6px 8px; border-bottom: 1px solid var(--borde); vertical-align: middle; }#screen-precios .modal-box .snap-table tr.snap-auto td { color: var(--muted); }#screen-precios .modal-box .snap-fecha { white-space: nowrap; font-variant-numeric: tabular-nums; }#screen-precios .modal-box .snap-filas { text-align: right; font-variant-numeric: tabular-nums; }#screen-precios .modal-box .snap-acc { white-space: nowrap; text-align: right; }#screen-precios .modal-box .snap-acc button { margin-left: 6px; }#screen-precios .modal-box .snap-acc .snap-borrar { color: var(--rojo); }
     /* Botón "Crear" de la columna Casos: botón normal, solo cambia el color.
        Verde (--ok) porque comunica "crear" sin leer el title; rojo se leería
        como borrar. Se distingue del azul --accent de las otras acciones sin
        perder aspecto de botón. */#screen-precios .modal-box .snap-acc .nt-sec { background: var(--ok); }
     /* Encabezados de las columnas de acción alineados con sus botones: las
-       celdas .snap-acc van a la derecha, y el th por defecto iba a la izquierda. */#screen-precios .modal-box .snap-table th.snap-acc { text-align: right; }#screen-precios .modal-box .snap-origen { display: inline-block; font-size: 11px; padding: 1px 8px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.28); }#screen-precios .modal-box .snap-origen-auto { color: var(--muted); border-color: rgba(255,255,255,0.16); }#screen-precios .modal-box .me-renglon { display: flex; gap: 6px; align-items: center; margin-bottom: 5px; }#screen-precios .modal-box .me-renglon .me-pct { width: 70px; }#screen-precios .modal-box .me-x { cursor: pointer; color: #9fb4d8; }#screen-precios .modal-box .me-x:hover { color: #f87171; }#screen-precios .modal-box .me-acc { display: flex; gap: 8px; margin-top: 12px; }#screen-precios .modal-box .me-msg { margin-top: 8px; font-size: 12px; color: #eab308; min-height: 1em; }
-    /* botones al pie SIEMPRE visibles (aunque el modal scrollee) */#screen-precios .modal-box .me-acc { position: sticky; bottom: 0; background: #1a1f27; padding-bottom: 4px; }
+       celdas .snap-acc van a la derecha, y el th por defecto iba a la izquierda. */#screen-precios .modal-box .snap-table th.snap-acc { text-align: right; }#screen-precios .modal-box .snap-origen { display: inline-block; font-size: 11px; padding: 1px 8px; border-radius: 10px; border: 1px solid var(--borde-fuerte); }#screen-precios .modal-box .snap-origen-auto { color: var(--muted); border-color: var(--borde-fuerte); }#screen-precios .modal-box .me-renglon { display: flex; gap: 6px; align-items: center; margin-bottom: 5px; }#screen-precios .modal-box .me-renglon .me-pct { width: 70px; }#screen-precios .modal-box .me-x { cursor: pointer; color: var(--texto-suave); }#screen-precios .modal-box .me-x:hover { color: var(--rojo); }#screen-precios .modal-box .me-acc { display: flex; gap: 8px; margin-top: 12px; }#screen-precios .modal-box .me-msg { margin-top: 8px; font-size: 12px; color: var(--acento); min-height: 1em; }
+    /* botones al pie SIEMPRE visibles (aunque el modal scrollee) */#screen-precios .modal-box .me-acc { position: sticky; bottom: 0; background: #ffffff; padding-bottom: 4px; }
     /* modal de grupos más ancho */#screen-precios [data-role=modal-grupo-box] { width: 600px; }#screen-precios .modal-box .mg-tools { display: flex; gap: 10px; align-items: center; margin-bottom: 8px; }#screen-precios .modal-box .mg-tools input { flex: 1; }
     /* lista de clientes: una fila por cliente (como .fp-list), con scroll interno */#screen-precios .modal-box .mg-list { display: flex; flex-direction: column; gap: 2px; max-height: 300px; overflow: auto;
-                          font-size: 13px; border: 1px solid rgba(255,255,255,0.12); border-radius: 4px; padding: 4px; }#screen-precios .modal-box .mg-list label { display: flex; gap: 6px; align-items: center; cursor: pointer; padding: 1px 2px; white-space: nowrap; }#screen-precios td.sub-pre.modificado { background: rgba(234,179,8,0.42) !important; color: #fff; }  /* amarillo: precio modificado */#screen-precios td.sub-aum.modificado { background: rgba(234,179,8,0.42) !important; }                /* amarillo: % modificado (mantiene verde) */#screen-precios td.sub-pre .edit-input,
+                          font-size: 13px; border: 1px solid var(--borde-fuerte); border-radius: 4px; padding: 4px; }#screen-precios .modal-box .mg-list label { display: flex; gap: 6px; align-items: center; cursor: pointer; padding: 1px 2px; white-space: nowrap; }#screen-precios td.sub-pre.modificado { background: rgba(240,194,48,0.42) !important; color: #fff; }  /* amarillo: precio modificado */#screen-precios td.sub-aum.modificado { background: rgba(240,194,48,0.42) !important; }                /* amarillo: % modificado (mantiene verde) */#screen-precios td.sub-pre .edit-input,
 #screen-precios td.sub-aum .edit-input { box-sizing: border-box; text-align: right; font: inherit;
-                             background: #0f141b; color: #fff; border: 1px solid #eab308; border-radius: 3px; padding: 1px 3px; }#screen-precios td.sub-pre .edit-input { width: 88px; }#screen-precios td.sub-aum .edit-input { width: 50px; }#screen-precios .cambios { color: #eab308; font-weight: 600; margin-left: 1rem; }
+                             background: var(--azul-claro); color: #fff; border: 1px solid var(--acento); border-radius: 3px; padding: 1px 3px; }#screen-precios td.sub-pre .edit-input { width: 88px; }#screen-precios td.sub-aum .edit-input { width: 50px; }#screen-precios .cambios { color: var(--acento); font-weight: 600; margin-left: 1rem; }
     /* Toolbar por grupos funcionales: poco espacio dentro del grupo, más entre grupos + separador sutil. */#screen-precios .page-precios .controls > .row:first-child { display: flex; flex-wrap: wrap; gap: 6px 0; align-items: center; }
     /* padding/gap ajustados para que los 6 grupos entren en UNA fila: la barra en dos
-       renglones le roba alto a la grilla, que es lo que se mira. */#screen-precios .page-precios .controls .tb-group { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 5px; padding: 0 8px; }#screen-precios .page-precios .controls .tb-group:first-child { padding-left: 0; }#screen-precios .page-precios .controls .tb-group:not(:first-child) { border-left: 1px solid rgba(255,255,255,0.18); }
+       renglones le roba alto a la grilla, que es lo que se mira. */#screen-precios .page-precios .controls .tb-group { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 5px; padding: 0 8px; }#screen-precios .page-precios .controls .tb-group:first-child { padding-left: 0; }#screen-precios .page-precios .controls .tb-group:not(:first-child) { border-left: 1px solid var(--borde-fuerte); }
     /* Botones de la toolbar algo más chicos que el estándar: son 14 y tienen que entrar en
        una fila. Achicar el botón es preferible a recortar rótulos que Comercial ya conoce. */#screen-precios .page-precios .controls .tb-group button { padding: 0.38rem 0.7rem; font-size: 0.85rem; }
     /* Botón de VISTA, no de acción: cambia lo que se ve, no los datos. Por eso no lleva el
@@ -631,16 +632,16 @@ tr.sup-cli{background:#f8f9fd;}
     }#screen-precios .page-precios .controls .tb-group.tb-vista button:hover { color: var(--text); border-color: var(--accent); opacity: 1; }
     /* Selector "Paritaria activa" COMPACTO en una sola línea (gana en especificidad a `.controls label`,
        que lo ponía en columna + MAYÚSCULAS y agrandaba la toolbar, tapando el scroll horizontal). */#screen-precios .controls label.pari-activa { display: inline-flex; flex-direction: row; align-items: center; gap: 6px;
-                                  font-size: 13px; text-transform: none; letter-spacing: normal; color: #fbbf24;
-                                  border: 1px solid rgba(251,191,36,0.4); border-radius: 6px; padding: 2px 8px; }#screen-precios .controls label.pari-activa select { font-size: 13px; max-width: 170px; text-transform: none; }
-    /* Paritaria elegida → más marcado (borde y fondo ámbar); "— ninguna —" → neutro (borde tenue). */#screen-precios .controls label.pari-activa:not(:has(option[value=""]:checked)) { border-color: #fbbf24; background: rgba(251,191,36,0.12); }
+                                  font-size: 13px; text-transform: none; letter-spacing: normal; color: var(--acento);
+                                  border: 1px solid rgba(240,194,48,0.4); border-radius: var(--radio); padding: 2px 8px; }#screen-precios .controls label.pari-activa select { font-size: 13px; max-width: 170px; text-transform: none; }
+    /* Paritaria elegida → más marcado (borde y fondo ámbar); "— ninguna —" → neutro (borde tenue). */#screen-precios .controls label.pari-activa:not(:has(option[value=""]:checked)) { border-color: var(--acento); background: rgba(240,194,48,0.12); }
 
     /* modales de gestión (paritarias / escalas): más anchos + lista en tabla */#screen-precios .modal-box[data-role="modal-paritarias-box"],
-#screen-precios .modal-box[data-role="modal-escalas-box"] { width: 1200px; max-width: 92vw; }#screen-precios .modal-box .gm-table { width: 100%; border-collapse: collapse; font-size: 13px; margin: 6px 0 4px; }#screen-precios .modal-box .gm-table th { text-align: left; font-weight: 600; color: var(--muted); padding: 6px 8px; border-bottom: 1px solid rgba(255,255,255,0.22); }#screen-precios .modal-box .gm-table td { padding: 6px 8px; border-bottom: 1px solid rgba(255,255,255,0.08); vertical-align: middle; }#screen-precios .modal-box .gm-color { width: 30px; text-align: center; }#screen-precios .modal-box .gm-color span { display: inline-block; width: 14px; height: 14px; border-radius: 3px; vertical-align: middle; box-shadow: 0 0 0 1px rgba(0,0,0,0.4); }#screen-precios .modal-box .gm-elip { width: 280px; max-width: 280px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#screen-precios .modal-box[data-role="modal-escalas-box"] { width: 1200px; max-width: 92vw; }#screen-precios .modal-box .gm-table { width: 100%; border-collapse: collapse; font-size: 13px; margin: 6px 0 4px; }#screen-precios .modal-box .gm-table th { text-align: left; font-weight: 600; color: var(--muted); padding: 6px 8px; border-bottom: 1px solid var(--borde-fuerte); }#screen-precios .modal-box .gm-table td { padding: 6px 8px; border-bottom: 1px solid var(--borde); vertical-align: middle; }#screen-precios .modal-box .gm-color { width: 30px; text-align: center; }#screen-precios .modal-box .gm-color span { display: inline-block; width: 14px; height: 14px; border-radius: 3px; vertical-align: middle; box-shadow: 0 0 0 1px rgba(27,79,168,.12); }#screen-precios .modal-box .gm-elip { width: 280px; max-width: 280px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     /* Descripción: columna elástica, se queda con todo el espacio sobrante (max-width:0 + width:100% = truco de ellipsis en tabla) */#screen-precios .modal-box .gm-desc { width: 100%; max-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }#screen-precios .modal-box .gm-tramos { text-align: right; font-variant-numeric: tabular-nums; width: 60px; }
     /* Paritaria (tabla de escalas): ancho fijo, "código · nombre"; completo en el title */#screen-precios .modal-box .gm-pari { width: 230px; max-width: 230px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }#screen-precios .modal-box .gm-acc { white-space: nowrap; text-align: right; width: 1%; }#screen-precios .modal-box .gm-acc button { margin-left: 6px; }
 
-    /* leyenda real vs proyectado */#screen-precios .leyenda-precios { display: flex; flex-wrap: wrap; gap: .5rem 1.2rem; font-size: 12px; color: var(--muted); align-items: center; margin-top: .4rem; }#screen-precios .leyenda-precios .sw { display: inline-block; width: 12px; height: 12px; border-radius: 2px; margin-right: .35rem; vertical-align: middle; }#screen-precios .leyenda-precios .sw-real { background: #d7e0ee; }#screen-precios .leyenda-precios .sw-proj { background: #8ea3c7; }#screen-precios .leyenda-precios .sw-dif { background: rgba(224,179,77,0.7); }
+    /* leyenda real vs proyectado */#screen-precios .leyenda-precios { display: flex; flex-wrap: wrap; gap: .5rem 1.2rem; font-size: 12px; color: var(--muted); align-items: center; margin-top: .4rem; }#screen-precios .leyenda-precios .sw { display: inline-block; width: 12px; height: 12px; border-radius: 2px; margin-right: .35rem; vertical-align: middle; }#screen-precios .leyenda-precios .sw-real { background: var(--texto); }#screen-precios .leyenda-precios .sw-proj { background: var(--texto-muy-suave); }#screen-precios .leyenda-precios .sw-dif { background: rgba(240,194,48,0.7); }
     /* referencia de colores de paritarias (dinámica): cada ítem con su cuadradito + nombre */#screen-precios .leyenda-paritarias { display: inline-flex; flex-wrap: wrap; align-items: center; gap: .3rem .9rem; }
   
 
@@ -653,12 +654,12 @@ tr.sup-cli{background:#f8f9fd;}
        escalado de pantalla, y con Windows al 125% la tabla se pasaba del viewport. */#screen-negociaciones [data-role=crm-container] { overflow: auto; }#screen-negociaciones table[data-role=tabla-casos] { table-layout: fixed; width: 100%; }
     /* Títulos centrados (igual que las columnas fijas de Precios); los valores del
        cuerpo mantienen su alineación a la izquierda. El padding lateral reserva los
-       6px del handle de redimensión, para que el título centrado no se le monte. */#screen-negociaciones table[data-role=tabla-casos] th { position: sticky; top: 0; background: var(--panel, #1a1f27); z-index: 2;
+       6px del handle de redimensión, para que el título centrado no se le monte. */#screen-negociaciones table[data-role=tabla-casos] th { position: sticky; top: 0; background: var(--panel, #ffffff); z-index: 2;
                                       text-align: center; padding-left: 10px; padding-right: 10px; }#screen-negociaciones table[data-role=tabla-casos] td { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }#screen-negociaciones table[data-role=tabla-casos] td.crm-sel { text-align: center; overflow: visible; }
     /* Lo vacío se escribe, no se deja en blanco: una celda vacía se lee como error,
        un texto en gris se lee como dato conocido. */#screen-negociaciones .crm-vacio { color: var(--muted); font-style: italic; }#screen-negociaciones .crm-cliente { font-weight: 600; }
     /* Al filtrar, los nombres de Cliente en azul: mismo criterio que Precios. Avisa
-       de un vistazo que lo que se ve es un recorte, sin tener que leer el contador. */#screen-negociaciones table[data-role=tabla-casos].filtrando td.crm-cliente { color: #38bdf8; }#screen-negociaciones .crm-fecha { font-variant-numeric: tabular-nums; }
+       de un vistazo que lo que se ve es un recorte, sin tener que leer el contador. */#screen-negociaciones table[data-role=tabla-casos].filtrando td.crm-cliente { color: var(--azul); }#screen-negociaciones .crm-fecha { font-variant-numeric: tabular-nums; }
     /* Marca de que la celda tiene detalle en el hover. Un dato que solo aparece al
        pasar el mouse, sin nada que lo anuncie, es un dato escondido. */#screen-negociaciones .crm-prox-det { color: var(--muted); font-size: 11px; }
 
@@ -666,7 +667,7 @@ tr.sup-cli{background:#f8f9fd;}
        PUNTO y a la IZQUIERDA de la fecha: se lee de izquierda a derecha y lo primero
        que hay que saber es si urge. Y MÁS GRANDE que el de naturaleza porque es la
        señal que hay que poder leer sin fijar la vista. */#screen-negociaciones .crm-sem { display: inline-block; width: 14px; height: 14px; border-radius: 50%;
-               margin-right: 8px; vertical-align: middle; }#screen-negociaciones .crm-sem-verde { background: #22c55e; }#screen-negociaciones .crm-sem-amarillo { background: #facc15; }#screen-negociaciones .crm-sem-rojo { background: #ef4444; }
+               margin-right: 8px; vertical-align: middle; }#screen-negociaciones .crm-sem-verde { background: var(--verde); }#screen-negociaciones .crm-sem-amarillo { background: var(--acento); }#screen-negociaciones .crm-sem-rojo { background: var(--rojo); }
 
     /* ANCHOS FIJOS. La fecha con cifras de ancho parejo, y el "(en N d)" con caja
        fija: sin eso, "(hoy)" y "(hace 12 d)" corren todo lo que sigue, y al recorrer
@@ -681,18 +682,18 @@ tr.sup-cli{background:#f8f9fd;}
        nunca están pegadas — la fecha entera va en el medio.
        NARANJA = lo tengo que hacer yo, tiene que saltar.
        AZUL    = depende de un tercero, puede pasar más desapercibido. */#screen-negociaciones .crm-dep { display: inline-block; width: 11px; height: 11px; border-radius: 2px;
-               margin-right: 6px; vertical-align: middle; }#screen-negociaciones .crm-dep-nosotros { background: #f97316; }#screen-negociaciones .crm-dep-terceros { background: #5b87c5; }
+               margin-right: 6px; vertical-align: middle; }#screen-negociaciones .crm-dep-nosotros { background: var(--naranja); }#screen-negociaciones .crm-dep-terceros { background: var(--gris); }
     /* Sin clasificar: hueco, no invisible. Que se note que falta el dato. */#screen-negociaciones .crm-dep-nada { background: transparent; box-shadow: inset 0 0 0 1px var(--muted); }
 
     /* Flechita de expandir. Control PROPIO, separado de la selección: solo ella
        abre el detalle, el resto de la fila sigue libre para tildar. */#screen-negociaciones .crm-exp { display: inline-block; width: 1.1em; color: var(--muted);
-               cursor: pointer; user-select: none; font-size: 10px; }#screen-negociaciones .crm-exp:hover { color: #38bdf8; }
+               cursor: pointer; user-select: none; font-size: 10px; }#screen-negociaciones .crm-exp:hover { color: var(--azul); }
 
     /* Fila de detalle. Va como una fila más y no como panel flotante: acompaña el
        scroll y no tapa las filas de al lado. Tiene que ANULAR el nowrap/ellipsis
        que llevan todas las celdas de esta tabla, que es justo lo que impedía
        mostrar acá el historial. */#screen-negociaciones tr.crm-detalle > td { white-space: normal; overflow: visible; text-overflow: clip;
-                          background: rgba(255,255,255,0.03); padding: 10px 14px 12px 34px; }#screen-negociaciones .crm-det-tit { font-size: 11px; text-transform: uppercase; letter-spacing: .05em;
+                          background: var(--borde); padding: 10px 14px 12px 34px; }#screen-negociaciones .crm-det-tit { font-size: 11px; text-transform: uppercase; letter-spacing: .05em;
                    color: var(--muted); margin: 4px 0 4px; }#screen-negociaciones .crm-det-tit + .crm-det-tit,
 #screen-negociaciones .crm-det-obs + .crm-det-tit,
 #screen-negociaciones .crm-det-linea + .crm-det-tit,
@@ -741,14 +742,14 @@ tr.sup-cli{background:#f8f9fd;}
 #screen-negociaciones td.crm-prox { cursor: pointer; }#screen-negociaciones td.crm-est .crm-badge,
 #screen-negociaciones td.crm-resp .crm-etq,
 #screen-negociaciones td.crm-ult,
-#screen-negociaciones td.crm-prox { text-decoration: underline dotted rgba(255,255,255,0.35); text-underline-offset: 3px; }#screen-negociaciones td.crm-est:hover,
+#screen-negociaciones td.crm-prox { text-decoration: underline dotted var(--azul); text-underline-offset: 3px; }#screen-negociaciones td.crm-est:hover,
 #screen-negociaciones td.crm-ult:hover,
 #screen-negociaciones td.crm-resp:hover,
-#screen-negociaciones td.crm-prox:hover { background: rgba(56,189,248,0.12); }#screen-negociaciones td.crm-est:hover .crm-badge,
+#screen-negociaciones td.crm-prox:hover { background: rgba(27,79,168,0.12); }#screen-negociaciones td.crm-est:hover .crm-badge,
 #screen-negociaciones td.crm-resp:hover .crm-etq,
 #screen-negociaciones td.crm-ult:hover,
-#screen-negociaciones td.crm-prox:hover { text-decoration-color: #38bdf8; }#screen-negociaciones .crm-badge { display: block; max-width: 150px; margin: 3px auto; padding: 1px 8px;
-                 border-radius: 10px; border: 1px solid rgba(255,255,255,0.18);
+#screen-negociaciones td.crm-prox:hover { text-decoration-color: var(--azul); }#screen-negociaciones .crm-badge { display: block; max-width: 150px; margin: 3px auto; padding: 1px 8px;
+                 border-radius: 10px; border: 1px solid var(--borde-fuerte);
                  font-size: 11px; line-height: 15px; font-weight: 600; text-align: center;
                  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
@@ -763,10 +764,10 @@ tr.sup-cli{background:#f8f9fd;}
          ámbar   = se pasó el tiempo          violeta = negociación abierta
          rojo    = volvió atrás               verde   = resuelto
          verde oscuro = cobrado y archivado
-       El azul es #0284c7 y no un azul más oscuro porque contra el violeta de
-       "en renegociación" quedaban parecidos en tono Y en brillo a la vez. */#screen-negociaciones .crm-e-pendiente_envio { background: #4b5563; color: #e5e7eb; }#screen-negociaciones .crm-e-enviada { background: #0284c7; color: #ffffff; }#screen-negociaciones .crm-e-sin_respuesta { background: #b45309; color: #ffffff; }#screen-negociaciones .crm-e-en_renegociacion { background: #6d28d9; color: #ffffff; }#screen-negociaciones .crm-e-reclamo_posterior { background: #b91c1c; color: #ffffff; }#screen-negociaciones .crm-e-precerrada { background: #15803d; color: #ffffff; }
+       El azul es var(--azul) y no un azul más oscuro porque contra el violeta de
+       "en renegociación" quedaban parecidos en tono Y en brillo a la vez. */#screen-negociaciones .crm-e-pendiente_envio { background: var(--gris); color: #ffffff; }#screen-negociaciones .crm-e-enviada { background: var(--azul); color: #ffffff; }#screen-negociaciones .crm-e-sin_respuesta { background: var(--naranja); color: #ffffff; }#screen-negociaciones .crm-e-en_renegociacion { background: #6d28d9; color: #ffffff; }#screen-negociaciones .crm-e-reclamo_posterior { background: var(--rojo); color: #ffffff; }#screen-negociaciones .crm-e-precerrada { background: var(--verde); color: #ffffff; }
     /* Cerrada va más apagada a propósito: está terminada y cobrada, no compite
-       por atención con lo que todavía hay que trabajar. */#screen-negociaciones .crm-e-cerrada { background: #14532d; color: #86efac; }
+       por atención con lo que todavía hay que trabajar. */#screen-negociaciones .crm-e-cerrada { background: #0f5c38; color: #d7f5e6; }
 
     /* Cartucho de responsable con SU color. El color y el contraste del texto los
        calcula js/shared/etiquetas-color.js, la misma función que usa Precios.
@@ -789,13 +790,13 @@ tr.sup-cli{background:#f8f9fd;}
        declara `* { box-sizing: border-box }` (l.13) y `border-collapse: collapse`
        (l.40) para toda tabla, así que el borde cae dentro del ancho del colgroup.
        La última columna no lleva: sería una línea suelta contra el borde de la tabla. */#screen-negociaciones table[data-role=tabla-casos] th:not(:last-child),
-#screen-negociaciones table[data-role=tabla-casos] td:not(:last-child) { border-right: 1px solid rgba(255,255,255,0.22); }
+#screen-negociaciones table[data-role=tabla-casos] td:not(:last-child) { border-right: 1px solid var(--borde-fuerte); }
 
     /* Handle de redimensión, igual que en Precios: una franja de 6px pegada al
        borde derecho del encabezado. No necesita position:relative en el th porque
        el th ya es sticky, y sticky alcanza para anclar un absolute. */#screen-negociaciones table[data-role=tabla-casos] thead th { overflow: hidden; }#screen-negociaciones .col-resize { position: absolute; top: 0; right: 0; width: 6px; height: 100%;
-                  cursor: col-resize; user-select: none; z-index: 5; }#screen-negociaciones .col-resize:hover { background: rgba(56,189,248,0.5); }
-    /* La divisoria se resalta al apuntar el handle: avisa QUÉ borde se va a mover. */#screen-negociaciones table[data-role=tabla-casos] thead th:has(.col-resize:hover) { border-right-color: rgba(56,189,248,0.5); }
+                  cursor: col-resize; user-select: none; z-index: 5; }#screen-negociaciones .col-resize:hover { background: rgba(27,79,168,0.5); }
+    /* La divisoria se resalta al apuntar el handle: avisa QUÉ borde se va a mover. */#screen-negociaciones table[data-role=tabla-casos] thead th:has(.col-resize:hover) { border-right-color: rgba(27,79,168,0.5); }
 
     /* Barra de controles (primera fila). Va con su propia clase y no sobre .row
        porque las filas de chips de abajo también son .row y no se tocan.
@@ -808,8 +809,8 @@ tr.sup-cli{background:#f8f9fd;}
     /* El buscador venía SIN estilo: styles.css solo contempla `.controls select` e
        `input[type=number]`, así que quedaba un input crudo del navegador al lado de
        controles con fondo y borde. Mismos valores que el select, para que combinen. */#screen-negociaciones .page-crm .controls .crm-barra input[type=search] {
-      background: #0b0e12; color: var(--text); border: 1px solid var(--border);
-      border-radius: 6px; padding: 0.4rem 0.6rem; margin-top: 0.25rem;
+      background: var(--azul-claro); color: var(--text); border: 1px solid var(--border);
+      border-radius: var(--radio); padding: 0.4rem 0.6rem; margin-top: 0.25rem;
       font-family: inherit; font-size: 0.9rem; min-width: 200px;
     }
     /* «Vencidos»: casillero y texto EN LÍNEA. Sin esto hereda el flex-direction:column
@@ -830,26 +831,26 @@ tr.sup-cli{background:#f8f9fd;}
        casos va a tocar el botón de al lado. */#screen-negociaciones .crm-acc-n.crm-acc-hay { color: var(--text); font-weight: 600; }
     /* Resultado de la última acción. En ámbar cuando la base tocó MENOS casos de
        los seleccionados: una acción que no hizo nada no se puede ver igual que una
-       que funcionó. */#screen-negociaciones .crm-acc-msg { font-size: .85rem; color: var(--muted); margin-left: auto; }#screen-negociaciones .crm-acc-msg.crm-acc-alerta { color: #eab308; font-weight: 600; }
+       que funcionó. */#screen-negociaciones .crm-acc-msg { font-size: .85rem; color: var(--muted); margin-left: auto; }#screen-negociaciones .crm-acc-msg.crm-acc-alerta { color: var(--acento); font-weight: 600; }
 
     /* Modal de acción. Reusa el fondo y la caja del cartel compartido
        (css/styles.css, .cfm-*): es la misma chapa de modal, no vale duplicarla. */#screen-negociaciones .crm-modal-msg { font-size: 13px; line-height: 1.5; margin: 6px 0 12px; }#screen-negociaciones .crm-modal-fila { display: flex; gap: 8px; align-items: center; font-size: 13px; margin-bottom: 10px; }#screen-negociaciones .crm-modal-fila select { flex: 1; }#screen-negociaciones .crm-modal-chk { display: flex; gap: 8px; align-items: center; font-size: 13px; margin-bottom: 8px; cursor: pointer; }
     /* La advertencia del efecto sobre la ficha del cliente. No es letra chica
        decorativa: esta acción escribe en una tabla que no es la que estás mirando. */#screen-negociaciones .crm-modal-nota { font-size: 12px; line-height: 1.45; color: var(--muted);
-                      border-left: 2px solid rgba(234,179,8,0.6); padding-left: 8px; margin: 10px 0 14px; }
+                      border-left: 2px solid rgba(240,194,48,0.6); padding-left: 8px; margin: 10px 0 14px; }
     /* "Avanzar el caso": el cuadro del camino principal. Tres bloques con su
        encabezado — ¿qué pasó? / ¿en qué queda? / ¿qué sigue? — para que no se lea
        como una lista de siete campos sino como tres preguntas cortas. */#screen-negociaciones .crm-av-tit { font-size: 11px; text-transform: uppercase; letter-spacing: .05em;
-                  color: #38bdf8; font-weight: 700; margin: 14px 0 6px;
+                  color: var(--azul); font-weight: 700; margin: 14px 0 6px;
                   border-top: 1px solid var(--border); padding-top: 10px; }
     /* Contexto, no campo: qué venías a cumplir. */#screen-negociaciones .crm-av-pend { font-size: 12.5px; margin: 2px 0 4px; }
     /* Cuándo y Canal comparten renglón: son cortos, y en renglones separados el
        cuadro se estira sin ganar nada. */#screen-negociaciones .crm-av-fila2 { display: flex; gap: 10px; }#screen-negociaciones .crm-av-fila2 > label { flex: 1; }
     /* La TRANSICIÓN. La flecha muestra el movimiento —lo que era, lo que pasa a
-       ser—; un separador marcaría dos secciones, que no es lo que está pasando. */#screen-negociaciones .crm-av-trans { display: flex; align-items: center; gap: 8px; font-size: 13px; }#screen-negociaciones .crm-av-trans .crm-badge { margin: 0; max-width: 150px; flex: none; }#screen-negociaciones .crm-av-trans select { flex: 1; }#screen-negociaciones .crm-av-flecha { color: #38bdf8; font-size: 15px; flex: none; }
+       ser—; un separador marcaría dos secciones, que no es lo que está pasando. */#screen-negociaciones .crm-av-trans { display: flex; align-items: center; gap: 8px; font-size: 13px; }#screen-negociaciones .crm-av-trans .crm-badge { margin: 0; max-width: 150px; flex: none; }#screen-negociaciones .crm-av-trans select { flex: 1; }#screen-negociaciones .crm-av-flecha { color: var(--azul); font-size: 15px; flex: none; }
 
     /* Aviso de validación DENTRO del modal: la barra de acciones queda tapada por
-       el fondo oscuro, así que un aviso allá no se vería. Vacío no ocupa lugar. */#screen-negociaciones .crm-modal-err { font-size: 12.5px; color: var(--err, #e3524f); font-weight: 600; margin-bottom: 8px; }#screen-negociaciones .crm-modal-err:empty { display: none; }
+       el fondo oscuro, así que un aviso allá no se vería. Vacío no ocupa lugar. */#screen-negociaciones .crm-modal-err { font-size: 12.5px; color: var(--err, var(--rojo)); font-weight: 600; margin-bottom: 8px; }#screen-negociaciones .crm-modal-err:empty { display: none; }
 
     /* Los chips de filtro (.crm-chip*) se mudaron a css/styles.css al usarlos una
        segunda pantalla (Deuda por cliente y mes). Ahí está el bloque completo con
@@ -881,28 +882,28 @@ tr.sup-cli{background:#f8f9fd;}
    mudado mucho mas que la confirmacion. Los valores son los mismos que tenia
    .modal-confirm, para que el cartel se vea igual que siempre.
    ===================================================================== */
-.cfm-fondo { position: fixed; inset: 0; z-index: 200; background: rgba(0,0,0,0.55);
+.cfm-fondo { position: fixed; inset: 0; z-index: 200; background: rgba(15,45,107,.35);
              display: flex; align-items: center; justify-content: center; }
 .cfm-fondo[hidden] { display: none; }
-.cfm-caja { background: #1a1f27; border: 1px solid rgba(255,255,255,0.25); border-radius: 8px;
+.cfm-caja { background: #ffffff; border: 1px solid var(--borde-fuerte); border-radius: var(--radio-lg);
             padding: 16px 18px; width: 460px; max-width: 92vw; max-height: 80vh; overflow: auto;
-            box-shadow: 0 10px 40px rgba(0,0,0,0.6); }
+            box-shadow: 0 20px 60px rgba(27,79,168,.18); }
 .cfm-titulo { font-weight: 600; margin-bottom: 10px; }
 .cfm-msg { font-size: 13px; line-height: 1.5; margin: 6px 0 14px; }
 .cfm-acc { display: flex; gap: 10px; justify-content: flex-end; }
 .cfm-acc .cfm-si { font-weight: 600; }
 /* Rojo para lo destructivo: el color es la ultima advertencia antes del clic. */
-.cfm-acc .cfm-peligro { background: #7a2230; color: #fff; border-color: #7a2230; }
+.cfm-acc .cfm-peligro { background: var(--rojo); color: #fff; border-color: var(--rojo); }
 
 /* El embudo del encabezado, que abre el popup. Base compartida; cada pantalla
    puede agregarle modificadores propios (Precios tiene .funnel-mes para las
    columnas de mes, que sigue en su HTML porque solo existe ahi). */
-.funnel { cursor: pointer; color: #9fb4d8; font-size: 14px; padding: 0 3px; user-select: none; }
-.funnel:hover { color: #38bdf8; }                        /* acento al pasar el mouse */
-.funnel.activo { color: #eab308; font-weight: 700; }     /* columna con filtro activo: mas marcada */
+.funnel { cursor: pointer; color: var(--texto-suave); font-size: 14px; padding: 0 3px; user-select: none; }
+.funnel:hover { color: var(--azul); }                        /* acento al pasar el mouse */
+.funnel.activo { color: var(--acento); font-weight: 700; }     /* columna con filtro activo: mas marcada */
 
-.filtro-popup { position: fixed; z-index: 50; background: #1a1f27; border: 1px solid rgba(255,255,255,0.25);
-                border-radius: 6px; padding: 8px; width: 520px; min-width: 220px; max-width: 92vw; box-shadow: 0 6px 20px rgba(0,0,0,0.5); }
+.filtro-popup { position: fixed; z-index: 50; background: #ffffff; border: 1px solid var(--borde-fuerte);
+                border-radius: var(--radio); padding: 8px; width: 520px; min-width: 220px; max-width: 92vw; box-shadow: 0 12px 32px rgba(27,79,168,.15); }
 .filtro-popup input[data-role=fp-buscar] { width: 100%; box-sizing: border-box; margin-bottom: 6px; }
 .filtro-popup .fp-title { font-weight: 600; font-size: 12px; margin-bottom: 6px; color: var(--muted); }
 .filtro-popup .fp-sub { font-size: 11px; color: var(--muted); margin: 8px 0 3px; }
@@ -912,7 +913,7 @@ tr.sup-cli{background:#f8f9fd;}
    sobre .fp-list, y no tienen que tocar una seccion que es de otra dimension. */
 .filtro-popup .fp-venc { display: flex; gap: 8px; align-items: center; cursor: pointer;
                          font-size: 13px; padding: 3px 4px; }
-.filtro-popup .fp-venc:hover { background: rgba(255,255,255,0.05); }
+.filtro-popup .fp-venc:hover { background: var(--borde); }
 .filtro-popup .fp-venc input { flex: none; }
 
 /* barra Seleccionar/Deseleccionar todos + contador de visibles */
@@ -921,7 +922,7 @@ tr.sup-cli{background:#f8f9fd;}
    pueden hacer. Es un <label> entero para que se pueda apretar el texto tambien. */
 .filtro-popup .fp-selbar { display: flex; gap: 8px; align-items: center; margin-bottom: 6px;
                            font-size: 12px; cursor: pointer; padding: 2px 4px; }
-.filtro-popup .fp-selbar:hover { background: rgba(255,255,255,0.05); }
+.filtro-popup .fp-selbar:hover { background: var(--borde); }
 .filtro-popup .fp-selbar input[type=checkbox] { flex: none; }
 .filtro-popup .fp-vis-count { font-size: 11px; color: var(--muted); margin-left: auto; }
 /* Contador por opcion (Deuda). flex:none para que no lo aplaste el nombre. */
@@ -929,8 +930,8 @@ tr.sup-cli{background:#f8f9fd;}
 /* lista: una fila por item, en una linea, con divisoria y alto comodo */
 .filtro-popup .fp-list { max-height: 340px; overflow: auto; display: flex; flex-direction: column; font-size: 13px; }
 .filtro-popup .fp-list label { display: flex; gap: 8px; align-items: center; cursor: pointer; padding: 6px 4px;
-                               border-bottom: 1px solid rgba(255,255,255,0.07); white-space: nowrap; }
-.filtro-popup .fp-list label:hover { background: rgba(255,255,255,0.05); }
+                               border-bottom: 1px solid var(--borde); white-space: nowrap; }
+.filtro-popup .fp-list label:hover { background: var(--borde); }
 .filtro-popup .fp-list input[type=checkbox] { flex: none; }
 .filtro-popup .fp-nom { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .filtro-popup .fp-acc { display: flex; gap: 6px; margin-top: 8px; justify-content: flex-end; }
@@ -973,9 +974,9 @@ tr.sup-cli{background:#f8f9fd;}
    --accent y `border: none`, así que declarar únicamente border-color dejaría al
    chip sin seleccionar sin borde ninguno. */
 .crm-chip { font-size: 12px; padding: 2px 10px; margin: 0 6px 4px 0; border-radius: 12px;
-            border: 1px solid rgba(56,189,248,0.45); background: rgba(56,189,248,0.14);
+            border: 1px solid rgba(27,79,168,0.45); background: rgba(27,79,168,0.14);
             color: var(--text); cursor: pointer; }
-.crm-chip:hover { background: rgba(56,189,248,0.26); }
+.crm-chip:hover { background: rgba(27,79,168,0.26); }
 .crm-chip[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: #fff; }
 /* El ✓ es la señal PRINCIPAL de "prendido", no el color. Tiene que ser así por
    los chips de responsable: al prenderlos se llenan con SU color, que puede ser
@@ -993,7 +994,7 @@ tr.sup-cli{background:#f8f9fd;}
    gris: cambiarle el tono lo convertía en otra clase de control en vez de en una
    versión atenuada, y "Pendiente de envío" en cero parecía un recuadro distinto
    al de al lado. Solo el texto cambia de color, que es lo que baja la jerarquía. */
-.crm-chip-cero { color: var(--muted); background: rgba(56,189,248,0.05); border-color: rgba(56,189,248,0.18); }
+.crm-chip-cero { color: var(--muted); background: rgba(27,79,168,0.05); border-color: rgba(27,79,168,0.18); }
 /* El punto de color se atenúa con su chip: un punto a full brillo dentro de un
    chip apagado rompe la jerarquía que el fondo acaba de establecer. */
 .crm-chip-cero .crm-chip-punto { opacity: .45; }
@@ -1003,7 +1004,7 @@ tr.sup-cli{background:#f8f9fd;}
    los dos tipos tenían la misma pinta, "Todos" apagado parecía prendido al lado
    de un chip de valor encendido, y la fila se leía como una contradicción. */
 .crm-chip[data-meta] { border-radius: 4px; background: transparent; border-color: var(--border); }
-.crm-chip[data-meta]:hover { background: rgba(255,255,255,0.07); }
+.crm-chip[data-meta]:hover { background: var(--borde); }
 .crm-chip[data-meta][aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: #fff; }
 /* Separados del grupo de valores. */
 .crm-chip-sep { margin-right: 16px; }
@@ -1014,7 +1015,7 @@ tr.sup-cli{background:#f8f9fd;}
 .crm-chip-nota { font-size: 11px; color: var(--muted); font-style: italic; margin-left: 10px; }
 /* "Sin agenda" no es un dato que falta: es un caso vivo que no le aparece a
    nadie. Va en ámbar porque hay que hacer algo al respecto. */
-.crm-chip-alerta { color: #eab308; font-style: normal; font-weight: 600; }
+.crm-chip-alerta { color: var(--acento); font-style: normal; font-weight: 600; }
 /* Punto de color del chip de responsable: se ve SIEMPRE, con el filtro puesto
    o no, para no tener que activar un filtro para saber de quién es el color. */
 .crm-chip-punto { display: inline-block; width: 8px; height: 8px; border-radius: 50%;
