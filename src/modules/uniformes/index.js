@@ -38,6 +38,7 @@ export {
   cambiarTabStockUniformes, renderStock,
   filtrarStockUniformes, filtrarCategoriaStock,
   abrirConteoFisico, cambiarCantidadContadaConteo, guardarConteoFisico,
+  abrirImportarStockInicial, seleccionarArchivoImportStockInicial, confirmarImportarStockInicial,
 } from './stock.js';
 
 // ========== TABS ==========
@@ -115,6 +116,7 @@ import { filtrarDevolucionesBaja, abrirGenerarOrdenManual, abrirCierreDevolucion
 import {
   cambiarTabStockUniformes, renderStock, filtrarStockUniformes, filtrarCategoriaStock,
   abrirConteoFisico, cambiarCantidadContadaConteo, guardarConteoFisico,
+  abrirImportarStockInicial, seleccionarArchivoImportStockInicial, confirmarImportarStockInicial,
 } from './stock.js';
 
 window.cambiarTabUniformes = cambiarTabUniformes;
@@ -174,3 +176,6 @@ window.filtrarCategoriaStock = filtrarCategoriaStock;
 window.abrirConteoFisico = abrirConteoFisico;
 window.cambiarCantidadContadaConteo = cambiarCantidadContadaConteo;
 window.guardarConteoFisico = guardarConteoFisico;
+window.abrirImportarStockInicial = abrirImportarStockInicial;
+window.seleccionarArchivoImportStockInicial = seleccionarArchivoImportStockInicial;
+window.confirmarImportarStockInicial = confirmarImportarStockInicial;

@@ -18,6 +18,7 @@ import { DB, currentUser } from '@shared/state.js';
 import { $ } from '@shared/helpers.js';
 import { toast, abrirModal, cerrarModal } from '@shared/ui.js';
 import { supaSync } from '@shared/supabase.js';
+import { PRENDAS, TALLES_POR_PRENDA } from './catalogos.js';
 
 function _id(prefijo) { return prefijo + '-' + Date.now() + '-' + Math.floor(Math.random() * 10000); }
 function _money(n) { return '$ ' + (Number(n) || 0).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
@@ -322,6 +323,176 @@ export async function guardarConteoFisico() {
   cerrarModal('modal-conteo-fisico-uniformes');
   renderStock();
   toast('✅ Conteo guardado y stock ajustado');
+}
+
+// ========== IMPORTAR STOCK INICIAL (CSV) ==========
+//
+// Carga el punto de partida del stock de uniformes a partir del
+// inventario físico que releva Logística (ticket "Stock inicial de
+// uniformes", 08/2026 — primera carga real: 14/08/2026, 1.080 unidades
+// en 6 prendas). Pensado también como herramienta reutilizable para
+// futuros recuentos totales de depósito, no solo para la carga inicial.
+//
+// Enfoque elegido: se reutiliza EXACTAMENTE el mismo mecanismo que
+// guardarConteoFisico() (más abajo) — registrarMovimientoStock con
+// tipo:'ajuste' y cantidad = diferencia entre lo contado y lo que ya
+// hay en el sistema — en vez de inventar un tipo de movimiento nuevo
+// ("entrada inicial"). Motivos:
+//  1) Es semánticamente lo mismo: reconciliar el sistema contra un
+//     conteo físico. El conteo físico manual ya resuelve esto fila por
+//     fila; acá se resuelve en lote desde un CSV.
+//  2) El delta funciona sin importar si la fila prenda/talle ya existe
+//     en stock_uniformes (ajusta desde lo que haya, incluidas las filas
+//     de prueba viejas con cantidad negativa) o no existe todavía
+//     (ajustarNivelStock la crea en cantidad 0 y el ajuste la deja en
+//     el valor del CSV).
+//  3) stock_uniformes_movimientos queda como ledger 100% consistente:
+//     el nivel siempre es la suma de sus movimientos, sin doble conteo.
+//
+// Formato del CSV esperado (encabezado en cualquier fila, no
+// necesariamente la primera — el archivo real de Logística trae un
+// título y una fila en blanco antes del encabezado):
+//   PRENDA,TALLE,CANTIDAD
+//   BUZO,S,23
+//   AMBO,2XL,30
+//   ...
+// - PRENDA: nombre de la prenda tal como lo usa Logística (ver
+//   PRENDA_CSV_MAP) o directamente el nombre del catálogo (Chomba,
+//   Ambo, etc.).
+// - TALLE: S/M/L/XL/XXL o numérico según la prenda. Se normaliza
+//   XXL→2XL, XXXL→3XL, etc. automáticamente.
+// - CANTIDAD: entero, unidades físicas contadas.
+// Filas con prenda o talle no reconocidos se listan y se excluyen del
+// import (no rompen el resto del archivo).
+
+// Equivalencias de nombre CSV (Logística) → prenda del catálogo del
+// módulo (ver NOTAS del archivo de stock inicial 08/2026).
+const PRENDA_CSV_MAP = {
+  BUZO: 'Buzo', AMBO: 'Ambo', CAMPERA: 'Campera',
+  CALZADO: 'Zapatos', ZAPATOS: 'Zapatos',
+  PANTALON: 'Grafa', 'PANTALÓN': 'Grafa', GRAFA: 'Grafa',
+  CHOMBA: 'Chomba', POLAR: 'Polar', GORRA: 'Gorra',
+  // REMERA: sin stock informado (0 unidades) y sin prenda propia en el
+  // catálogo todavía — si Logística la releva a futuro, agregar acá y
+  // en PRENDAS/TALLES_POR_PRENDA (catalogos.js) antes de mapearla.
+};
+
+function _normalizeTalle(t) {
+  const v = (t || '').trim().toUpperCase();
+  const m = v.match(/^(X+)L$/); // XXL→2XL, XXXL→3XL, XXXXL→4XL, ...
+  if (m) return m[1].length + 'XL';
+  return v;
+}
+
+function _parseCSVStock(texto) {
+  return texto.split(/\r\n|\r|\n/)
+    .filter(l => l.trim() !== '')
+    .map(l => {
+      const delim = l.split(';').length > l.split(',').length ? ';' : ',';
+      return l.split(delim).map(c => c.trim().replace(/^"|"$/g, ''));
+    });
+}
+
+function _detectarHeaderStock(filas) {
+  for (let i = 0; i < filas.length; i++) {
+    const row = filas[i].map(c => c.trim().toUpperCase());
+    const iPrenda = row.indexOf('PRENDA');
+    const iTalle = row.indexOf('TALLE');
+    const iCant = row.findIndex(c => c === 'CANTIDAD' || c === 'UNIDADES' || c === 'CANT');
+    if (iPrenda >= 0 && iTalle >= 0 && iCant >= 0) return { headerRow: i, iPrenda, iTalle, iCant };
+  }
+  return null;
+}
+
+function _fechaISOaDMY(iso) {
+  if (!iso) return '';
+  const [y, m, d] = iso.split('-');
+  return `${d}/${m}/${y}`;
+}
+
+let _importStockFilas = null;
+
+export function abrirImportarStockInicial() {
+  _importStockFilas = null;
+  const res = $('import-stock-resultado'); if (res) res.innerHTML = '';
+  const f = $('import-stock-file'); if (f) f.value = '';
+  const fecha = $('import-stock-fecha');
+  if (fecha) fecha.value = new Date().toISOString().slice(0, 10);
+  const btn = $('import-stock-btn-confirmar'); if (btn) btn.style.display = 'none';
+  abrirModal('modal-import-stock-inicial');
+}
+
+export function seleccionarArchivoImportStockInicial() {
+  const input = $('import-stock-file');
+  const file = input?.files?.[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    const texto = String(e.target.result || '');
+    const filas = _parseCSVStock(texto);
+    const header = _detectarHeaderStock(filas);
+    if (!header) {
+      toast('⚠️ No se reconocen las columnas esperadas (PRENDA, TALLE, CANTIDAD) — revisá el archivo');
+      return;
+    }
+    const datos = filas.slice(header.headerRow + 1)
+      .filter(f => (f[header.iPrenda] || '').trim() && !/^TOTAL/i.test((f[header.iPrenda] || '').trim()));
+    if (!datos.length) { toast('⚠️ No se encontraron filas de datos'); return; }
+
+    const reconocidas = [];
+    const noReconocidas = [];
+    datos.forEach(f => {
+      const prendaCsv = (f[header.iPrenda] || '').trim();
+      const talleCsv = (f[header.iTalle] || '').trim();
+      const cantidadTxt = (f[header.iCant] || '').trim();
+      const cantidad = parseInt(cantidadTxt.replace(/\./g, '').replace(',', '.'), 10) || 0;
+      const prenda = PRENDA_CSV_MAP[prendaCsv.toUpperCase()] || (PRENDAS.includes(prendaCsv) ? prendaCsv : null);
+      if (!prenda) { noReconocidas.push(`${prendaCsv} (prenda no está en el catálogo)`); return; }
+      const talle = _normalizeTalle(talleCsv);
+      const tallesValidos = TALLES_POR_PRENDA[prenda] || [];
+      if (!tallesValidos.includes(talle)) { noReconocidas.push(`${prendaCsv} / ${talleCsv} (talle no está en el catálogo de ${prenda})`); return; }
+      reconocidas.push({ prenda, talle, cantidad, actual: getStockRow(prenda, talle)?.cantidad || 0 });
+    });
+
+    if (!reconocidas.length) { toast('⚠️ Ninguna fila reconocida — revisá prendas/talles del archivo'); return; }
+
+    _importStockFilas = reconocidas;
+    const totalUnidades = reconocidas.reduce((s, r) => s + r.cantidad, 0);
+    const conCambio = reconocidas.filter(r => r.cantidad !== r.actual);
+    $('import-stock-resultado').innerHTML = `
+      <div class="alerta alerta-info" style="font-size:12.5px;">
+        ${reconocidas.length} fila(s) reconocidas · ${totalUnidades} unidades totales · ${conCambio.length} combinación(es) prenda/talle van a ajustarse.
+        ${noReconocidas.length ? `<br>⚠️ ${noReconocidas.length} fila(s) no reconocidas, no se importan:<br>${noReconocidas.slice(0, 10).join('<br>')}${noReconocidas.length > 10 ? '<br>…' : ''}` : ''}
+      </div>`;
+    $('import-stock-btn-confirmar').style.display = 'inline-flex';
+  };
+  reader.readAsText(file, 'UTF-8');
+}
+
+export async function confirmarImportarStockInicial() {
+  if (!_importStockFilas || !_importStockFilas.length) { toast('⚠️ Elegí un archivo primero'); return; }
+  const fechaDMY = _fechaISOaDMY(($('import-stock-fecha') || {}).value) || _fechaISOaDMY(new Date().toISOString().slice(0, 10));
+  const btn = $('import-stock-btn-confirmar');
+  if (btn) { btn.disabled = true; btn.textContent = 'Importando...'; }
+
+  const loteId = String(Date.now()).slice(-9);
+  let aplicadas = 0, sinCambio = 0;
+  for (const r of _importStockFilas) {
+    const delta = r.cantidad - r.actual;
+    if (delta === 0) { sinCambio++; continue; }
+    await registrarMovimientoStock({
+      tipo: 'ajuste', prenda: r.prenda, talle: r.talle, cantidad: delta,
+      motivo: `Stock inicial — inventario físico Logística ${fechaDMY}`,
+      refTipo: 'stock_inicial', refIdLocal: loteId,
+    });
+    aplicadas++;
+  }
+
+  cerrarModal('modal-import-stock-inicial');
+  renderStock();
+  toast(`✅ Stock inicial importado: ${aplicadas} ajuste(s) aplicados${sinCambio ? `, ${sinCambio} ya coincidían` : ''}`);
+  if (btn) { btn.disabled = false; btn.textContent = 'Confirmar importación'; }
+  _importStockFilas = null;
 }
 
 // ========== PANTALLA (tabs) ==========

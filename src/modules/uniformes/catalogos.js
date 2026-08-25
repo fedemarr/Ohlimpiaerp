@@ -25,12 +25,20 @@ export const ESTADOS_FINALES = ['Cerrado', 'Rechazado por RRHH', 'Cancelado por 
 // Campera) ya estaban acá.
 export const PRENDAS = ['Chomba', 'Grafa', 'Ambo', 'Polar', 'Campera', 'Zapatos', 'Buzo', 'Gorra'];
 
+// Notación de talles unificada a S/M/L/XL/2XL/3XL/4XL/5XL (ticket "Stock
+// inicial de uniformes", 08/2026): antes esta lista usaba XXL/XXXL/XXXXL
+// (7 talles) mientras el select de "Talle de ambo" en Altas/Documentación
+// ya usaba S..XL,XXL,XXXL,4XL,5XL (8 talles, notación mixta) — dos
+// convenciones para lo mismo. El inventario físico real (stock inicial,
+// relevado por Logística 14/08/2026) llega en notación numérica pura
+// hasta 5XL para Buzo y Ambo, así que se adopta esa como única convención
+// y se extiende a Chomba/Polar/Campera para no tener una tercera lista.
 export const TALLES_POR_PRENDA = {
-  Chomba: ['S', 'M', 'L', 'XL', 'XXL', 'XXXL', 'XXXXL'],
-  Ambo: ['S', 'M', 'L', 'XL', 'XXL', 'XXXL', 'XXXXL'],
-  Polar: ['S', 'M', 'L', 'XL', 'XXL', 'XXXL', 'XXXXL'],
-  Campera: ['S', 'M', 'L', 'XL', 'XXL', 'XXXL', 'XXXXL'],
-  Buzo: ['S', 'M', 'L', 'XL', 'XXL', 'XXXL', 'XXXXL'],
+  Chomba: ['S', 'M', 'L', 'XL', '2XL', '3XL', '4XL', '5XL'],
+  Ambo: ['S', 'M', 'L', 'XL', '2XL', '3XL', '4XL', '5XL'],
+  Polar: ['S', 'M', 'L', 'XL', '2XL', '3XL', '4XL', '5XL'],
+  Campera: ['S', 'M', 'L', 'XL', '2XL', '3XL', '4XL', '5XL'],
+  Buzo: ['S', 'M', 'L', 'XL', '2XL', '3XL', '4XL', '5XL'],
   // Grafa ya venía de 2 en 2 desde antes de este ticket (era la duda que
   // planteaba: "verificar si van de 2 en 2 o de 1 en 1") — se mantiene
   // el mismo criterio ya usado acá, no uno nuevo.

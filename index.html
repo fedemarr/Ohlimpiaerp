@@ -4770,6 +4770,7 @@
           </div>
           <input type="text" placeholder="🔍 Buscar..." id="stock-buscar" oninput="filtrarStockUniformes()">
           <button class="btn btn-secondary btn-sm" onclick="abrirConteoFisico()">🔢 Conteo físico</button>
+          <button class="btn btn-secondary btn-sm" onclick="abrirImportarStockInicial()">📥 Importar stock (CSV)</button>
         </div>
       </div>
       <div class="tabla-wrap"><table>
@@ -4808,6 +4809,25 @@
     <div class="modal-footer">
       <button class="btn btn-secondary" onclick="cerrarModal('modal-conteo-fisico-uniformes')">Cancelar</button>
       <button class="btn btn-primary" onclick="guardarConteoFisico()">Guardar conteo y ajustar stock</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: IMPORTAR STOCK INICIAL (CSV) -->
+<div class="modal-overlay" id="modal-import-stock-inicial">
+  <div class="modal" style="max-width:640px;">
+    <div class="modal-header"><h3>📥 Importar stock de uniformes (CSV)</h3><button class="btn-close" onclick="cerrarModal('modal-import-stock-inicial')">×</button></div>
+    <div class="modal-body">
+      <p style="font-size:12.5px;color:var(--texto-suave);">Carga un recuento físico completo de depósito (columnas PRENDA, TALLE, CANTIDAD). Cada combinación se ajusta al valor del archivo — no se suma sobre lo que ya había, se reconcilia como en el conteo físico. Pensado para la carga inicial del stock y para futuros recuentos totales.</p>
+      <div style="margin-bottom:10px;">
+        <label style="font-size:12px;font-weight:600;">Fecha del relevamiento <input type="date" id="import-stock-fecha" style="margin-left:8px;padding:5px 8px;border:1px solid var(--borde-fuerte);border-radius:var(--radio);"></label>
+      </div>
+      <input type="file" id="import-stock-file" accept=".csv" onchange="seleccionarArchivoImportStockInicial()">
+      <div id="import-stock-resultado" style="margin-top:14px;"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="cerrarModal('modal-import-stock-inicial')">Cancelar</button>
+      <button class="btn btn-primary" id="import-stock-btn-confirmar" style="display:none;" onclick="confirmarImportarStockInicial()">Confirmar importación</button>
     </div>
   </div>
 </div>
