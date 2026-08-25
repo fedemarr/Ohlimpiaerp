@@ -1,13 +1,15 @@
 // Función serverless de Vercel — recibe la postulación del formulario
-// público (postularme.html) y crea el candidato (+ turno si eligió uno)
-// directamente en Supabase, usando la service_role key.
+// público (postularme.html) y crea el candidato directamente en Supabase
+// en estado 'Precandidato', usando la service_role key. Sin agendamiento
+// acá (ticket 25/08/2026) — la entrevista se coordina después, desde
+// Candidatos → tab Precandidatos, mandando el link de /agendar-entrevista
+// por WhatsApp (ver api/agendar-turno.js, que sí crea el turno).
 //
-// `candidatos` y `turnos` tienen RLS "solo autenticados" (sql/v015). Esta
-// función es la única puerta de escritura para gente sin sesión — toda la
-// validación vive acá server-side, nada queda librado al JS del navegador.
+// `candidatos` tiene RLS "solo autenticados" (sql/v015). Esta función es
+// la única puerta de escritura para gente sin sesión — toda la validación
+// vive acá server-side, nada queda librado al JS del navegador.
 
 const SUPABASE_URL = 'https://caeqsieiuunqvicfpudu.supabase.co';
-const MAX_POR_TURNO = 2; // debe coincidir con api/turnos-disponibles.js
 
 const GENEROS_VALIDOS = ['Masculino', 'Femenino', 'Otro'];
 
@@ -62,8 +64,6 @@ export default async function handler(req, res) {
   const email = limpiar(body.email) || null;
   const piso = limpiar(body.piso) || null;
   const localidad = limpiar(body.localidad) || null;
-  const fecha = limpiar(body.fecha) || null;
-  const hora = limpiar(body.hora) || null;
 
   try {
     const { createClient } = await import('@supabase/supabase-js');
@@ -75,23 +75,6 @@ export default async function handler(req, res) {
     if (existente) {
       res.status(409).json({ error: 'Ya existe una postulación con ese DNI' });
       return;
-    }
-
-    if (fecha && hora) {
-      const { data: ocupados, error: errOcup } = await supa
-        .from('turnos')
-        .select('id')
-        .eq('fecha', fecha)
-        .eq('hora', hora)
-        .neq('estado', 'Cancelado');
-      if (errOcup) {
-        res.status(500).json({ error: 'No se pudo verificar el horario' });
-        return;
-      }
-      if ((ocupados || []).length >= MAX_POR_TURNO) {
-        res.status(409).json({ error: 'Ese horario ya se ocupó, elegí otro' });
-        return;
-      }
     }
 
     const nuevoCandidato = {
@@ -112,8 +95,6 @@ export default async function handler(req, res) {
       localidad,
       medio: 'Formulario web',
       estado: 'Precandidato',
-      fecha_cita: fecha,
-      hora_cita: hora,
       creado_por: 'Formulario público',
     };
 

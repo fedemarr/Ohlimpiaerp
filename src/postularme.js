@@ -1,7 +1,16 @@
 // Ohlimpia — Formulario público de postulación (sin login).
-// No importa el cliente de Supabase: solo habla con las funciones
-// serverless propias (/api/turnos-disponibles y /api/postular), que son las
-// únicas con permiso de escritura/lectura en candidatos/turnos.
+// No importa el cliente de Supabase: solo habla con la función serverless
+// propia (/api/postular), la única con permiso de escritura en candidatos.
+//
+// Sin agendamiento acá (ticket 25/08/2026): antes este mismo formulario
+// dejaba elegir un turno de entrevista al postularse, pero llegan muchas
+// postulaciones sin que todas ameriten entrevista todavía. Ahora este
+// primer link solo carga datos y crea el candidato en estado
+// 'Precandidato' (ver api/postular.js) — RRHH lo revisa desde la pantalla
+// Candidatos → tab Precandidatos y, recién ahí, le manda por WhatsApp el
+// link de /agendar-entrevista (candidatos.js → plantilla "link") para que
+// elija día y hora. Ese segundo paso es el que lo pasa a 'Citado' y lo
+// hace aparecer en Candidatos (agendar-turno.js → handleReservar).
 
 import './styles/main.css';
 import './styles/postularme.css';
@@ -9,8 +18,6 @@ import './styles/postularme.css';
 import { LOCALIDADES_BA, BARRIOS_CABA } from '@shared/state.js';
 import { $, toTitleCase, cleanText, validarCampos } from '@shared/helpers.js';
 import { toast } from '@shared/ui.js';
-
-let turnoElegido = null; // { fecha, hora }
 
 // ========== PROVINCIA / LOCALIDAD ==========
 
@@ -27,65 +34,6 @@ function onChangeZona() {
     loc.innerHTML = '<option value="">Seleccioná la provincia primero</option>';
     loc.disabled = true;
   }
-}
-
-// ========== TURNOS ==========
-
-const DIAS_NOMBRES = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
-
-function formatearDia(fechaStr) {
-  const d = new Date(fechaStr + 'T00:00:00');
-  return DIAS_NOMBRES[d.getDay()] + ' ' + d.getDate() + '/' + (d.getMonth() + 1);
-}
-
-async function cargarTurnos() {
-  const estadoEl = $('pm-turnos-estado');
-  const gridEl = $('pm-turnos-grid');
-  try {
-    const resp = await fetch('/api/turnos-disponibles');
-    const data = await resp.json();
-    if (!resp.ok || !data.slots) throw new Error(data.error || 'Error al cargar horarios');
-
-    if (!data.slots.length) {
-      estadoEl.textContent = 'No hay horarios disponibles por ahora — enviá tu postulación igual y te contactamos.';
-      return;
-    }
-    estadoEl.textContent = '';
-
-    const porDia = {};
-    data.slots.forEach(s => {
-      if (!porDia[s.fecha]) porDia[s.fecha] = [];
-      porDia[s.fecha].push(s.hora);
-    });
-
-    gridEl.innerHTML = Object.keys(porDia).sort().map(fecha =>
-      '<div class="pm-turnos-dia">' + formatearDia(fecha) + '</div>'
-      + '<div class="pm-turnos-chips">'
-      + porDia[fecha].map(hora =>
-        '<button type="button" class="pm-chip" data-fecha="' + fecha + '" data-hora="' + hora + '">' + hora + '</button>'
-      ).join('')
-      + '</div>'
-    ).join('');
-
-    gridEl.onclick = e => {
-      const btn = e.target.closest('.pm-chip');
-      if (!btn) return;
-      elegirTurno(btn.dataset.fecha, btn.dataset.hora);
-    };
-  } catch (e) {
-    estadoEl.textContent = 'No se pudieron cargar los horarios — enviá tu postulación igual y te contactamos.';
-  }
-}
-
-function elegirTurno(fecha, hora) {
-  turnoElegido = { fecha, hora };
-  const el = $('pm-turno-elegido');
-  el.style.display = 'flex';
-  el.innerHTML = '<span>📅 Turno elegido: ' + formatearDia(fecha) + ' a las ' + hora + '</span><button type="button" id="pm-quitar-turno">Quitar</button>';
-  $('pm-quitar-turno').onclick = () => {
-    turnoElegido = null;
-    el.style.display = 'none';
-  };
 }
 
 // ========== ENVÍO ==========
@@ -128,8 +76,6 @@ async function enviarPostulacion(e) {
     localidad: $('pm-localidad').value,
     nacionalidad: $('pm-nacionalidad').value,
     genero: $('pm-genero').value,
-    fecha: turnoElegido ? turnoElegido.fecha : null,
-    hora: turnoElegido ? turnoElegido.hora : null,
     hp_3x9: $('pm-hp-3x9').value, // honeypot
   };
 
@@ -164,4 +110,3 @@ async function enviarPostulacion(e) {
 
 $('pm-zona').onchange = onChangeZona;
 $('form-postular').addEventListener('submit', enviarPostulacion);
-cargarTurnos();

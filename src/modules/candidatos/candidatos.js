@@ -222,6 +222,7 @@ function bindTbodyEvents(tbody) {
     else if (action === 'ver-detalle') abrirDetalleCandidatoPorId(id);
     else if (action === 'desmarcar-asistencia') desmarcarAsistenciaPorId(id);
     else if (action === 'whatsapp') abrirWhatsAppPorId(id);
+    else if (action === 'citacion') enviarCitacionPorId(id);
   };
   tbody.onchange = function (e) {
     const sel = e.target.closest('select[data-action="asistencia"]');
@@ -327,7 +328,11 @@ function renderFilaCand(c) {
   if (_candTab === 'precandidatos' && c.estado === 'Precandidato') {
     btns += '<button data-action="aprobar-pre" data-id="' + cid + '" style="' + btnStyle + 'background:#16a34a;color:white;">✅ Aprobar</button>';
     btns += '<button data-action="rechazar" data-id="' + cid + '" style="' + btnStyle + 'background:#dc2626;color:white;">❌ Rechazar</button>';
-    btns += '<button data-action="whatsapp" data-id="' + cid + '" style="' + btnStyle + 'background:#25d366;color:white;">💬 WhatsApp</button>';
+    // Un solo click, va directo a la plantilla con el link de
+    // /agendar-entrevista (ticket 25/08/2026) — antes había que abrir el
+    // modal genérico de WhatsApp y cambiar la plantilla a mano.
+    btns += '<button data-action="citacion" data-id="' + cid + '" style="' + btnStyle + 'background:#2563eb;color:white;">📅 Mandar citación</button>';
+    btns += '<button data-action="whatsapp" data-id="' + cid + '" style="' + btnStyle + 'background:#25d366;color:white;">💬</button>';
   }
 
   // Columna "Motivo": para Baja se muestra el tipo + fecha (ticket "Histórico
@@ -1072,7 +1077,7 @@ export async function aprobarPrecandidatoPorId(id) {
 
 // ========== WHATSAPP ==========
 
-function abrirWhatsAppPorId(id) {
+function abrirWhatsAppPorId(id, plantillaForzada) {
   const c = getCandById(id);
   if (!c) { toast('⚠️ Candidato no encontrado'); return; }
   if (!$('modal-whatsapp')) {
@@ -1107,9 +1112,16 @@ function abrirWhatsAppPorId(id) {
   $('wa-cand-id').value = id;
   $('wa-cand-nombre').textContent = (c.apellido ? c.apellido + ', ' : '') + (c.nombre || '');
   $('wa-telefono').value = c.tel || '';
-  $('wa-template').value = c.estado === 'Citado' ? 'confirmar-cita' : 'disponibilidad';
+  $('wa-template').value = plantillaForzada || (c.estado === 'Citado' ? 'confirmar-cita' : 'disponibilidad');
   onWhatsAppTemplateChange();
   abrirModal('modal-whatsapp');
+}
+
+// Precandidatos: un solo click manda directo a la plantilla del link de
+// /agendar-entrevista (en vez de abrir el modal genérico y tener que
+// cambiar la plantilla a mano) — ticket 25/08/2026.
+function enviarCitacionPorId(id) {
+  abrirWhatsAppPorId(id, 'link');
 }
 
 function generarMensajeWhatsApp(template, c) {

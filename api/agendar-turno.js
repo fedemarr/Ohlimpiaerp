@@ -173,7 +173,11 @@ async function handleReservar(req, res, body) {
           fecha_cita: fecha,
           hora_cita: hora,
           estado: 'Citado',
-          ...(telefono ? { telefono } : {}),
+          // Fix (25/08/2026): la columna real es `tel`, no `telefono` — con
+          // el nombre viejo, PostgREST rechazaba TODO el update (candidato
+          // ya existente + teléfono cargado) con "column not found", y la
+          // reserva de entrevista fallaba entera por un campo opcional.
+          ...(telefono ? { tel: telefono } : {}),
           ...(email ? { email } : {}),
           ...(observaciones ? { obs: observaciones } : {}),
         })
