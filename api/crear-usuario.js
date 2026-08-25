@@ -12,6 +12,14 @@
 // el UPDATE con nombre/perfil/funcion/nickname definitivos.
 
 const SUPABASE_URL = 'https://caeqsieiuunqvicfpudu.supabase.co';
+// Fix (26/08/2026): SUPABASE_ANON_KEY nunca se configuró como variable de
+// entorno en Vercel (solo estaba SUPABASE_SERVICE_ROLE_KEY) → createClient
+// recibía '' y tiraba "supabaseKey is required.", rompiendo el alta de
+// usuarios enteramente. Es la misma anon/publishable key que ya usa el
+// cliente del navegador (src/shared/supabase.js) — es pública por diseño
+// (por eso el prefijo "publishable"), no un secreto; se hardcodea el mismo
+// fallback acá para no depender de que alguien la vuelva a cargar a mano.
+const SUPABASE_ANON_KEY_FALLBACK = 'sb_publishable__SBdO6cSQXYfgR16FrztwA_Cf9sNosd';
 
 const PERFILES_VALIDOS = [
   'Administrador total', 'Gerencia General', 'Consejo Directivo', 'Finanzas',
@@ -60,7 +68,7 @@ export default async function handler(req, res) {
     const { createClient } = await import('@supabase/supabase-js');
 
     // Cliente 1 — con el token del llamador, para verificar identidad.
-    const supaUser = createClient(SUPABASE_URL, process.env.SUPABASE_ANON_KEY || '', {
+    const supaUser = createClient(SUPABASE_URL, process.env.SUPABASE_ANON_KEY || SUPABASE_ANON_KEY_FALLBACK, {
       global: { headers: { Authorization: 'Bearer ' + token } },
       auth: { persistSession: false, autoRefreshToken: false },
     });
