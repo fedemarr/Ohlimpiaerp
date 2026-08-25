@@ -20,6 +20,7 @@ export {
 
 export {
   abrirImportarCbu, seleccionarArchivoCbu, confirmarImportarCbu,
+  cambiarBancoImportCbu, renderCbuPreview,
 } from './importarCbu.js';
 
 // ========== SCREEN CONFIG ==========
@@ -56,6 +57,7 @@ import {
 
 import {
   abrirImportarCbu, seleccionarArchivoCbu, confirmarImportarCbu,
+  cambiarBancoImportCbu, renderCbuPreview,
 } from './importarCbu.js';
 
 window.renderLegajos = renderLegajos;
@@ -77,6 +79,8 @@ window.confirmarImportacionLegajos = confirmarImportacionLegajos;
 window.abrirImportarCbu = abrirImportarCbu;
 window.seleccionarArchivoCbu = seleccionarArchivoCbu;
 window.confirmarImportarCbu = confirmarImportarCbu;
+window.cambiarBancoImportCbu = cambiarBancoImportCbu;
+window.renderCbuPreview = renderCbuPreview;
 window.toggleLegajoSelection = toggleLegajoSelection;
 window.toggleAllLegajosSelection = toggleAllLegajosSelection;
 window.viewSelectedLegajos = viewSelectedLegajos;
