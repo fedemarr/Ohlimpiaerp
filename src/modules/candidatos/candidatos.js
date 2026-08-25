@@ -1,7 +1,7 @@
 import { DB, LOCALIDADES_BA, BARRIOS_CABA, PARTIDOS_LOCALIDADES, LOCALIDAD_A_PARTIDO, currentUser } from '@shared/state.js';
 import { $, toTitleCase, cleanText, validarCampos, badge, hoyStr } from '@shared/helpers.js';
 import { toast, abrirModal, cerrarModal, abrirModalInput } from '@shared/ui.js';
-import { supaSync, getLastSupaSyncError } from '@shared/supabase.js';
+import { supaSync, getLastSupaSyncError, SUPA } from '@shared/supabase.js';
 import { subirAdjunto, listarAdjuntos, obtenerUrlFirmada, borrarAdjunto, MAX_SIZE } from '@shared/adjuntos.js';
 import { guardarBorrador, guardarBorradorAhora, leerBorrador, limpiarBorrador } from '@shared/autosave.js';
 
@@ -1062,6 +1062,26 @@ export async function aprobarCandidatoPorId(id) {
 
 export async function aprobarPrecandidatoPorId(id) {
   const c = getCandById(id); if (!c) return;
+
+  // Guard de idempotencia (ticket 25/08/2026): el polling de novedades
+  // (chequearPostulacionesNuevas, cada 25s) puede dejar este candidato
+  // desactualizado en memoria si mientras tanto ya avanzó por afuera —
+  // típicamente porque ya agendó su entrevista desde el link público
+  // (agendar-turno.js escribe directo en Supabase, sin pasar por acá).
+  // Sin este chequeo, "Aprobar" pisaba ese avance: mandaba estado='Sin
+  // citar' con fechaCita/horaCita viejos (null) y borraba la cita ya
+  // tomada. Mismo patrón que los otros guards de idempotencia del flujo
+  // de ingreso (ver aprobarPsico/aprobarPreocup, CLAUDE.md).
+  const { data: fresco } = await SUPA.from('candidatos').select('estado, fecha_cita, hora_cita').eq('id_local', String(c.id).slice(-9)).maybeSingle();
+  if (fresco && fresco.estado !== 'Precandidato') {
+    c.estado = fresco.estado;
+    c.fechaCita = fresco.fecha_cita;
+    c.horaCita = fresco.hora_cita;
+    toast('ℹ️ ' + c.nombre + ' ya no está en Precandidato — ya avanzó a "' + fresco.estado + '" (por ejemplo, agendó su entrevista) — no se modifica.');
+    renderCandidatos();
+    return;
+  }
+
   const estadoAnterior = c.estado;
   c.estado = 'Sin citar';
   c.fechaTransicion = new Date().toISOString();
