@@ -3384,7 +3384,7 @@ DB.formasPago=['Transferencia','Cheque físico','E-cheq','Transferencia programa
 DB.modelosPrecio=['Abono mensual fijo','Por EFT','Por horas variables'];
 DB.periodosFacturacion=['Del 1 al último del mes','Del 21 al 20','Del 26 al 25','Del 16 al 15','Otro'];
 DB.rolesResponsables=['Gerente general','Gerente de operaciones','Gerente de sucursal','Jefe de seguridad','Jefe de servicios','Encargado','Contacto de cobros','Contacto de facturación','Otro'];
-DB.tiposAccionCRM=['Llamada','Reunión','Email','Visita','Propuesta','Seguimiento','Demo','Prueba piloto'];
+DB.tiposAccionCRM=['Llamada','Reunión','Email','Visita','Propuesta','Seguimiento'];
 DB.tiposAccionCobro=['Llamada','Email','WhatsApp','Visita presencial','Nota de deuda','Carta documento','Negociación de plan'];
 
 function renderCfgComercialLista(dbKey,elId){

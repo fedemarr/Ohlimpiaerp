@@ -102,18 +102,11 @@ function renderSemaforoHTML(pedido) {
     </div>`;
 }
 
-// ========== PROVEEDORES DEMO (seed si la tabla está vacía) ==========
+// ========== PROVEEDORES DEMO — DESHABILITADO ==========
+// Antes insertaba THAMES y DIVERSEY como datos demo cuando la tabla estaba vacía.
+// Ya no se usa: los proveedores reales se gestionan desde el módulo Proveedores.
 function _seedProveedoresDemo() {
-  if ((DB.proveedores || []).length > 0) return;
-  const demo = [
-    { nombre: 'THAMES', codigo: 'PROV-001', estado: 'activo', contacto: '' },
-    { nombre: 'DIVERSEY', codigo: 'PROV-002', estado: 'activo', contacto: '' },
-  ];
-  demo.forEach(d => {
-    const prov = { id: _id('PROV'), ...d, anulado: false };
-    DB.proveedores.push(prov);
-    supaSync('proveedores', prov);
-  });
+  return;
 }
 
 // ========== PANTALLA PRINCIPAL / TABS ==========
