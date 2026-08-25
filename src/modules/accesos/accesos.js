@@ -219,8 +219,17 @@ export function renderGrillaUsuario() {
       <strong>${escHtml(u.nombre || u.email)}</strong>
       <span class="form-hint">${escHtml(u.email || '')}</span>
       <span style="flex:1"></span>
+      <button type="button" class="btn btn-secondary btn-sm" onclick="accAbrirResetPassword()">🔑 Resetear contraseña</button>
       <button type="button" class="btn btn-secondary btn-sm" onclick="accRestablecerUsuario()"
         ${nOverrides ? '' : 'disabled'}>↺ Restablecer a plantilla del perfil</button>
+    </div>
+    <div id="acc-reset-pass-box" style="display:none;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:14px;padding:12px;background:#fff7ed;border:1px solid #fdba74;border-radius:var(--radio);">
+      <span class="form-hint" style="width:100%;">Nueva contraseña para <strong>${escHtml(u.nombre || u.email)}</strong> — copiala y pasásela antes de confirmar (no se puede volver a mostrar después):</span>
+      <input type="text" id="acc-reset-pass-valor" class="input" readonly style="max-width:220px;font-family:'DM Mono',monospace;">
+      <button type="button" class="btn btn-secondary btn-sm" onclick="accRegenPassReset()">🔄 Regenerar</button>
+      <button type="button" class="btn btn-secondary btn-sm" onclick="accCopiarPassReset()">📋 Copiar</button>
+      <button type="button" class="btn btn-primary btn-sm" id="acc-btn-confirmar-reset" onclick="accConfirmarResetPassword()">Confirmar reset</button>
+      <button type="button" class="btn btn-secondary btn-sm" onclick="accCerrarResetPassword()">Cancelar</button>
     </div>
     <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;margin-bottom:14px;padding:12px;background:var(--fondo);border-radius:var(--radio);">
       <div>
@@ -300,6 +309,60 @@ window.accCiclarUsuario = async function (moduloKey) {
     return;
   }
   renderGrillaUsuario();
+};
+
+// ── resetear contraseña (no hay forma de "recuperar" la vieja — Supabase
+// Auth sólo guarda el hash — así que esto genera una nueva) ────────────────
+
+window.accAbrirResetPassword = function () {
+  const box = $('acc-reset-pass-box');
+  if (!box) return;
+  box.style.display = 'flex';
+  $('acc-reset-pass-valor').value = generarPass();
+};
+window.accCerrarResetPassword = function () {
+  const box = $('acc-reset-pass-box');
+  if (box) box.style.display = 'none';
+};
+window.accRegenPassReset = function () {
+  $('acc-reset-pass-valor').value = generarPass();
+};
+window.accCopiarPassReset = function () {
+  const val = $('acc-reset-pass-valor').value;
+  if (!val) return;
+  navigator.clipboard.writeText(val).then(
+    () => toast('📋 Contraseña copiada'),
+    () => toast('✗ No se pudo copiar — seleccioná y copiá a mano')
+  );
+};
+window.accConfirmarResetPassword = async function () {
+  const u = _usuarioSeleccionado();
+  if (!u || !u.id) return;
+  const nuevaPassword = $('acc-reset-pass-valor').value;
+  if ((nuevaPassword || '').length < 8) { toast('La contraseña debe tener al menos 8 caracteres'); return; }
+
+  const session = (await SUPA.auth.getSession()).data.session;
+  if (!session) { toast('Tu sesión expiró — volvé a entrar'); return; }
+
+  const btn = $('acc-btn-confirmar-reset');
+  btn.disabled = true;
+  btn.textContent = 'Reseteando…';
+  try {
+    const resp = await fetch('/api/resetear-password', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ access_token: session.access_token, usuarioId: u.id, nuevaPassword }),
+    });
+    const data = await resp.json();
+    if (!resp.ok) throw new Error(data.error || 'Error reseteando la contraseña');
+    toast(`✓ Contraseña reseteada para ${data.nombre || data.email} — ya se la pasaste, esta pantalla no la vuelve a mostrar`);
+    window.accCerrarResetPassword();
+  } catch (e) {
+    toast('✗ ' + e.message);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Confirmar reset';
+  }
 };
 
 window.accRestablecerUsuario = async function () {
