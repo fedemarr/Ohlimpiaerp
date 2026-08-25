@@ -1,6 +1,7 @@
 {
   "rewrites": [
     { "source": "/postularme", "destination": "/postularme.html" },
-    { "source": "/evaluacion", "destination": "/evaluacion.html" }
+    { "source": "/evaluacion", "destination": "/evaluacion.html" },
+    { "source": "/agendar-entrevista", "destination": "/agendar-entrevista.html" }
   ]
 }
