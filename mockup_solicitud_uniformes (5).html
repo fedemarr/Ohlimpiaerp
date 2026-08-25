@@ -1,0 +1,413 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Solicitud de Uniformes — Formulario propio del sistema</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;font-family:'Segoe UI',Arial,sans-serif}
+body{background:#f0f2f7;color:#1c2430}
+.top{background:#1b2a5e;color:#fff;padding:14px 26px;display:flex;align-items:center;gap:16px}
+.top h1{font-size:17px;font-weight:600}
+.top .crumb{font-size:12px;opacity:.75}
+.wrap{max-width:1240px;margin:0 auto;padding:18px 22px 60px}
+#t0{max-width:940px;margin:0 auto}
+.card{overflow-x:auto}
+.btn{white-space:nowrap}
+td{vertical-align:middle}
+.card{background:#fff;border:1px solid #dde1ec;border-radius:12px;padding:16px 20px;margin-bottom:14px;box-shadow:0 1px 3px rgba(20,30,60,.05)}
+.card h2{font-size:14.5px;color:#1b2a5e;margin-bottom:10px}
+.step{display:inline-block;background:#1b2a5e;color:#fff;border-radius:50%;width:22px;height:22px;text-align:center;line-height:22px;font-size:12px;margin-right:8px}
+.banner{border-radius:9px;padding:10px 14px;font-size:12.8px;margin-bottom:14px;display:flex;gap:10px;align-items:flex-start}
+.banner.info{background:#e7f0ff;border:1px solid #b9d2f5;color:#1b3f77}
+table{width:100%;border-collapse:collapse;font-size:12.8px}
+th{background:#f4f6fb;color:#3c4560;text-align:left;padding:8px 10px;font-size:11px;text-transform:uppercase;letter-spacing:.3px;border-bottom:2px solid #dde1ec}
+td{padding:8px 10px;border-bottom:1px solid #eceef5;vertical-align:middle}
+.num{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+.chip{display:inline-block;padding:2px 10px;border-radius:11px;font-size:10.5px;font-weight:700;white-space:nowrap}
+.c-verde{background:#d9f2e2;color:#156a3a}
+.c-nara{background:#ffe8d6;color:#a04a08}
+.c-rojo{background:#fddede;color:#a11c1c}
+.c-azul{background:#dbe7ff;color:#1b3f9e}
+.c-gris{background:#eceef3;color:#5a6478}
+.inp{padding:8px 10px;border:1.5px solid #c6cbda;border-radius:8px;font-size:13px;background:#fff}
+.inp:focus{outline:2px solid #f5b301;border-color:#1b2a5e}
+.btn{border:none;border-radius:8px;padding:10px 20px;font-size:13.5px;font-weight:600;cursor:pointer}
+.b-pri{background:#1b2a5e;color:#fff}.b-pri:hover{background:#25397c}
+.b-sec{background:#eceef3;color:#39425a}
+.mut{color:#7a8296;font-size:11.5px}
+.frow{display:flex;gap:14px;flex-wrap:wrap;margin-bottom:10px}
+.frow>div .lb{font-size:11px;color:#5a6478;font-weight:700;margin-bottom:4px}
+.der{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+.derc{border-radius:9px;padding:8px 12px;font-size:12px;border:1.5px solid}
+.derc.ok{background:#f0faf3;border-color:#a9dcbc;color:#156a3a}
+.derc.warn{background:#fff6ea;border-color:#eccd93;color:#8a5a04}
+.derc b{display:block;font-size:11px;text-transform:uppercase;letter-spacing:.3px}
+.resumen{background:#f7f8fc;border:1.5px solid #dde1ec;border-radius:10px;padding:12px 16px;display:flex;gap:28px;flex-wrap:wrap;align-items:center}
+.resumen .t{font-size:11px;color:#6a7386}
+.resumen .v{font-size:17px;font-weight:700;color:#1b2a5e}
+.flow{display:flex;gap:0;flex-wrap:wrap;margin-top:8px}
+.fs{background:#f4f6fb;border:1px solid #dde1ec;padding:6px 12px;font-size:11.5px;font-weight:600;color:#39425a;position:relative;margin-right:16px;border-radius:6px;margin-bottom:5px}
+.fs:after{content:'→';position:absolute;right:-13px;top:50%;transform:translateY(-50%);color:#9aa2b5}
+.fs:last-child:after{content:''}
+.talle{width:76px;padding:5px 6px;border:1.5px solid #c6cbda;border-radius:6px;font-size:12.5px}
+.tabbar2{display:flex;gap:4px;border-bottom:2px solid #d8dce8;margin-bottom:16px;flex-wrap:wrap}
+.tb{padding:10px 18px;font-size:13.5px;font-weight:600;color:#5a6478;cursor:pointer;border-radius:8px 8px 0 0}
+.tb:hover{background:#e6e9f2}
+.tb.on{color:#1b2a5e;background:#fff;border:2px solid #d8dce8;border-bottom:2px solid #fff;margin-bottom:-2px}
+.tpanel{display:none}.tpanel.on{display:block}
+th{white-space:nowrap}
+.modal-bg{display:none;position:fixed;inset:0;background:rgba(15,22,45,.55);z-index:50;align-items:flex-start;justify-content:center;padding:34px 16px;overflow:auto}
+.modal-bg.open{display:flex}
+.modal{background:#fff;border-radius:12px;max-width:680px;width:100%;box-shadow:0 12px 40px rgba(10,18,45,.35)}
+.m-head{padding:16px 22px;border-bottom:1px solid #e3e6ef;display:flex;align-items:center;gap:12px}
+.m-head h3{font-size:15px;color:#1b2a5e}
+.m-head .x{margin-left:auto;font-size:19px;cursor:pointer;color:#8a92a6;background:none;border:none}
+.m-body{padding:16px 22px;max-height:64vh;overflow:auto}
+.m-foot{padding:13px 22px;border-top:1px solid #e3e6ef;display:flex;gap:10px;flex-wrap:wrap}
+.tl{border-left:2.5px solid #dde1ec;margin-left:8px;padding-left:16px;margin-top:6px}
+.tl .ev{position:relative;margin-bottom:10px;font-size:12.5px}
+.tl .ev:before{content:'';position:absolute;left:-22.5px;top:3px;width:10px;height:10px;border-radius:50%;background:#1b2a5e}
+.tl .ev.pend:before{background:#c9cedb}
+.tl .ev .f{font-size:10.5px;color:#7a8296}
+</style>
+</head>
+<body>
+<div class="top">
+  <h1>Uniformes</h1>
+  <span class="crumb">usuario: <b>sup.josimar</b> (cada uno ve lo suyo) · el LINK externo abre esta MISMA ventana de pedido</span>
+  <button class="btn b-pri" style="margin-left:auto;background:#2f57c9" onclick="mOpen('mNuevo')">+ Nuevo pedido</button>
+</div>
+<div class="wrap">
+
+<div class="tabbar2">
+  <div class="tb on" onclick="tb(1,this)">📋 Pendientes</div>
+  <div class="tb" onclick="tb(4,this)">🗂 Todos los pedidos</div>
+  <div class="tb" onclick="tb(2,this)">💳 Descuentos aplicados</div>
+  <div class="tb" onclick="tb(3,this)">📤 Devoluciones por baja</div>
+</div>
+
+<!-- ===== MODAL: NUEVO PEDIDO (se abre con el botón + Nuevo pedido; el link externo abre esto mismo) ===== -->
+<div class="modal-bg" id="mNuevo">
+<div class="modal" style="max-width:940px">
+<div class="m-head"><h3>➕ Nuevo pedido de uniforme</h3><span class="mut">misma ventana para el link y la carga interna</span><button class="x" onclick="mClose('mNuevo')">✕</button></div>
+<div class="m-body" id="t0">
+<div class="banner info">✅ <span><b>La política valida sola:</b> el sistema conoce la fecha de ingreso, el historial de entregas y el servicio de cada asociado — al elegirlo te dice qué le corresponde <b>SIN CARGO</b> y qué va <b>CON DESCUENTO</b> (en cuotas fijas sobre el retiro — <b>cantidad de cuotas parametrizable en Configuración, hoy 4</b>). Ropa de abrigo solo en ventana (marzo–septiembre, parametrizable). Nada de controlar a mano.</span></div>
+
+<!-- PASO 1 -->
+<div class="card">
+  <h2><span class="step">1</span>Origen y punto de retiro</h2>
+  <div class="frow">
+    <div><div class="lb">SOLICITANTE (detectado por el usuario de la sesión)</div>
+      <div style="padding:8px 12px;background:#f4f6fb;border-radius:8px;font-size:13px"><b>sup.josimar — Josimar B.</b> <span class="chip c-azul">SUPERVISOR</span></div></div>
+    <div><div class="lb">FECHA</div><input class="inp" style="width:130px" value="18/08/2026" disabled></div>
+    <div><div class="lb">PUNTO DE RETIRO 📍</div>
+      <select class="inp" style="width:250px">
+        <option>RECEPCIÓN — oficina central</option>
+        <option>DEPÓSITO MAURE</option>
+      </select></div>
+  </div>
+  <div class="mut">Nadie carga su nombre: el sistema lo toma del usuario logueado (si se entra por link, primero se identifica). El <b>punto de retiro viaja con el pedido</b>: Logística ve de una qué pedidos entrega desde Maure y cuáles tienen que llegar a la oficina. Los otros orígenes (Auditoría, asociado directo, RRHH por ingreso) usan este mismo formulario con su propio usuario.</div>
+</div>
+
+<!-- PASO 2 -->
+<div class="card">
+  <h2><span class="step">2</span>Asociado</h2>
+  <div class="frow">
+    <div><div class="lb">MIS ASOCIADOS A CARGO (operarios fijos de tus servicios — el sistema arma la lista solo)</div>
+      <select class="inp" style="width:390px">
+        <option>412 — Acosta Ramón · JOSIMAR.LANUS</option>
+        <option>498 — Aguilar Marta Susana · JOSIMAR.LANUS</option>
+        <option>1240 — Benítez Carla · EMBA.CABILDO</option>
+        <option>2087 — Duarte Luis · EMBA.CABILDO</option>
+        <option>… (solo los de los servicios de sup.josimar)</option>
+      </select></div>
+    <div><div class="lb">SERVICIO</div><input class="inp" style="width:180px" value="JOSIMAR.LANUS" disabled></div>
+    <div><div class="lb">INGRESO</div><input class="inp" style="width:120px" value="14/03/2025" disabled></div>
+  </div>
+  <div class="mut" style="margin-bottom:4px"><b>Qué le corresponde HOY según la política</b> (calculado del historial de entregas):</div>
+  <div class="der">
+    <div class="derc ok"><b>Renovación de muda</b>✔ DISPONIBLE — última muda 09/02/2026 (+6 meses) · SIN CARGO, contra entrega del usado</div>
+    <div class="derc ok"><b>Polar</b>✔ Nunca entregado · SIN CARGO · ventana mar–sep ✔</div>
+    <div class="derc warn"><b>Campera</b>Ya entregada 05/2025 (única sin cargo) → nueva = CON DESCUENTO</div>
+    <div class="derc warn"><b>Calzado</b>Entregado al ingreso (único sin cargo) → nuevo = CON DESCUENTO</div>
+  </div>
+</div>
+
+<!-- PASO 3 -->
+<div class="card">
+  <h2><span class="step">3</span>Motivo del pedido</h2>
+  <div class="frow">
+    <div><div class="lb">MOTIVO (TIPIFICADO — define el cargo)</div>
+      <select class="inp" style="width:340px" id="motivo" onchange="motivoInfo()">
+        <option>RENOVACIÓN DE MUDA (sugerido por el sistema)</option>
+        <option>INGRESO — equipo básico</option>
+        <option>SEGUNDA MUDA (3 meses)</option>
+        <option>REUBICACIÓN — cambio de servicio</option>
+        <option>ROBO — requiere denuncia policial adjunta</option>
+        <option>DAÑO / EXTRAVÍO — con descuento</option>
+        <option>PEDIDO EXTRA — con descuento</option>
+      </select></div>
+    <div style="flex:1"><div class="lb">&nbsp;</div><div class="mut" id="motMsg">La renovación es SIN CARGO cada 6 meses, contra entrega del uniforme usado. El supervisor retira el usado al entregar.</div></div>
+  </div>
+</div>
+
+<!-- PASO 4 -->
+<div class="card">
+  <h2><span class="step">4</span>Prendas <span class="mut" style="font-weight:400">— talle PRECARGADO del legajo del asociado (editable) · stock a la vista (módulo Stock)</span></h2>
+  <table id="tp">
+    <tr><th></th><th>Prenda</th><th>Modelo</th><th>Talle <span style="text-transform:none">(del legajo ✎)</span></th><th>Stock</th><th>Cargo</th><th class="num">Descuento</th></tr>
+  </table>
+  <div class="resumen" style="margin-top:12px">
+    <div><div class="t">Prendas sin cargo</div><div class="v" id="rSin">0</div></div>
+    <div><div class="t">Total con descuento</div><div class="v" id="rDesc">$ 0</div></div>
+    <div><div class="t">Se descuenta del retiro en</div><div class="v" id="rCuotas">4 cuotas de $ 0</div></div>
+    <div class="mut" style="max-width:300px">Cuotas fijas sobre el retiro — <b>cantidad parametrizable ⚙ (hoy 4)</b>. El descuento viaja solo a la liquidación. <b>Valor = último precio de reposición vigente de la prenda</b> (no el PPP — criterio parametrizable): lo descontado alcanza para recomprarla.</div>
+  </div>
+</div>
+
+<!-- PASO 5 -->
+<div class="card">
+  <h2><span class="step">5</span>Adjuntos y observaciones</h2>
+  <div class="frow">
+    <button class="btn b-sec">📷 Foto del daño / prenda deteriorada</button>
+    <button class="btn b-sec">📄 Denuncia policial (obligatoria si motivo = ROBO)</button>
+  </div>
+  <input class="inp" style="width:100%" placeholder="Observaciones…">
+</div>
+
+<!-- ENVIO -->
+<div class="card">
+  <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap">
+    <button class="btn b-pri" onclick="enviar()">Enviar solicitud</button>
+    <span class="mut" id="okMsg"></span>
+  </div>
+  <div class="mut" style="margin:10px 0 4px"><b>Circuito después del envío — DIRECTO A LOGÍSTICA</b> (sin autorización previa: la política ya validó sola):</div>
+  <div class="flow">
+    <div class="fs">ENVIADO<br><span class="mut">llega directo a la bandeja de Logística</span></div>
+    <div class="fs">EN PREPARACIÓN<br><span class="mut">Logística arma · descuenta STOCK</span></div>
+    <div class="fs">LISTO PARA RETIRO<br><span class="mut">en RECEPCIÓN o en MAURE, según lo elegido — notifica al supervisor</span></div>
+    <div class="fs">ENTREGADO<br><span class="mut">Constancia impresa firmada</span></div>
+    <div class="fs">CONSTANCIA DEVUELTA<br><span class="mut">foto adjunta · ≤ 15 días · alerta si no vuelve</span></div>
+  </div>
+  <div class="mut" style="margin-top:8px">La Constancia de Entrega de RT y EPP la genera el sistema (mismo patrón que el remito firmado de productos). Si el motivo requería devolución del usado, queda pendiente hasta registrarla. Baja del asociado → control automático de uniformes a devolver.</div>
+</div>
+</div><!-- /m-body -->
+</div>
+</div><!-- /mNuevo -->
+
+<!-- ============ TAB PENDIENTES ============ -->
+<div class="tpanel on" id="t1">
+  <div class="banner info">👤 <span><b>Cada usuario ve lo suyo:</b> el supervisor solo los pedidos de SUS operarios; Logística y RRHH ven todo (acá se muestra vista ADMIN). Sin autorización de RRHH: la política validó al enviar. La columna <b>RETIRO 📍</b> le dice a Logística qué entrega desde MAURE y qué despacha a RECEPCIÓN.</span></div>
+  <div class="card">
+    <div style="display:flex;gap:10px;margin-bottom:12px;flex-wrap:wrap">
+      <input class="inp" style="width:220px" placeholder="🔍 Buscar operario…">
+      <select class="inp"><option>Retiro: todos</option><option>📍 RECEPCIÓN</option><option>📍 MAURE</option></select>
+      <select class="inp"><option>Estado: todos</option><option>Enviado</option><option>En preparación</option><option>Listo para retiro</option><option>Constancia pendiente</option></select>
+      <button class="btn b-sec" style="margin-left:auto">+ Orden de devolución manual</button>
+    </div>
+    <table>
+      <tr><th style="width:70px">Pedido</th><th>Operario / Servicio</th><th>Motivo / Prendas</th><th>Cargo</th><th>Retiro 📍</th><th style="width:50px">Días</th><th>Estado</th><th>Acción</th></tr>
+      <tr style="cursor:pointer" onclick="mOpen('mDet')" title="Tocá la fila para ver el detalle">
+        <td><b>U-0841</b> 👁</td>
+        <td><b>Acosta Ramón</b> <span class="mut">412</span><br><span class="mut">JOSIMAR.LANUS · sol: sup.josimar</span></td>
+        <td><b>Renovación</b><br><span class="mut">Ambo (L) · Chomba (L) · Campera (L)</span></td>
+        <td><span class="chip c-nara">DESC. $38.500</span></td><td><span class="chip c-azul">MAURE</span></td><td class="mut">0d</td>
+        <td><span class="chip c-azul">ENVIADO A LOGÍSTICA</span></td>
+        <td><button class="btn b-sec" style="padding:4px 10px" onclick="event.stopPropagation()">Iniciar preparación</button></td></tr>
+      <tr><td><b>U-0838</b></td>
+        <td><b>Benítez Carla</b> <span class="mut">1240</span><br><span class="mut">EMBA.CABILDO · sol: sup.josimar</span></td>
+        <td><b>Daño (foto)</b><br><span class="mut">Chomba (M)</span></td>
+        <td><span class="chip c-nara">DESC. $9.800</span></td><td><span class="chip c-verde">RECEPCIÓN</span></td><td class="mut">1d</td>
+        <td><span class="chip c-azul">EN PREPARACIÓN</span></td>
+        <td><button class="btn b-sec" style="padding:4px 10px">Marcar listo</button></td></tr>
+      <tr><td><b>U-0835</b></td>
+        <td><b>Duarte Luis</b> <span class="mut">2087</span><br><span class="mut">EMBA.CABILDO · sol: auditoria</span></td>
+        <td><b>Renovación</b><br><span class="mut">Ambo (XL) · Chomba (XL)</span></td>
+        <td><span class="chip c-verde">SIN CARGO</span></td><td><span class="chip c-verde">RECEPCIÓN</span></td><td class="mut">2d</td>
+        <td><span class="chip c-nara">EN TRÁNSITO A RECEPCIÓN</span></td>
+        <td><button class="btn b-sec" style="padding:4px 10px">Confirmar recibido</button></td></tr>
+      <tr><td><b>U-0833</b></td>
+        <td><b>Aguilar Marta</b> <span class="mut">498</span><br><span class="mut">JOSIMAR.LANUS · sol: sup.josimar</span></td>
+        <td><b>Segunda muda</b><br><span class="mut">Ambo (M) · Chomba (M)</span></td>
+        <td><span class="chip c-verde">SIN CARGO</span></td><td><span class="chip c-azul">MAURE</span></td><td class="mut">3d</td>
+        <td><span class="chip" style="background:#d5f0f2;color:#0b6470">LISTO PARA RETIRO ✔</span></td>
+        <td><button class="btn b-sec" style="padding:4px 10px">Marcar retirado</button></td></tr>
+      <tr><td><b>U-0830</b></td>
+        <td><b>Gómez Pedro</b> <span class="mut">3011</span><br><span class="mut">JOSIMAR.LANUS · sol: sup.josimar</span></td>
+        <td><b>Ingreso</b><br><span class="mut">Ambo (L) · Zapatos (43)</span></td>
+        <td><span class="chip c-verde">SIN CARGO</span></td><td><span class="chip c-verde">RECEPCIÓN</span></td><td><span class="chip c-rojo">12d ⏱</span></td>
+        <td><span class="chip c-nara">CONSTANCIA PENDIENTE</span></td>
+        <td><button class="btn b-pri" style="padding:4px 10px">📷 Adjuntar firmada</button></td></tr>
+      <tr><td><b>U-0825</b></td>
+        <td><b>Acosta Ramón</b> <span class="mut">412</span><br><span class="mut">JOSIMAR.LANUS · sol: sup.josimar</span></td>
+        <td><b>Renovación</b><br><span class="mut">Ambo (L)</span></td>
+        <td><span class="chip c-verde">SIN CARGO</span></td><td><span class="chip c-azul">MAURE</span></td><td class="mut">—</td>
+        <td><span class="chip c-verde">CERRADO ✔ · C-0790 📎</span></td>
+        <td class="mut">—</td></tr>
+      <tr style="background:#fafbfd"><td><b>U-0842</b></td>
+        <td><b>Benítez Carla</b> <span class="mut">1240</span><br><span class="mut">EMBA.CABILDO · sol: sup.josimar</span></td>
+        <td><b>Pedido extra</b><br><span class="mut">Polar (M)</span></td>
+        <td><span class="chip c-nara">DESC. $21.000</span></td><td><span class="chip c-azul">MAURE</span></td><td class="mut">—</td>
+        <td><span class="chip c-gris">BORRADOR</span></td>
+        <td><button class="btn b-sec" style="padding:4px 8px">✎</button> <button class="btn b-pri" style="padding:4px 10px">Enviar</button> <button class="btn b-sec" style="padding:4px 8px">✕</button></td></tr>
+    </table>
+    <div class="mut" style="margin-top:8px">El BORRADOR es opcional (solo si el que carga eligió guardarlo — "Enviar" va directo). A los 15 días sin constancia: alerta al supervisor + aviso a RRHH. Tocá la fila de U-0841 para ver el detalle.</div>
+  </div>
+</div>
+
+<!-- ============ TAB DESCUENTOS ============ -->
+<div class="tpanel" id="t2">
+  <div class="banner info">💳 <span>El descuento <b>se activa con la FIRMA de la constancia</b> — antes no existe deuda. Se programa en <b>N cuotas fijas (parametrizable ⚙, hoy 4)</b> desde la liquidación del período en curso, a <b>precio de reposición vigente</b>. Baja con cuotas pendientes → el saldo se descuenta completo en la última liquidación.</span></div>
+  <div class="card">
+    <table>
+      <tr><th>Asociado</th><th>Concepto</th><th>Constancia</th><th class="num">Total</th><th>Plan</th><th>Descontado</th><th class="num">Saldo</th><th>Estado</th></tr>
+      <tr><td>Martinez Federico <span class="mut">152</span></td><td class="mut">Chomba — pedido extra</td><td class="mut">C-2026-0712 📎</td><td class="num">$ 9.800</td><td class="mut">4 × $ 2.450</td><td><span class="chip c-azul">2 / 4</span></td><td class="num">$ 4.900</td><td><span class="chip c-verde">EN CURSO</span></td></tr>
+      <tr><td>Acosta Ramón <span class="mut">412</span></td><td class="mut">Campera — única sin cargo ya usada</td><td class="mut">C-2026-0841 <span class="chip c-nara">SIN FIRMA</span></td><td class="num">$ 38.500</td><td class="mut">4 × $ 9.625</td><td><span class="chip c-gris">0 / 4</span></td><td class="num">$ 38.500</td><td><span class="chip c-gris">PROGRAMADO — activa con la firma</span></td></tr>
+      <tr><td>Sosa Marta <span class="mut">2299</span></td><td class="mut">Ambo — daño · BAJA 31/07</td><td class="mut">C-2026-0655 📎</td><td class="num">$ 24.500</td><td class="mut">4 × $ 6.125</td><td><span class="chip c-azul">1 / 4</span></td><td class="num">$ 18.375</td><td><span class="chip c-rojo">SALDO A ÚLT. LIQUIDACIÓN</span></td></tr>
+    </table>
+  </div>
+</div>
+
+<!-- ============ TAB DEVOLUCIONES ============ -->
+<div class="tpanel" id="t3">
+  <div class="banner info">📤 <span>La <b>baja del asociado</b> dispara sola la orden de devolución con los uniformes entregados a cargo de la cooperativa. No devuelto → se descuenta su valor en <b>una única cuota del último retiro</b>. Prendas que el asociado pagó y devuelve → <b>reintegro</b>.</span></div>
+  <div class="card">
+    <table>
+      <tr><th>Asociado</th><th>Baja</th><th>A devolver (entregados sin cargo)</th><th>Devuelto</th><th class="num">A descontar (últ. retiro)</th><th class="num">Reintegro</th><th>Estado</th></tr>
+      <tr><td>Sosa Marta <span class="mut">2299</span></td><td class="mut">31/07/2026</td><td class="mut">Ambo (M) · Chomba (M) · Calzado (38)</td><td class="mut">Ambo ✔ · Chomba ✔ · Calzado ✘</td><td class="num">$ 32.400</td><td class="num">—</td><td><span class="chip c-nara">PARCIAL — descuenta calzado</span></td></tr>
+      <tr><td>López Raúl <span class="mut">1877</span></td><td class="mut">15/07/2026</td><td class="mut">Ambo (XL) · Polar (XL) + campera abonada</td><td class="mut">Todo ✔ (incl. campera abonada)</td><td class="num">—</td><td class="num">$ 31.200</td><td><span class="chip c-verde">CERRADO · reintegro campera</span></td></tr>
+    </table>
+  </div>
+</div>
+
+<!-- ============ TAB TODOS LOS PEDIDOS (HISTORIAL) ============ -->
+<div class="tpanel" id="t4">
+  <div class="banner info">🗂 <span><b>Historial completo:</b> todo pedido que terminó sus etapas queda registrado acá para siempre (también se ven los en curso y los cancelados). Solo lectura, con 👁 detalle e historial de cada uno. La misma visibilidad por rol: el supervisor ve solo los suyos.</span></div>
+  <div class="card">
+    <div style="display:flex;gap:10px;margin-bottom:12px;flex-wrap:wrap">
+      <input class="inp" style="width:220px" placeholder="🔍 Buscar operario…">
+      <select class="inp"><option>Motivo: todos</option><option>Ingreso</option><option>Renovación</option><option>Daño</option></select>
+      <select class="inp"><option>Estado: todos</option><option>Cerrado</option><option>Cancelado</option><option>En curso</option></select>
+      <select class="inp"><option>Año: 2026</option><option>2025</option></select>
+      <button class="btn b-sec" style="margin-left:auto">⬇ Exportar</button>
+    </div>
+    <table>
+      <tr><th style="width:70px">Pedido</th><th>Operario / Servicio</th><th>Motivo / Prendas</th><th>Cargo</th><th>Retiro 📍</th><th>Solicitado</th><th>Cerrado</th><th>Estado</th><th></th></tr>
+      <tr><td><b>U-0825</b></td>
+        <td><b>Acosta Ramón</b> <span class="mut">412</span><br><span class="mut">JOSIMAR.LANUS · sol: sup.josimar</span></td>
+        <td><b>Renovación</b><br><span class="mut">Ambo (L) · usado devuelto ✔</span></td>
+        <td><span class="chip c-verde">SIN CARGO</span></td><td><span class="chip c-azul">MAURE</span></td><td class="mut">04/08/2026</td><td class="mut">11/08/2026</td>
+        <td><span class="chip c-verde">CERRADO ✔ · C-0790 📎</span></td><td>👁</td></tr>
+      <tr><td><b>U-0812</b></td>
+        <td><b>Aguilar Marta</b> <span class="mut">498</span><br><span class="mut">JOSIMAR.LANUS · sol: sup.josimar</span></td>
+        <td><b>Daño (foto)</b><br><span class="mut">Chomba (M)</span></td>
+        <td><span class="chip c-nara">DESC. $9.800 · 4 cuotas</span></td><td><span class="chip c-verde">RECEPCIÓN</span></td><td class="mut">21/07/2026</td><td class="mut">30/07/2026</td>
+        <td><span class="chip c-verde">CERRADO ✔ · C-0771 📎</span></td><td>👁</td></tr>
+      <tr><td><b>U-0804</b></td>
+        <td><b>Gómez Pedro</b> <span class="mut">3011</span><br><span class="mut">JOSIMAR.LANUS · sol: rrhh.ohlimpia</span></td>
+        <td><b>Ingreso</b><br><span class="mut">Ambo (L) · Zapatos (43) · retiró RRHH día del ingreso</span></td>
+        <td><span class="chip c-verde">SIN CARGO</span></td><td><span class="chip c-verde">RECEPCIÓN</span></td><td class="mut">14/07/2026</td><td class="mut">15/07/2026</td>
+        <td><span class="chip c-verde">CERRADO ✔ · C-0748 📎</span></td><td>👁</td></tr>
+      <tr><td><b>U-0799</b></td>
+        <td><b>Benítez Carla</b> <span class="mut">1240</span><br><span class="mut">EMBA.CABILDO · sol: sup.josimar</span></td>
+        <td><b>Pedido extra</b><br><span class="mut">Polar (M)</span></td>
+        <td><span class="chip c-nara">DESC. $21.000</span></td><td><span class="chip c-azul">MAURE</span></td><td class="mut">10/07/2026</td><td class="mut">—</td>
+        <td><span class="chip c-gris">CANCELADO</span></td><td>👁</td></tr>
+    </table>
+    <div class="mut" style="margin-top:8px">Cada fila conserva su constancia adjunta y el historial completo de etapas — la base de las estadísticas: entregas por motivo, gasto sin cargo vs descontado, recambios por daño detectados por Auditoría, etc.</div>
+  </div>
+</div>
+
+<!-- ===== MODAL: detalle del pedido ===== -->
+<div class="modal-bg" id="mDet">
+  <div class="modal">
+    <div class="m-head"><h3>Pedido U-2026-0841 — Acosta Ramón (412) · JOSIMAR.LANUS</h3><span class="chip c-azul">ENVIADO A LOGÍSTICA</span><button class="x" onclick="mClose('mDet')">✕</button></div>
+    <div class="m-body">
+      <div style="display:flex;gap:18px;flex-wrap:wrap;font-size:12.8px;margin-bottom:10px">
+        <span><b>Solicitante:</b> sup.josimar <span class="mut">(detectado por sesión)</span></span>
+        <span><b>Motivo:</b> RENOVACIÓN (+ campera con descuento)</span>
+        <span><b>Retiro:</b> 📍 DEPÓSITO MAURE</span>
+      </div>
+      <div style="font-size:12.8px;margin-bottom:10px"><b>Prendas:</b> 1× Ambo (L, legajo) · 1× Chomba (L) — SIN CARGO · 1× Campera (L) — CON DESCUENTO $ 38.500 en 4 × $ 9.625 <span class="mut">(reposición vigente · cuotas parametrizables)</span></div>
+      <div style="font-size:12.8px;margin-bottom:4px"><b>Validación de política (automática):</b> <span class="chip c-verde">Renovación disponible ✔ (+6 meses)</span> <span class="chip c-nara">Campera: única sin cargo ya usada → desc.</span> <span class="chip c-azul">Devolución del usado: REQUERIDA</span></div>
+      <b style="font-size:12.5px;color:#1b2a5e">Historial</b>
+      <div class="tl">
+        <div class="ev"><b>Enviado a Logística</b> — directo, sin autorización (política validada por el sistema)<div class="f">18/08 09:12 · sup.josimar</div></div>
+        <div class="ev pend"><b>En preparación</b> — Logística arma · al completar: descuenta STOCK + genera Constancia C-2026-0841<div class="f">pendiente</div></div>
+        <div class="ev pend"><b>Listo para retiro en MAURE</b> — notifica al supervisor<div class="f">pendiente</div></div>
+        <div class="ev pend"><b>Retirado por supervisor</b> — con constancia impresa · arranca el reloj de 15 días<div class="f">pendiente</div></div>
+        <div class="ev pend"><b>Entregado al operario — constancia firmada</b> (foto) · devolución del usado · <b>acá se activa el descuento</b><div class="f">pendiente</div></div>
+        <div class="ev pend"><b>Cerrado</b><div class="f">pendiente</div></div>
+      </div>
+    </div>
+    <div class="m-foot">
+      <button class="btn b-pri">Iniciar preparación (Logística)</button>
+      <button class="btn b-sec">🖨 Ver constancia C-2026-0841</button>
+      <button class="btn b-sec" onclick="mClose('mDet')">Cerrar</button>
+    </div>
+  </div>
+</div>
+
+</div>
+<script>
+const CUOTAS = 4; // parametrizable en Configuración
+// prenda, modelo, talles, stock, cargo (0 = sin cargo por política, 1 = con descuento), valor
+// leg = talle guardado en el LEGAJO del asociado (precargado; el supervisor puede cambiarlo)
+const IT = [
+ {n:'Ambo (muda)',            mod:'Fem / Masc', talles:['S','M','L','XL'],        leg:'L',    st:14, cargo:0, val:24500, sel:true},
+ {n:'Chomba',                 mod:'—',          talles:['S','M','L','XL','XXL'],  leg:'L',    st:22, cargo:0, val:9800,  sel:true},
+ {n:'Pantalón de grafa',      mod:'—',          talles:['38','40','42','44','46'],leg:'42',   st:9,  cargo:0, val:14200, sel:false},
+ {n:'Polar',                  mod:'—',          talles:['S','M','L','XL'],        leg:'L',    st:31, cargo:0, val:21000, sel:false},
+ {n:'Campera',                mod:'—',          talles:['S','M','L','XL'],        leg:'L',    st:6,  cargo:1, val:38500, sel:false},
+ {n:'Gorra',                  mod:'—',          talles:['Único'],                 leg:'Único',st:40, cargo:0, val:4200,  sel:false},
+ {n:'Calzado de seguridad',   mod:'—',          talles:['39','40','41','42','43','44'], leg:'42', st:3, cargo:1, val:32400, sel:false},
+ {n:'Bota de lluvia',         mod:'—',          talles:['39','40','41','42','43'],leg:'42',   st:0,  cargo:1, val:19800, sel:false},
+ {n:'Gafas de seguridad',     mod:'—',          talles:['Único'],                 leg:'Único',st:18, cargo:0, val:6500,  sel:false},
+];
+const fmt = v => '$ ' + v.toLocaleString('es-AR');
+function render(){
+  const t = document.getElementById('tp');
+  t.querySelectorAll('tr:not(:first-child)').forEach(r=>r.remove());
+  IT.forEach((it,i)=>{
+    const r = t.insertRow();
+    if(it.sel) r.style.background='#f8fbff';
+    r.innerHTML = `<td><input type="checkbox" ${it.sel?'checked':''} ${it.st===0?'disabled':''} onchange="tog(${i})" style="width:16px;height:16px;cursor:pointer"></td>
+      <td><b>${it.n}</b></td><td class="mut">${it.mod}</td>
+      <td><select class="talle" title="Precargado del legajo — editable">${it.talles.map(x=>'<option'+(x===it.leg?' selected':'')+'>'+x+'</option>').join('')}</select> <span class="mut">legajo</span></td>
+      <td>${it.st===0?'<span class="chip c-rojo">SIN STOCK — se repone</span>':'<span class="chip '+(it.st<5?'c-nara':'c-verde')+'">'+it.st+' disp.</span>'}</td>
+      <td>${it.cargo===0?'<span class="chip c-verde">SIN CARGO</span>':'<span class="chip c-nara">CON DESCUENTO</span>'}</td>
+      <td class="num">${it.cargo===1?fmt(it.val):'<span class="mut">—</span>'}</td>`;
+  });
+  const sel = IT.filter(x=>x.sel);
+  const sin = sel.filter(x=>x.cargo===0).length;
+  const desc = sel.filter(x=>x.cargo===1).reduce((a,x)=>a+x.val,0);
+  document.getElementById('rSin').textContent = sin;
+  document.getElementById('rDesc').textContent = fmt(desc);
+  document.getElementById('rCuotas').textContent = CUOTAS + ' cuotas de ' + fmt(Math.round(desc/CUOTAS));
+}
+function tog(i){ IT[i].sel = !IT[i].sel; render(); }
+function motivoInfo(){
+  const m = document.getElementById('motivo').value;
+  const M = {
+   'RENOVACIÓN DE MUDA (sugerido por el sistema)':'La renovación es SIN CARGO cada 6 meses, contra entrega del uniforme usado. El supervisor retira el usado al entregar.',
+   'INGRESO — equipo básico':'Equipo básico del servicio de destino: 1 muda + 1 par de zapatos, SIN CARGO. Lo pide RRHH con 1 día de anticipación.',
+   'SEGUNDA MUDA (3 meses)':'SIN CARGO al cumplir el tercer mes desde el ingreso — el sistema valida la fecha solo.',
+   'REUBICACIÓN — cambio de servicio':'SIN CARGO si el nuevo servicio requiere uniforme distinto. Contra entrega del anterior.',
+   'ROBO — requiere denuncia policial adjunta':'SIN CARGO únicamente con la denuncia policial adjunta. Sin denuncia → CON DESCUENTO.',
+   'DAÑO / EXTRAVÍO — con descuento':'CON DESCUENTO en cuotas sobre el retiro. Adjuntá la foto para evaluar si corresponde excepción.',
+   'PEDIDO EXTRA — con descuento':'Fuera de los plazos de la política → CON DESCUENTO en cuotas sobre el retiro.'
+  };
+  document.getElementById('motMsg').textContent = M[m] || '';
+}
+function enviar(){
+  document.getElementById('okMsg').innerHTML = '<span class="chip c-verde">ENVIADO ✔</span> N° U-2026-0841 — directo a la bandeja de Logística (retiro: MAURE). Cerrá la ventana y miralo en Pendientes.';
+}
+function tb(i,el){ document.querySelectorAll('.tb').forEach(t=>t.classList.remove('on')); el.classList.add('on');
+  document.querySelectorAll('.tpanel').forEach(p=>p.classList.remove('on')); document.getElementById('t'+i).classList.add('on'); }
+function mOpen(id){document.getElementById(id).classList.add('open')}
+function mClose(id){document.getElementById(id).classList.remove('open')}
+render();
+</script>
+</body>
+</html>

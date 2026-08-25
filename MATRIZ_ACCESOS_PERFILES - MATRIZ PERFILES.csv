@@ -1,0 +1,41 @@
+MATRIZ DE ACCESOS — PERFILES × MÓDULOS,,,,,,,,,,,,,
+"M = puede modificar · L = solo lectura · — = sin acceso. El perfil es la PLANTILLA que precarga la grilla del usuario; después se ajusta individual. ""Modificar"" no implica ver todo: adentro rige el alcance por rol (el supervisor solo ve lo suyo).",,,,,,,,,,,,,
+,,,,,,,,,,,,,
+ÁREA,MÓDULO,ADMIN,GERENCIA GRAL,CONSEJO,FINANZAS,RRHH,LOGÍSTICA,AUDITOR,SUPERVISOR,VENTAS,OPERACIONES,SISTEMAS/DEV,NOTA
+LIQUIDACIÓN,Liquidación Administración,M,M,L,M,—,—,—,—,—,—,M,Finanzas liquida; GG define la nivelación (la carga Finanzas)
+LIQUIDACIÓN,Liquidación de horas,M,M,L,M,L,—,L,L,—,M,M,Operaciones carga horas; Finanzas liquida; supervisor ve sus servicios
+LIQUIDACIÓN,Mantenimiento,M,M,L,M,L,—,—,L,—,M,M,
+LIQUIDACIÓN,Reasignaciones,M,M,L,—,L,—,—,L,—,M,M,
+LIQUIDACIÓN,Retenes,M,M,L,M,L,—,L,L,—,M,M,
+COMERCIAL,Clientes,M,M,L,L,—,L,—,—,M,L,M,
+COMERCIAL,Comisiones,M,M,L,M,—,—,—,—,M,—,M,Comercial administra coordinadores; Finanzas paga
+COMERCIAL,CRM Comercial,M,M,L,—,—,—,—,—,M,—,M,
+COMERCIAL,Gestión de cobros,M,M,L,M,—,—,—,—,M,—,M,
+COMERCIAL,Gestión de precios,M,M,L,M,—,—,—,—,M,—,M,
+COMERCIAL,Reclamos y NC,M,M,M,M,M,M,M,M,M,L,M,
+COMERCIAL,Servicios,M,M,L,L,L,L,L,L,M,M,M,Alta Comercial; lleva dirección/localidad + ZONA DE REPARTO (recorridos)
+COMERCIAL,Supervisión de servicios,M,M,L,M,—,—,—,—,L,L,M,El % lo edita SOLO Finanzas; supervisor ve su reporte
+COMERCIAL,Supervisores,M,M,L,L,L,—,—,L,L,M,M,
+PERSONAL,Legajos,M,M,L,L,M,—,—,—,—,L,M,Los talles de uniforme viven acá (precargan pedidos)
+PERSONAL,Capacitaciones,M,M,L,—,M,M,—,L,—,M,M,
+PERSONAL,Competencia anual,M,M,L,L,M,L,L,L,L,L,M,
+PERSONAL,Descansos,M,M,L,—,M,—,—,L,—,M,M,
+PERSONAL,Enfermos y accidentes,M,M,L,—,M,—,—,L,—,L,M,
+PERSONAL,Sanciones,M,M,L,L,M,L,L,L,L,M,M,
+PERSONAL,Situaciones legales,M,M,L,—,M,—,—,—,—,—,M,
+PERSONAL,Vacaciones,M,M,L,—,M,—,—,—,—,—,M,
+PERSONAL,Monotributos,M,M,L,M,M,—,—,—,—,—,M,RRHH: padrón y categorías · Finanzas: pago mensual
+PERSONAL,Uniformes,M,M,L,L,M,M,L,M,L,L,M,Supervisor pide (los suyos) · Logística prepara/entrega · RRHH custodia Recepción
+ADMINISTRACIÓN,Categorías,M,M,L,L,M,—,—,L,L,L,M,El nomenclador nuevo de RRHH (Gabi); vigencias
+ADMINISTRACIÓN,Feriados,M,M,L,L,M,L,—,L,L,L,M,
+ADMINISTRACIÓN,Paritarias,M,M,L,L,M,—,—,—,L,—,M,
+ADMINISTRACIÓN,SMVM histórico,M,M,L,L,M,—,—,—,L,—,M,
+ADMINISTRACIÓN,Configuración,M,M,M,L,L,L,L,L,L,L,M,"Finanzas: tope %, recargos, % supervisión; el resto de parámetros = Admin"
+LOGÍSTICA,Pedido de productos,M,M,L,M,—,M,M,M,L,L,M,Supervisor: SUS pedidos · Auditor: bandeja · Logística: catálogo/compras/entregas · Finanzas: recargos y facturación PAGAN
+LOGÍSTICA,Proveedores,M,M,L,M,—,M,—,—,L,L,M,Alta y edición Logística; Finanzas usa CBU/condiciones de pago
+LOGÍSTICA,Stock,M,M,L,L,—,M,L,—,—,L,M,El auditor lee diferencias de inventario
+LOGÍSTICA,Máquinas,M,M,L,M,—,M,L,M,L,L,M,Operario reporta · supervisor actas/notificado · Logística opera · Finanzas paga
+FUTUROS,Cuenta corriente (futuro),M,M,L,M,—,—,—,—,L,—,M,
+FUTUROS,Contable (futuro),M,M,L,M,—,—,—,—,—,—,M,
+FUTUROS,Políticas (futuro),M,M,L,L,M,L,L,L,L,L,M,Lectura amplia: todos consultan la política vigente
+FUTUROS,Seguros (futuro),M,M,L,M,M,L,—,—,—,L,M,

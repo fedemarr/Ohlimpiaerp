@@ -1,6 +1,9 @@
 import { DB, PERFILES, MENU, currentUser } from '@shared/state.js';
 import { $ } from '@shared/helpers.js';
 import { activarOrdenamiento, toast } from '@shared/ui.js';
+// v098 — Matriz de accesos: puedeVer() es puro (solo lee DB + catálogo
+// generado), no hay ciclo de imports con el módulo accesos.
+import { puedeVer } from '@modules/accesos/runtime.js';
 
 // Multi-empresa (18/08/2026): qué módulos le vendiste a la empresa de
 // ESTE deploy — ver src/modules/superadmin/ para el registro de todas.
@@ -71,6 +74,16 @@ export function navTo(sec, el) {
     toast('⚠️ Este módulo no está disponible en tu plan');
     return;
   }
+  // v098 — Matriz de accesos: mismo refuerzo para la matriz. Los módulos
+  // cubiertos por la planilla se rigen por su nivel efectivo (override del
+  // usuario ?? plantilla del perfil); el resto queda gobernado por
+  // PERFILES.modulos como siempre. Sin este gate, las tarjetas del Inicio
+  // permitían entrar a módulos con nivel 0 aunque el menú los ocultara.
+  if (sec !== 'inicio' && currentUser?.perfil && !puedeVer(sec, currentUser.perfil, currentUser.id)) {
+    console.warn('navTo: sin acceso a "' + sec + '" (matriz de accesos)');
+    toast('⛔ No tenés acceso a este módulo');
+    return;
+  }
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
   // OJO: NO tocar .tab-content acá. Antes se le sacaba "active" a las
@@ -124,16 +137,19 @@ export function construirMenu() {
   // eso ni aparece como checkbox en el alta de empresa, ver superadmin.js).
   const contratado = key => key === 'inicio' || !_modulosContratados || _modulosContratados.includes(key);
   MENU.forEach(sec => {
+    // v098 — la visibilidad de los módulos cubiertos por la matriz la decide
+    // puedeVer() (nivel efectivo > 0); el resto sigue decidiéndolo
+    // PERFILES.modulos (puedeVer hace ese fallback internamente).
     const items = sec.items.filter(i => esDeveloper
       ? (perfil && perfil.modulos.includes(i.key) && contratado(i.key))
-      : (i.disabled || !perfil || (perfil.modulos.includes(i.key) && contratado(i.key))));
+      : (i.disabled || !perfil || (puedeVer(i.key, currentUser.perfil, currentUser.id) && contratado(i.key))));
     if (!items.length) return;
     const sDiv = document.createElement('div');
     sDiv.className = 'nav-section';
     sDiv.textContent = sec.section;
     nav.appendChild(sDiv);
     items.forEach(item => {
-      const tieneAcceso = !item.disabled && perfil && perfil.modulos.includes(item.key) && contratado(item.key);
+      const tieneAcceso = !item.disabled && perfil && puedeVer(item.key, currentUser.perfil, currentUser.id) && contratado(item.key);
       const div = document.createElement('div');
       div.className = 'nav-item' + (item.disabled || !tieneAcceso ? ' disabled' : '');
       const badgeCount =

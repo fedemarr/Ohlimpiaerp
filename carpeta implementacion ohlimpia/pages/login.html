@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>FinFlow — Ingresar</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; min-height: 100vh; display: flex; align-items: center; justify-content: center;
+           background: #0f141b; color: #e6ebf2; font-family: system-ui, "Segoe UI", sans-serif; }
+    .login-box { background: #1a1f27; border: 1px solid rgba(255,255,255,0.12); border-radius: 10px;
+                 padding: 28px 30px; width: 330px; box-shadow: 0 10px 40px rgba(0,0,0,0.5); }
+    .login-box h1 { font-size: 20px; margin: 0 0 4px; }
+    .login-box .sub { color: #9aa4b2; font-size: 13px; margin: 0 0 18px; }
+    .login-box label { display: block; font-size: 12px; color: #9aa4b2; margin: 10px 0 3px; }
+    .login-box input { width: 100%; padding: 9px 10px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.18);
+                       background: #0f141b; color: #e6ebf2; font-size: 14px; }
+    .login-box input:focus { outline: none; border-color: #38bdf8; }
+    /* Campo de contraseña con ojito. El wrapper ocupa el mismo lugar que el input en el
+       flujo, así que el formulario no se desalinea. El padding-right evita que el texto
+       escrito pase por debajo del ícono. */
+    .login-box .campo-pass { position: relative; }
+    .login-box .campo-pass input { padding-right: 38px; }
+    .login-box .ver-pass { position: absolute; top: 0; right: 0; width: 36px; height: 100%;
+                           display: flex; align-items: center; justify-content: center;
+                           margin: 0; padding: 0; border: none; background: none;
+                           color: #9aa4b2; cursor: pointer; }
+    .login-box .ver-pass:hover { color: #e6ebf2; }
+    .login-box .ver-pass:focus-visible { outline: 2px solid #38bdf8; outline-offset: -3px; border-radius: 4px; }
+    .login-box .ver-pass svg { width: 18px; height: 18px; display: block; }
+    .login-box .ver-pass [data-role=ojo-cerrado] { display: none; }
+    .login-box button { width: 100%; margin-top: 18px; padding: 10px; border-radius: 6px; border: none;
+                        background: #38bdf8; color: #08131c; font-weight: 600; font-size: 14px; cursor: pointer; }
+    .login-box button:disabled { opacity: 0.6; cursor: default; }
+    .login-box .msg { margin-top: 12px; font-size: 13px; min-height: 1.2em; color: #f87171; }
+  </style>
+</head>
+<body>
+  <form class="login-box" data-role="login-form">
+    <h1>FinFlow</h1>
+    <p class="sub">Cooperativa Lince — ingresá para continuar</p>
+    <label>Email</label>
+    <input type="email" data-role="email" autocomplete="username" required />
+    <label>Contraseña</label>
+    <div class="campo-pass">
+      <input type="password" data-role="password" autocomplete="current-password" required />
+      <!-- type=button explícito: dentro de un <form> el default es submit, y el ojito
+           terminaría enviando el formulario. -->
+      <button type="button" class="ver-pass" data-role="ver-pass" aria-pressed="false"
+              aria-label="Mostrar contraseña" title="Mostrar contraseña">
+        <svg data-role="ojo-abierto" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+             stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+          <circle cx="12" cy="12" r="3" />
+        </svg>
+        <svg data-role="ojo-cerrado" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+             stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20C5 20 1 12 1 12a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24" />
+          <line x1="1" y1="1" x2="23" y2="23" />
+        </svg>
+      </button>
+    </div>
+    <button type="submit" data-role="ingresar">Ingresar</button>
+    <div class="msg" data-role="msg"></div>
+  </form>
+  <script>
+    // Ojito mostrar/ocultar. Va inline y no en login.js por dos razones: funciona desde el
+    // parseo (login.js llega por red y tardaría), y así no se toca el archivo del flujo de
+    // autenticación. Sólo alterna el atributo type: no toca autocomplete ni data-role.
+    (function () {
+      var btn = document.querySelector("[data-role=ver-pass]");
+      var inp = document.querySelector("[data-role=password]");
+      if (!btn || !inp) return;
+      var abierto = btn.querySelector("[data-role=ojo-abierto]");
+      var cerrado = btn.querySelector("[data-role=ojo-cerrado]");
+      btn.addEventListener("click", function () {
+        var mostrar = inp.type === "password";
+        inp.type = mostrar ? "text" : "password";
+        var txt = mostrar ? "Ocultar contraseña" : "Mostrar contraseña";
+        btn.setAttribute("aria-pressed", mostrar ? "true" : "false");
+        btn.setAttribute("aria-label", txt);
+        btn.setAttribute("title", txt);
+        abierto.style.display = mostrar ? "none" : "block";
+        cerrado.style.display = mostrar ? "block" : "none";
+        inp.focus();   // seguir escribiendo sin tener que volver al campo
+      });
+    })();
+  </script>
+  <script type="module">
+    const v = Date.now();
+    import(`../js/pages/login.js?v=${v}`).catch(console.error);
+  </script>
+</body>
+</html>

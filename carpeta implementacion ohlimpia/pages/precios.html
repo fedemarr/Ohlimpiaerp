@@ -1,0 +1,488 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>FinFlow — Precios por mes</title>
+  <script>
+    const __css = document.createElement("link");
+    __css.rel = "stylesheet";
+    __css.href = `../css/styles.css?v=${Date.now()}`;
+    document.head.appendChild(__css);
+  </script>
+
+  <!-- Anti-flash de sesión: oculta el contenido hasta que la guardia resuelva.
+       Va inline y sin red porque es lo único que actúa antes del primer pintado.
+       El fondo se fija acá también: styles.css llega por red, y sin esto el flash
+       de contenido se cambiaría por un flash blanco.
+       Failsafe de 3s: si la guardia nunca llega (red caída, esm.sh inaccesible),
+       revela igual. Nunca dejar la pantalla en blanco para siempre. -->
+  <style>html.au-espera { background: #0f1419; } html.au-espera body { visibility: hidden; }</style>
+  <script>
+    document.documentElement.classList.add("au-espera");
+    setTimeout(function () { document.documentElement.classList.remove("au-espera"); }, 3000);
+  </script>
+  <style>
+    /* ancho COMPLETO de la ventana */
+    body.page-precios main { max-width: none; width: 100%; padding: 1rem 1.2rem 2rem; box-sizing: border-box; }
+
+    .rel-cliente { cursor: pointer; }
+    .rel-arrow { display: inline-block; width: 1.1em; color: var(--muted); }
+    .rel-obj td.nombre { padding-left: 2rem; color: var(--muted); font-weight: 400; }
+    .rel-franq, .pp { color: #e0b34d; font-weight: 600; }
+    .rel-none { color: var(--muted); }
+
+    /* contenedor con scroll propio (vertical y horizontal); el sticky se pega contra él */
+    [data-role=precios-container] { overflow: auto; height: calc(100vh - 190px); }   /* altura fija (no elástica); JS la ajusta al alto real. La barra horizontal queda clavada abajo. */
+
+    table[data-role=tabla-precios] { border-collapse: separate; border-spacing: 0;
+      --w-obj: 300px; --w-tipo: 40px; --w-ind: 180px; --w-coord: 180px; --w-grupo: 150px; --w-resp: 110px; --w-nota: 150px; }   /* anchos redimensionables de las columnas fijas */
+    table[data-role=tabla-precios] th,
+    table[data-role=tabla-precios] td {
+      white-space: nowrap; font-variant-numeric: tabular-nums;
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+    }
+
+    /* encabezado fijo (vertical) */
+    table[data-role=tabla-precios] thead th {
+      position: sticky; top: 0; z-index: 2;
+      background: #0a1018; color: #f4f8ff; font-weight: 700; font-size: 12.5px;   /* encabezado destacado (banda casi negra) */
+    }
+
+    /* columna fija a la izquierda (horizontal): Cliente/Objetivo */
+    table[data-role=tabla-precios] .sticky-col {
+      position: sticky; z-index: 1;
+      background: var(--panel, #1a1f27);
+      border-right: 1px solid rgba(255,255,255,0.22);   /* línea divisoria entre columnas fijas (box-border global → dentro del ancho) */
+    }
+    /* Columnas fijas: ancho por variable (redimensionables); offsets left = suma acumulada de las anteriores. */
+    .col-obj   { left: 0; width: var(--w-obj, 300px); min-width: var(--w-obj, 300px); max-width: var(--w-obj, 300px);
+                 overflow: hidden; text-overflow: ellipsis; }
+    .col-tipo  { left: var(--w-obj, 300px); width: var(--w-tipo, 40px); min-width: var(--w-tipo, 40px); max-width: var(--w-tipo, 40px);
+                 text-align: center; font-weight: 400; overflow: hidden; }
+    .col-ind   { left: calc(var(--w-obj, 300px) + var(--w-tipo, 40px)); width: var(--w-ind, 180px); min-width: var(--w-ind, 180px); max-width: var(--w-ind, 180px);
+                 text-align: left; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .col-coord { left: calc(var(--w-obj, 300px) + var(--w-tipo, 40px) + var(--w-ind, 180px)); width: var(--w-coord, 180px); min-width: var(--w-coord, 180px); max-width: var(--w-coord, 180px);
+                 text-align: left; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 400; }
+    .col-grupo { left: calc(var(--w-obj, 300px) + var(--w-tipo, 40px) + var(--w-ind, 180px) + var(--w-coord, 180px)); width: var(--w-grupo, 150px); min-width: var(--w-grupo, 150px); max-width: var(--w-grupo, 150px);
+                 text-align: left; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 400; cursor: pointer; }
+    .col-resp  { left: calc(var(--w-obj, 300px) + var(--w-tipo, 40px) + var(--w-ind, 180px) + var(--w-coord, 180px) + var(--w-grupo, 150px)); width: var(--w-resp, 110px); min-width: var(--w-resp, 110px); max-width: var(--w-resp, 110px);
+                 text-align: left; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 400; cursor: pointer; }
+    /* Nota de aumento: ULTIMA del bloque fijo. Va al final a propósito — su left suma
+       las seis anteriores y ningún offset ya existente cambia. Intercalarla obligaría
+       a reescribir la cadena de calc() de todas las que quedaran a su derecha. */
+    .col-nota  { left: calc(var(--w-obj, 300px) + var(--w-tipo, 40px) + var(--w-ind, 180px) + var(--w-coord, 180px) + var(--w-grupo, 150px) + var(--w-resp, 110px)); width: var(--w-nota, 150px); min-width: var(--w-nota, 150px); max-width: var(--w-nota, 150px);
+                 text-align: left; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 400; }
+    /* (columna col-menu eliminada: el ☰ ahora vive en el encabezado de Cliente/Objetivo) */
+    thead th.col-obj { padding-right: 14px; }   /* reserva los 6px del handle: el ☰/embudo (centrados) nunca lo pisan */
+    /* handle de redimensión en el borde derecho de cada encabezado fijo */
+    .sticky-col .col-resize { position: absolute; top: 0; right: 0; width: 6px; height: 100%; cursor: col-resize; user-select: none; z-index: 5; }
+    .sticky-col .col-resize:hover { background: rgba(56,189,248,0.5); }
+    table[data-role=tabla-precios] thead th.sticky-col:has(.col-resize:hover) { border-right-color: rgba(56,189,248,0.5); }   /* resalta la línea al apuntar el handle */
+    td.col-ind, td.col-coord { font-size: 11px; }   /* Industria y Coordinador: contenido más chico */
+    /* ocultar columnas fijas por completo (menú ☰); su var va a 0 para recorrer los offsets siguientes */
+    table[data-role=tabla-precios].hide-tipo  .col-tipo  { display: none; }
+    table[data-role=tabla-precios].hide-ind   .col-ind   { display: none; }
+    table[data-role=tabla-precios].hide-coord .col-coord { display: none; }
+    table[data-role=tabla-precios].hide-grupo .col-grupo { display: none; }
+    table[data-role=tabla-precios].hide-resp  .col-resp  { display: none; }
+    table[data-role=tabla-precios].hide-nota  .col-nota  { display: none; }
+    /* botón ☰ y menú de columnas */
+    .col-menu-btn { cursor: pointer; user-select: none; font-size: 14px; color: #9fb4d8; margin-left: 6px; opacity: .8; }
+    .col-menu-btn:hover { color: #38bdf8; opacity: 1; }
+    .col-menu-pop { position: fixed; z-index: 120; background: #1a1f27; border: 1px solid rgba(255,255,255,0.25); border-radius: 6px; padding: 6px 10px; box-shadow: 0 10px 30px rgba(0,0,0,0.6); font-size: 13px; }
+    .col-menu-pop[hidden] { display: none; }
+    .col-menu-pop label { display: block; cursor: pointer; padding: 2px 0; white-space: nowrap; }
+    /* paleta de colores desplegable (grupos) */
+    .color-pop { position: fixed; z-index: 210; background: #1a1f27; border: 1px solid rgba(255,255,255,0.25); border-radius: 8px; padding: 8px; box-shadow: 0 10px 30px rgba(0,0,0,0.6); }
+    .color-pop[hidden] { display: none; }
+    .color-pop .cp-grid { display: grid; grid-template-columns: repeat(6, 22px); gap: 6px; }
+    .color-pop .cp-sw { width: 22px; height: 22px; border-radius: 4px; cursor: pointer; box-shadow: 0 0 0 1px rgba(0,0,0,0.4); box-sizing: border-box; }
+    .color-pop .cp-sw:hover { transform: scale(1.12); }
+    .color-pop .cp-acc { display: flex; gap: 8px; margin-top: 8px; justify-content: space-between; }
+    .color-pop .cp-acc button { font-size: 12px; }
+    /* encabezados de columnas fijas centrados (los valores del cuerpo mantienen su alineación) */
+    thead th.sticky-col { text-align: center; }
+    /* cartuchos (chips) de Grupo / Resp. Neg.: sin asignación → celda vacía (sin cartucho) */
+    td.col-grupo, td.col-resp, td.col-nota { vertical-align: middle; }
+    /* Nota: a diferencia de Grupo/Resp., "sin nota" se ESCRIBE con un guión gris.
+       Una celda en blanco acá se leería como que el dato no cargó. */
+    .nota-sin { display: block; text-align: center; color: var(--muted); }
+    /* Nota CON PDF guardado: la celda entera abre el archivo. El 📄 es la señal visible
+       de que hay algo para abrir; sin PDF no se pinta ninguno de los dos.
+       display:block (y no flex): así el cartucho de adentro se sigue comportando igual
+       que en las celdas sin nota — bloque centrado con su margin auto. */
+    .nota-ver { cursor: pointer; display: block; }
+    .nota-ver:hover .chip-etq { filter: brightness(1.15); }
+    /* El 📄 va FUERA del cartucho y anclado al borde derecho de la columna. Adentro lo
+       ensanchaba, y los cartuchos quedaban de distinto ancho según la nota tuviera
+       archivo o no.
+       EL ESPACIO SE RESERVA EN TODAS LAS CELDAS de la columna (el padding-right de acá
+       abajo), tengan ícono o no: reservándolo solo en las que lo tienen volvería la
+       diferencia de ancho que esto viene a arreglar.
+       El ancla es la propia celda: position:sticky ya la vuelve contenedor de los
+       absolutos, así que NO hay que agregarle position:relative — eso rompería la
+       columna fija. */
+    td.col-nota { padding-right: 18px; }
+    .nota-pdf { position: absolute; right: 4px; top: 50%; transform: translateY(-50%);
+                font-size: 11px; opacity: .85; }
+    .nota-ver:hover .nota-pdf { opacity: 1; }
+    /* Selector de paritaria dentro del encabezado. Ancho tope: 6px se los lleva el
+       handle de redimensión y el select no lo puede tapar (quedaría inagarrable). */
+    .nota-sel { display: block; width: calc(100% - 8px); margin: 2px auto 0; font-size: 11px; font-weight: 400;
+                background: #0a1018; color: #d7e2f2; border: 1px solid rgba(255,255,255,0.25); border-radius: 4px; padding: 1px 2px; }
+    .nota-sel:focus { outline: 1px solid #38bdf8; }
+    /* Tope de ancho y centrado (margin auto): al ensanchar la columna, sin el tope
+       el cartucho se estiraba hasta ocuparla entera y se leía como una barra de
+       color en vez de una etiqueta. Mismo valor que el CRM. */
+    .chip-etq { display: block; max-width: 150px; margin: 3px auto; padding: 1px 6px; border-radius: 9px;
+                font-size: 11px; line-height: 15px; font-weight: 600; text-align: center;
+                overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    /* checkbox de "armar grupo": oculto salvo en modo armar */
+    .chk-grupo { display: none; margin-right: 4px; }
+    table[data-role=tabla-precios].modo-grupo .rel-cliente .chk-grupo { display: inline-block; }
+    .armar-bar { gap: .5rem; align-items: center; flex-wrap: wrap; background: rgba(56,189,248,0.10);
+                 border: 1px solid rgba(56,189,248,0.4); border-radius: 6px; padding: 6px 10px; margin-top: .4rem; }
+    .armar-bar .ag-info { color: #38bdf8; font-weight: 600; }
+    /* lista de grupos en el modal */
+    .mg-lista-grupos { display: flex; flex-direction: column; gap: 4px; max-height: 320px; overflow: auto; margin: 8px 0; }
+    .mg-item { display: flex; align-items: center; gap: 10px; padding: 4px 6px; border: 1px solid rgba(255,255,255,0.10); border-radius: 4px; }
+    .mg-item-nom { font-weight: 600; flex: 1; }
+    .mg-item-n { color: var(--muted); font-size: 12px; }
+    .mg-swatches { flex: none; white-space: nowrap; }   /* picker de color por grupo */
+    .mg-item button { margin-left: 4px; }
+    .ap-resumen { font-size: 13px; margin-bottom: 8px; min-height: 1.2em; }
+    .ap-tabla { border-collapse: collapse; font-size: 13px; min-width: 180px; }
+    .ap-tabla th, .ap-tabla td { border: 1px solid rgba(255,255,255,0.14); padding: 3px 10px; }
+    .ap-tabla th { color: var(--muted); font-weight: 600; text-align: left; }
+    .ap-tabla td.ap-pct { text-align: right; color: #4ade80; font-variant-numeric: tabular-nums; }
+    /* esquina (fija en ambos ejes) por encima de todo */
+    table[data-role=tabla-precios] thead th.sticky-col { z-index: 4; }
+
+    /* filas de cliente: fondo sólido (para que la columna fija tape el scroll horizontal) */
+    .rel-cliente td { background: #232b38; font-weight: 600; }
+    .rel-cliente td.sticky-col { background: #232b38; }
+
+    /* encabezados AGRUPADOS por mes (2 filas de thead) */
+    /* Fila 1 (meses): altura FIJA (border-box) para que el top de la fila 2 la iguale exacto y no se superpongan. */
+    thead tr.grp th.mes-grp { top: 0; box-sizing: border-box; height: 26px; padding: 2px 6px; z-index: 2; text-align: center; font-weight: 700; color: #eef3fa;
+                              border-left: 2px solid rgba(255,255,255,0.14); }
+    thead tr.sub th.sub     { top: 26px; z-index: 2; font-weight: 700; font-size: 12px; color: #d7e2f2;
+                              border-bottom: 2px solid rgba(56,189,248,0.55); box-shadow: 0 4px 8px rgba(0,0,0,0.6); }   /* sombra: las filas pasan POR DEBAJO */
+    thead tr.grp th.sticky-col { top: 0; border-bottom: 2px solid rgba(56,189,248,0.55); box-shadow: 0 4px 8px rgba(0,0,0,0.6); }   /* col-obj/tipo/ind/coord/grupo (rowspan 2) */
+
+    /* sub-columnas de cada mes: % Aum | Precio | % Desc */
+    td.sub, th.sub { text-align: right; padding: 3px 6px; font-variant-numeric: tabular-nums; vertical-align: middle; }
+    /* los tres sub-valores (% Aum, Precio, % Desc) al MISMO font-size (heredado, como el precio) */
+    .sub-aum  { width: 88px;  min-width: 88px;  max-width: 88px;  color: #4ade80;   /* % de aumento: verde (ancho p/ valores grandes) */
+                border-left: 2px solid rgba(255,255,255,0.10); }   /* separador entre meses */
+    .sub-pre  { width: 120px; min-width: 120px; max-width: 120px; color: #d7e0ee; }   /* precio: ancho p/ millones */
+    .sub-desc { width: 60px;  min-width: 60px;  max-width: 60px;  color: #f87171; }  /* % de descuento: rojo */
+
+    /* sombreado ALTERNADO por mes (bandas verticales sutiles; abarca las 3 sub-columnas, header + filas) */
+    td.sub.m-alt { background: rgba(255,255,255,0.03); }
+    .rel-cliente td.sub.m-alt { background: #283040; }             /* banda sobre el fondo sólido del cliente */
+    table[data-role=tabla-precios] thead th.m-alt { background: #131c28; }   /* banda alternada sobre el encabezado casi negro */
+
+    /* Ventana de meses: las columnas de afuera SE DIBUJAN (el JS las necesita para poder
+       escribirles un precio) y solo se ocultan acá. El ahorro es el layout de la tabla. */
+    table[data-role=tabla-precios].ventana-corta .mes-off { display: none; }
+
+    td.sub-pre.proj { color: #8ea3c7; }                            /* solo el precio proyectado se atenúa; los % mantienen su color */
+    td.sub-pre.marca-dif,
+    .rel-cliente td.sub-pre.marca-dif { background: rgba(224,179,77,0.16); }  /* diferenciados: gana al sombreado */
+
+    /* edición (Capas 1-4): celdas de precio y % (objetivo y cliente) editables + marca de modificado sin guardar */
+    td.sub-pre.editable, td.sub-aum.editable-pct,
+    td.sub-pre.editable-b, td.sub-aum.editable-pct-b,
+    td.sub-pre.editable-cli-precio, td.sub-aum.editable-cli-pct { cursor: cell; }
+    td.sub-pre.resaltado-dif { outline: 2px solid #38bdf8; outline-offset: -2px; }   /* objetivo con valor diferente al del cliente */
+    .msg-edicion { color: #38bdf8; font-size: 12px; }
+
+    /* filtros */
+    /* .funnel base (+ :hover y .activo) está en css/styles.css: la comparten
+       Precios y el CRM. Acá queda solo el modificador de las columnas de mes. */
+    .funnel-mes { font-size: 13px; padding: 0 1px; }
+    .filtros-bar { gap: .6rem; align-items: center; flex-wrap: wrap; }
+    /* marca MUY visible de la columna/mes con filtro activo */
+    thead th.sub.col-filtrada { background: #eab308 !important; color: #12161c !important; }
+    thead th.sub.col-filtrada .funnel { color: #12161c !important; }   /* flechita oscura, visible sobre el dorado */
+    thead th.mes-grp.mes-filtrado { box-shadow: inset 0 -3px 0 #eab308; color: #eab308; }
+    /* al filtrar, los nombres (columna Cliente/Objetivo) en azul */
+    table[data-role=tabla-precios].filtrando td.col-obj { color: #38bdf8; }
+    /* El CSS del popup de filtro (.filtro-popup y sus .fp-*) se movió a
+       css/styles.css al empezar a usarlo el CRM. Acá quedan solo las piezas
+       propias de esta pantalla: el aviso de "filtrando" y los chips de los
+       filtros de mes. */
+    /* Ancho RESERVADO: el indicador aparece y desaparece según haya filtros, y si ocupara
+       espacio solo cuando hay texto empujaría los botones y mandaría la barra a dos filas
+       justo al filtrar. Reserva fija = la barra nunca cambia de alto. */
+    .filtros-info { color: #eab308; font-weight: 600; margin-left: .6rem; display: inline-block; min-width: 7rem; }
+    .chips { display: flex; gap: .4rem; flex-wrap: wrap; }
+    .chip { background: rgba(56,189,248,0.18); border: 1px solid rgba(56,189,248,0.5); border-radius: 12px;
+            padding: 1px 8px; font-size: 12px; }
+    .chip-x { cursor: pointer; color: #9fb4d8; margin-left: .2rem; }
+    .chip-x:hover { color: #fff; }
+
+    /* modal de escalas de aumento */
+    .modal-escala { position: fixed; inset: 0; z-index: 100; background: rgba(0,0,0,0.55); display: flex; align-items: flex-start; justify-content: center; }
+    .modal-escala[hidden] { display: none; }
+    /* El cartel de confirmación (.cfm-*) se mudó a css/styles.css: lo comparten
+       Precios y el CRM. Acá no queda nada suyo. */
+    .modal-box { background: #1a1f27; border: 1px solid rgba(255,255,255,0.25); border-radius: 8px; padding: 16px 18px;
+                 margin-top: 8vh; width: 460px; max-width: 92vw; max-height: 80vh; overflow: auto; box-shadow: 0 10px 40px rgba(0,0,0,0.6); }
+    .modal-box .me-title { font-weight: 600; margin-bottom: 10px; }
+    .modal-box .me-fila { display: flex; gap: 8px; align-items: center; margin-bottom: 8px; font-size: 13px; }
+    .modal-box .me-fila input, .modal-box .me-fila select { flex: 1; }
+    .modal-box .me-sub { font-size: 12px; color: var(--muted); margin: 8px 0 4px; }
+    .modal-box .me-ayuda { font-size: 11px; color: var(--muted); margin: 0 0 6px; line-height: 1.4; }
+    /* documentación respaldatoria de la paritaria */
+    .modal-box .me-doc { margin: 6px 0 10px; padding: 6px 8px; border: 1px solid rgba(255,255,255,0.10); border-radius: 5px; }
+    .modal-box .me-doc-label { font-weight: 600; font-size: 13px; margin-bottom: 3px; }
+    .modal-box .me-doc-actual { font-size: 12px; color: var(--muted); margin-bottom: 4px; }
+    .modal-box .me-doc-actual a { color: #38bdf8; }
+    .modal-box .me-doc-file { display: block; font-size: 12px; margin-bottom: 4px; }
+    /* config de notas: estado + preview de logo/firma */
+    .cfg-img { margin: 6px 0 10px; padding: 6px 8px; border: 1px solid rgba(255,255,255,0.10); border-radius: 5px; }
+    .cfg-img-head { font-size: 13px; margin-bottom: 5px; }
+    .cfg-badge { font-size: 11px; padding: 1px 7px; border-radius: 9px; margin-left: 6px; }
+    .cfg-badge.cfg-ok { background: #14432a; color: #7ee2a8; }
+    .cfg-badge.cfg-local { background: #4a3b12; color: #f0c866; }
+    .cfg-preview { display: block; max-width: 220px; max-height: 90px; background: #fff; border-radius: 4px; padding: 4px; margin-bottom: 6px; object-fit: contain; }
+    .cfg-preview.cfg-nopreview { background: #2a323d; color: var(--muted); font-size: 12px; padding: 18px; text-align: center; width: 220px; box-sizing: border-box; }
+    .modal-box .me-texto { width: 100%; box-sizing: border-box; resize: vertical; font-family: inherit; font-size: 13px; line-height: 1.4; padding: 8px; }
+    .modal-box .snap-list { max-height: 52vh; overflow: auto; margin: 10px 0; }
+    /* Modal de Generar notas: más ancho para que entre la tabla de aplicaciones. */
+    .modal-box[data-role="modal-notas-box"] { width: 1280px; max-width: 92vw; }
+    .modal-box[data-role="modal-nota-texto-box"] { width: 680px; max-width: 92vw; }
+    .modal-box .st-badge { display: inline-block; font-size: 11px; padding: 1px 8px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.2); white-space: nowrap; }
+    .modal-box .st-pendiente { color: var(--muted); }
+    .modal-box .st-generada { color: #bcd6f2; border-color: rgba(90,150,220,0.6); }
+    .modal-box .st-enviada { color: #a6e0a6; border-color: rgba(80,180,90,0.6); }
+    /* Opciones del modal de notas apiladas y alineadas a la izquierda (prolijo con los checkboxes grandes). */
+    .modal-box .nt-controls { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; }
+    /* Legibilidad del modal de notas: letra más grande y checkboxes más fáciles de tildar. */
+    .modal-box[data-role="modal-notas-box"] .me-fila,
+    .modal-box[data-role="modal-notas-box"] .me-ayuda,
+    .modal-box[data-role="modal-notas-box"] .me-sub,
+    .modal-box[data-role="modal-notas-box"] .me-msg,
+    .modal-box[data-role="modal-notas-box"] .snap-table { font-size: 14px; }
+    .modal-box[data-role="modal-notas-box"] .nt-controls .me-fila { cursor: pointer; margin: 0; }
+    /* Tamaño explícito (no scale) para no romper el layout de la fila. */
+    .modal-box[data-role="modal-notas-box"] input[type=checkbox] { width: 17px; height: 17px; flex: none; margin-right: 6px; cursor: pointer; }
+    /* Modal de Restaurar: más ancho y alto para ver los backups completos de una. */
+    .modal-box[data-role="modal-restore-box"] { width: 820px; max-width: 90vw; max-height: 88vh; margin-top: 5vh; }
+    /* La tabla es el único contenedor con scroll; se reserva lugar para título + ayuda + botones. */
+    .modal-box[data-role="modal-restore-box"] .snap-list { max-height: calc(88vh - 180px); }
+    .modal-box .snap-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+    .modal-box .snap-table th { text-align: left; font-weight: 600; color: var(--muted); padding: 6px 8px; border-bottom: 1px solid rgba(255,255,255,0.22); position: sticky; top: 0; background: #1a1f27; }
+    .modal-box .snap-table td { padding: 6px 8px; border-bottom: 1px solid rgba(255,255,255,0.08); vertical-align: middle; }
+    .modal-box .snap-table tr.snap-auto td { color: var(--muted); }
+    .modal-box .snap-fecha { white-space: nowrap; font-variant-numeric: tabular-nums; }
+    .modal-box .snap-filas { text-align: right; font-variant-numeric: tabular-nums; }
+    .modal-box .snap-acc { white-space: nowrap; text-align: right; }
+    .modal-box .snap-acc button { margin-left: 6px; }
+    .modal-box .snap-acc .snap-borrar { color: #e88; }
+    /* Botón "Crear" de la columna Casos: botón normal, solo cambia el color.
+       Verde (--ok) porque comunica "crear" sin leer el title; rojo se leería
+       como borrar. Se distingue del azul --accent de las otras acciones sin
+       perder aspecto de botón. */
+    .modal-box .snap-acc .nt-sec { background: var(--ok); }
+    /* Encabezados de las columnas de acción alineados con sus botones: las
+       celdas .snap-acc van a la derecha, y el th por defecto iba a la izquierda. */
+    .modal-box .snap-table th.snap-acc { text-align: right; }
+    .modal-box .snap-origen { display: inline-block; font-size: 11px; padding: 1px 8px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.28); }
+    .modal-box .snap-origen-auto { color: var(--muted); border-color: rgba(255,255,255,0.16); }
+    .modal-box .me-renglon { display: flex; gap: 6px; align-items: center; margin-bottom: 5px; }
+    .modal-box .me-renglon .me-pct { width: 70px; }
+    .modal-box .me-x { cursor: pointer; color: #9fb4d8; }
+    .modal-box .me-x:hover { color: #f87171; }
+    .modal-box .me-acc { display: flex; gap: 8px; margin-top: 12px; }
+    .modal-box .me-msg { margin-top: 8px; font-size: 12px; color: #eab308; min-height: 1em; }
+    /* botones al pie SIEMPRE visibles (aunque el modal scrollee) */
+    .modal-box .me-acc { position: sticky; bottom: 0; background: #1a1f27; padding-bottom: 4px; }
+    /* modal de grupos más ancho */
+    [data-role=modal-grupo-box] { width: 600px; }
+    .modal-box .mg-tools { display: flex; gap: 10px; align-items: center; margin-bottom: 8px; }
+    .modal-box .mg-tools input { flex: 1; }
+    /* lista de clientes: una fila por cliente (como .fp-list), con scroll interno */
+    .modal-box .mg-list { display: flex; flex-direction: column; gap: 2px; max-height: 300px; overflow: auto;
+                          font-size: 13px; border: 1px solid rgba(255,255,255,0.12); border-radius: 4px; padding: 4px; }
+    .modal-box .mg-list label { display: flex; gap: 6px; align-items: center; cursor: pointer; padding: 1px 2px; white-space: nowrap; }
+    td.sub-pre.modificado { background: rgba(234,179,8,0.42) !important; color: #fff; }  /* amarillo: precio modificado */
+    td.sub-aum.modificado { background: rgba(234,179,8,0.42) !important; }                /* amarillo: % modificado (mantiene verde) */
+    td.sub-pre .edit-input, td.sub-aum .edit-input { box-sizing: border-box; text-align: right; font: inherit;
+                             background: #0f141b; color: #fff; border: 1px solid #eab308; border-radius: 3px; padding: 1px 3px; }
+    td.sub-pre .edit-input { width: 88px; }
+    td.sub-aum .edit-input { width: 50px; }
+    .cambios { color: #eab308; font-weight: 600; margin-left: 1rem; }
+    /* Toolbar por grupos funcionales: poco espacio dentro del grupo, más entre grupos + separador sutil. */
+    .page-precios .controls > .row:first-child { display: flex; flex-wrap: wrap; gap: 6px 0; align-items: center; }
+    /* padding/gap ajustados para que los 6 grupos entren en UNA fila: la barra en dos
+       renglones le roba alto a la grilla, que es lo que se mira. */
+    .page-precios .controls .tb-group { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 5px; padding: 0 8px; }
+    .page-precios .controls .tb-group:first-child { padding-left: 0; }
+    .page-precios .controls .tb-group:not(:first-child) { border-left: 1px solid rgba(255,255,255,0.18); }
+    /* Botones de la toolbar algo más chicos que el estándar: son 14 y tienen que entrar en
+       una fila. Achicar el botón es preferible a recortar rótulos que Comercial ya conoce. */
+    .page-precios .controls .tb-group button { padding: 0.38rem 0.7rem; font-size: 0.85rem; }
+    /* Botón de VISTA, no de acción: cambia lo que se ve, no los datos. Por eso no lleva el
+       azul de los que escriben, va más chico y separado, al extremo derecho de la barra. */
+    /* .tb-group.tb-vista (y no solo .tb-vista): la regla del separador de arriba usa
+       :not(:first-child), que suma especificidad y si no le empatamos le gana al border. */
+    .page-precios .controls .tb-group.tb-vista { margin-left: auto; padding-right: 0; border-left: none; }
+    .page-precios .controls .tb-group.tb-vista button {
+      background: transparent; color: var(--muted); border: 1px solid var(--border);
+      padding: 0.22rem 0.6rem; font-size: 0.78rem; border-radius: 5px;
+    }
+    .page-precios .controls .tb-group.tb-vista button:hover { color: var(--text); border-color: var(--accent); opacity: 1; }
+    /* Selector "Paritaria activa" COMPACTO en una sola línea (gana en especificidad a `.controls label`,
+       que lo ponía en columna + MAYÚSCULAS y agrandaba la toolbar, tapando el scroll horizontal). */
+    .controls label.pari-activa { display: inline-flex; flex-direction: row; align-items: center; gap: 6px;
+                                  font-size: 13px; text-transform: none; letter-spacing: normal; color: #fbbf24;
+                                  border: 1px solid rgba(251,191,36,0.4); border-radius: 6px; padding: 2px 8px; }
+    .controls label.pari-activa select { font-size: 13px; max-width: 170px; text-transform: none; }
+    /* Paritaria elegida → más marcado (borde y fondo ámbar); "— ninguna —" → neutro (borde tenue). */
+    .controls label.pari-activa:not(:has(option[value=""]:checked)) { border-color: #fbbf24; background: rgba(251,191,36,0.12); }
+
+    /* modales de gestión (paritarias / escalas): más anchos + lista en tabla */
+    .modal-box[data-role="modal-paritarias-box"],
+    .modal-box[data-role="modal-escalas-box"] { width: 1200px; max-width: 92vw; }
+    .modal-box .gm-table { width: 100%; border-collapse: collapse; font-size: 13px; margin: 6px 0 4px; }
+    .modal-box .gm-table th { text-align: left; font-weight: 600; color: var(--muted); padding: 6px 8px; border-bottom: 1px solid rgba(255,255,255,0.22); }
+    .modal-box .gm-table td { padding: 6px 8px; border-bottom: 1px solid rgba(255,255,255,0.08); vertical-align: middle; }
+    .modal-box .gm-color { width: 30px; text-align: center; }
+    .modal-box .gm-color span { display: inline-block; width: 14px; height: 14px; border-radius: 3px; vertical-align: middle; box-shadow: 0 0 0 1px rgba(0,0,0,0.4); }
+    .modal-box .gm-elip { width: 280px; max-width: 280px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    /* Descripción: columna elástica, se queda con todo el espacio sobrante (max-width:0 + width:100% = truco de ellipsis en tabla) */
+    .modal-box .gm-desc { width: 100%; max-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .modal-box .gm-tramos { text-align: right; font-variant-numeric: tabular-nums; width: 60px; }
+    /* Paritaria (tabla de escalas): ancho fijo, "código · nombre"; completo en el title */
+    .modal-box .gm-pari { width: 230px; max-width: 230px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .modal-box .gm-acc { white-space: nowrap; text-align: right; width: 1%; }
+    .modal-box .gm-acc button { margin-left: 6px; }
+
+    /* leyenda real vs proyectado */
+    .leyenda-precios { display: flex; flex-wrap: wrap; gap: .5rem 1.2rem; font-size: 12px; color: var(--muted); align-items: center; margin-top: .4rem; }
+    .leyenda-precios .sw { display: inline-block; width: 12px; height: 12px; border-radius: 2px; margin-right: .35rem; vertical-align: middle; }
+    .leyenda-precios .sw-real { background: #d7e0ee; }
+    .leyenda-precios .sw-proj { background: #8ea3c7; }
+    .leyenda-precios .sw-dif  { background: rgba(224,179,77,0.7); }
+    /* referencia de colores de paritarias (dinámica): cada ítem con su cuadradito + nombre */
+    .leyenda-paritarias { display: inline-flex; flex-wrap: wrap; align-items: center; gap: .3rem .9rem; }
+  </style>
+</head>
+<body class="page-precios">
+  <header>
+    <h1>FinFlow — Precios por mes</h1>
+    <nav>
+      <a href="inicio.html">Inicio</a> · <a href="relaciones.html">Relaciones</a> · <a href="horas.html">Horas</a> · <a href="caja.html">Caja</a> · <a href="economico.html">Económico</a> · <a href="crm.html">CRM</a> · <a href="configuracion.html">⚙️ Config</a>
+    </nav>
+  </header>
+
+  <main>
+    <section class="controls">
+      <div class="row">
+        <span class="tb-group"><!-- Vista -->
+          <button data-role="expandir" title="Expandir todos los clientes">Expandir</button>
+          <button data-role="colapsar" title="Colapsar todos los clientes">Colapsar</button>
+          <button data-role="limpiar-filtros" disabled>Limpiar filtros</button>
+          <span class="filtros-info" data-role="filtros-info"></span>
+        </span>
+        <span class="tb-group"><!-- Respaldo -->
+          <button data-role="backup" title="Guardar una foto de todos los precios (backup)">Backup</button>
+          <button data-role="restaurar" title="Restaurar los precios desde un backup">Restaurar</button>
+        </span>
+        <span class="tb-group"><!-- Cambios -->
+          <button data-role="guardar" disabled title="Guardar los cambios pendientes en la base">Guardar cambios</button>
+          <button data-role="descartar" disabled>Descartar</button>
+          <span class="cambios" data-role="contador-cambios"></span>
+        </span>
+        <span class="tb-group"><!-- Aumentos -->
+          <button data-role="paritarias">Paritarias</button>
+          <button data-role="escalas">Escalas</button>
+          <button data-role="grupos">Grupos</button>
+          <button data-role="responsables">Responsables</button>
+          <button data-role="aplicar-escala">Aplicar escala</button>
+        </span>
+        <span class="tb-group"><!-- Notas -->
+          <button data-role="config-notas" title="Editar el firmante de las notas">Config notas</button>
+          <button data-role="generar-notas">Generar notas</button>
+        </span>
+        <span class="tb-group"><!-- Otros -->
+          <button data-role="exportar">Exportar</button>
+        </span>
+        <span class="tb-group tb-vista"><!-- Vista de la grilla: no es una acción sobre los datos -->
+          <button data-role="ver-meses">Todos los meses</button>
+        </span>
+      </div>
+      <div class="row leyenda-precios">
+        <span><span class="sw sw-real"></span>Real (precio cargado)</span>
+        <span><span class="sw sw-proj"></span>Proyectado (forward-fill del último precio)</span>
+        <span><span class="sw sw-dif"></span>Precios diferenciados por objetivo (ver detalle)</span>
+        <span class="leyenda-paritarias" data-role="leyenda-paritarias"></span>
+        <span class="status" data-role="status"></span>
+        <label class="pari-activa" title="Paritaria con la que se marcarán los precios editados a mano">Paritaria activa para carga manual: <select data-role="paritaria-activa"><option value="">— ninguna —</option></select></label>
+      </div>
+      <div class="row"><span class="msg-edicion" data-role="msg-edicion"></span></div>
+      <div class="row"><span class="chips" data-role="fm-chips"></span></div>
+      <div class="row armar-bar" data-role="armar-bar" hidden>
+        <strong data-role="ag-titulo">Armar grupo:</strong>
+        <input type="text" data-role="ag-nombre" placeholder="nombre" />
+        <span class="ag-color-lbl" style="font-size:12px;color:var(--muted)">Color:</span>
+        <span class="cp-anchor" data-role="ag-color-sw" title="Elegir color (opcional)" style="display:inline-block;width:20px;height:20px;border-radius:4px;cursor:pointer;vertical-align:middle;border:1px solid rgba(255,255,255,0.5);background:repeating-linear-gradient(45deg,#3a3a3a,#3a3a3a 3px,#555 3px,#555 6px)"></span>
+        <input type="hidden" data-role="ag-color" value="" />
+        <button data-role="ag-todos">Seleccionar todos</button>
+        <button data-role="ag-ninguno">Deseleccionar todos</button>
+        <span class="ag-info" data-role="ag-info"></span>
+        <button data-role="ag-crear">Crear grupo</button>
+        <button data-role="ag-cancelar">Cancelar</button>
+      </div>
+    </section>
+    <div class="filtro-popup" data-role="filtro-popup" hidden></div>
+    <div class="col-menu-pop" data-role="col-menu-pop" hidden></div>
+    <div class="color-pop" data-role="color-pop" hidden></div>
+
+    <section class="zone-grow">
+      <div class="scroll-x" data-role="precios-container">
+        <table data-role="tabla-precios">
+          <thead></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+
+  <div class="modal-escala" data-role="modal-escala" hidden>
+    <div class="modal-box" data-role="modal-box"></div>
+  </div>
+  <div class="modal-escala" data-role="modal-grupo" hidden>
+    <div class="modal-box" data-role="modal-grupo-box"></div>
+  </div>
+  <div class="modal-escala" data-role="modal-escalas" hidden>
+    <div class="modal-box" data-role="modal-escalas-box"></div>
+  </div>
+  <div class="modal-escala" data-role="modal-paritarias" hidden>
+    <div class="modal-box" data-role="modal-paritarias-box"></div>
+  </div>
+  <div class="modal-escala" data-role="modal-notas" hidden>
+    <div class="modal-box" data-role="modal-notas-box"></div>
+  </div>
+  <div class="modal-escala" data-role="modal-nota-texto" hidden>
+    <div class="modal-box" data-role="modal-nota-texto-box"></div>
+  </div>
+  <div class="modal-escala" data-role="modal-config" hidden>
+    <div class="modal-box" data-role="modal-config-box"></div>
+  </div>
+  <div class="modal-escala" data-role="modal-restore" hidden>
+    <div class="modal-box" data-role="modal-restore-box"></div>
+  </div>
+  <!-- El cartel de confirmación ya no vive acá: js/shared/confirmar.js crea su
+       propio nodo la primera vez que se usa. -->
+
+  <script type="module">
+    const v = Date.now();
+    import(`../js/pages/precios.js?v=${v}`).catch(console.error);
+  </script>
+</body>
+</html>

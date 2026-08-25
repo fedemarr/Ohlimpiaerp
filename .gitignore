@@ -8,6 +8,9 @@ backup_2026-05-28/
 .vercel
 # Scripts/conexiones con credenciales en texto plano — nunca versionar
 _q11.cjs
+# Claves locales para scripts (service role) y credenciales generadas
+.env
+credenciales_usuarios_*.csv
 # Artefactos del seguimiento de desarrollo (node_modules, reportes generados)
 seguimiento_desarrollo/
 # Capturas personales sueltas

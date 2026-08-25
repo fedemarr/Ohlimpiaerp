@@ -1,0 +1,2824 @@
+:root {
+  --bg: #0f1419;
+  --panel: #171d25;
+  --border: #2a313c;
+  --text: #e6e9ef;
+  --muted: #8a93a2;
+  --accent: #4f8cff;
+  --ok: #38c172;
+  --warn: #f6b040;
+  --err: #e3524f;
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; background: var(--bg); color: var(--text); font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; }
+
+header {
+  padding: 1rem 1.5rem;
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: space-between;
+}
+header h1 { margin: 0; font-size: 1.1rem; font-weight: 600; }
+nav a { color: var(--muted); text-decoration: none; margin-left: 1rem; font-size: 0.9rem; }
+nav a:hover { color: var(--text); }
+
+main { padding: 1.5rem; max-width: 1200px; margin: 0 auto; }
+
+.stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem; margin-bottom: 2rem; }
+.stat { background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 1rem; }
+.stat .label { color: var(--muted); font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.05em; }
+.stat .value { font-size: 1.8rem; font-weight: 600; margin-top: 0.25rem; }
+
+.status { color: var(--muted); font-size: 0.85rem; }
+
+button, .btn {
+  background: var(--accent); color: white; border: none; border-radius: 6px;
+  padding: 0.5rem 1rem; font-size: 0.9rem; cursor: pointer;
+}
+button:hover { opacity: 0.9; }
+
+table { width: 100%; border-collapse: collapse; }
+th, td { text-align: left; padding: 0.5rem 0.75rem; border-bottom: 1px solid var(--border); font-size: 0.9rem; white-space: nowrap; }
+th { color: var(--muted); font-weight: 500; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.05em; }
+
+h2 { font-size: 1rem; font-weight: 600; margin: 0 0 0.5rem; }
+h2 .muted { color: var(--muted); font-weight: 400; }
+
+.importer, .normalizer { background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 1rem 1.25rem; margin-bottom: 1.25rem; }
+.importer .row, .normalizer .row { display: flex; align-items: center; gap: 0.75rem; margin: 0.5rem 0 1rem; flex-wrap: wrap; }
+
+button:disabled, .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+details { margin: 0.5rem 0; }
+details summary { cursor: pointer; color: var(--muted); font-size: 0.85rem; padding: 0.25rem 0; }
+details[open] summary { color: var(--text); }
+
+.log {
+  background: #0b0e12; border: 1px solid var(--border); border-radius: 6px;
+  padding: 0.75rem; font-family: ui-monospace, Consolas, monospace; font-size: 0.8rem;
+  color: var(--text); white-space: pre-wrap; max-height: 320px; overflow: auto; margin: 0;
+}
+
+.scroll-x { overflow-x: auto; max-width: 100%; }
+.preview-summary { margin: 0.5rem 0; }
+.status.ok { color: var(--ok); }
+
+.lookup-input {
+  background: #0b0e12; color: var(--text); border: 1px solid var(--border);
+  border-radius: 6px; padding: 0.4rem 0.6rem; font-family: ui-monospace, Consolas, monospace;
+  font-size: 0.85rem; min-width: 280px;
+}
+
+.grid-controls {
+  display: flex; align-items: center; gap: 0.5rem;
+  margin: 0 0 0.5rem 0;
+}
+.grid-controls input[type=search],
+.grid-controls select {
+  background: #0b0e12; color: var(--text); border: 1px solid var(--border);
+  border-radius: 6px; padding: 0.4rem 0.6rem; font-size: 0.9rem;
+  font-family: inherit;
+}
+.grid-controls input[type=search] { min-width: 280px; }
+
+.controls { margin-bottom: 1.5rem; }
+.controls label { display: inline-flex; flex-direction: column; font-size: 0.75rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; }
+.controls select, .controls input[type=number] {
+  background: #0b0e12; color: var(--text); border: 1px solid var(--border);
+  border-radius: 6px; padding: 0.4rem 0.6rem; margin-top: 0.25rem;
+  font-family: inherit; font-size: 0.9rem;
+}
+.controls input[type=number] { width: 6rem; }
+
+td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+th.period-current { color: var(--accent); }
+th.period-future { color: var(--muted); font-style: italic; }
+.period-partial { color: var(--warn); font-size: 0.7rem; font-weight: 400; text-transform: none; letter-spacing: 0; }
+
+/* Semana de retiros: 4° día hábil mensual. Solo en week/day. */
+th.period-payweek,
+td.period-payweek { background: rgba(246, 176, 64, 0.18); }
+th.period-payweek { color: var(--warn); }
+
+/* Expand/collapse de la fila Facturación */
+.fact-expand {
+  display: inline-block;
+  cursor: pointer;
+  user-select: none;
+  color: var(--muted);
+  width: 1.1em;
+  text-align: center;
+  margin-right: 0.25rem;
+}
+.fact-expand:hover { color: var(--accent); }
+
+/* Sub-filas de clientes debajo de Facturación */
+tr.fact-subrow th.subrow-label {
+  font-weight: 400;
+  font-size: 0.8rem;
+  padding-left: 2rem;
+  color: var(--muted);
+  text-transform: none;
+  letter-spacing: 0;
+}
+tr.fact-subrow td { cursor: pointer; font-size: 0.85rem; }
+tr.fact-subrow:hover td { background: rgba(255, 255, 255, 0.03); }
+
+/* Highlight bidireccional: fila seleccionada + celdas factura (amarillo) / cobro (verde) */
+[data-role=tabla-clientes] tr.row-selected .col-client {
+  background: rgba(79, 140, 255, 0.22);
+  border-left: 2px solid var(--accent);
+}
+[data-role=tabla-clientes] td.cell-highlight-fact {
+  background: rgba(246, 176, 64, 0.45) !important;
+  outline: 1px solid var(--warn);
+  outline-offset: -1px;
+}
+[data-role=tabla-clientes] td.cell-highlight-cobro {
+  background: rgba(56, 193, 114, 0.45) !important;
+  outline: 1px solid var(--ok);
+  outline-offset: -1px;
+}
+
+/* Celda seleccionada en la fila Facturación expandida (panel superior). */
+tr.fact-subrow td.cell-selected-fact {
+  background: rgba(79, 140, 255, 0.30) !important;
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+/* Inversa: click en celda del panel inferior (cobro seleccionado = verde oscuro). */
+[data-role=tabla-clientes] td.cell-selected-cobro {
+  background: rgba(56, 193, 114, 0.50) !important;
+  outline: 2px solid var(--ok);
+  outline-offset: -2px;
+}
+
+/* Factura de origen pintada en la sub-fila tras click en cobro (amarillo). */
+tr.fact-subrow td.cell-highlight-fact-origin {
+  background: rgba(246, 176, 64, 0.45) !important;
+  outline: 2px solid var(--warn);
+  outline-offset: -2px;
+}
+
+/* Incongruencias de período: fila del cliente + celda del mes doble. */
+[data-role=tabla-clientes] tr.row-incongruencia .col-client {
+  background: rgba(246, 176, 64, 0.22);
+}
+[data-role=tabla-clientes] td.cell-incongr {
+  background: rgba(246, 176, 64, 0.20) !important;
+  cursor: pointer;
+  position: relative;
+}
+[data-role=tabla-clientes] td.cell-incongr::after {
+  content: "⚠";
+  position: absolute;
+  top: 1px; right: 4px;
+  font-size: 0.75rem;
+  color: var(--warn);
+}
+
+/* Alerta en la barra de controles */
+.incongr-alert {
+  background: rgba(246, 176, 64, 0.18);
+  border: 1px solid var(--warn);
+  color: var(--warn);
+  border-radius: 6px;
+  padding: 0.4rem 0.75rem;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+.incongr-alert:hover { background: rgba(246, 176, 64, 0.28); }
+
+/* Tooltip flotante para hover (con delay 800ms) */
+.hover-tooltip {
+  position: fixed;
+  z-index: 200;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.82rem;
+  max-width: 320px;
+  line-height: 1.4;
+  pointer-events: auto;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+}
+.hover-tooltip[hidden] { display: none; }
+.hover-tooltip hr { border: 0; border-top: 1px solid var(--border); margin: 0.4rem 0; }
+.hover-tooltip b { color: var(--text); }
+.hover-tooltip a { color: var(--accent); text-decoration: none; cursor: pointer; }
+.hover-tooltip a:hover { text-decoration: underline; }
+
+/* Panel de detalle de celda (flota abajo) */
+.cell-detail {
+  position: fixed;
+  bottom: 0; left: 0; right: 0;
+  background: var(--panel);
+  border-top: 1px solid var(--border);
+  max-height: 40vh;
+  display: flex;
+  flex-direction: column;
+  z-index: 50;
+  box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.4);
+}
+.cell-detail[hidden] { display: none; }
+.cell-detail-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0.5rem 1rem; border-bottom: 1px solid var(--border);
+  font-size: 0.9rem;
+}
+.cell-detail-body { overflow: auto; padding: 0.5rem 1rem; }
+.cell-detail-body table { font-size: 0.82rem; }
+.cell-detail-body td, .cell-detail-body th { padding: 0.35rem 0.5rem; }
+.cell-detail-body tr.cell-detail-proj { color: var(--muted); font-style: italic; }
+.cell-detail-body .tipo-badge {
+  display: inline-block; padding: 0.1rem 0.4rem; border-radius: 4px;
+  font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.05em;
+}
+.cell-detail-body .tipo-real { background: rgba(56, 193, 114, 0.2); color: var(--ok); }
+.cell-detail-body .tipo-proj { background: rgba(79, 140, 255, 0.2); color: var(--accent); }
+
+/* Modal */
+.modal-backdrop {
+  position: fixed; inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex; align-items: center; justify-content: center;
+  z-index: 100;
+}
+.modal-backdrop[hidden] { display: none !important; }
+.modal {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  min-width: 480px; max-width: 90vw; max-height: 85vh;
+  display: flex; flex-direction: column;
+}
+.modal-header { display: flex; align-items: center; justify-content: space-between; padding: 0.75rem 1rem; border-bottom: 1px solid var(--border); }
+.modal-header h3 { margin: 0; font-size: 1rem; }
+.modal-close { background: transparent; color: var(--muted); font-size: 1.25rem; line-height: 1; padding: 0.25rem 0.5rem; border-radius: 4px; }
+.modal-close:hover { background: rgba(255,255,255,0.05); color: var(--text); }
+.modal-body { padding: 0.75rem 1rem; overflow: auto; flex: 1; min-height: 0; }
+.modal-actions { display: flex; gap: 0.5rem; justify-content: flex-end; padding: 0.75rem 1rem; border-top: 1px solid var(--border); }
+.modal-actions button { background: var(--panel); border: 1px solid var(--border); color: var(--text); padding: 0.4rem 0.9rem; border-radius: 6px; cursor: pointer; }
+.modal-actions .btn-primary { background: var(--accent); border-color: var(--accent); color: white; }
+.modal-actions .btn-danger,
+.btn-danger { background: #c44; color: white; border: 1px solid #a33; padding: 0.4rem 0.9rem; border-radius: 6px; cursor: pointer; font-weight: 600; }
+.modal-actions .btn-danger:hover,
+.btn-danger:hover { background: #d55; filter: none; }
+.modal-actions .btn-danger:disabled,
+.btn-danger:disabled { background: #888; border-color: #777; cursor: not-allowed; opacity: 0.6; }
+.modal-actions button:hover { filter: brightness(1.1); }
+.modal .fact-list { list-style: none; padding: 0; margin: 0; }
+.modal .fact-list li { padding: 0.4rem 0; border-bottom: 1px solid var(--border); display: grid; grid-template-columns: auto 1fr auto auto; gap: 0.75rem; align-items: center; font-size: 0.88rem; }
+.modal .fact-list li:last-child { border-bottom: none; }
+.modal .fact-list .num { text-align: right; font-variant-numeric: tabular-nums; }
+.modal .incongr-list { list-style: none; padding: 0; margin: 0; }
+.modal .incongr-list li { padding: 0.5rem 0; border-bottom: 1px solid var(--border); cursor: pointer; }
+.modal .incongr-list li:hover { background: rgba(255,255,255,0.04); }
+
+/* Modal importador de saldos (B.9.a paso 3). Reutiliza .modal-backdrop +
+   .modal del sistema general; agrega ancho mayor para la tabla preview. */
+.modal.modal-import { width: min(900px, 92vw); max-height: 88vh; }
+.import-summary { padding: 0.25rem 0 0.75rem 0; font-size: 0.92rem; color: var(--muted); }
+.import-summary .warn { color: #e0a800; font-weight: 600; }
+.import-preview-table { width: 100%; border-collapse: collapse; font-size: 0.88rem; font-variant-numeric: tabular-nums; }
+.import-preview-table th,
+.import-preview-table td { padding: 0.35rem 0.6rem; border-bottom: 1px solid var(--border); text-align: left; }
+.import-preview-table th { color: var(--muted); font-weight: 600; }
+.import-preview-table td.num { text-align: right; }
+.import-preview-table tr.import-row-new       { background: rgba(80, 200, 120, 0.08); }
+.import-preview-table tr.import-row-sin-cambios { opacity: 0.55; }
+.import-preview-table tr.import-row-huerfano  { background: rgba(220, 80, 80, 0.08); color: var(--muted); }
+.import-preview-table tr.import-row-inactivo  { background: rgba(255, 165, 0, 0.06); color: var(--muted); }
+
+/* Modal pagar/despagar (B.11.B). Reutiliza .modal-backdrop + .modal del
+   sistema general; agrega ancho intermedio para las 2 tablas (pendientes
+   y pagados). */
+.modal.modal-pagar { width: min(800px, 92vw); max-height: 88vh; }
+.pagar-section { margin-bottom: 1rem; }
+.pagar-section[hidden] { display: none; }
+.pagar-section-header { font-weight: 600; padding: 0.4rem 0; border-bottom: 1px solid var(--border); }
+.pagar-section-header label { cursor: pointer; display: inline-flex; align-items: center; gap: 0.4rem; }
+.pagar-table { width: 100%; border-collapse: collapse; font-size: 0.88rem; font-variant-numeric: tabular-nums; }
+.pagar-table th,
+.pagar-table td { padding: 0.35rem 0.6rem; border-bottom: 1px solid var(--border); text-align: left; }
+.pagar-table th { color: var(--muted); font-weight: 600; }
+.pagar-table td.num { text-align: right; }
+.pagar-table tbody tr:hover { background: rgba(255,255,255,0.03); }
+.pagar-table td input[type="checkbox"] { cursor: pointer; }
+
+/* B.11.B — Indicador visual de pagados en celdas de egreso (outline verde
+   + badge ✓N en la esquina superior derecha). NO afecta a la suma del
+   total egresos (pagados nunca entran a sumas). */
+.celda-con-pagados {
+  outline: 1px solid #4caf50;
+  outline-offset: -1px;
+  position: relative;
+}
+.pagados-badge {
+  position: absolute;
+  top: 1px;
+  right: 2px;
+  font-size: 0.65em;
+  color: #4caf50;
+  font-weight: 600;
+  pointer-events: none;
+}
+
+/* B.8.3 — Drag & drop de pagos (vista día). Resalta la columna destino
+   válida durante el arrastre. */
+.drop-target-valid {
+  outline: 2px dashed #4caf50;
+  outline-offset: -2px;
+  background: rgba(76, 175, 80, 0.1);
+}
+
+/* Modal importer de gastos reales (B.13.B). Rediseño con tabla unificada
+   + freeze panes: 4 columnas fijas a la izquierda + N columnas mes
+   scrollables. Headers de 2 filas pegadas arriba con stats por mes. */
+.modal.modal-gastos-reales { width: 98vw; max-width: none; max-height: 92vh; }
+.gr-toolbar { display: flex; gap: 0.5rem; align-items: center; margin-bottom: 0.75rem; flex-wrap: wrap; padding: 0 0.5rem; }
+.gr-toolbar button { background: var(--panel); border: 1px solid var(--border); color: var(--text); padding: 0.3rem 0.7rem; border-radius: 4px; cursor: pointer; }
+.gr-toolbar input[type="search"] { flex: 1; min-width: 220px; padding: 0.3rem 0.6rem; border: 1px solid var(--border); border-radius: 4px; background: var(--panel); color: var(--text); }
+
+/* Tabla unificada con freeze panes. border-collapse:separate es
+   obligatorio para que position:sticky funcione en TH/TD. */
+.gr-tabla-wrap {
+  overflow: auto;
+  max-height: 70vh;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  position: relative;
+}
+.gr-tabla {
+  border-collapse: separate;
+  border-spacing: 0;
+  width: max-content;
+  min-width: 100%;
+  font-variant-numeric: tabular-nums;
+  font-size: 0.88rem;
+}
+.gr-tabla th,
+.gr-tabla td {
+  padding: 0.3rem 0.5rem;
+  border-bottom: 1px solid var(--border);
+  border-right: 1px solid var(--border);
+  background: var(--panel);
+  white-space: nowrap;
+  vertical-align: top;
+}
+
+/* Columnas fijas a la izquierda — STICKY HORIZONTAL. */
+.gr-tabla .gr-col-fija {
+  position: sticky;
+  background: var(--panel);
+  z-index: 2;
+}
+.gr-tabla .gr-col-fija-1 { left: 0;     min-width: 40px;  text-align: center; }
+.gr-tabla .gr-col-fija-2 { left: 40px;  min-width: 130px; font-family: var(--font-mono, monospace); font-size: 0.85rem; }
+.gr-tabla .gr-col-fija-3 { left: 170px; min-width: 240px; max-width: 240px; overflow: hidden; text-overflow: ellipsis; }
+.gr-tabla .gr-col-fija-4 { left: 410px; min-width: 110px; box-shadow: 2px 0 4px rgba(0,0,0,0.3); }
+
+/* Filas de header — STICKY VERTICAL. La segunda fila (titles) se ancla
+   bajo la primera (stats). El alto de la primera depende del contenido
+   pero ~110px es buen estimado para checkbox+total+conteo+1 warning. */
+.gr-tabla thead th {
+  position: sticky;
+  background: var(--panel-2, #1a1a1a);
+  z-index: 3;
+}
+.gr-tabla thead tr:nth-child(1) th { top: 0; }
+.gr-tabla thead tr:nth-child(2) th { top: 110px; }
+
+/* Header CRUZADO (col fija + row sticky) — MAYOR z-index para que no lo
+   tape el resto. */
+.gr-tabla thead .gr-col-fija { z-index: 4; }
+
+/* Columnas de mes. */
+.gr-tabla .gr-col-mes { min-width: 160px; text-align: right; }
+.gr-tabla thead th.gr-col-mes { text-align: center; }
+.gr-tabla thead .gr-col-mes.gr-stats-mes { vertical-align: top; padding: 0.5rem; }
+
+/* Stats por mes (row 1 del thead). */
+.gr-stat-check    { display: flex; align-items: center; gap: 0.3rem; justify-content: center; margin-bottom: 0.25rem; }
+.gr-stat-check label { display: inline-flex; align-items: center; gap: 0.3rem; cursor: pointer; }
+.gr-stat-total    { text-align: center; font-size: 0.85rem; }
+.gr-stat-cuentas  { text-align: center; color: var(--muted); font-size: 0.75rem; }
+.gr-stat-warnings { display: flex; flex-direction: column; gap: 0.15rem; align-items: center; margin-top: 0.25rem; }
+
+/* Importes y delta. */
+.gr-importe-main { text-align: right; font-variant-numeric: tabular-nums; }
+.gr-importe-bd { text-align: right; font-size: 0.72rem; color: var(--muted); font-variant-numeric: tabular-nums; margin-top: 0.15rem; }
+.gr-tabla td.gr-empty-cell .gr-importe-main { color: var(--muted); opacity: 0.4; }
+.gr-delta-zero { color: var(--muted); }
+.gr-delta-pos  { color: #e58; }
+.gr-delta-neg  { color: #8c8; }
+
+/* Badges fuente. */
+.gr-badge { padding: 0 0.4rem; border-radius: 3px; font-size: 0.75rem; }
+.gr-badge-verde    { background: rgba(80, 200, 120, 0.18); color: #8d8; }
+.gr-badge-rojo     { background: rgba(220, 80, 80, 0.18); color: #f8a; }
+.gr-badge-amarillo { background: rgba(240, 200, 60, 0.18); color: #ed8; }
+.gr-badge-gris     { background: rgba(180, 180, 180, 0.12); color: var(--muted); }
+
+/* Warning chips. */
+.gr-warn { padding: 0 0.4rem; border-radius: 3px; font-size: 0.72rem; white-space: nowrap; }
+.gr-warn-rojo     { background: rgba(220, 80, 80, 0.18); color: #f8a; }
+.gr-warn-naranja  { background: rgba(255, 165, 0, 0.18); color: #fb6; }
+.gr-warn-amarillo { background: rgba(240, 200, 60, 0.18); color: #ed8; }
+
+/* Filas con cuenta destildada → tenues (no aplica a la primera col fija
+   donde está el checkbox para mantenerlo clickable). */
+.gr-tabla tr.gr-row-untildada td:not(.gr-col-fija-1) { opacity: 0.4; }
+/* Meses no seleccionados → columna entera tenue. */
+.gr-tabla .gr-col-mes-untildado { opacity: 0.4; }
+
+/* Excluidas en details collapsible. */
+.gr-excluidas-details { margin-top: 0.75rem; padding: 0.5rem; border: 1px solid var(--border); border-radius: 4px; }
+.gr-excluidas-details summary { cursor: pointer; color: var(--muted); }
+.gr-excluidas-lista { list-style: none; padding: 0; margin: 0.5rem 0 0 0; max-height: 150px; overflow: auto; }
+.gr-excluidas-lista li { padding: 0.15rem 0; font-size: 0.85rem; color: var(--muted); }
+.gr-empty { color: var(--muted); font-style: italic; text-align: center; padding: 0.5rem; }
+
+/* Sección "Cuentas ausentes" del importer de gastos reales (PASO 2). */
+.gr-ausentes-details {
+  margin: 0 0.5rem 1rem;
+  border: 1px solid #d68910;
+  background: rgba(214, 137, 16, 0.08);
+  border-radius: 4px;
+  padding: 0.5rem;
+}
+.gr-ausentes-details > summary {
+  cursor: pointer;
+  color: #d68910;
+  font-weight: 600;
+  padding: 0.25rem;
+  list-style: revert;
+}
+.gr-ausentes-intro {
+  font-size: 0.85rem;
+  color: var(--muted);
+  padding: 0.5rem 0.25rem;
+  line-height: 1.4;
+  margin: 0;
+}
+.gr-ausentes-toolbar {
+  display: flex;
+  gap: 0.5rem;
+  margin: 0.5rem 0;
+}
+.gr-ausentes-toolbar button {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  color: var(--text);
+  padding: 0.2rem 0.6rem;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.8rem;
+}
+.gr-ausentes-tabla-wrap {
+  max-height: 240px;
+  overflow-y: auto;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+}
+.gr-ausentes-tabla {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+}
+.gr-ausentes-tabla th,
+.gr-ausentes-tabla td {
+  padding: 0.3rem 0.5rem;
+  border-bottom: 1px solid var(--border);
+  text-align: left;
+  background: transparent;
+}
+.gr-ausentes-tabla thead th {
+  background: var(--panel);
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+.gr-ausentes-tabla .gr-aus-col-check { width: 50px; text-align: center; }
+.gr-ausentes-tabla .gr-aus-col-codigo { width: 130px; font-family: var(--font-mono, monospace); font-size: 0.8rem; }
+.gr-ausentes-tabla .gr-aus-col-nombre { min-width: 200px; }
+.gr-ausentes-tabla .gr-aus-col-mes { width: 100px; text-align: right; font-variant-numeric: tabular-nums; }
+
+/* Resumen footer. */
+.gr-resumen { flex: 1; text-align: left; color: var(--muted); font-size: 0.88rem; }
+
+/* Variables de alineación entre tabla consolidada y grilla de clientes.
+   Ambas deben tener el mismo ancho en zona pre-período y misma col de período. */
+:root {
+  --pre-period-width: 280px;  /* col-expand (40px) + col-client (240px) */
+  --col-expand-width: 40px;
+  --col-client-width: 240px;
+  --period-col-width: 120px;
+}
+
+/* Tabla consolidada: primera columna = pre-period-width, demás = period-col-width */
+[data-role=tabla-consolidado] th:first-child {
+  position: sticky;
+  left: 0;
+  background: var(--bg);
+  z-index: 2;
+  border-right: 1px solid var(--border);
+  min-width: var(--pre-period-width);
+  max-width: var(--pre-period-width);
+  width: var(--pre-period-width);
+}
+[data-role=tabla-consolidado] thead th:first-child { z-index: 3; }
+[data-role=tabla-consolidado] thead th:not(:first-child),
+[data-role=tabla-consolidado] tbody td:not(:first-child) {
+  min-width: var(--period-col-width);
+  max-width: var(--period-col-width);
+  width: var(--period-col-width);
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Grilla clientes: dos cols fijas (▶ + nombre), demás = period-col-width */
+[data-role=tabla-clientes] .col-expand {
+  position: sticky;
+  left: 0;
+  background: var(--bg);
+  z-index: 2;
+  width: var(--col-expand-width);
+  min-width: var(--col-expand-width);
+  max-width: var(--col-expand-width);
+  text-align: center;
+  color: var(--muted);
+  cursor: pointer;
+  user-select: none;
+}
+[data-role=tabla-clientes] .col-expand:hover { color: var(--accent); }
+[data-role=tabla-clientes] .col-client {
+  position: sticky;
+  left: var(--col-expand-width);
+  background: var(--bg);
+  z-index: 2;
+  min-width: var(--col-client-width);
+  max-width: var(--col-client-width);
+  width: var(--col-client-width);
+  border-right: 1px solid var(--border);
+}
+[data-role=tabla-clientes] thead th:not(.col-expand):not(.col-client),
+[data-role=tabla-clientes] tbody td:not(.col-expand):not(.col-client),
+[data-role=tabla-clientes] tfoot td:not(.col-expand):not(.col-client) {
+  min-width: var(--period-col-width);
+  max-width: var(--period-col-width);
+  width: var(--period-col-width);
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+/* Corner cells (top+left sticky): arriba de body-sticky (2) y thead-sticky (3). */
+.scroll-both thead .col-expand,
+.scroll-both thead .col-client { z-index: 5; }
+
+/* Footer sticky-bottom con totales */
+.scroll-both tfoot td {
+  position: sticky;
+  bottom: 0;
+  background: var(--panel);
+  z-index: 3;
+  border-top: 2px solid var(--border);
+  font-weight: 600;
+}
+.scroll-both tfoot .col-expand,
+.scroll-both tfoot .col-client { z-index: 5; background: var(--panel); }
+
+/* Cursor pointer en celdas de período del panel inferior para indicar que son clickeables. */
+[data-role=tabla-clientes] tbody td[data-period-key] { cursor: pointer; }
+
+/* Colores de celda según tipo de cobro (ambas tablas). */
+[data-role=tabla-clientes] td.cell-real,
+[data-role=tabla-consolidado] td.cell-real { background: rgba(56, 193, 114, 0.14); }
+[data-role=tabla-clientes] td.cell-proj,
+[data-role=tabla-consolidado] td.cell-proj { background: rgba(79, 140, 255, 0.12); }
+[data-role=tabla-clientes] td.cell-zero { color: rgba(138, 147, 162, 0.35); }
+
+/* Layout full-viewport en dos zonas para la página de caja:
+   Zona 1 (arriba): controles + consolidado, alto natural.
+   Zona 2 (abajo):  detalle por cliente, ocupa el resto del viewport,
+                    con su propio scroll interno para los 404 clientes. */
+.page-caja { height: 100vh; overflow: hidden; display: flex; flex-direction: column; }
+.page-caja > header { flex: 0 0 auto; }
+.page-caja > main {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  padding: 0.5rem 8px;
+  max-width: none;
+  margin: 0;
+}
+.page-caja .zone-fixed { flex: 0 0 auto; }
+/* Consolidado con scroll vertical propio, capeado a 45vh. El panel inferior
+   (zone-grow) queda garantizado con mínimo 45vh — balance 45/45. */
+.page-caja .zone-fixed .scroll-x {
+  overflow-y: auto;
+  max-height: 45vh;
+}
+/* Thead pegado al top del scroll-x mientras se scrollea vertical. */
+.page-caja .zone-fixed .scroll-x thead th {
+  position: sticky;
+  top: 0;
+  background: var(--bg);
+  z-index: 3;
+}
+.page-caja .zone-fixed .scroll-x thead th:first-child { z-index: 4; }
+
+/* Fila Facturación (principal) sticky justo debajo del thead al scrollear
+   vertical dentro del scroll-x. Background sólido para no transparentar sub-filas. */
+.page-caja .zone-fixed .scroll-x tr.fact-main th,
+.page-caja .zone-fixed .scroll-x tr.fact-main td {
+  position: sticky;
+  top: var(--thead-h, 3rem);
+  background: var(--bg);
+  z-index: 3;
+}
+/* Corner (row label + sticky left) arriba de todo dentro de fact-main. */
+.page-caja .zone-fixed .scroll-x tr.fact-main th:first-child { z-index: 4; }
+.page-caja .zone-grow {
+  flex: 1;
+  min-height: 45vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.page-caja .zone-grow h2 { flex: 0 0 auto; }
+.page-caja .zone-grow .scroll-mirror { flex: 0 0 auto; }
+.page-caja .zone-grow .scroll-both {
+  flex: 1;
+  min-height: 0;
+  max-height: none;   /* override del max-height: calc(100vh - 300px) default */
+}
+
+/* Contenedor con scroll interno. overflow-x: scroll asegura que el ancho
+   del scrollLeft sea manejable por JS. La barra horizontal de abajo se
+   oculta (abajo hay ::-webkit-scrollbar:horizontal { display: none })
+   porque hay un mirror scroll visible arriba. */
+.scroll-both {
+  overflow-x: scroll;
+  overflow-y: auto;
+  max-height: calc(100vh - 300px);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+.scroll-both::-webkit-scrollbar:horizontal { display: none; height: 0; }
+.scroll-both table { margin: 0; }
+
+/* Mirror scroll: barra horizontal siempre visible ARRIBA del contenedor.
+   Sincronizada con el container vía JS (setupMirrorScroll). */
+.scroll-mirror {
+  overflow-x: scroll;
+  overflow-y: hidden;
+  margin-bottom: 0.25rem;
+}
+.scroll-mirror-inner { height: 1px; }
+/* Sticky header dentro del scroll-both: la fila de headers se queda arriba
+   mientras se scrollea el tbody. z-index:3 > celdas-cuerpo-sticky-left (2). */
+.scroll-both thead th {
+  position: sticky;
+  top: 0;
+  background: var(--bg);
+  z-index: 3;
+}
+.scroll-both thead th:first-child { z-index: 4; }
+
+/* =====================================================================
+   Proyección económica
+   ===================================================================== */
+.page-economico { height: 100vh; overflow: hidden; display: flex; flex-direction: column; }
+.page-economico > header { flex: 0 0 auto; gap: 0.75rem; }
+.page-economico > header h1 { flex: 0 0 auto; }
+.page-economico .header-actions {
+  flex: 1;
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 0.35rem;
+}
+.page-economico .btn-header,
+.page-planes-afip .btn-header {
+  background: transparent; border: 1px solid var(--border);
+  color: inherit; padding: 0.25rem 0.55rem; border-radius: 4px;
+  cursor: pointer; font-size: 0.82rem; white-space: nowrap;
+}
+.page-economico .btn-header:hover,
+.page-planes-afip .btn-header:hover { background: var(--panel); }
+.page-economico .controls-status {
+  padding: 0.25rem 0 0.4rem; font-size: 0.82rem; color: var(--muted);
+}
+.page-economico .controls-status .status { display: block; }
+
+/* Económico v2 — compactación del encabezado: status + buscador + botones
+   globales (Expandir/Contraer) + grupo de acciones (Cerrar mes, Recalcular)
+   en una sola franja flex. El grupo de acciones se empuja a la derecha
+   extrema con margin-left:auto. Wrap a la siguiente línea si no entra. */
+.page-economico-v2 .controls-status {
+  display: flex;
+  align-items: center;
+  gap: 0.6em;
+  flex-wrap: wrap;
+}
+.page-economico-v2 .controls-status .acciones-group {
+  margin-left: auto;
+  display: flex;
+  gap: 0.5em;
+}
+
+/* Económico v2 — barra de scroll vertical visible en el wrap del body.
+   Sobrescribe la regla global de .page-economico .scroll-both que ocultaba
+   todas las scrollbars (specificity 0,3,0 con !important para vencer las
+   reglas existentes). El scroll horizontal sigue oculto: hay una barra
+   sintética al pie (.scroll-sync-bar) que mantiene la sincronización
+   horizontal entre header / body / footer. */
+.page-economico-v2 .tabla-econ-body.scroll-both {
+  scrollbar-width: auto;                /* Firefox: muestra la barra */
+  scrollbar-gutter: stable;             /* reserva ~14px aunque no haya scroll */
+}
+.page-economico-v2 .tabla-econ-body.scroll-both::-webkit-scrollbar {
+  width: 14px !important;               /* solo vertical visible */
+  height: 0 !important;                 /* horizontal sigue oculta */
+  display: block !important;
+}
+.page-economico-v2 .tabla-econ-body.scroll-both::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.35);
+  border-radius: 7px;
+}
+.page-economico-v2 .tabla-econ-body.scroll-both::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.55);
+}
+.page-economico-v2 .tabla-econ-body.scroll-both::-webkit-scrollbar-track {
+  background: rgba(0,0,0,0.1);
+}
+/* Compensación: header y footer ganan 14px de padding-right para que sus
+   columnas de mes queden alineadas con las del body (que pierde ~14px por
+   la scrollbar). El scrollbar-gutter:stable en el body asegura que la
+   compensación sea constante (no varía con el largo de la lista de cuentas). */
+.page-economico-v2 .tabla-econ-header,
+.page-economico-v2 .tabla-econ-footer {
+  padding-right: 14px;
+}
+
+/* Barra horizontal sintética al pie (.scroll-sync-bar) en Económico v2:
+   mismo color claro que la barra vertical para que ambas se vean idénticas.
+   Selector más específico (3 clases) que la regla base .page-economico
+   .scroll-sync-bar (2 clases) — solo afecta a v2, no al Económico viejo. */
+.page-economico-v2 .scroll-sync-bar::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.35);
+  border-radius: 4px;
+}
+.page-economico-v2 .scroll-sync-bar::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.55);
+}
+.page-economico > main {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  padding: 0.5rem 8px;
+  max-width: none;
+  margin: 0;
+}
+.page-economico .zone-grow {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+/* Layout de 3 tablas apiladas: header (auto) / body (flex:1 scroll) / footer (auto).
+ * Los totales (TOTAL GASTOS, RESULTADO, Rentabilidad %) van en la tabla footer
+ * que queda pinneada abajo sin bleed-through — el tbody scrollea en su propio
+ * contenedor y los totales nunca están debajo del área de scroll. */
+.page-economico .tabla-econ-layout {
+  flex: 1; min-height: 0;
+  display: flex; flex-direction: column;
+  overflow: hidden;
+}
+.page-economico .tabla-econ-header,
+.page-economico .tabla-econ-footer {
+  flex: 0 0 auto;
+  overflow-x: auto;
+  overflow-y: hidden;
+  border: 1px solid var(--border);
+}
+.page-economico .tabla-econ-body {
+  flex: 1; min-height: 0;
+  overflow: auto;
+  border-left: 1px solid var(--border);
+  border-right: 1px solid var(--border);
+}
+.page-economico .tabla-econ-layout table {
+  table-layout: fixed;
+  width: max-content;
+  border-collapse: collapse;
+}
+.page-economico .tabla-econ-header table { border-bottom: 1px solid var(--border); }
+.page-economico .tabla-econ-footer table { border-top: 2px solid var(--border); }
+/* Barra horizontal única compartida (scroll-sync-bar al final de main). Los
+ * paneles individuales tienen overflow-x scroll funcional pero ocultan su barra;
+ * el usuario scrollea desde la barra única y todos los paneles se sincronizan.
+ *
+ * Para ocultar de verdad la scrollbar usamos tres estrategias combinadas:
+ * - scrollbar-width: none (Firefox)
+ * - -ms-overflow-style: none (IE/Edge legacy)
+ * - ::-webkit-scrollbar width/height 0 (Chrome/Safari) */
+.page-economico .scroll-both {
+  overflow-x: scroll !important;
+  overflow-y: auto;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.page-economico .scroll-both::-webkit-scrollbar {
+  width: 0 !important;
+  height: 0 !important;
+  display: none !important;
+  background: transparent;
+}
+.page-economico .scroll-both::-webkit-scrollbar-thumb,
+.page-economico .scroll-both::-webkit-scrollbar-track {
+  background: transparent;
+}
+.page-economico .scroll-sync-bar {
+  flex: 0 0 auto;
+  overflow-x: scroll;
+  overflow-y: hidden;
+  height: 14px;
+  border-top: 1px solid var(--border);
+  background: var(--panel);
+}
+.page-economico .scroll-sync-bar-inner {
+  /* width se setea desde economico.js render() según MONTH_KEYS.length:
+   * 200 (col-fixed) + 80 (col-second) + N × 90 (col-month). */
+  height: 1px;
+}
+.page-economico .scroll-sync-bar::-webkit-scrollbar {
+  height: 12px;
+}
+.page-economico .scroll-sync-bar::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 4px;
+}
+.page-economico table { width: max-content; min-width: 100%; border-collapse: collapse; }
+.page-economico th, .page-economico td { padding: 0.4rem 0.7rem; white-space: nowrap; }
+.page-economico td.num { text-align: right; font-variant-numeric: tabular-nums; }
+
+.page-economico .col-fixed {
+  position: sticky; left: 0; background: var(--bg); z-index: 2;
+  min-width: 200px; max-width: 200px;
+  overflow: hidden; text-overflow: ellipsis;
+  border-right: 1px solid var(--border);
+}
+/* Segunda columna fija (default/base) — sticky al lado de col-fixed para
+ * que todos los paneles tengan el mismo ancho total de columnas fijas antes
+ * de los meses, y el scroll horizontal sincronizado se alinee perfectamente.
+ * Total fijo = 200 + 80 = 280px, idéntico en los 4 paneles. */
+.page-economico .col-second {
+  position: sticky; left: 200px; background: var(--bg); z-index: 2;
+  min-width: 80px; max-width: 80px;
+  border-right: 1px solid var(--border);
+}
+.page-economico thead th.col-second { z-index: 5; background: var(--panel); }
+.page-economico tfoot td.col-second { z-index: 5; background: var(--panel); }
+.page-economico .col-month { min-width: 90px; max-width: 90px; }
+.page-economico thead th.col-fixed { z-index: 5; background: var(--bg); }
+.page-economico tfoot td.col-fixed { z-index: 5; background: var(--panel); }
+
+.page-economico tr.row-rubro-header td {
+  background: var(--panel);
+  color: var(--muted);
+  text-transform: uppercase;
+  font-size: 0.75rem;
+  letter-spacing: 0.05em;
+  border-top: 1px solid var(--border);
+}
+.page-economico tr.row-egreso td.cell-gasto {
+  background-color: var(--bg);
+  background-image: linear-gradient(rgba(227, 82, 79, 0.08), rgba(227, 82, 79, 0.08));
+}
+.page-economico tr.row-egreso td.col-fixed {
+  padding-left: 1.2rem;
+  color: var(--text);
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+.page-economico tr.row-subegreso td.cell-gasto {
+  background-color: var(--bg);
+  background-image: linear-gradient(rgba(227, 82, 79, 0.05), rgba(227, 82, 79, 0.05));
+}
+.page-economico tr.row-subegreso td {
+  color: rgba(230, 233, 239, 0.6);   /* más gris que --text */
+  font-size: 0.82rem;
+}
+.page-economico tr.row-subegreso td.col-fixed {
+  padding-left: 2.5rem;
+  color: rgba(230, 233, 239, 0.55);
+  font-style: italic;
+}
+/* row-subtotal: el col-fixed es sticky horizontal; para evitar bleed-through
+ * al hacer scroll, el fondo se compone como gradiente gris sobre bg sólido. */
+.page-economico tr.row-subtotal td {
+  background-color: var(--bg);
+  background-image: linear-gradient(rgba(138, 147, 162, 0.14), rgba(138, 147, 162, 0.14));
+  font-weight: 700;
+}
+.page-economico tr.row-subtotal td.col-fixed {
+  font-style: italic;
+  color: var(--text);
+  padding-left: 0.7rem;
+}
+
+/* Tfoot sticky bottom como BLOQUE único: en lugar de hacer sticky cada <td>
+   individualmente (que dejaba costuras entre filas por sub-pixel rounding),
+   hacemos sticky el <tfoot> entero. Así las tres filas se mueven juntas
+   pegadas y no hay espacio por el que el tbody pueda filtrarse. */
+.page-economico table { border-collapse: collapse; border-spacing: 0; }
+/* TOTAL GASTOS, RESULTADO, Rentabilidad % ahora son filas normales del
+ * tbody — no sticky. El usuario scrollea hasta el final para verlas.
+ * Decisión deliberada: preferimos eliminar bleed-through antes que tener
+ * las filas de total siempre visibles. */
+.page-economico tfoot { background: var(--panel); font-weight: 600; }
+.page-economico tfoot tr td { background-color: var(--panel); }
+.page-economico tfoot tr.row-total-gastos td { border-top: 2px solid var(--border); }
+
+.page-economico tr.row-total-gastos td {
+  background-color: var(--panel);
+  background-image: linear-gradient(rgba(227, 82, 79, 0.22), rgba(227, 82, 79, 0.22));
+  color: var(--err);
+}
+.page-economico tr.row-facturacion td {
+  background-color: var(--bg);
+  background-image: linear-gradient(rgba(79, 140, 255, 0.14), rgba(79, 140, 255, 0.14));
+  color: var(--accent);
+}
+.page-economico tr.row-facturacion td.cell-facturacion-proj {
+  background-color: var(--bg);
+  background-image: linear-gradient(rgba(79, 140, 255, 0.28), rgba(79, 140, 255, 0.28));
+  font-style: italic;
+}
+/* Cartel de mezcla real/proyectado (Económico y Horas). Ámbar: en esta app ya
+ * significa "dato a revisar", el mismo criterio que los precios diferenciados. */
+.aviso-mezcla {
+  border-left: 4px solid #e0b34d;
+  background: rgba(224, 179, 77, 0.14);
+  color: #f0dcae;
+  border-radius: 6px;
+  padding: 10px 14px;
+  margin: 0 0 12px;
+  font-size: 13px;
+}
+.aviso-mezcla .am-linea { margin: 0 0 6px; }
+.aviso-mezcla .am-detalle { margin: 0 0 10px; }
+.aviso-mezcla .am-detalle summary { cursor: pointer; opacity: .9; }
+.aviso-mezcla table { border-collapse: collapse; margin-top: 6px; font-size: 12px; }
+.aviso-mezcla th, .aviso-mezcla td { padding: 2px 10px 2px 0; text-align: left; }
+.aviso-mezcla td.num, .aviso-mezcla th.num { text-align: right; }
+
+/* MIXTO: mes abierto con parte ya facturada y parte proyectada. Ni el azul fuerte
+ * del proyectado ni el suave del real — lleva el ámbar del "ojo con esto", que en
+ * esta app ya significa dato a revisar (precios diferenciados, filas modificadas). */
+.page-economico tr.row-facturacion td.cell-facturacion-mixto {
+  background-color: var(--bg);
+  background-image: linear-gradient(rgba(224, 179, 77, 0.26), rgba(224, 179, 77, 0.26));
+  font-style: italic;
+}
+/* Recupero (entrada de plata): mismo estilo azul que row-facturacion para
+ * distinguir visualmente de los gastos. Aplica a conceptos cuyo código
+ * empieza con "descuento_" (deducciones que en realidad son plata que entra). */
+.page-economico tr.row-recupero td {
+  background-color: var(--bg);
+  background-image: linear-gradient(rgba(79, 140, 255, 0.14), rgba(79, 140, 255, 0.14));
+  color: var(--accent);
+}
+.page-economico tr.row-resultado td.cell-resultado-pos {
+  background-color: var(--panel);
+  background-image: linear-gradient(rgba(56, 193, 114, 0.22), rgba(56, 193, 114, 0.22));
+  color: var(--ok);
+}
+.page-economico tr.row-resultado td.cell-resultado-neg {
+  background-color: var(--panel);
+  background-image: linear-gradient(rgba(227, 82, 79, 0.22), rgba(227, 82, 79, 0.22));
+  color: var(--err);
+}
+.page-economico tr.row-rentabilidad td {
+  background-color: var(--panel);
+  font-size: 0.9rem;
+}
+.page-economico tr.row-rentabilidad td.cell-resultado-pos {
+  background-image: linear-gradient(rgba(56, 193, 114, 0.14), rgba(56, 193, 114, 0.14));
+  color: var(--ok);
+}
+.page-economico tr.row-rentabilidad td.cell-resultado-neg {
+  background-image: linear-gradient(rgba(227, 82, 79, 0.14), rgba(227, 82, 79, 0.14));
+  color: var(--err);
+}
+
+.form-field { margin-bottom: 0.75rem; }
+.form-field label { display: flex; flex-direction: column; gap: 0.25rem; font-size: 0.85rem; color: var(--muted); }
+.form-field input, .form-field select {
+  background: var(--bg); border: 1px solid var(--border); color: var(--text);
+  border-radius: 4px; padding: 0.4rem 0.5rem;
+}
+
+/* =====================================================================
+   Horas × Precio × Facturación
+   ===================================================================== */
+.page-horas { height: 100vh; overflow: hidden; display: flex; flex-direction: column; }
+.page-horas > header { flex: 0 0 auto; }
+.page-horas > main {
+  flex: 1; min-height: 0; overflow: hidden;
+  display: flex; flex-direction: column;
+  padding: 0.5rem 8px; max-width: none; margin: 0;
+}
+.page-horas .zone-fixed { flex: 0 0 auto; }
+.page-horas .zone-fixed .scroll-x {
+  overflow: auto;
+  max-height: 30vh;
+}
+.page-horas .zone-grow {
+  flex: 1; min-height: 0;
+  display: flex; flex-direction: column; overflow: hidden;
+}
+.page-horas [data-role=horas-container] {
+  flex: 1; min-height: 0; overflow: auto;
+}
+.page-horas table { border-collapse: collapse; border-spacing: 0; width: max-content; }
+.page-horas th, .page-horas td { padding: 0.3rem 0.5rem; white-space: nowrap; font-size: 0.82rem; }
+.page-horas td.num { text-align: right; font-variant-numeric: tabular-nums; }
+
+.page-horas .col-fixed {
+  position: sticky; left: 0; background: var(--bg);
+  min-width: 220px; max-width: 220px;
+  overflow: hidden; text-overflow: ellipsis;
+  border-right: 1px solid var(--border);
+  z-index: 2;
+}
+.page-horas thead th { position: sticky; top: 0; background: var(--bg); z-index: 3; }
+.page-horas thead th.col-fixed { z-index: 5; }
+.page-horas thead th.col-month-head {
+  text-align: center; border-left: 1px solid var(--border);
+}
+.page-horas thead th.col-sub { color: var(--muted); font-weight: 500; font-size: 0.7rem; }
+
+.page-horas td.cell-real { background: transparent; }
+.page-horas td.cell-proyectado { background: rgba(79, 140, 255, 0.14); color: var(--accent); }
+.page-horas td.cell-manual { background: rgba(56, 193, 114, 0.16); color: var(--ok); font-weight: 600; }
+.page-horas td.cell-zero { color: rgba(138, 147, 162, 0.35); }
+.page-horas td.cell-sin-precio {
+  background: rgba(138, 147, 162, 0.14);
+  color: rgba(230, 233, 239, 0.35);
+  font-style: italic;
+}
+/* Celdas de tipo_precio='fijo': facturación = monto mensual (no horas×precio).
+   Se marca en gris + italic para indicar que son montos fijos; las horas son
+   estimadas. */
+.page-horas td.cell-fijo {
+  color: rgba(230, 233, 239, 0.65);
+  font-style: italic;
+}
+.page-horas td.cell-fijo-horas {
+  color: rgba(246, 176, 64, 0.85);
+  font-style: italic;
+}
+/* Incongruencias: naranja suave (regla 1-2-4) e intenso (regla 3). Ganan a los
+   fondos de cell-real/proyectado/manual para destacarse visualmente. */
+.page-horas td.cell-incongr {
+  background: rgba(246, 176, 64, 0.3) !important;
+  color: var(--warn) !important;
+  cursor: help;
+}
+.page-horas td.cell-incongr-fuerte {
+  background: rgba(246, 176, 64, 0.55) !important;
+  color: var(--warn) !important;
+  font-weight: 700;
+  cursor: help;
+}
+.page-horas td[data-editable="1"] { cursor: pointer; }
+.page-horas td[data-editable="1"]:hover { outline: 1px dashed var(--accent); }
+
+.page-horas tfoot tr { background: var(--panel); }
+.page-horas tfoot td {
+  position: sticky; bottom: 0; background: var(--panel);
+  font-weight: 700; z-index: 4; border-top: 2px solid var(--border);
+}
+.page-horas tfoot td.col-fixed { z-index: 6; left: 0; }
+.page-horas td.cell-total { background: rgba(138, 147, 162, 0.12); }
+
+/* Tabla de totales arriba (métricas) */
+.page-horas [data-role=tabla-totales] { width: max-content; }
+.page-horas [data-role=tabla-totales] td { padding: 0.4rem 0.6rem; }
+.page-horas [data-role=tabla-totales] .cell-dif-pos { color: var(--ok); }
+.page-horas [data-role=tabla-totales] .cell-dif-neg { color: var(--err); }
+/* Detalle Calc vs Real: destacar celdas con Δ% elevado. */
+.page-horas td.cell-delta-orange {
+  background: rgba(246, 176, 64, 0.28);
+  color: var(--warn);
+  font-weight: 600;
+}
+.page-horas td.cell-delta-red {
+  background: rgba(227, 82, 79, 0.35);
+  color: var(--err);
+  font-weight: 700;
+}
+.page-horas [data-role=detalle-section] { padding-top: 0.4rem; }
+.page-horas [data-role=detalle-container] { flex: 1; min-height: 0; overflow: auto; }
+.page-horas [data-role=tabla-detalle] { width: max-content; }
+
+.page-economico .parametros-panel {
+  flex: 0 0 auto;
+  margin-bottom: 0.5rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 0.3rem 0.5rem;
+  background: var(--panel);
+}
+.page-economico .parametros-panel .row { align-items: center; gap: 0.6rem; padding: 0.2rem 0; }
+.page-economico .parametros-title { font-size: 0.95rem; margin: 0; }
+.page-economico .btn-small { padding: 0.15rem 0.5rem; font-size: 0.8rem; }
+.page-economico [data-role=parametros-container] {
+  max-height: 45vh;
+  overflow: auto;
+}
+.page-economico [data-role=tabla-parametros] {
+  width: max-content; min-width: 100%; border-collapse: collapse;
+  font-size: 0.85rem;
+}
+.page-economico [data-role=tabla-parametros] th,
+.page-economico [data-role=tabla-parametros] td {
+  padding: 0.2rem 0.4rem; border-bottom: 1px solid var(--border);
+}
+.page-economico [data-role=tabla-parametros] .col-month-param { min-width: 56px; }
+.page-economico .col-base-inline { color: var(--muted); font-size: 0.85em; font-weight: 400; }
+.page-economico .input-param {
+  width: 100%; box-sizing: border-box;
+  padding: 0.1rem 0.25rem; font: inherit; text-align: right;
+  background: transparent; color: inherit; border: 1px solid transparent;
+}
+.page-economico .input-param:hover { border-color: var(--border); }
+.page-economico .input-param:focus { border-color: var(--accent); outline: none; background: var(--bg); }
+.page-economico .input-param-default { font-weight: 600; }
+.page-economico .input-param-override { background: rgba(138, 147, 162, 0.14); font-weight: 600; }
+
+.page-economico .indices-panel {
+  flex: 0 0 auto;
+  margin-bottom: 0.4rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 0.3rem 0.5rem;
+  background: var(--panel);
+}
+.page-economico .indices-panel .row { align-items: center; gap: 0.6rem; padding: 0.2rem 0; }
+.page-economico [data-role=indices-container] { overflow: auto; }
+.page-economico [data-role=tabla-indices] {
+  width: max-content; min-width: 100%; border-collapse: collapse;
+  font-size: 0.85rem;
+}
+.page-economico [data-role=tabla-indices] th,
+.page-economico [data-role=tabla-indices] td {
+  padding: 0.2rem 0.4rem; border-bottom: 1px solid var(--border);
+}
+.page-economico [data-role=tabla-indices] .col-month-param { min-width: 56px; }
+.page-economico [data-role=tabla-indices] .col-default { min-width: 80px; }
+.page-economico .btn-collapse {
+  background: transparent; border: 1px solid var(--border);
+  padding: 0.2rem 0.6rem; border-radius: 4px; cursor: pointer;
+  color: inherit; font-weight: 600;
+}
+.page-economico .btn-collapse:hover { background: var(--hover); }
+
+/* Configuración: tablas editables inline. */
+/* Override del overflow:hidden de .page-economico para configuracion: necesita
+ * scroll vertical normal del viewport (no tiene grilla con scroll interno). */
+.page-config > main { overflow-y: auto; overflow-x: hidden; }
+
+/* Sección Vacaciones de Configuración: distinción visual entre Mes Inicio
+ * (verde) y Mes Fin (rojo) para evitar confundirlos. */
+.page-config select[data-role=vac-mes-inicio] {
+  border: 1px solid #4caf50 !important;
+  background: rgba(76,175,80,0.10) !important;
+}
+.page-config select[data-role=vac-mes-fin] {
+  border: 1px solid #e53935 !important;
+  background: rgba(229,57,53,0.10) !important;
+}
+.page-config label.vac-label-inicio { color: #2e7d32; font-weight: 600; }
+.page-config label.vac-label-fin    { color: #c62828; font-weight: 600; }
+
+.page-config table { width: 100%; border-collapse: collapse; margin: 0.2rem 0; font-size: 0.85rem; }
+.page-config th, .page-config td { padding: 0.3rem 0.5rem; border-bottom: 1px solid var(--border); text-align: center; }
+.page-config th { background: var(--panel); font-weight: 600; }
+.page-config input[type=number], .page-config input[type=text], .page-config select {
+  background: transparent; color: inherit; border: 1px solid transparent;
+  padding: 0.15rem 0.3rem; text-align: right; font: inherit; width: 100%;
+  box-sizing: border-box;
+}
+.page-config input[type=number]:hover, .page-config input[type=text]:hover,
+.page-config select:hover { border-color: var(--border); }
+.page-config input[type=number]:focus, .page-config input[type=text]:focus,
+.page-config select:focus { border-color: var(--accent); outline: none; background: var(--bg); }
+.page-config input[type=checkbox] { transform: scale(1.1); }
+
+.config-toast {
+  position: fixed; bottom: 1rem; right: 1rem;
+  background: var(--accent); color: #fff;
+  padding: 0.5rem 1rem; border-radius: 6px;
+  font-size: 0.9rem; font-weight: 600;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.3); z-index: 100;
+}
+.config-toast.toast-error { background: var(--err); }
+
+/* Modal de edición de cuentas — colores del tema oscuro.
+ * El UA stylesheet de <dialog> resetea color/background, y la regla
+ * genérica .page-config input{color:inherit; text-align:right} hereda ese
+ * default. Forzamos los colores del tema y text-align:left para campos
+ * de formulario (no son números a alinear a la derecha). */
+.page-cuentas dialog[data-role=modal-edit] {
+  background: var(--panel);
+  color: var(--text);
+}
+.page-cuentas dialog[data-role=modal-edit] h3,
+.page-cuentas dialog[data-role=modal-edit] h4,
+.page-cuentas dialog[data-role=modal-edit] label {
+  color: var(--text);
+}
+.page-cuentas dialog[data-role=modal-edit] input[type=text],
+.page-cuentas dialog[data-role=modal-edit] input[type=number],
+.page-cuentas dialog[data-role=modal-edit] input[type=search],
+.page-cuentas dialog[data-role=modal-edit] select,
+.page-cuentas dialog[data-role=modal-edit] textarea {
+  background: var(--bg);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 0.3rem 0.5rem;
+  font: inherit;
+  text-align: left;
+}
+.page-cuentas dialog[data-role=modal-edit] input:focus,
+.page-cuentas dialog[data-role=modal-edit] select:focus,
+.page-cuentas dialog[data-role=modal-edit] textarea:focus {
+  border-color: var(--accent);
+  outline: none;
+}
+.page-cuentas dialog[data-role=modal-edit] option {
+  background: var(--panel);
+  color: var(--text);
+}
+
+/* Configuración: mostrar scrollbars en los contenedores de tabla
+ * (override del page-economico que los oculta). */
+.page-config .scroll-both {
+  overflow-x: auto !important;
+  overflow-y: auto;
+  scrollbar-width: auto !important;
+  -ms-overflow-style: auto !important;
+}
+.page-config .scroll-both::-webkit-scrollbar {
+  width: 10px !important;
+  height: 10px !important;
+  display: block !important;
+  background: var(--panel);
+}
+.page-config .scroll-both::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 4px;
+}
+
+.page-financiero .btn-delete { background: transparent; color: var(--err); border-color: transparent; padding: 0.1rem 0.4rem; }
+.page-financiero .btn-delete:hover { background: rgba(227, 82, 79, 0.15); }
+.page-financiero tr.row-cobros td { background: rgba(56, 193, 114, 0.1); }
+.page-financiero tr.row-pagos td { background: rgba(227, 82, 79, 0.08); }
+.page-financiero tr.row-saldo-acum td { background: rgba(79, 140, 255, 0.1); border-top: 1px solid var(--border); }
+.page-financiero [data-role=tabla-financiero] th:first-child,
+.page-financiero [data-role=tabla-financiero] td:first-child {
+  position: sticky; left: 0; background: var(--panel); z-index: 2;
+}
+.page-financiero [data-role=tabla-financiero] th.col-inactivo {
+  background: rgba(80, 80, 90, 0.4);
+  color: var(--muted);
+}
+.page-financiero [data-role=tabla-financiero] td.col-inactivo {
+  background: rgba(80, 80, 90, 0.08);
+  opacity: 0.7;
+}
+.page-financiero .vista-selector { display: inline-flex; gap: 0.25rem; margin-left: 0.5rem; }
+.page-financiero .btn-vista-active { background: var(--accent); color: #fff; font-weight: 600; }
+
+/* Barra sticky de navegación de meses. */
+.page-financiero .mes-nav-sticky {
+  position: sticky; top: 0; z-index: 50;
+  background: var(--bg);
+  border-bottom: 1px solid var(--border);
+  padding: 0.4rem 0.5rem;
+  margin: 0 -8px 0.4rem -8px;
+}
+.page-financiero .mes-nav-row {
+  display: flex; align-items: center; flex-wrap: wrap; gap: 0.35rem;
+}
+.page-financiero .mes-quick {
+  display: inline-flex; gap: 2px; margin-left: 0.5rem; flex-wrap: wrap;
+}
+.page-financiero .mes-quick button {
+  background: transparent; border: 1px solid var(--border);
+  color: inherit; padding: 0.2rem 0.5rem; border-radius: 3px;
+  font-size: 0.78rem; cursor: pointer; font-weight: 600;
+  min-width: 42px;
+}
+.page-financiero .mes-quick button:hover { background: var(--panel); }
+.page-financiero .mes-quick button.active {
+  background: var(--accent); color: #fff; border-color: var(--accent);
+}
+
+/* Scroll horizontal visible en financiero (el page-economico lo oculta por
+ * defecto con scrollbar-width:none; este override lo vuelve a mostrar). */
+.page-financiero [data-role=financiero-container],
+.page-financiero [data-role=financiero-container].scroll-both {
+  scrollbar-width: auto !important;
+  -ms-overflow-style: auto !important;
+}
+
+/* === Layout de scroll del Financiero =================================
+ * Solo la tabla scrollea. <main> NO scrollea (pisa el
+ * .page-config > main { overflow-y: auto }). financiero-section es flex
+ * column que llena el espacio restante; dentro, el financiero-container
+ * (scroll-both) ocupa todo lo disponible con su propio scroll vertical
+ * y horizontal. Así el sticky thead y la primera columna sticky se
+ * anclan correctamente al scrollear. Específico a .page-financiero. */
+.page-financiero > main {
+  overflow: hidden;
+}
+.page-financiero [data-role=financiero-section] {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+.page-financiero [data-role=financiero-section] > .row {
+  flex: 0 0 auto;
+}
+.page-financiero [data-role=financiero-container].scroll-both {
+  flex: 1 1 auto;
+  min-height: 0;
+  max-height: none;
+}
+
+/* === FIX 1: Header CONCEPTO sticky bidimensional ====================
+ * Header esquina superior izquierda: sticky en dos ejes (top+left)
+ * con z-index alto para no ser tapado por celdas del tbody que también
+ * son sticky a la izquierda (regla anterior los pone en z-index:2).
+ * Specificity (0,3,2) > regla 933 (0,3,1). */
+.page-financiero [data-role=tabla-financiero] thead th:first-child {
+  z-index: 5;
+}
+
+/* === FIX A: Thead opaco en TODA la fila ============================
+ * Las reglas de col-first-of-month y col-retiros tenían bg rgba con
+ * !important — dejaban ver el tbody al scrollear. Acá forzamos bg
+ * opaco var(--bg) y recuperamos el tinte de color con box-shadow inset
+ * (que pinta encima del bg sin reemplazarlo). */
+.page-financiero [data-role=tabla-financiero] thead th {
+  background: var(--panel) !important;
+}
+.page-financiero [data-role=tabla-financiero] thead th.col-first-of-month {
+  box-shadow: inset 0 0 0 999px rgba(79, 140, 255, 0.35);
+}
+.page-financiero [data-role=tabla-financiero] thead th.col-retiros {
+  box-shadow: inset 0 0 0 999px rgba(79, 140, 255, 0.25);
+}
+
+/* === FIX B+C: Filas SALDO DEL DÍA y SALDO ACUMULADO en <tfoot> sticky
+ * El <tfoot> entero es sticky-bottom como BLOQUE. Las dos filas se
+ * mueven juntas, sin magic numbers — el tfoot ocupa exactamente el
+ * alto natural de sus dos filas. Background opaco en todas las celdas
+ * para que las clases col-inactivo/col-retiros no las transparenten. */
+.page-financiero [data-role=tabla-financiero] tfoot {
+  position: sticky;
+  bottom: 0;
+  z-index: 3;
+}
+.page-financiero [data-role=tabla-financiero] tfoot td {
+  background: var(--panel) !important;
+}
+.page-financiero [data-role=tabla-financiero] tfoot tr.row-saldo-acum td {
+  border-top: 1px solid var(--border);
+}
+/* Primera celda del tfoot también sticky a la izquierda (la regla 933
+ * de td:first-child afecta a thead/tbody pero conviene reforzarla acá
+ * con z-index mayor para que las celdas numéricas sticky-bottom del
+ * tfoot no la tapen al hacer scroll horizontal). */
+.page-financiero [data-role=tabla-financiero] tfoot td:first-child {
+  position: sticky;
+  left: 0;
+  z-index: 4;
+}
+
+.page-financiero ::-webkit-scrollbar {
+  width: 12px !important;
+  height: 12px !important;
+  display: block !important;
+  background: #444 !important;
+}
+.page-financiero ::-webkit-scrollbar-thumb {
+  background: #888 !important;
+  border-radius: 6px !important;
+}
+.page-financiero ::-webkit-scrollbar-thumb:hover {
+  background: #aaa !important;
+}
+.page-financiero ::-webkit-scrollbar-track {
+  background: #2a2a2a !important;
+}
+
+/* Badge prominente "Econ actualizado" — amarillo sobre oscuro. */
+.page-financiero .econ-badge {
+  display: inline-block;
+  background: #F5A623;
+  color: #1a1a1a;
+  font-weight: 700;
+  font-size: 0.78rem;
+  padding: 0.15rem 0.55rem;
+  border-radius: 4px;
+  border: 2px solid #C78700;
+  margin-left: 0.5rem;
+  letter-spacing: 0.02em;
+}
+.page-financiero .econ-badge.econ-badge-warn {
+  background: #E3524F; color: #fff; border-color: #992a28;
+}
+
+/* Banner permanente "Económico actualizado" — ámbar suave, bloque. */
+.page-financiero .econ-banner {
+  background: rgba(245, 166, 35, 0.12);
+  color: var(--text);
+  border: 1px solid #C78700;
+  border-left: 4px solid #F5A623;
+  border-radius: 4px;
+  padding: 0.6rem 0.85rem;
+  margin: 0.5rem 0;
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+.page-financiero .econ-banner .econ-banner-aviso {
+  font-size: 0.82rem;
+  opacity: 0.85;
+  margin-top: 0.25rem;
+}
+.page-financiero .econ-banner.econ-banner-warn {
+  background: rgba(227, 82, 79, 0.12);
+  border-color: #992a28;
+  border-left-color: #E3524F;
+}
+.page-financiero [data-role=tabla-financiero] { width: max-content; min-width: 100%; }
+/* Celda de pago con hover/click visual. */
+.page-financiero td.pago-cell { cursor: pointer; transition: background 0.1s; }
+.page-financiero td.pago-cell:hover { background: rgba(227, 82, 79, 0.2); }
+.page-financiero td.pagado {
+  text-decoration: line-through; opacity: 0.6; color: var(--muted) !important;
+  background: rgba(56, 193, 114, 0.12);
+}
+.page-financiero [data-role=tabla-financiero] th.col-retiros {
+  color: var(--accent); font-weight: 700;
+}
+.page-financiero [data-role=tabla-financiero] td.col-retiros {
+  background: rgba(79, 140, 255, 0.07);
+}
+.page-financiero [data-role=tabla-financiero] tr.row-saldo-acum td.col-retiros {
+  font-weight: 800; color: var(--accent) !important;
+  text-decoration: underline;
+}
+.page-financiero [data-role=tabla-financiero] th.col-first-of-month {
+  border-left: 3px solid var(--accent);
+  font-weight: 800;
+  font-size: 0.78rem;
+  padding-top: 0.5rem; padding-bottom: 0.3rem;
+}
+.page-financiero [data-role=tabla-financiero] td.col-first-of-month {
+  border-left: 3px solid var(--accent);
+}
+
+/* Banner amarillo: aviso de saldo bancario desactualizado en Financiero.
+ * Layout horizontal compacto en una línea (con flex-wrap si no entra). */
+.page-financiero .saldo-banner {
+  margin: 0.3rem 0.5rem;
+  padding: 0.35rem 0.7rem;
+  border: 1px solid #d4a017;
+  border-radius: 4px;
+  background: rgba(255, 200, 50, 0.10);
+  color: var(--text);
+  font-size: 0.85rem;
+  display: flex; flex-wrap: wrap; align-items: center;
+  gap: 0.3rem 0.6rem;
+}
+.page-financiero .saldo-banner-title { font-weight: 700; color: #d4a017; }
+.page-financiero .saldo-banner-body strong { color: var(--accent); }
+.page-financiero .saldo-banner-actions { display: inline-flex; gap: 0.4rem; margin-left: auto; }
+.page-financiero .saldo-banner-actions button { padding: 0.2rem 0.5rem; font-size: 0.85rem; }
+.page-financiero .saldo-banner-actions button:disabled {
+  opacity: 1; cursor: default;
+  background: var(--accent); color: #fff; font-weight: 600;
+}
+
+/* Unificación visual de todas las tablas económicas (main + paneles). */
+.page-economico [data-role=tabla-indices],
+.page-economico [data-role=tabla-parametros],
+.page-economico [data-role=tabla-valores] {
+  font-size: 0.9rem;
+}
+.page-economico [data-role=tabla-indices] th,
+.page-economico [data-role=tabla-parametros] th,
+.page-economico [data-role=tabla-valores] th,
+.page-economico [data-role=tabla-economico] th {
+  text-align: center;
+  font-weight: 700;
+  background: var(--panel);
+  position: sticky; top: 0; z-index: 3;
+}
+.page-economico [data-role=tabla-indices] td.col-fixed,
+.page-economico [data-role=tabla-parametros] td.col-fixed,
+.page-economico [data-role=tabla-valores] td.col-fixed,
+.page-economico [data-role=tabla-economico] td.col-fixed {
+  text-align: left;
+}
+.page-economico td.col-indent { padding-left: 2rem; color: var(--muted); font-style: italic; }
+/* Filas % bajo cada categoría: fondo levemente distinto. */
+.page-economico tr.row-pct td { background: rgba(138, 147, 162, 0.06); }
+.page-economico tr.row-pct input { font-size: 0.85rem; color: var(--muted); }
+/* Celdas estimadas (forward-fill sin dato explícito). */
+.page-economico input.cell-estimado {
+  color: var(--muted);
+  font-style: italic;
+}
+/* Consistencia de ancho de columnas de mes en todos los paneles. */
+.page-economico .col-month { min-width: 100px; }
+
+/* =====================================================================
+ * Página de inicio: grilla de tarjetas con acceso a módulos.
+ * ===================================================================== */
+.page-inicio .inicio-main {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 40px 24px;
+}
+.page-inicio .inicio-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 20px;
+}
+.page-inicio .inicio-card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 24px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  text-decoration: none;
+  color: inherit;
+  transition: border-color 0.15s, transform 0.15s, background 0.15s;
+}
+.page-inicio .inicio-card:hover {
+  border-color: var(--accent);
+  background: rgba(79, 140, 255, 0.06);
+  transform: translateY(-2px);
+}
+.page-inicio .inicio-icon { font-size: 38px; line-height: 1; }
+.page-inicio .inicio-title {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--fg);
+}
+.page-inicio .inicio-desc {
+  font-size: 13px;
+  color: var(--muted);
+  line-height: 1.4;
+}
+
+/* =====================================================================
+ * Modales de financiero (Paso 5a — edición de items y selector)
+ * El user-agent stylesheet del <dialog> nativo sobreescribe los colores
+ * heredados; estas reglas restablecen el contraste consistente con el
+ * tema oscuro del resto de inputs.
+ * ===================================================================== */
+
+dialog[data-role="item-modal"],
+dialog[data-role="item-list-modal"] {
+  background: var(--bg);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+dialog[data-role="item-modal"]::backdrop,
+dialog[data-role="item-list-modal"]::backdrop {
+  background: rgba(0, 0, 0, 0.6);
+}
+dialog[data-role="item-modal"] h3,
+dialog[data-role="item-list-modal"] h3 {
+  color: var(--text);
+  margin: 0 0 0.6rem 0;
+}
+dialog[data-role="item-modal"] label {
+  color: var(--muted);
+  font-size: 0.85rem;
+  display: block;
+}
+dialog[data-role="item-modal"] input[type="text"],
+dialog[data-role="item-modal"] input[type="number"],
+dialog[data-role="item-modal"] input[type="date"] {
+  background: #0b0e12;
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 0.35rem 0.5rem;
+  font-size: 0.9rem;
+  width: 100%;
+  box-sizing: border-box;
+  margin-top: 0.2rem;
+}
+dialog[data-role="item-modal"] input[type="text"]:focus,
+dialog[data-role="item-modal"] input[type="number"]:focus,
+dialog[data-role="item-modal"] input[type="date"]:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+dialog[data-role="item-modal"] input[type="checkbox"] {
+  accent-color: var(--accent);
+  width: auto;
+  margin: 0;
+}
+dialog[data-role="item-modal"] input[disabled] {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+dialog[data-role="item-modal"] hr {
+  border: 0;
+  border-top: 1px solid var(--border);
+  margin: 0.4rem 0;
+}
+dialog[data-role="item-modal"] .modal-readonly {
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+dialog[data-role="item-modal"] .modal-readonly span {
+  color: var(--text);
+}
+
+/* Selector de items (cuando hay 2+ en la misma celda) */
+dialog[data-role="item-list-modal"] ul li button {
+  background: #0b0e12;
+  color: var(--text);
+  border: 1px solid var(--border);
+  padding: 0.5rem 0.75rem;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.9rem;
+}
+dialog[data-role="item-list-modal"] ul li button:hover {
+  border-color: var(--accent);
+}
+
+/* Drag & drop de pagos en vista día (Paso 5b) */
+td.pago-cell[draggable="true"] { cursor: grab; }
+td.pago-cell.dragging { opacity: 0.4; }
+td.venc { outline: 2px solid var(--err); outline-offset: -2px; }
+td.venc.drag-over { outline-color: var(--accent); }
+td.drag-over { outline: 2px solid var(--accent); outline-offset: -2px; }
+body.dragging-active,
+body.dragging-active * { cursor: grabbing !important; }
+
+/* =====================================================================
+ * Overlay de carga (financiero.html — productor de cobros_calculados_diario)
+ * Bloquea interacción y muestra spinner centrado mientras se regeneran datos.
+ * ===================================================================== */
+
+.loading-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 20, 25, 0.75);
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: all;
+}
+.loading-overlay[hidden] { display: none; }
+.loading-overlay-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+  padding: 2rem 3rem;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  min-width: 240px;
+}
+.loading-spinner {
+  width: 48px;
+  height: 48px;
+  border: 4px solid var(--border);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: loading-spin 0.8s linear infinite;
+}
+@keyframes loading-spin {
+  to { transform: rotate(360deg); }
+}
+.loading-text {
+  color: var(--text);
+  font-size: 0.95rem;
+  font-weight: 500;
+}
+
+/* Items huérfanos en Financiero: SOLO fondo amarillo + texto negro. Aplica
+ * a celdas cuyo evento tiene huerfano=true (item con editado_manual=true
+ * cuyo codigo+mes_origen ya no genera buildItems). */
+.page-financiero tr.row-pagos td.huerfano {
+  background: rgba(255, 200, 0, 0.35);
+  color: #1a1a1a !important;
+  position: relative;
+}
+
+/* Items reprogramados (movidos de fecha por el usuario via drag o edición
+ * del modal): SOLO ⚠ naranja en esquina superior izquierda. Si la celda
+ * también es huerfano, fondo amarillo + ⚠ coexisten. */
+.page-financiero tr.row-pagos td.reprogramado {
+  position: relative;
+}
+.page-financiero td.reprogramado::after {
+  content: "⚠";
+  position: absolute;
+  top: 2px;
+  left: 4px;
+  font-size: 1em;
+  color: #cc8800;
+  opacity: 1;
+  z-index: 2;
+  pointer-events: none;
+}
+
+/* ============================================
+   Overrides Económico v2 (grilla nueva)
+   Anchos más generosos para nombres largos
+   y totales de 10+ dígitos.
+   ============================================ */
+.page-economico-v2 .col-fixed {
+  min-width: 280px;
+  max-width: 280px;
+}
+.page-economico-v2 .col-second {
+  left: 280px;            /* reposicionar sticky para coincidir con col-fixed */
+  min-width: 100px;
+  max-width: 100px;
+}
+.page-economico-v2 .col-month {
+  min-width: 115px;
+  max-width: 115px;
+}
+
+/* Botón "Cerrar mes" — fila adicional debajo del status del Económico v2.
+   Activo: bg distintivo + borde más grueso para destacar como acción seria.
+   Disabled: estilo neutro (muted). */
+.page-economico-v2 .controls-acciones {
+  display: flex;
+  align-items: center;
+  padding: 0 0 0.5rem;
+  gap: 0.5em;
+}
+.page-economico-v2 .controls-acciones button[data-role=btn-cerrar-mes] {
+  background: #c0392b;
+  color: #fff;
+  border: 2px solid #e74c3c;
+  padding: 0.4rem 0.9rem;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+.page-economico-v2 .controls-acciones button[data-role=btn-cerrar-mes]:hover:not(:disabled) {
+  background: #a8331e;
+  border-color: #c0392b;
+}
+.page-economico-v2 .controls-acciones button[data-role=btn-cerrar-mes]:disabled {
+  background: var(--panel);
+  color: var(--muted);
+  border: 1px solid var(--border);
+  cursor: not-allowed;
+  font-weight: 400;
+}
+
+/* Filas Recupero (negativo, naranja) y Neto (= bruto + recupero, cian).
+   Indent mayor que la cuenta padre (3em vs 4.5em) para reforzar jerarquía. */
+.page-economico-v2 .row-recupero td.col-fixed {
+  padding-left: 4.5em;
+  color: var(--muted);
+  font-size: 0.9em;
+}
+.page-economico-v2 .row-recupero td.col-second {
+  color: var(--muted);
+  font-size: 0.8em;
+}
+.page-economico-v2 .row-recupero td.col-month {
+  color: #d68910;  /* naranja para el negativo */
+}
+.page-economico-v2 .row-neto td.col-fixed {
+  padding-left: 4.5em;
+  font-style: italic;
+  color: #8da3c4;
+  font-size: 0.9em;
+}
+.page-economico-v2 .row-neto td.col-second {
+  font-style: italic;
+  color: #8da3c4;
+  font-size: 0.8em;
+}
+.page-economico-v2 .row-neto td.col-month {
+  font-style: italic;
+  color: #5dade2;  /* cian-azul para el neto calculado */
+  font-weight: 500;
+}
+
+/* Financiero v2: usa el approach de 3 tablas (header / body / footer) +
+   scroll-sync-bar, idéntico al Económico v2. Todas las reglas relevantes
+   viven en .page-economico .tabla-econ-*/.scroll-both/.scroll-sync-bar
+   (heredadas vía body class). Sin overrides específicos en B.3.a. */
+
+/* B.3.b — Tabla de saldos bancarios (arriba de la grilla). */
+.page-financiero-v2 .saldos-section {
+  flex: 0 0 auto;
+  max-height: 40vh;
+  display: flex;
+  flex-direction: column;
+  padding: 0.4rem 0.5rem 0.6rem;
+  gap: 0.4rem;
+}
+.page-financiero-v2 .saldos-row-actions {
+  display: flex; align-items: center; gap: 0.7rem;
+  font-size: 0.95rem;
+}
+.page-financiero-v2 .saldos-row-actions .btn-collapse-small {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: inherit;
+  font-size: 0.7rem;
+  padding: 0.1rem 0.35rem;
+  border-radius: 3px;
+  cursor: pointer;
+  min-width: 1.6rem;
+  text-align: center;
+}
+.page-financiero-v2 .saldos-row-actions .btn-collapse-small:hover {
+  background: var(--panel);
+}
+.page-financiero-v2 .saldos-status {
+  color: var(--muted);
+  font-size: 0.82rem;
+  flex: 1;
+}
+.page-financiero-v2 .btn-guardar-saldos:not(:disabled) {
+  background: #28a745;
+  color: #fff;
+  border-color: #28a745;
+  font-weight: 600;
+}
+.page-financiero-v2 .btn-guardar-saldos:not(:disabled):hover {
+  background: #1f8a37;
+}
+.page-financiero-v2 .saldos-table-wrap {
+  flex: 1; min-height: 0;
+  overflow: auto;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+}
+.page-financiero-v2 .tabla-saldos {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.88rem;
+  /* table-layout: fixed congela los anchos de columna a los del <colgroup>:
+     el ancho ya NO depende del contenido. Esto elimina el jitter visual al
+     hacer click en saldo-display (span) → input-saldo, aunque sus anchos
+     intrínsecos difieran levemente. */
+  table-layout: fixed;
+}
+.page-financiero-v2 .tabla-saldos thead th {
+  position: sticky; top: 0; z-index: 2;
+  background: var(--panel);
+  padding: 0.35rem 0.6rem;
+  border-bottom: 1px solid var(--border);
+}
+.page-financiero-v2 .tabla-saldos tr.saldos-group-header td {
+  background: rgba(138, 147, 162, 0.12);
+  padding: 0.3rem 0.7rem;
+  font-weight: 600;
+}
+.page-financiero-v2 .tabla-saldos tbody td {
+  padding: 0.25rem 0.6rem;
+  border-bottom: 1px solid rgba(138, 147, 162, 0.08);
+}
+.page-financiero-v2 .tabla-saldos .input-saldo {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: inherit;
+  padding: 0.18rem 0.35rem;
+  border-radius: 3px;
+  font-size: 0.88rem;
+  font-variant-numeric: tabular-nums;
+  font-family: inherit;
+  width: 100%;
+  box-sizing: border-box;
+}
+/* Input de saldo (type=text con máscara ARS) alineado a la derecha,
+   coherente con la celda del span clickable. */
+.page-financiero-v2 .tabla-saldos .input-saldo[data-field=saldo_inicial] {
+  text-align: right;
+}
+.page-financiero-v2 .tabla-saldos .input-saldo.dirty {
+  border-color: var(--accent);
+  background: rgba(138, 147, 162, 0.12);
+}
+.page-financiero-v2 .tabla-saldos .input-saldo.inv {
+  border-color: #dc3545;
+  background: rgba(220, 53, 69, 0.12);
+}
+/* Span clickable que reemplaza al input cuando NO está en edición.
+   Las propiedades de tamaño (padding, border-width, font, box-sizing,
+   width) coinciden EXACTAMENTE con .input-saldo arriba — así no hay
+   jitter cuando el span se intercambia por el input al hacer click. */
+.page-financiero-v2 .tabla-saldos .saldo-display {
+  display: inline-block;
+  padding: 0.18rem 0.35rem;
+  border: 1px solid transparent;
+  border-radius: 3px;
+  cursor: pointer;
+  font-size: 0.88rem;
+  font-family: inherit;
+  font-variant-numeric: tabular-nums;
+  width: 100%;
+  box-sizing: border-box;
+  text-align: right;
+}
+.page-financiero-v2 .tabla-saldos .saldo-display:hover {
+  border-color: var(--border);
+  background: rgba(138, 147, 162, 0.08);
+}
+.page-financiero-v2 .tabla-saldos .saldo-display:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+.page-financiero-v2 .tabla-saldos .saldo-display.dirty {
+  color: var(--accent);
+  font-weight: 600;
+}
+.page-financiero-v2 .tabla-saldos .saldo-display.inv {
+  color: #dc3545;
+  border-color: #dc3545;
+}
+.page-financiero-v2 .tabla-saldos tfoot .saldos-total-row td {
+  padding: 0.4rem 0.7rem;
+  border-top: 2px solid var(--border);
+  background: var(--panel);
+}
+
+/* B.4 — armazón temporal de la proyección (barra mes-nav + selector
+   vista + tabla con thead día/semana/mes). Sin filas todavía. */
+.page-financiero-v2 .mes-nav-sticky {
+  position: sticky; top: 0; z-index: 5;
+  background: var(--panel);
+  padding: 0.35rem 0.5rem;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+}
+.page-financiero-v2 .mes-nav-sticky button {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: inherit;
+  padding: 0.25rem 0.55rem;
+  border-radius: 3px;
+  cursor: pointer;
+  font-size: 0.85rem;
+}
+.page-financiero-v2 .mes-nav-sticky button:hover {
+  background: rgba(138, 147, 162, 0.12);
+}
+.page-financiero-v2 .mes-nav-sticky input[type=month] {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: inherit;
+  padding: 0.25rem 0.4rem;
+  border-radius: 3px;
+  font-size: 0.85rem;
+  color-scheme: dark;
+}
+.page-financiero-v2 .mes-nav-sticky .mes-quick {
+  display: flex;
+  gap: 0.18rem;
+  margin-left: 0.5rem;
+  flex-wrap: wrap;
+}
+.page-financiero-v2 .mes-nav-sticky .btn-mes-quick {
+  font-size: 0.74rem;
+  padding: 0.12rem 0.42rem;
+  min-width: 2.2rem;
+}
+.page-financiero-v2 .mes-nav-sticky .btn-mes-quick.active {
+  background: var(--accent);
+  color: #fff;
+  border-color: var(--accent);
+  font-weight: 600;
+}
+
+.page-financiero-v2 .proyeccion-section {
+  flex: 1; min-height: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 0.4rem 0.5rem 0.6rem;
+  gap: 0.4rem;
+  border-top: 1px solid var(--border);
+}
+.page-financiero-v2 .proyeccion-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+.page-financiero-v2 .vista-selector {
+  display: flex;
+  gap: 0.2rem;
+}
+.page-financiero-v2 .vista-selector button {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: inherit;
+  padding: 0.3rem 0.7rem;
+  border-radius: 3px;
+  cursor: pointer;
+  font-size: 0.85rem;
+}
+.page-financiero-v2 .vista-selector button:hover {
+  background: rgba(138, 147, 162, 0.12);
+}
+.page-financiero-v2 .vista-selector button.active {
+  background: var(--accent);
+  color: #fff;
+  border-color: var(--accent);
+  font-weight: 600;
+}
+.page-financiero-v2 .toggle-pagados {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.82rem;
+  cursor: pointer;
+  color: var(--muted);
+}
+.page-financiero-v2 .proyeccion-table-wrap {
+  flex: 1; min-height: 0;
+  overflow: auto;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+}
+.page-financiero-v2 [data-role=tabla-proyeccion] {
+  border-collapse: collapse;
+  font-size: 0.78rem;
+  width: max-content;
+  min-width: 100%;
+}
+.page-financiero-v2 [data-role=tabla-proyeccion] thead th {
+  position: sticky; top: 0; z-index: 5;   /* B.7.h — gana sobre tbody row-egreso-cc (z=2/3) y tfoot (z=3/4) */
+  background: var(--panel);
+  padding: 0.3rem 0.4rem;
+  border-bottom: 1px solid var(--border);
+  border-right: 1px solid rgba(138, 147, 162, 0.10);
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  text-align: center;
+  white-space: nowrap;
+  vertical-align: middle;   /* B.7.i — antes bottom; centra Concepto/Código en rows altos */
+  line-height: 1.15;
+}
+.page-financiero-v2 [data-role=tabla-proyeccion] thead th.col-fixed {
+  position: sticky; top: 0; left: 0; z-index: 7;   /* B.7.k — antes 6; sube porque col-second ahora usa 6 */
+  min-width: 240px;
+  max-width: 240px;
+  text-align: center;         /* B.7.j — antes "left"; centra "Concepto" */
+  background: var(--panel);   /* B.7.i — defensivo: garantizar opacidad sólida */
+}
+.page-financiero-v2 [data-role=tabla-proyeccion] thead th.col-second {
+  position: sticky; top: 0; z-index: 6;   /* B.7.k — antes 5; sube porque también es sticky-left */
+  min-width: 80px;
+  max-width: 80px;
+  background: var(--panel);   /* B.7.i — defensivo */
+  text-align: center;         /* B.7.i — centra "Código" */
+}
+.page-financiero-v2 [data-role=tabla-proyeccion] thead th.col-month {
+  min-width: 64px;
+}
+/* B.7.p — colores del nombre del día (lun/mar/.../sáb/dom) en vista día.
+   Feriado tiene prioridad sobre fin de semana en el JS, así que un sáb
+   feriado sale naranja. */
+.page-financiero-v2 [data-role=tabla-proyeccion] thead .dow-habil   { color: #5fa8e8; }   /* azul claro */
+.page-financiero-v2 [data-role=tabla-proyeccion] thead .dow-finde   { color: var(--err); }
+.page-financiero-v2 [data-role=tabla-proyeccion] thead .dow-feriado { color: var(--warn); }
+.page-financiero-v2 [data-role=tabla-proyeccion] thead th.col-inactivo {
+  background: rgba(138, 147, 162, 0.10);
+  color: var(--muted);
+}
+.page-financiero-v2 [data-role=tabla-proyeccion] thead th.col-retiros {
+  background: rgba(214, 137, 16, 0.18);  /* mismo naranja que recuperos en economico-v2 */
+}
+/* B.7.m — quitado el border-left accent de thead th.col-first-of-month.
+   La línea azul separadora ahora la dibuja col-second (box-shadow inset
+   right en B.7.l), y dejarlo acá generaba doble línea. */
+/* B.7.h — overrides defensivos en thead. Mismo problema que B.7.g en
+   tfoot: las reglas th.col-inactivo / col-retiros (rgba semitransparente)
+   ganan especificidad sobre `thead th { var(--panel) }`, así que el bg
+   queda transparente y las filas tbody se ven a través del header cuando
+   scrolleás vertical. Reemplazamos por color sólido pre-composteado
+   (var(--panel) #171d25 + tinte) para no romper la pista visual. */
+.page-financiero-v2 [data-role=tabla-proyeccion] thead tr th.col-inactivo {
+  background: #232932;   /* #171d25 + 10% rgba(138,147,162) */
+}
+.page-financiero-v2 [data-role=tabla-proyeccion] thead tr th.col-retiros {
+  background: #393021;   /* #171d25 + 18% rgba(214,137,16) */
+}
+.page-financiero-v2 [data-role=tabla-proyeccion] tbody td {
+  padding: 0.25rem 0.4rem;
+  /* B.7.k — antes border-bottom: interactuaba mal con border-collapse +
+     sticky y dejaba gaps transparentes que filtraban filas detrás. El
+     box-shadow inset no participa del layout de bordes de la tabla. */
+  box-shadow: inset 0 -1px 0 rgba(138, 147, 162, 0.08);
+}
+/* B.7.l — width exacto + box-sizing border-box para col-fixed y col-second
+   en TODOS los contextos. Sin esto, content-box + padding hace que el
+   ancho real sea ~14px más que 240px, y col-second left:240px se solapa
+   con col-fixed. Set una vez acá, las reglas por contexto solo agregan
+   posición/z-index/bg encima. */
+.page-financiero-v2 [data-role=tabla-proyeccion] td.col-fixed,
+.page-financiero-v2 [data-role=tabla-proyeccion] th.col-fixed {
+  box-sizing: border-box;
+  width: 240px;
+  min-width: 240px;
+  max-width: 240px;
+}
+.page-financiero-v2 [data-role=tabla-proyeccion] td.col-second,
+.page-financiero-v2 [data-role=tabla-proyeccion] th.col-second {
+  box-sizing: border-box;
+  width: 80px;
+  min-width: 80px;
+  max-width: 80px;
+}
+.page-financiero-v2 [data-role=tabla-proyeccion] tbody td.col-fixed {
+  position: sticky; left: 0; z-index: 2;   /* B.7.k — antes z=1; subió porque col-second usa z=1 */
+  background: var(--panel);
+  min-width: 240px;
+  max-width: 240px;
+}
+/* B.7.k — col-second sticky-left a 240px (= width exacto de col-fixed).
+   B.7.l — antes border-right que se perdía al scroll (border-collapse +
+   sticky). Reemplazado por box-shadow inset que no participa del layout
+   de bordes y acompaña siempre el sticky. */
+.page-financiero-v2 [data-role=tabla-proyeccion] td.col-second,
+.page-financiero-v2 [data-role=tabla-proyeccion] th.col-second {
+  position: sticky;
+  left: 240px;
+  box-shadow: inset -2px 0 0 var(--accent);
+}
+.page-financiero-v2 [data-role=tabla-proyeccion] tbody td.col-second {
+  z-index: 1;
+  background: var(--panel);   /* sino se vería transparente al scroll horizontal */
+  /* B.7.l — combino el accent right (línea azul) + el separador inferior
+     que normalmente vendría de tbody td. */
+  box-shadow: inset -2px 0 0 var(--accent), inset 0 -1px 0 rgba(138, 147, 162, 0.08);
+}
+.page-financiero-v2 [data-role=tabla-proyeccion] tbody td.col-month {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  font-size: 0.78rem;
+  white-space: nowrap;
+}
+.page-financiero-v2 [data-role=tabla-proyeccion] td.col-inactivo {
+  background: rgba(138, 147, 162, 0.06);
+}
+.page-financiero-v2 [data-role=tabla-proyeccion] td.col-retiros {
+  background: rgba(214, 137, 16, 0.08);
+}
+/* B.7.m — quitado el border-left accent de td.col-first-of-month.
+   La línea azul separadora la dibuja col-second (B.7.l). */
+/* B.5 — colores de las 2 filas de cobros. Mismo tono que el viejo:
+   vencido = warn (amarillo/naranja), no vencido = accent. */
+.page-financiero-v2 [data-role=tabla-proyeccion] td.cobro-vencido {
+  color: var(--warn);
+}
+.page-financiero-v2 [data-role=tabla-proyeccion] td.cobro-no-vencido {
+  color: var(--accent);
+}
+/* B.6 — fila de gastos bancarios (egreso fijo 0.5% sobre ingresos) */
+.page-financiero-v2 [data-role=tabla-proyeccion] tr.row-gastos-bancarios td {
+  color: #c97c7c;   /* B.7.f — rojo desaturado para egresos cotidianos */
+}
+.page-financiero-v2 [data-role=tabla-proyeccion] tr.row-gastos-bancarios td.col-fixed {
+  color: var(--muted);
+  font-style: italic;
+}
+/* B.6 — tfoot sticky-bottom: 2 filas (saldo del [día/período/mes]
+   + saldo acumulado). Mismo patrón que el viejo (1 tfoot sticky). */
+.page-financiero-v2 [data-role=tabla-proyeccion] tfoot td {
+  position: sticky; bottom: 0; z-index: 3;   /* B.7.c — sube de 2 a 3 */
+  background: var(--panel);
+  border-top: 1px solid var(--border);
+  padding: 0.3rem 0.4rem;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  font-size: 0.78rem;
+  white-space: nowrap;
+}
+.page-financiero-v2 [data-role=tabla-proyeccion] tfoot tr.row-saldo-delta td {
+  border-top: 2px solid var(--border);
+}
+.page-financiero-v2 [data-role=tabla-proyeccion] tfoot tr.row-saldo-delta td.col-fixed {
+  border-top: 2px solid var(--border);
+}
+.page-financiero-v2 [data-role=tabla-proyeccion] tfoot td.col-fixed {
+  position: sticky; left: 0; bottom: 0;
+  z-index: 5;   /* B.7.k — antes 4; sube porque col-second usa z=4 */
+  background: var(--panel);
+  text-align: left;
+}
+.page-financiero-v2 [data-role=tabla-proyeccion] tfoot td.col-second {
+  z-index: 4;   /* B.7.k — sticky-bottom (de tfoot td) + sticky-left a 240px (de la base col-second) */
+  background: var(--panel);
+}
+.page-financiero-v2 [data-role=tabla-proyeccion] td.saldo-negativo {
+  color: var(--err);
+}
+/* B.7.a — filas de egresos jerárquicas (CC → Rubro → Cuenta + recuperos + AFIP). */
+.page-financiero-v2 [data-role=tabla-proyeccion] tr.row-egreso-cc td {
+  background: #1c2434;
+  color: #fff;
+  font-weight: bold;
+  padding: 0.32rem 0.55rem;
+  text-align: left;
+  position: relative;
+  z-index: 2;
+}
+.page-financiero-v2 [data-role=tabla-proyeccion] tr.row-egreso-cc td.col-fixed {
+  position: sticky; left: 0; z-index: 4;   /* B.7.k — antes 3; sube porque col-second usa 3 */
+  background: #1c2434;
+  cursor: pointer;
+  user-select: none;
+}
+.page-financiero-v2 [data-role=tabla-proyeccion] tr.row-egreso-cc:hover td,
+.page-financiero-v2 [data-role=tabla-proyeccion] tr.row-egreso-cc:hover td.col-fixed {
+  background: #25304a;   /* B.7.d — brightness sutil al hover */
+}
+.page-financiero-v2 [data-role=tabla-proyeccion] tr.row-egreso-rubro td {
+  background: #2b3548;
+  color: #fff;            /* B.7.c — antes #cfd5e1 (poco contraste). */
+  font-weight: 600;
+  padding: 0.26rem 0.55rem 0.26rem 1.5em;
+  text-align: left;
+  position: relative;
+  z-index: 2;
+}
+.page-financiero-v2 [data-role=tabla-proyeccion] tr.row-egreso-rubro td.col-fixed {
+  position: sticky; left: 0; z-index: 4;   /* B.7.k — antes 3; sube porque col-second usa 3 */
+  background: #2b3548;
+  cursor: pointer;
+  user-select: none;
+}
+.page-financiero-v2 [data-role=tabla-proyeccion] tr.row-egreso-rubro:hover td,
+.page-financiero-v2 [data-role=tabla-proyeccion] tr.row-egreso-rubro:hover td.col-fixed {
+  background: #35415a;   /* B.7.d — brightness sutil al hover */
+}
+/* B.7.d — ícono ▶/▼ del toggle de plegado. Ancho fijo para que el texto
+   no se mueva al cambiar entre ▶ y ▼. */
+.page-financiero-v2 [data-role=tabla-proyeccion] .toggle-icon {
+  display: inline-block;
+  width: 1.2em;
+  font-size: 0.78rem;
+}
+
+/* B.7.e — celdas de subtotal en headers CC/Rubro: numéricas right-aligned,
+   tabular, color rojo claro visible sobre fondo oscuro. */
+.page-financiero-v2 [data-role=tabla-proyeccion] tr.row-egreso-cc td.subtotal-cc,
+.page-financiero-v2 [data-role=tabla-proyeccion] tr.row-egreso-rubro td.subtotal-rubro {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  color: #c97c7c;        /* B.7.f — rojo desaturado, consistente con egresos */
+  font-weight: 700;
+  padding: 0.32rem 0.4rem;
+}
+/* Mantenemos el bg del header (que es el dark CC/Rubro) sobre col-month
+   también — antes solo era para col-fixed. Sin esto, el bg de las cells
+   numéricas serían las heredadas (col-inactivo/retiros), y se vería raro. */
+.page-financiero-v2 [data-role=tabla-proyeccion] tr.row-egreso-cc td.col-month {
+  background: #1c2434;
+}
+.page-financiero-v2 [data-role=tabla-proyeccion] tr.row-egreso-cc td.col-second {
+  /* B.7.o — position/left/box-shadow explícitos: la regla genérica
+     `tr.row-egreso-cc td` setea position:relative con 0,3,2, ganándole a
+     `td.col-second, th.col-second` (0,3,1) que aporta sticky. Acá redeclaramos
+     con 0,4,2 para que CC col-second vuelva a ser sticky-left. */
+  position: sticky;
+  left: 240px;
+  z-index: 3;
+  background: #1c2434;
+  box-shadow: inset -2px 0 0 var(--accent);
+}
+.page-financiero-v2 [data-role=tabla-proyeccion] tr.row-egreso-rubro td.col-month {
+  background: #2b3548;
+}
+.page-financiero-v2 [data-role=tabla-proyeccion] tr.row-egreso-rubro td.col-second {
+  /* B.7.o — idéntico fix que CC: la regla genérica `tr.row-egreso-rubro td`
+     setea position:relative y cancelaba el sticky de la regla base
+     `td.col-second, th.col-second`. */
+  position: sticky;
+  left: 240px;
+  z-index: 3;
+  background: #2b3548;
+  box-shadow: inset -2px 0 0 var(--accent);
+}
+/* Hover: brillar TODO el row (col-fixed + col-second + col-month). */
+.page-financiero-v2 [data-role=tabla-proyeccion] tr.row-egreso-cc:hover td.col-month,
+.page-financiero-v2 [data-role=tabla-proyeccion] tr.row-egreso-cc:hover td.col-second {
+  background: #25304a;
+}
+.page-financiero-v2 [data-role=tabla-proyeccion] tr.row-egreso-rubro:hover td.col-month,
+.page-financiero-v2 [data-role=tabla-proyeccion] tr.row-egreso-rubro:hover td.col-second {
+  background: #35415a;
+}
+
+/* B.7.g — fix de overlay semi-transparente. Las reglas td.col-inactivo y
+   td.col-retiros (rgba con alpha bajo) ganan especificidad sobre tfoot td
+   { var(--panel) }, así que el bg queda transparente y se ve lo que pasa
+   por detrás (outlines de vencidos, col-first-of-month border, etc.). El
+   fix son overrides defensivos por contexto, con mayor especificidad. */
+.page-financiero-v2 [data-role=tabla-proyeccion] tfoot td.col-inactivo,
+.page-financiero-v2 [data-role=tabla-proyeccion] tfoot td.col-retiros,
+.page-financiero-v2 [data-role=tabla-proyeccion] tfoot td.col-first-of-month {
+  background: var(--panel);
+}
+.page-financiero-v2 [data-role=tabla-proyeccion] tr.row-egreso-cc td.col-inactivo,
+.page-financiero-v2 [data-role=tabla-proyeccion] tr.row-egreso-cc td.col-retiros,
+.page-financiero-v2 [data-role=tabla-proyeccion] tr.row-egreso-cc td.col-first-of-month {
+  background: #1c2434;
+}
+.page-financiero-v2 [data-role=tabla-proyeccion] tr.row-egreso-rubro td.col-inactivo,
+.page-financiero-v2 [data-role=tabla-proyeccion] tr.row-egreso-rubro td.col-retiros,
+.page-financiero-v2 [data-role=tabla-proyeccion] tr.row-egreso-rubro td.col-first-of-month {
+  background: #2b3548;
+}
+.page-financiero-v2 [data-role=tabla-proyeccion] tr.row-egreso-cuenta td.col-fixed {
+  padding-left: 3em;
+}
+.page-financiero-v2 [data-role=tabla-proyeccion] tr.row-egreso-cuenta td.col-second {
+  font-size: 0.72rem;
+  color: var(--muted);
+  text-align: center;
+}
+.page-financiero-v2 [data-role=tabla-proyeccion] tr.row-egreso-recupero td.col-fixed {
+  padding-left: 4em;
+  color: var(--muted);
+  font-style: italic;
+}
+.page-financiero-v2 [data-role=tabla-proyeccion] tr.row-egreso-recupero td.col-second {
+  font-size: 0.72rem;
+  color: var(--muted);
+  text-align: center;
+}
+.page-financiero-v2 [data-role=tabla-proyeccion] tr.row-egreso-neto td.col-fixed {
+  padding-left: 4em;
+  font-weight: 600;
+}
+.page-financiero-v2 [data-role=tabla-proyeccion] tr.row-egreso-neto td.col-second {
+  font-size: 0.72rem;
+  color: var(--muted);
+  text-align: center;
+}
+/* Colores de egresos en celdas numéricas. */
+.page-financiero-v2 [data-role=tabla-proyeccion] td.egreso-cuenta {
+  color: #c97c7c;   /* B.7.f — rojo desaturado para egresos cotidianos */
+}
+.page-financiero-v2 [data-role=tabla-proyeccion] td.egreso-recupero {
+  color: #d68910;   /* mismo naranja que en Económico v2 */
+}
+.page-financiero-v2 [data-role=tabla-proyeccion] td.egreso-neto {
+  color: #c97c7c;   /* B.7.f — rojo desaturado (NETO sigue al egreso principal) */
+  font-weight: 600;
+}
+.page-financiero-v2 [data-role=tabla-proyeccion] td.gasto-banc {
+  color: #c97c7c;   /* B.7.f — rojo desaturado */
+}
+/* B.7.b — marcas visuales en celdas con pagos vencidos o reprogramados.
+   Outline en vez de border para no afectar el box-model de la celda
+   (el ancho de columna queda fijo, sin jitter al rerender). */
+.page-financiero-v2 [data-role=tabla-proyeccion] td.celda-vencido {
+  /* B.7.l — antes outline 2px que se pintaba sobre el viewport entero y
+     atravesaba columnas fijas. Box-shadow inset queda contenido en el
+     box del cell, respeta sticky/z-index. */
+  box-shadow: inset 0 0 0 2px var(--err);
+  cursor: help;
+}
+.page-financiero-v2 [data-role=tabla-proyeccion] td.celda-reprogramado {
+  /* B.7.l — idem; perdemos el dashed pero ganamos contención. Sólido 1px
+     en accent es suficiente como marca visual. */
+  box-shadow: inset 0 0 0 1px var(--accent);
+  cursor: help;
+}
+/* B.7.b — disabled de botones de navegación de mes. */
+.page-financiero-v2 .mes-nav-sticky button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+.page-financiero-v2 .mes-nav-sticky .btn-mes-quick.disabled,
+.page-financiero-v2 .mes-nav-sticky .btn-mes-quick:disabled {
+  opacity: 0.4;
+  pointer-events: none;
+}
+/* B.6 — banner de saldo desactualizado (toggle estimado/cargado).
+   B.7.c: rojo sólido + texto blanco para alto contraste y urgencia. */
+.page-financiero-v2 .saldo-banner-desact {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.4rem 0.7rem;
+  border: 1px solid #dc3545;
+  border-radius: 4px;
+  background: #dc3545;
+  color: #fff;
+  font-size: 0.85rem;
+}
+.page-financiero-v2 .saldo-banner-desact .sb-title { font-weight: 700; }
+.page-financiero-v2 .saldo-banner-desact .sb-body  { color: rgba(255, 255, 255, 0.85); }
+.page-financiero-v2 .saldo-banner-desact .sb-actions {
+  display: flex;
+  gap: 0.3rem;
+  margin-left: auto;
+}
+.page-financiero-v2 .saldo-banner-desact .sb-actions button {
+  background: transparent;
+  border: 1px solid #fff;
+  color: #fff;
+  padding: 0.2rem 0.5rem;
+  border-radius: 3px;
+  cursor: pointer;
+  font-size: 0.8rem;
+}
+.page-financiero-v2 .saldo-banner-desact .sb-actions button:hover {
+  background: rgba(255, 255, 255, 0.15);
+}
+.page-financiero-v2 .saldo-banner-desact .sb-actions button:disabled {
+  background: #fff;
+  color: #dc3545;
+  cursor: default;
+}
+
+/* ============================================
+   ABM Clientes — pantalla de edición de retención
+   (pages/clientes.html — etapa 1)
+   ============================================ */
+.page-clientes main {
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  height: calc(100vh - 80px);
+}
+.page-clientes .cli-controls {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.page-clientes .cli-controls input[type="search"] {
+  flex: 1;
+  min-width: 240px;
+  padding: 0.4rem 0.7rem;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--panel);
+  color: var(--text);
+}
+.page-clientes .cli-filter-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+.page-clientes .cli-dirty-counter {
+  color: var(--muted);
+  font-size: 0.9rem;
+  margin-left: auto;
+}
+.page-clientes .cli-dirty-counter strong {
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+.page-clientes .cli-controls button {
+  padding: 0.4rem 0.9rem;
+  border: 1px solid var(--border);
+  background: var(--panel);
+  color: var(--text);
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: 500;
+}
+.page-clientes .cli-controls button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+.page-clientes .cli-controls button.btn-primary {
+  background: #28a745;
+  border-color: #28a745;
+  color: #fff;
+}
+.page-clientes .cli-controls button.btn-primary:disabled {
+  background: var(--panel);
+  border-color: var(--border);
+  color: var(--muted);
+}
+
+.page-clientes .cli-tabla-wrap {
+  flex: 1;
+  overflow-y: auto;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--panel);
+}
+.page-clientes .cli-tabla {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+.page-clientes .cli-tabla th,
+.page-clientes .cli-tabla td {
+  padding: 0.4rem 0.7rem;
+  border-bottom: 1px solid var(--border);
+  text-align: left;
+  vertical-align: middle;
+}
+.page-clientes .cli-tabla thead th {
+  background: var(--bg);
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  font-weight: 600;
+  color: var(--muted);
+}
+.page-clientes .cli-tabla .cli-col-nombre {
+  min-width: 280px;
+  max-width: 420px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.page-clientes .cli-tabla .cli-col-cuit {
+  width: 140px;
+  font-family: var(--font-mono, monospace);
+  font-size: 0.85rem;
+}
+.page-clientes .cli-tabla .cli-col-agente {
+  width: 160px;
+  text-align: center;
+}
+.page-clientes .cli-tabla .cli-col-pct {
+  width: 140px;
+  white-space: nowrap;
+}
+.page-clientes .cli-tabla .cli-col-pct input[type="number"] {
+  width: 80px;
+  padding: 0.2rem 0.4rem;
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  background: var(--bg);
+  color: var(--text);
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.page-clientes .cli-tabla .cli-col-pct input[type="number"]:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+.page-clientes .cli-tabla .cli-pct-suffix {
+  margin-left: 0.3rem;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+.page-clientes .cli-tabla tr.cli-dirty {
+  background: rgba(255, 200, 50, 0.12);
+}
+.page-clientes .cli-tabla tr.cli-dirty:hover {
+  background: rgba(255, 200, 50, 0.20);
+}
+.page-clientes .cli-tabla tbody tr:hover:not(.cli-dirty) {
+  background: rgba(255, 255, 255, 0.03);
+}
+.page-clientes .cli-empty {
+  text-align: center;
+  color: var(--muted);
+  padding: 1.5rem;
+  font-style: italic;
+}
+
+/* Modal de recálculo de % de retención (ABM clientes) */
+.modal.modal-recalc { width: min(1000px, 94vw); max-height: 88vh; }
+.cli-recalc-intro { color: var(--muted); font-size: 0.85rem; margin: 0 0 0.5rem; line-height: 1.4; padding: 0 0.25rem; }
+.cli-recalc-tabla-wrap { max-height: 55vh; overflow: auto; border: 1px solid var(--border); border-radius: 4px; }
+.cli-recalc-tabla { width: 100%; border-collapse: collapse; font-size: 0.88rem; table-layout: fixed; }
+.cli-recalc-tabla th, .cli-recalc-tabla td { padding: 0.35rem 0.6rem; border-bottom: 1px solid var(--border); text-align: left; }
+.cli-recalc-tabla thead th { position: sticky; top: 0; background: var(--panel); z-index: 2; font-weight: 600; color: var(--muted); }
+.cli-recalc-tabla .cli-rc-check { width: 44px; text-align: center; }
+.cli-recalc-tabla .cli-rc-nombre {
+  width: 190px; max-width: 190px;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  position: sticky; left: 0; background: var(--panel); z-index: 1;
+}
+.cli-recalc-tabla thead th.cli-rc-nombre { z-index: 3; } /* esquina: sticky top + left */
+.cli-recalc-tabla .cli-rc-facs,
+.cli-recalc-tabla .cli-rc-pct,
+.cli-recalc-tabla .cli-rc-delta { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.cli-recalc-tabla .cli-rc-facs { width: 80px; }
+.cli-recalc-tabla .cli-rc-pct { width: 90px; }
+.cli-recalc-tabla .cli-rc-delta { width: 78px; }
+.cli-recalc-tabla .cli-rc-flag { width: 160px; font-size: 0.8rem; color: var(--muted); }
+.cli-recalc-tabla tbody tr:hover { background: rgba(255, 255, 255, 0.03); }
+.cli-recalc-tabla .cli-rc-up { color: #28a745; }
+.cli-recalc-tabla .cli-rc-down { color: #dc3545; }
+.cli-recalc-empty { text-align: center; color: var(--muted); padding: 1.5rem; font-style: italic; }
+
+/* =====================================================================
+   Popup de filtro por columna (embudo ▾). Motor en js/shared/filtro-popup.js.
+   Lo usan Precios y el CRM.
+
+   VINO DE precios.html, donde estaba inline. Se movio acá al usarlo una segunda
+   pantalla: repetir 15 reglas en cada HTML es la misma trampa que las tres copias
+   de la abreviatura de consorcios, que ya derivaron entre si.
+
+   VA AL FINAL DEL ARCHIVO A PROPOSITO: al salir del <style> de la pagina, estas
+   reglas perdieron la ultima palabra en la cascada. Puestas al final de styles.css
+   le siguen ganando a cualquier regla anterior de este archivo con la misma
+   especificidad. Si se mueven mas arriba, hay que revisar los cinco popups.
+
+   Todas las reglas estan colgadas de .filtro-popup: fuera de ese contenedor no
+   alcanzan a nada, asi que agregarlas al CSS global no toca las otras pantallas.
+   ===================================================================== */
+/* =====================================================================
+   Confirmacion in-modal (js/shared/confirmar.js). La usan Precios y el CRM.
+
+   Clases PROPIAS (cfm-*) y no las .modal-escala/.modal-box de Precios: esas las
+   comparten ocho modales de esa pantalla y arrastrarlas al CSS global habria
+   mudado mucho mas que la confirmacion. Los valores son los mismos que tenia
+   .modal-confirm, para que el cartel se vea igual que siempre.
+   ===================================================================== */
+.cfm-fondo { position: fixed; inset: 0; z-index: 200; background: rgba(0,0,0,0.55);
+             display: flex; align-items: center; justify-content: center; }
+.cfm-fondo[hidden] { display: none; }
+.cfm-caja { background: #1a1f27; border: 1px solid rgba(255,255,255,0.25); border-radius: 8px;
+            padding: 16px 18px; width: 460px; max-width: 92vw; max-height: 80vh; overflow: auto;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.6); }
+.cfm-titulo { font-weight: 600; margin-bottom: 10px; }
+.cfm-msg { font-size: 13px; line-height: 1.5; margin: 6px 0 14px; }
+.cfm-acc { display: flex; gap: 10px; justify-content: flex-end; }
+.cfm-acc .cfm-si { font-weight: 600; }
+/* Rojo para lo destructivo: el color es la ultima advertencia antes del clic. */
+.cfm-acc .cfm-peligro { background: #7a2230; color: #fff; border-color: #7a2230; }
+
+/* El embudo del encabezado, que abre el popup. Base compartida; cada pantalla
+   puede agregarle modificadores propios (Precios tiene .funnel-mes para las
+   columnas de mes, que sigue en su HTML porque solo existe ahi). */
+.funnel { cursor: pointer; color: #9fb4d8; font-size: 14px; padding: 0 3px; user-select: none; }
+.funnel:hover { color: #38bdf8; }                        /* acento al pasar el mouse */
+.funnel.activo { color: #eab308; font-weight: 700; }     /* columna con filtro activo: mas marcada */
+
+.filtro-popup { position: fixed; z-index: 50; background: #1a1f27; border: 1px solid rgba(255,255,255,0.25);
+                border-radius: 6px; padding: 8px; width: 520px; min-width: 220px; max-width: 92vw; box-shadow: 0 6px 20px rgba(0,0,0,0.5); }
+.filtro-popup input[data-role=fp-buscar] { width: 100%; box-sizing: border-box; margin-bottom: 6px; }
+.filtro-popup .fp-title { font-weight: 600; font-size: 12px; margin-bottom: 6px; color: var(--muted); }
+.filtro-popup .fp-sub { font-size: 11px; color: var(--muted); margin: 8px 0 3px; }
+.filtro-popup input[type=text] { width: 100%; box-sizing: border-box; }
+/* Casillas del ENCABEZADO del popup (la seccion de arriba, fuera de .fp-list).
+   Quedan afuera de la lista a proposito: el buscador y "Seleccionar todos" operan
+   sobre .fp-list, y no tienen que tocar una seccion que es de otra dimension. */
+.filtro-popup .fp-venc { display: flex; gap: 8px; align-items: center; cursor: pointer;
+                         font-size: 13px; padding: 3px 4px; }
+.filtro-popup .fp-venc:hover { background: rgba(255,255,255,0.05); }
+.filtro-popup .fp-venc input { flex: none; }
+
+/* barra Seleccionar/Deseleccionar todos + contador de visibles */
+/* "Seleccionar todos" es una CASILLA tri-estado, no dos botones: su propio estado
+   dice si lo de abajo esta todo, algo o nada marcado, cosa que dos botones no
+   pueden hacer. Es un <label> entero para que se pueda apretar el texto tambien. */
+.filtro-popup .fp-selbar { display: flex; gap: 8px; align-items: center; margin-bottom: 6px;
+                           font-size: 12px; cursor: pointer; padding: 2px 4px; }
+.filtro-popup .fp-selbar:hover { background: rgba(255,255,255,0.05); }
+.filtro-popup .fp-selbar input[type=checkbox] { flex: none; }
+.filtro-popup .fp-vis-count { font-size: 11px; color: var(--muted); margin-left: auto; }
+/* Contador por opcion (Deuda). flex:none para que no lo aplaste el nombre. */
+.filtro-popup .fp-n { flex: none; color: var(--muted); font-size: 12px; font-variant-numeric: tabular-nums; }
+/* lista: una fila por item, en una linea, con divisoria y alto comodo */
+.filtro-popup .fp-list { max-height: 340px; overflow: auto; display: flex; flex-direction: column; font-size: 13px; }
+.filtro-popup .fp-list label { display: flex; gap: 8px; align-items: center; cursor: pointer; padding: 6px 4px;
+                               border-bottom: 1px solid rgba(255,255,255,0.07); white-space: nowrap; }
+.filtro-popup .fp-list label:hover { background: rgba(255,255,255,0.05); }
+.filtro-popup .fp-list input[type=checkbox] { flex: none; }
+.filtro-popup .fp-nom { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.filtro-popup .fp-acc { display: flex; gap: 6px; margin-top: 8px; justify-content: flex-end; }
+/* Cuadradito de color a la izquierda del nombre (grupos, responsables). En Precios
+   venia como estilo inline armado en el JS; acá es una clase para que el motor
+   compartido no tenga que saber como se pinta. */
+.filtro-popup .fp-sw { display: inline-block; width: 11px; height: 11px; border-radius: 2px;
+                       margin-right: 4px; vertical-align: middle; flex: none; }
+
+/* =====================================================================
+   Chips de filtro con contador. Los pinta cada pantalla; el criterio de los
+   contadores está comentado arriba de crm.js.
+
+   VINO DE crm.html, donde estaba inline. Se movió acá al usarlos una segunda
+   pantalla (Deuda por cliente y mes), por el mismo motivo que el popup de filtro:
+   duplicar el bloque garantiza que en unos meses los chips se vean distinto en
+   dos pantallas y nadie sepa cuál es el correcto.
+
+   LAS CLASES SIGUEN LLAMÁNDOSE crm-* aunque ya no sean sólo del CRM. Renombrarlas
+   obliga a tocar el JS de una pantalla en producción para un cambio puramente
+   cosmético; el nombre miente un poco, y es más barato que el riesgo.
+
+   VA AL FINAL, igual que el popup: al salir del <style> de la página estas reglas
+   perdieron la última palabra en la cascada. Se verificó que ninguna regla de este
+   archivo les gane — `button` es (0,0,1) y pierde contra la clase; `button:hover`
+   y `button:disabled` empatan en (0,1,1) pero tocan otras propiedades; y
+   `.crm-barra button` no las alcanza porque los .crm-chips son HERMANOS de la
+   barra, no hijos. Si algún día se agrega una regla de botón más específica, hay
+   que revisar esto de nuevo.
+   ===================================================================== */
+.crm-chips { align-items: flex-start; margin-top: .35rem; }
+.crm-chips-tit { color: var(--muted); font-size: 12px; display: inline-block; min-width: 88px; padding-top: 4px; }
+/* Los DOS estados llevan fondo: sin él, el chip no seleccionado se leía como
+   texto suelto y no invitaba a hacer clic. Azul claro = disponible, azul pleno
+   = elegido. La jerarquía se lee y los dos se ven apretables.
+
+   El azul claro es el mismo de los chips de Precios (rgba 56,189,248), para que
+   el sistema se vea de una pieza. */
+/* EL BORDE VA COMPLETO, no sólo el color: el botón base de este archivo es fondo
+   --accent y `border: none`, así que declarar únicamente border-color dejaría al
+   chip sin seleccionar sin borde ninguno. */
+.crm-chip { font-size: 12px; padding: 2px 10px; margin: 0 6px 4px 0; border-radius: 12px;
+            border: 1px solid rgba(56,189,248,0.45); background: rgba(56,189,248,0.14);
+            color: var(--text); cursor: pointer; }
+.crm-chip:hover { background: rgba(56,189,248,0.26); }
+.crm-chip[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: #fff; }
+/* El ✓ es la señal PRINCIPAL de "prendido", no el color. Tiene que ser así por
+   los chips de responsable: al prenderlos se llenan con SU color, que puede ser
+   claro u oscuro, así que el tono ya está ocupado y no puede además significar
+   "seleccionado". El ✓ vale igual para todos los chips y para todos los colores. */
+.crm-chip[aria-pressed="true"]::before { content: "✓ "; font-weight: 700; }
+/* Prendido, el chip ENTERO es el color del responsable: el punto pasa a ser
+   ruido. Se oculta, y el ✓ ocupa casi exactamente su lugar, así que el chip no
+   cambia de ancho al prenderse y la fila no se mueve. */
+.crm-chip[aria-pressed="true"] .crm-chip-punto { display: none; }
+/* Chip en CERO: atenuado pero SIEMPRE CLICKEABLE. Deshabilitarlo dejaba
+   trabado al que se deseleccionaba y caía a cero: se sentía como una falla.
+   Es peor perder el control que apretar un filtro que no cambia nada. */
+/* En CERO: el MISMO chip, más flojo. El borde sigue siendo azul (más tenue), no
+   gris: cambiarle el tono lo convertía en otra clase de control en vez de en una
+   versión atenuada, y "Pendiente de envío" en cero parecía un recuadro distinto
+   al de al lado. Solo el texto cambia de color, que es lo que baja la jerarquía. */
+.crm-chip-cero { color: var(--muted); background: rgba(56,189,248,0.05); border-color: rgba(56,189,248,0.18); }
+/* El punto de color se atenúa con su chip: un punto a full brillo dentro de un
+   chip apagado rompe la jerarquía que el fondo acaba de establecer. */
+.crm-chip-cero .crm-chip-punto { opacity: .45; }
+/* Meta-chips ("Todos", "Abiertos"): son MODOS excluyentes entre sí, no valores
+   que se suman. Se ven distinto A PROPÓSITO —esquinas rectas y sin fondo cuando
+   están apagados— para que el ojo no los compare con los chips de valor. Cuando
+   los dos tipos tenían la misma pinta, "Todos" apagado parecía prendido al lado
+   de un chip de valor encendido, y la fila se leía como una contradicción. */
+.crm-chip[data-meta] { border-radius: 4px; background: transparent; border-color: var(--border); }
+.crm-chip[data-meta]:hover { background: rgba(255,255,255,0.07); }
+.crm-chip[data-meta][aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: #fff; }
+/* Separados del grupo de valores. */
+.crm-chip-sep { margin-right: 16px; }
+.crm-chip-n { margin-left: 5px; font-variant-numeric: tabular-nums; opacity: .75; }
+/* Los casos cuya acción todavía no está clasificada. No es un chip: no se puede
+   filtrar por "sin clasificar" —no es una respuesta, es un dato que falta—,
+   pero tampoco pueden desaparecer sin que se sepa que están. */
+.crm-chip-nota { font-size: 11px; color: var(--muted); font-style: italic; margin-left: 10px; }
+/* "Sin agenda" no es un dato que falta: es un caso vivo que no le aparece a
+   nadie. Va en ámbar porque hay que hacer algo al respecto. */
+.crm-chip-alerta { color: #eab308; font-style: normal; font-weight: 600; }
+/* Punto de color del chip de responsable: se ve SIEMPRE, con el filtro puesto
+   o no, para no tener que activar un filtro para saber de quién es el color. */
+.crm-chip-punto { display: inline-block; width: 8px; height: 8px; border-radius: 50%;
+                  margin-right: 6px; vertical-align: middle; }

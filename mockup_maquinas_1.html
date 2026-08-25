@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mockup — Módulo Máquinas</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; font-family:'Segoe UI', Arial, sans-serif; }
+  body { background:#eef1f6; color:#1f2a44; }
+  .app { display:flex; min-height:100vh; }
+  .side { width:225px; background:#1b2a5e; color:#cdd6f4; padding:18px 0; flex-shrink:0; }
+  .side .sec { font-size:10px; letter-spacing:1px; color:#7f8fc9; padding:14px 22px 6px; }
+  .side a { display:block; padding:9px 22px; color:#cdd6f4; text-decoration:none; font-size:14px; border-left:3px solid transparent; }
+  .side a.on { background:#152250; color:#fff; border-left-color:#f5b301; font-weight:600; }
+  .main { flex:1; padding:24px 28px; max-width:1280px; }
+  h1 { font-size:21px; color:#16213e; margin-bottom:4px; }
+  .sub { color:#69739a; font-size:13px; margin-bottom:18px; }
+  .cards { display:flex; gap:13px; margin-bottom:18px; flex-wrap:wrap; }
+  .card { background:#fff; border-radius:12px; padding:13px 18px; box-shadow:0 1px 4px rgba(20,30,70,.08); min-width:180px; }
+  .card .t { font-size:10.5px; letter-spacing:.5px; color:#8a93b5; text-transform:uppercase; }
+  .card .v { font-size:23px; font-weight:700; color:#16213e; margin-top:2px; }
+  .card .v.green { color:#188a52; } .card .v.red { color:#c22b40; } .card .v.amber { color:#b07800; }
+  .card .d { font-size:11px; color:#9aa2c0; }
+  .tabs { display:flex; gap:4px; }
+  .tab { padding:10px 18px; background:#dde3f0; border-radius:10px 10px 0 0; cursor:pointer; font-size:13.5px; font-weight:600; color:#5b6690; }
+  .tab.on { background:#fff; color:#1b2a5e; }
+  .panel { background:#fff; border-radius:0 12px 12px 12px; box-shadow:0 1px 4px rgba(20,30,70,.08); padding:18px 20px; display:none; }
+  .panel.on { display:block; }
+  .info { background:#e8f0fe; border:1px solid #c3d4f7; color:#2c4a8a; border-radius:9px; padding:10px 14px; font-size:12.5px; margin-bottom:14px; line-height:1.5; }
+  table { border-collapse:collapse; width:100%; font-size:13px; }
+  th { background:#f4f6fb; color:#5b6690; text-transform:uppercase; font-size:10.5px; letter-spacing:.4px; padding:8px 9px; text-align:left; border-bottom:2px solid #e2e7f2; }
+  td { padding:8px 9px; border-bottom:1px solid #eef1f7; vertical-align:middle; }
+  .chip { display:inline-block; font-size:10px; font-weight:700; padding:2px 9px; border-radius:20px; letter-spacing:.3px; white-space:nowrap; }
+  .c-act { background:#e7f6ec; color:#188a52; }
+  .c-dep { background:#e8ecf7; color:#4a5a94; }
+  .c-rep { background:#fff3d6; color:#a06b00; }
+  .c-baja { background:#fde2e4; color:#b3273e; }
+  .c-prop { background:#e6eefb; color:#2c4a8a; }
+  .c-alq { background:#f3e8fb; color:#7a3ba0; }
+  .c-bat { background:#fff3d6; color:#a06b00; }
+  .c-cab { background:#eef1f7; color:#5b6690; }
+  .money { text-align:right; font-variant-numeric:tabular-nums; }
+  .sm { font-size:11px; color:#8a93b5; }
+  .name { font-weight:600; }
+  .green { color:#188a52; font-weight:700; } .red { color:#c22b40; font-weight:700; } .amber { color:#b07800; font-weight:700; }
+  /* timeline ticket */
+  .tk { border:1.5px solid #e2e7f2; border-radius:12px; padding:14px 16px; margin-bottom:14px; }
+  .tk h3 { font-size:14.5px; color:#1b2a5e; margin-bottom:2px; }
+  .steps { display:flex; gap:0; margin:12px 0 10px; flex-wrap:wrap; }
+  .step { flex:1; min-width:130px; text-align:center; position:relative; padding:0 4px; }
+  .step .dot { width:26px; height:26px; border-radius:50%; margin:0 auto 5px; background:#dde3f0; color:#5b6690; font-size:12px; font-weight:700; line-height:26px; }
+  .step.done .dot { background:#188a52; color:#fff; }
+  .step.cur .dot { background:#f5b301; color:#16213e; box-shadow:0 0 0 4px #fdeeba; }
+  .step .l { font-size:10.5px; font-weight:700; color:#5b6690; text-transform:uppercase; }
+  .step .s { font-size:10px; color:#9aa2c0; }
+  .step:not(:last-child):after { content:''; position:absolute; top:13px; left:calc(50% + 16px); width:calc(100% - 32px); height:2px; background:#dde3f0; }
+  .step.done:not(:last-child):after { background:#188a52; }
+  .btn { background:#1b2a5e; color:#fff; border:none; padding:7px 14px; border-radius:8px; font-size:12.5px; font-weight:600; cursor:pointer; }
+  .btn.sec2 { background:#eef1f7; color:#33406e; }
+  .log { background:#f8f9fc; border-radius:8px; padding:9px 12px; font-size:11.5px; color:#5b6690; margin-top:8px; line-height:1.7; }
+  .foot { margin-top:10px; font-size:11.5px; color:#8a93b5; line-height:1.6; }
+  .aviso { display:flex; gap:8px; align-items:center; background:#fff7e0; border:1px solid #f0dc9a; border-radius:9px; padding:8px 12px; font-size:12.5px; color:#7a5c00; margin-bottom:8px; }
+  .aviso.rojo { background:#fdecee; border-color:#f2b9c0; color:#8f1f30; }
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="side">
+    <div class="sec">LOGÍSTICA</div>
+    <a>Stock</a><a>Uniformes</a>
+    <a class="on">Máquinas</a>
+    <div class="sec">OPERACIONES</div>
+    <a>Liquidación de horas</a><a>Mantenimiento</a><a>Retenes</a>
+    <div class="sec">COMERCIAL</div>
+    <a>Clientes</a><a>Servicios</a><a>Supervisión de servicios</a>
+  </div>
+  <div class="main">
+    <h1>Máquinas</h1>
+    <div class="sub">Parque de máquinas propias y alquiladas · opera Logística · el operario reporta incidencias desde el celular (supervisor siempre notificado)</div>
+
+    <div class="cards">
+      <div class="card"><div class="t">Parque activo</div><div class="v">43</div><div class="d">31 propias · 12 alquiladas</div></div>
+      <div class="card"><div class="t">Tickets abiertos</div><div class="v amber">3</div><div class="d">1 esperando factura</div></div>
+      <div class="card"><div class="t">Baterías a renovar ≤60 días</div><div class="v red">2</div><div class="d">previsión $1.940.000</div></div>
+      <div class="card"><div class="t">Reparaciones · previsión vs real (jul)</div><div class="v green">$1.850.000</div><div class="d">real: $2.310.400 · dif -$460.400</div></div>
+    </div>
+
+    <div class="tabs">
+      <div class="tab on" onclick="tab(0)">Padrón</div>
+      <div class="tab" onclick="tab(1)">Tickets de reparación</div>
+      <div class="tab" onclick="tab(2)">Baterías y consumibles</div>
+      <div class="tab" onclick="tab(3)">Económico</div>
+    </div>
+
+    <!-- PADRON -->
+    <div class="panel on" id="p0">
+      <div class="info">Una fila por máquina. La ubicación sale del historial de movimientos (registra solo Logística; el supervisor receptor se notifica). La baja conserva todo el historial.</div>
+      <table>
+        <tr><th>N°</th><th>Máquina</th><th>Propiedad</th><th>Energía</th><th>Estado</th><th>Ubicación actual</th><th class="money">Reparaciones acum.</th><th class="money">Alquiler mensual</th></tr>
+        <tr><td class="name">7736</td><td>TASKI SWINGO XP · TASKI</td><td><span class="chip c-prop">PROPIA</span> <span class="sm">compra 2019</span></td><td><span class="chip c-bat">BATERÍA</span></td><td><span class="chip c-act">ACTIVA</span></td><td>LOS.PINOS <span class="sm">desde 03/2026</span></td><td class="money">4.812.300</td><td class="money">—</td></tr>
+        <tr><td class="name">5895</td><td>LAVADORA TASKI 455B</td><td><span class="chip c-prop">PROPIA</span> <span class="sm">compra 2018</span></td><td><span class="chip c-bat">BATERÍA</span></td><td><span class="chip c-rep">EN REPARACIÓN</span> <span class="sm">ticket #128</span></td><td>HIT.LIBERTADOR.8614</td><td class="money">6.240.900</td><td class="money">—</td></tr>
+        <tr><td class="name">8112</td><td>HIDROLAVADORA KARCHER HD</td><td><span class="chip c-alq">ALQUILADA</span> <span class="sm">OSDA</span></td><td><span class="chip c-cab">CABLE</span></td><td><span class="chip c-act">ACTIVA</span></td><td>JOSIMAR.AVELLANEDA <span class="sm">desde 05/2026</span></td><td class="money">—</td><td class="money">380.000</td></tr>
+        <tr><td class="name">7981</td><td>ASPIRADORA TASKI VENTO</td><td><span class="chip c-prop">PROPIA</span></td><td><span class="chip c-cab">CABLE</span></td><td><span class="chip c-dep">DEPÓSITO</span></td><td>Depósito Logística <span class="sm">disponible p/reemplazo</span></td><td class="money">912.480</td><td class="money">—</td></tr>
+        <tr><td class="name">6120</td><td>LUSTRADORA NILFISK</td><td><span class="chip c-prop">PROPIA</span></td><td><span class="chip c-cab">CABLE</span></td><td><span class="chip c-baja">BAJA</span> <span class="sm">rota s/arreglo 04/2026</span></td><td>— <span class="sm">historial conservado</span></td><td class="money">2.104.660</td><td class="money">—</td></tr>
+      </table>
+      <div class="foot">Ficha de máquina (click en el N°): datos completos + historial de ubicaciones + tickets + baterías + consumibles + costos por año.</div>
+    </div>
+
+    <!-- TICKETS -->
+    <div class="panel" id="p1">
+      <div class="info">Circuito en 5 etapas con notificaciones y tiempos medidos (SLA parametrizable). Tipos de problema, trabajos y motivos: catálogos parametrizables → estadísticas (% remoto/interno/proveedor, tiempos, fallas por modelo). El botón avanza el ticket de demo.</div>
+
+      <div class="tk">
+        <h3>Ticket #128 — Máquina 5895 · LAVADORA TASKI 455B · HIT.LIBERTADOR.8614</h3>
+        <div class="sm">Reportó: operario R. Benítez (celular) · 11/08 09:12 · problema: "NO ASPIRA" · foto adjunta · supervisor A. Uballes notificado ✓</div>
+        <div class="steps" id="steps">
+          <div class="step"><div class="dot">1</div><div class="l">Reporte</div><div class="s">operario · 11/08 09:12</div></div>
+          <div class="step"><div class="dot">2</div><div class="l">Análisis remoto</div><div class="s">Logística + operario</div></div>
+          <div class="step"><div class="dot">3</div><div class="l">Visita interna</div><div class="s">Miguel · agenda + SLA</div></div>
+          <div class="step"><div class="dot">4</div><div class="l">Proveedor</div><div class="s">acta obligatoria</div></div>
+          <div class="step"><div class="dot">5</div><div class="l">Control factura</div><div class="s">Logística ✓ → Finanzas paga</div></div>
+        </div>
+        <button class="btn" id="btnAv" onclick="avanzar()">Avanzar etapa (demo)</button>
+        <button class="btn sec2" onclick="reset()">Reiniciar</button>
+        <div class="log" id="log">11/08 09:12 — REPORTE del operario. Notificados: Logística, supervisor.</div>
+      </div>
+
+      <table>
+        <tr><th>#</th><th>Máquina</th><th>Servicio</th><th>Problema</th><th>Etapa</th><th>Días abierto</th><th>Resolución</th></tr>
+        <tr><td>127</td><td>7736 · SWINGO XP</td><td>LOS.PINOS</td><td>PIERDE AGUA</td><td><span class="chip c-act">CERRADO</span></td><td>1,2</td><td class="sm">Resuelto REMOTO (traba de tanque)</td></tr>
+        <tr><td>126</td><td>8112 · KARCHER</td><td>JOSIMAR.AVELLANEDA</td><td>NO ENCIENDE</td><td><span class="chip c-act">CERRADO</span></td><td>2,5</td><td class="sm">Resuelto INTERNO (Miguel · repuestos $48.200)</td></tr>
+        <tr><td>124</td><td>5895 · TASKI 455B</td><td>HIT.LIBERTADOR.8614</td><td>SISTEMA DIRECCIÓN</td><td><span class="chip c-rep">ESPERANDO FACTURA</span></td><td>9</td><td class="sm">Proveedor OSDA · acta registrada por Miguel ✓</td></tr>
+      </table>
+      <div class="foot">Paso opcional activable por parámetro: PRESUPUESTO → APROBACIÓN antes de reparar con proveedor (aprobador configurable). Si el proveedor se lleva la máquina: movimiento a "taller proveedor" + reemplazo desde depósito vinculado al ticket.</div>
+    </div>
+
+    <!-- BATERIAS -->
+    <div class="panel" id="p2">
+      <div class="info">Cada tipo de batería tiene vida útil en meses (parametrizable). Desde la colocación el sistema proyecta el recambio, avisa con anticipación configurable y <b>previsiona el costo mes a mes en el Económico</b> — "que no nos agarre en bolas".</div>
+      <div class="aviso rojo">⚠ Máquina 5895 — batería colocada 08/2024, vida útil 24 meses → <b>recambio VENCIDO (08/2026)</b>. Costo estimado $980.000.</div>
+      <div class="aviso">⏰ Máquina 7736 — recambio proyectado <b>10/2026</b> (en 57 días). Costo estimado $960.000. Previsión acumulada: $840.000 de $960.000.</div>
+      <table>
+        <tr><th>Máquina</th><th>Tipo batería</th><th>Colocada</th><th>Vida útil</th><th>Recambio proyectado</th><th class="money">Costo estimado</th><th>Estado</th></tr>
+        <tr><td class="name">5895 · TASKI 455B</td><td>Gel 12V×2</td><td>08/2024</td><td>24 meses</td><td>08/2026</td><td class="money">980.000</td><td><span class="red">VENCIDO</span></td></tr>
+        <tr><td class="name">7736 · SWINGO XP</td><td>Gel 12V×2</td><td>10/2024</td><td>24 meses</td><td>10/2026</td><td class="money">960.000</td><td><span class="amber">PRÓXIMO</span></td></tr>
+        <tr><td class="name">8347 · SWINGO 350</td><td>Litio</td><td>02/2026</td><td>36 meses</td><td>02/2029</td><td class="money">1.450.000</td><td><span class="green">OK</span></td></tr>
+      </table>
+      <h3 style="font-size:14px; margin:16px 0 8px; color:#1b2a5e;">Consumibles <span class="sm">— stock propio del módulo, frecuencia parametrizable</span></h3>
+      <table>
+        <tr><th>Consumible</th><th>Aplica a</th><th>Frecuencia</th><th>Última reposición</th><th>Próxima</th><th>Stock</th><th>Estado</th></tr>
+        <tr><td class="name">Goma secador 12200-42</td><td>SWINGO XP</td><td>cada 3 meses</td><td>06/2026</td><td>09/2026</td><td>4</td><td><span class="green">OK</span></td></tr>
+        <tr><td class="name">Cepillo 17"</td><td>TASKI 455B</td><td>cada 6 meses</td><td>01/2026</td><td>07/2026</td><td>0</td><td><span class="red">REPONER</span></td></tr>
+        <tr><td class="name">Filtro aspiración</td><td>KARCHER HD</td><td>cada 4 meses</td><td>05/2026</td><td>09/2026</td><td>2</td><td><span class="green">OK</span></td></tr>
+      </table>
+    </div>
+
+    <!-- ECONOMICO -->
+    <div class="panel" id="p3">
+      <div class="info">Reparaciones con esquema <b>previsión fija vs real</b> (como el Económico actual): cuota mensual estable propuesta por promedio histórico, ajustable por Finanzas; el real se registra aparte y se ve la diferencia. Alquileres: total general en el Económico, imputados al servicio donde está cada máquina en el centro de costos.</div>
+      <table>
+        <tr><th>Mes</th><th class="money">Previsión reparaciones</th><th class="money">Real reparaciones</th><th class="money">Diferencia</th><th class="money">Previsión baterías</th><th class="money">Alquileres</th></tr>
+        <tr><td>may-2026</td><td class="money">1.850.000</td><td class="money">1.512.300</td><td class="money green">+337.700</td><td class="money">180.000</td><td class="money">4.560.000</td></tr>
+        <tr><td>jun-2026</td><td class="money">1.850.000</td><td class="money">1.998.750</td><td class="money red">-148.750</td><td class="money">180.000</td><td class="money">4.560.000</td></tr>
+        <tr><td>jul-2026</td><td class="money">1.850.000</td><td class="money">2.310.400</td><td class="money red">-460.400</td><td class="money">180.000</td><td class="money">4.940.000</td></tr>
+      </table>
+      <h3 style="font-size:14px; margin:16px 0 8px; color:#1b2a5e;">Imputación por servicio <span class="sm">— jul-2026, según ubicación de cada máquina</span></h3>
+      <table>
+        <tr><th>Servicio</th><th>Máquinas</th><th class="money">Reparaciones (real)</th><th class="money">Alquiler</th><th class="money">Consumibles</th><th class="money">Total mes</th></tr>
+        <tr><td>LOS.PINOS</td><td>7736 + 2</td><td class="money">486.200</td><td class="money">—</td><td class="money">64.000</td><td class="money name">550.200</td></tr>
+        <tr><td>HIT.LIBERTADOR.8614</td><td>5895</td><td class="money">1.204.100</td><td class="money">—</td><td class="money">—</td><td class="money name">1.204.100</td></tr>
+        <tr><td>JOSIMAR.AVELLANEDA</td><td>8112</td><td class="money">—</td><td class="money">380.000</td><td class="money">28.400</td><td class="money name">408.400</td></tr>
+      </table>
+      <div class="foot">Repuestos de reparación interna: solo costo de repuestos (las horas de Miguel van por su retiro). Facturas de proveedor: entran por cta cte OSDA con el OK de Logística contra el acta.</div>
+    </div>
+  </div>
+</div>
+
+<script>
+function tab(i){ document.querySelectorAll('.tab').forEach((t,j)=>t.classList.toggle('on', i===j)); [0,1,2,3].forEach(j=>document.getElementById('p'+j).classList.toggle('on', i===j)); }
+const LOGS = [
+ '11/08 09:12 — REPORTE del operario. Notificados: Logística, supervisor.',
+ '11/08 10:05 — ANÁLISIS REMOTO: Logística contactó al operario. No se pudo revertir → requiere visita interna. Notificado Miguel.',
+ '12/08 08:30 — VISITA INTERNA: Miguel agendado (SLA 24h ✓). Diagnóstico: motor de aspiración quemado → LO SUPERA, deriva a proveedor. Notificados: Logística, supervisor.',
+ '13/08 11:00 — PROVEEDOR OSDA en el servicio. ACTA registrada por Miguel: cambio motor aspiración 4677/236 + 2h mano de obra. Máquina operativa.',
+ '18/08 — FACTURA OSDA recibida. Control de Logística contra acta: ✓ coincide línea por línea. Enviada a Finanzas → imputada a cta cte OSDA, máquina 5895, servicio HIT.LIBERTADOR.8614. TICKET CERRADO · resolución: PROVEEDOR · 7 días.',
+];
+let etapa = 0;
+function paint(){
+  const steps = document.querySelectorAll('#steps .step');
+  steps.forEach((s,i)=>{ s.classList.toggle('done', i < etapa); s.classList.toggle('cur', i === etapa); });
+  document.getElementById('log').innerHTML = LOGS.slice(0, etapa+1).join('<br>');
+  document.getElementById('btnAv').style.display = etapa >= 4 ? 'none' : '';
+}
+function avanzar(){ if(etapa < 4){ etapa++; paint(); } }
+function reset(){ etapa = 0; paint(); }
+paint();
+</script>
+</body>
+</html>

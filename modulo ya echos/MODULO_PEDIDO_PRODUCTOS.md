@@ -1,248 +1,474 @@
-# Módulo: Pedido de Productos (Logística)
+# MÓDULO PEDIDO DE PRODUCTOS — Especificación completa v3
 
-**Versión:** 1.0
-**Fecha:** 11 de julio de 2026
-**Autor del diseño:** Lautaro + Claude web
-**Estado:** Diseño aprobado, pendiente de implementación
-**Área:** Logística
-**Ubicación esperada:** `docs/MODULO_PEDIDO_PRODUCTOS.md`
+**Sesión:** Lautaro + Claude · 15/08/2026
+**Para:** Fede
 
----
-
-## 0. Cómo leer este documento
-
-Este es el documento de diseño del módulo de pedido mensual de productos e insumos que cada supervisor completa para sus servicios. Sirve como fuente única para que Fede lo implemente y para que cualquiera entienda en 6 meses por qué está hecho así.
-
-Está escrito con el criterio de la política A.1: se explica todo con peras y manzanas. Cuando una decisión responde a una política del proyecto, se cita entre paréntesis (ej: A.6).
-
-Lo que **sí** cubre la versión 1: el circuito mensual completo, desde que Logística abre el período hasta que se entregan los productos.
-
-Lo que **queda previsto pero no se construye** en la v1: pedidos extraordinarios (fuera del mes) y notificaciones al supervisor. El modelo de datos los deja preparados para no tener que rehacer nada cuando llegue su turno.
+> ⚠️ **REEMPLAZA a v1 y v2.**
+>
+> **Acompañan:**
+> - `mockup_pedido_productos.html` — mockup ÚNICO del módulo, todos los tabs navegables
+> - `CATALOGO_PRODUCTOS_para_Fede.xlsx`
+>
+> **Módulos conectados con documento propio:** PROVEEDORES y STOCK.
+>
+> **Datos reales analizados:** listas y compras THAMES (ago-2026) y NIMI PROFESIONAL (jun/ago-2026); remitos "Consignaciones" de Mónica (4654/4719).
 
 ---
 
-## 1. El problema que resuelve
+## 0. Estructura del módulo (FINAL)
 
-Hoy el pedido de productos se hace en una planilla Excel con una hoja por servicio. Cada supervisor recibe su planilla, elige productos y cantidades para el mes, y la política de la empresa dice que el gasto en productos no debería superar el **6% de la facturación neta del servicio**.
+**Siete tabs**, todos con **SELECTOR DE MES** (períodos cerrados = solo lectura):
 
-La planilla Excel funciona pero arrastra los problemas típicos de una planilla:
+| # | Tab | Subtabs |
+|---|---|---|
+| 1 | **CATÁLOGO** | — |
+| 2 | **PEDIDOS POR SERVICIO** | — |
+| 3 | **BANDEJA DEL AUDITOR** | *(con contador en la pestaña)* |
+| 4 | **COMPRAS** | Comparador de precios · Sugerencias en la compra · Simulación mensual · Órdenes y presupuestos |
+| 5 | **HOJA DE RECORRIDO** | — |
+| 6 | **ENTREGAS** | — |
+| 7 | **AUDITORÍA** | — |
 
-1. **El listado de productos está repetido** en cada hoja de cada servicio. Si cambia un precio, hay que cambiarlo en decenas de lugares.
-2. **Los costos unitarios están clavados** en la planilla, sin memoria de cuándo cambió cada precio.
-3. **La facturación se copia a mano** arriba de cada hoja, tomada de otro lado.
-4. **Códigos de producto inconsistentes** (aparecen con distinta cantidad de dígitos: `100006`, `1000006`, `10000088`), filas sueltas sin código, y notas metidas dentro de las celdas ("Talle M", "LIMON").
-5. **No hay control de estados:** cualquiera que abra la planilla puede tocar cualquier cosa. No queda registro de quién pidió qué ni de qué recortó el auditor.
-
-El módulo reemplaza la planilla por un sistema con base de datos real (Supabase), catálogo único, precios con historia y un circuito con estados y responsables claros.
-
----
-
-## 2. El proceso real (tal como funciona hoy)
-
-1. **Habilitación.** Antes de arrancar el mes, el Gerente de Logística habilita las planillas. Cada supervisor ve únicamente sus propios servicios.
-2. **Carga del supervisor.** El supervisor recorre la lista de productos y carga las cantidades que necesita para el mes.
-3. **Cierre.** El supervisor da por terminado su pedido. A partir de ahí no lo edita más.
-4. **Auditoría interna.** Un auditor interno revisa cada pedido: controla el gasto contra el 6% y tiene la facultad de **reducir** cantidades si ve que se pidió de más. El auditor es quien **autoriza la compra**.
-5. **Compra.** Con el pedido autorizado, Logística hace los pedidos a su proveedor.
-6. **Entrega.** Se distribuyen los productos por cada servicio.
-
-### 2.1. Sobre el 6%
-
-El 6% **no es un límite duro**: es una referencia. El auditor lo mira a criterio y puede autorizar por encima cuando corresponde. Los casos típicos de exceso legítimo son:
-
-- **Apertura de servicio:** cuando arranca un servicio nuevo se compran productos de más y elementos que duran varios meses en el lugar. Tiende a pasarse del 6% por naturaleza.
-- **Tratamiento de piso:** algunos servicios requieren productos químicos caros para tratamiento de pisos. No son muchos, pero exceden el 6%.
-
-Por eso el sistema **no bloquea** al supervisor ni al auditor cuando el pedido supera el tope. Lo que hace es **mostrar el semáforo con desglose por categoría**, para que el auditor vea de un vistazo cuánto del exceso corresponde a Apertura o Tratamiento de Piso (excesos esperables) y cuánto a consumo Normal o Con Autorización (que sí debería caber en el 6%). El sistema informa, la persona decide (A.1).
-
-### 2.2. Las cuatro categorías (tipo de uso)
-
-Los productos se clasifican en cuatro tipos de uso: **Apertura de Servicio**, **Tratamiento de Piso**, **Con Autorización** y **Normal**.
-
-**Decisión de diseño importante:** el tipo de uso es un **atributo del producto**, no un circuito distinto. El supervisor pide igual para las cuatro categorías; no hay un flujo de aprobación especial para "Con Autorización". La categoría sirve únicamente para **agrupar y mostrar** el gasto (los subtotales por categoría del semáforo). Esto simplifica mucho el módulo: un solo flujo de pedido, cuatro etiquetas.
-
-> Nota para revisar más adelante: si "Con Autorización" no cambia nada operativo, el nombre puede confundir a un supervisor nuevo que crea que necesita un permiso especial. Evaluar renombrarlo cuando se revise el catálogo. No es un tema de la v1.
+### Conexiones
+- Módulo **PROVEEDORES** (maestro `PROV-xxx`)
+- Módulo **STOCK** (toda entrada/salida de mercadería)
+- **MAESTRO DE SERVICIOS** de Comercial (dirección, localidad y zona de reparto)
 
 ---
 
-## 3. El flujo de estados
+## 1. Regla de precios y tope
 
-El pedido de un servicio viaja por estos estados. Cada estado define **quién puede hacer qué**, y esto es lo que hace que el sistema sea serio y no una planilla compartida donde cualquiera pisa lo del otro.
+### Costo y recargo
+- **COSTO** = precio de lista del PROVEEDOR (sin recargo). Es lo que se paga.
+- **RECARGO GENERAL** = parametrizable (arranca **30%** — es lo que hoy aplica Richard a mano en su Excel).
+- **PRECIO VENTA** = `costo × (1 + recargo aplicable)`
 
+### Cascada de recargos
 ```
-Período abierto  →  Borrador  →  Cerrado por supervisor  →  En auditoría  →  Autorizado  →  En compra  →  Entregado
-   (Logística)     (Supervisor)      (Supervisor)             (Auditor)       (Auditor)     (Logística)   (Logística)
+GENERAL → override por PRODUCTO → override por CLIENTE → override por SERVICIO
 ```
 
-| Estado | Quién manda | Qué se puede hacer |
-|--------|-------------|--------------------|
-| Período abierto | Gerente de Logística | Se habilita el mes. Nacen los pedidos en Borrador para cada servicio. |
-| Borrador | Supervisor | Carga y edita cantidades. Solo el supervisor de ese servicio. |
-| Cerrado por supervisor | Supervisor | El supervisor lo dio por terminado. Ya no puede editar. Pasa a la cola de auditoría. |
-| En auditoría | Auditor | El auditor revisa y ajusta cantidades (reduce). El supervisor no puede tocar. |
-| Autorizado | Auditor | El auditor habilita la compra. El pedido queda clavado. |
-| En compra | Logística | Logística pide al proveedor. |
-| Entregado | Logística | Productos distribuidos por servicio. Cierra el ciclo. |
+**Precedencia:** `SERVICIO > CLIENTE > PRODUCTO > GENERAL`
+*(lo específico del acuerdo comercial manda)*
 
-### 3.1. El auditor ajusta, no devuelve (pero el supervisor se entera)
+Con **vigencias** ("rige desde", meses pasados congelados) y auditoría. Edita **FINANZAS**.
 
-El auditor **no devuelve** el pedido al supervisor: ajusta las cantidades él mismo. Pero cuando recorta una cantidad, ese recorte queda registrado (quién, cuándo, de cuánto a cuánto — A.7) y debe poder **notificarse al supervisor**, para que aprenda a pedir mejor el mes siguiente y para que quede transparente que fue una decisión del auditor, no un error del sistema.
+> Mismo patrón que la cascada del módulo Supervisión.
 
-La **notificación en sí** (cómo se le avisa: dentro del sistema, por mail, por el bot de WhatsApp) es una funcionalidad transversal que toca varios módulos y **no se construye en la v1**. Lo que sí hace la v1 es **guardar el dato del recorte** de forma completa, de modo que el día que se prendan las notificaciones la información ya esté disponible. Cero retrabajo.
+### Visibilidad
+- **Pantallas internas** (entrega, facturación): se muestra el origen del recargo aplicado con un chip `GENERAL` / `PRODUCTO` / `CLIENTE` / `SERVICIO`
+- **REMITO que viaja al cliente:** ⚠️ **NUNCA** muestra recargos ni porcentajes — solo código, descripción, cantidad, precio venta e importe
 
----
+### Tope
+`TOPE del pedido = % de la última facturación del servicio`
 
-## 4. Modelo de datos
+Controlado **SIEMPRE contra COSTO proveedor**. El % (hoy **6%**) es parametrizable en CONFIGURACIÓN con vigencias: lo pasado queda congelado con el % que regía; el cambio aplica hacia futuro. General + override por servicio.
 
-Cinco tablas en Supabase (A.5). Todas con soft delete y auditoría donde corresponda (A.7).
-
-### 4.1. `periodo`
-
-El "mes habilitado". Es el interruptor general: si el período está cerrado, ningún supervisor puede cargar.
-
-| Campo | Tipo | Descripción |
-|-------|------|-------------|
-| `id` | uuid PK | Identidad interna. |
-| `mes` | text/date | El mes del pedido (ej: 2026-06). |
-| `estado` | text | `abierto` / `cerrado`. |
-| `abierto_por` | uuid FK | Quién lo abrió (Gerente de Logística). |
-| `abierto_en` | timestamp | Cuándo se abrió. |
-| `cerrado_en` | timestamp | Cuándo se cerró (nullable). |
-
-Un período contiene muchos pedidos (uno por servicio).
-
-> Previsión a futuro (no v1): hoy la apertura es manual (aprieta el botón el Gerente de Logística). El campo `abierto_por` deja registrado quién fue. El día que se quiera automatizar la apertura por fecha (ej: "el día X de cada mes se abre solo"), se agrega esa lógica sin tocar la estructura.
-
-### 4.2. `pedido`
-
-La planilla de un servicio en un mes.
-
-| Campo | Tipo | Descripción |
-|-------|------|-------------|
-| `id` | uuid PK | Identidad interna. |
-| `periodo_id` | uuid FK | A qué período pertenece. |
-| `servicio_id` | uuid FK | Qué servicio. (El código canónico del servicio es `DB.objetivos.codigo`.) |
-| `facturacion_neta` | numeric | Facturación neta del servicio, **congelada** al crear el pedido. |
-| `porcentaje_tope` | numeric | El % de tope, congelado (hoy 0.06). |
-| `estado` | text | Estado del flujo (ver sección 3). |
-| `tipo_pedido` | text | `mensual` / `extraordinario`. En la v1 siempre `mensual`. |
-| Campos de auditoría | — | quién cerró, quién auditó, quién autorizó, con timestamps. |
-
-**Por qué se congela la facturación y el porcentaje:** la facturación de un servicio la puede cambiar el módulo Comercial más adelante. Pero el pedido de junio tiene que recordar *con qué facturación se calculó su tope en junio*. Si no lo congeláramos, una corrección futura en Comercial recalcularía todos los topes viejos y se desarmaría la historia. El tope es una foto del momento (A.6, distinción entre corrección y vigencia aplicada al cruce entre módulos).
-
-**De dónde sale la facturación:** del módulo Comercial/Ventas. Al abrir un pedido para un servicio, el sistema toma la facturación neta vigente de ese servicio y la clava aquí (dependencia entre módulos, A.9).
-
-> Previsión: si al momento de implementar, Comercial todavía no tiene cargada la facturación por servicio, en la v1 el campo se carga a mano al abrir el pedido (editable). El día que Comercial la tenga, se engancha automático. El modelo funciona igual en ambos casos porque el dato vive en el pedido.
-
-### 4.3. `producto`
-
-El catálogo maestro. **Una sola vez** en todo el sistema (resuelve el problema #1 del Excel).
-
-| Campo | Tipo | Descripción |
-|-------|------|-------------|
-| `id` | uuid PK | **Identidad interna de Ohlimpia.** No cambia nunca. |
-| `codigo_monica` | text | Código del sistema externo Mónica. Referencia externa, no identidad. |
-| `descripcion` | text | Nombre del producto. |
-| `tipo_uso` | text | `apertura` / `tratamiento_piso` / `con_autorizacion` / `normal`. |
-| `anulado` | boolean | Soft delete (A.7). Un producto que deja de comprarse se marca, no se borra. |
-
-**Por qué `codigo_monica` no es la identidad:** el código viene de un sistema externo (Mónica). Los códigos externos son frágiles — pueden repetirse, cambiar de formato, o quedar obsoletos si algún día se migra de Mónica. En la propia planilla ya se ven inconsistencias (`100006`, `1000006`, `10000088`). Si atáramos la lógica del sistema al código de Mónica, heredaríamos su desorden. Por eso el producto se identifica internamente por su `id` (uuid, nuestro y estable), y el código de Mónica es solo la llave para cruzar con el sistema externo. Es el principio "ID-based, not index-based" aplicado a códigos externos.
-
-> Previsión (no v1): si Mónica es el maestro de productos, en algún momento habrá que decidir si Ohlimpia importa el catálogo desde Mónica o lo mantiene a mano. Eso es una integración (misma naturaleza que la de Tango, B.4) y se evalúa cuando llegue. Hoy el catálogo se carga y punto.
-
-### 4.4. `precio_producto`
-
-El costo unitario de cada producto, **con vigencia temporal** (A.6). Esta es la tabla que el Excel no puede tener y la que convierte la planilla en un sistema económico serio.
-
-| Campo | Tipo | Descripción |
-|-------|------|-------------|
-| `id` | uuid PK | Identidad interna. |
-| `producto_id` | uuid FK | A qué producto pertenece. |
-| `costo_unit` | numeric | El costo unitario. |
-| `vigencia_desde` | date | Desde cuándo rige este precio. |
-| `vigencia_hasta` | date | Hasta cuándo (nullable = vigente). |
-
-**Cómo funciona:** el costo **no vive en el producto**, vive aquí con fecha. Cuando el proveedor aumenta un producto en agosto, no se pisa el precio viejo: se crea un registro nuevo con `vigencia_desde` = 1 de agosto y se cierra el anterior con `vigencia_hasta`. El pedido de julio sigue mostrando el precio de julio; el de agosto, el nuevo (A.6).
-
-**Distinción corrección vs. vigencia (A.6):**
-- **Cambio con vigencia** (aumento de precio): se crea un registro nuevo. No toca el pasado.
-- **Corrección de error** (el precio estaba mal cargado): se modifica el registro existente y queda en la auditoría.
-
-### 4.5. `pedido_item`
-
-Cada renglón del pedido.
-
-| Campo | Tipo | Descripción |
-|-------|------|-------------|
-| `id` | uuid PK | Identidad interna. |
-| `pedido_id` | uuid FK | A qué pedido pertenece. |
-| `producto_id` | uuid FK | Qué producto. |
-| `cant_solicitada` | numeric | Cuánto pidió el supervisor. |
-| `cant_autorizada` | numeric | Cuánto autorizó el auditor. |
-| `costo_congelado` | numeric | El precio vigente copiado al cerrar el pedido. |
-| Campos de auditoría | — | Quién ajustó la cantidad, cuándo, valor anterior. |
-
-**Por qué `cant_solicitada` y `cant_autorizada` son dos campos separados:** cuando el auditor recorta, **no se pisa** lo que pidió el supervisor (A.7). Los dos números conviven. Esto es lo que después permite mostrarle al supervisor qué le recortaron, y lo que deja trazabilidad de las decisiones del auditor.
-
-**Por qué `costo_congelado`:** cuando el pedido se cierra, se copia aquí el precio vigente en ese momento. Así el total del pedido queda clavado y no se mueve aunque el precio cambie después.
-
-### 4.6. Regla de oro: el total no se guarda, se calcula
-
-En el Excel hay columnas de TOTAL y subtotales por categoría. En el sistema, esos números **no se almacenan**: se calculan al vuelo sumando los ítems (`cantidad × costo_congelado`).
-
-**Por qué:** un total guardado se puede desincronizar de sus partes — cambiás una cantidad y el total queda viejo. La única fuente de verdad son los ítems; el total es una consecuencia. Esto vale para el total del pedido y para los subtotales por categoría del semáforo.
+### Alcance
+El recargo solo juega en servicios **PAGAN** (facturación). En **NO PAGAN** no hay venta de productos.
 
 ---
 
-## 5. Alcance de la versión 1
+## 2. Tab CATÁLOGO
 
-**Incluye:**
-- Apertura y cierre de período por el Gerente de Logística.
-- Carga del supervisor sobre sus propios servicios (uno o varios).
-- Cierre del pedido por el supervisor.
-- Auditoría: revisión, ajuste de cantidades, autorización.
-- Semáforo del 6% con desglose por categoría (informativo, no bloqueante).
-- Etapas de compra y entrega (marcar el pedido como en compra / entregado).
-- Catálogo maestro de productos con código de Mónica.
-- Precios con vigencia temporal.
-- Auditoría y soft delete en todo (A.7).
+### Triple código
+| Código | Descripción |
+|---|---|
+| **CÓDIGO INTERNO** | Correlativo, identificador real del sistema |
+| **CÓD. PROVEEDOR** | El del archivo de cada proveedor (Thames: `QUITAC303025L00`, Nimi: `02-037/DV-R02153`) |
+| **CÓD. MÓNICA** | Referencia de transición del sistema externo de Logística |
 
-**Queda previsto en el modelo pero NO se construye en la v1:**
-- Pedidos extraordinarios (fuera del circuito mensual). Hoy se manejan informalmente por WhatsApp/mail. El campo `tipo_pedido` deja la puerta abierta.
-- Notificación al supervisor de los recortes del auditor. El dato se guarda; el aviso se prende después.
-- Apertura automática del período por fecha.
-- Integración/importación del catálogo desde Mónica.
-- Enganche automático de la facturación desde Comercial (si Comercial aún no la tiene, se carga a mano).
+### Proveedor y marca
+Cada producto pertenece a **UN** proveedor (campo `PROV-xxx` del maestro de Proveedores) y lleva la **MARCA** (el archivo Nimi la trae: DV=Diversey, SCJ, 3M, ITA, POL...).
+
+### Import — flujo
+1. **Elegir proveedor** (del padrón, rubro PRODUCTOS)
+2. **Subir el archivo**
+3. **Vista previa**
+4. **Confirmar**
+
+### Import — aislamiento
+> 🔑 La clave de matching es **PROVEEDOR + CÓD. PROVEEDOR**.
+
+Un import de Thames solo mira productos Thames; **jamás pisa los de Nimi** aunque un código coincida.
+
+Productos sin código (Thames trae **45**) → matching asistido por descripción con revisión manual.
+
+### Import — plantilla por proveedor
+Cada proveedor manda su Excel con SU formato:
+
+| Proveedor | Fila de inicio | Columnas |
+|---|---|---|
+| **Thames** | 5 | CÓDIGO / DESCRIPCIÓN / ADICIONAL / PRECIO |
+| **Nimi** | 4 | Código / Descripción / Marca / Precio |
+
+La primera vez se mapean columnas y fila de inicio → queda guardado como **PLANTILLA DE IMPORT** del proveedor y los meses siguientes entra solo. Si cambia el formato, se remapea.
+
+### Import — vista previa
+- **Costos actualizados** (antes → después, Δ%, nueva vigencia)
+- **Productos nuevos** (alta con código interno)
+- **No vinieron** → `POSIBLE DISCONTINUADO` — **nunca borrar**
+- **Sin código** → revisión
+
+Todo import queda en **Auditoría** con archivo origen; los costos anteriores quedan como vigencias.
+
+### Editar
+`nombre · tipo de uso · proveedor · costo (nueva vigencia) · recargo override`
+
+**Tipos de uso** (parametrizables): `NORMAL` / `CON AUTORIZACIÓN` / `TRATAMIENTO PISO` / `APERTURA SERVICIO`
 
 ---
 
-## 6. Preguntas abiertas para resolver antes o durante la implementación
+## 3. Comparador de presupuestos *(subtabs de COMPRAS)*
 
-1. **¿Comercial ya tiene la facturación neta por servicio?** Define si en la v1 la facturación se engancha automática o se carga a mano al abrir el pedido.
-2. **Recorte del auditor: ¿pedimos motivo?** Está pendiente definir si, además de registrar el recorte, se le pide al auditor un comentario del porqué. (Barato de agregar, se puede decidir en la etapa de auditoría.)
-3. **Carga inicial del catálogo:** ¿cómo se cargan por primera vez los ~120 productos y sus precios? (Se puede armar un script de importación desde la planilla actual, con limpieza previa de los códigos inconsistentes.)
-4. **¿Renombrar "Con Autorización"?** Evaluar cuando se revise el catálogo, para no confundir a supervisores nuevos.
+### Grupos de equivalencia
+Logística vincula productos "iguales" de distintos proveedores (grupo `EQ-xxx`). Armado **manual** con candidatos sugeridos por similitud de nombre.
+
+Cada miembro lleva **FACTOR DE CONVERSIÓN** a la UNIDAD COMÚN del grupo (1 pack = 50 bolsas; 1 bidón = 5 L).
+
+> La comparación es **SIEMPRE en $ por unidad común**.
+
+**Casos reales:**
+| Producto | Thames | Nimi | Resultado |
+|---|---|---|---|
+| Bolsa 60×90 negra | $63,83/un | $9.244,37 el pack de 50 = $184,89/un | Thames **65% más barato** |
+| Detergente | Bio-Det $1.468/L | Drax $3.136/L | — |
+
+### Vista comparador
+Tabla por grupo con un proveedor por fila: precio lista, factor, $ por unidad común, chip `MÁS BARATO` y **evolución** (de las vigencias de los imports: quién viene aumentando más).
+
+### Sugerencias en la compra
+Si una línea del consolidado tiene opción más barata en otro proveedor, el sistema **SUGIERE** el cambio — ⚠️ **NUNCA automático**.
+
+Logística decide y queda registrado; **"mantener" pide motivo** (calidad/mínimo/plazo — parametrizable).
+
+Tocando la fila se abre el **DETALLE POR SERVICIO**: qué servicios lo pidieron, con su supervisor, y se decide cambiar/mantener **servicio por servicio** o cambio completo → puede quedar **SUSTITUCIÓN PARCIAL** (parte de la cantidad a cada proveedor).
+
+### Sustitución por equivalente
+- La línea del pedido queda vinculada al **producto realmente comprado**; entrega y remito salen con el producto real
+- **"REPETIR MES ANTERIOR"** le carga al supervisor el producto que **realmente recibió** (cada servicio repite su realidad)
+- El detector FUERA DE ESTÁNDAR trata a los equivalentes como **el mismo producto** (no dispara "primer pedido")
+
+### Simulación mensual
+Valúa la compra completa del mes **como está** vs **optimizada por grupo**; reporte anual de ahorro `TOMADO` vs `NO TOMADO` (con motivos) — *el número para el consejo*.
 
 ---
 
-## 7. Plan de implementación sugerido (para coordinar con Fede)
+## 4. Tab PEDIDOS POR SERVICIO
 
-Respetando el flujo del equipo (C.1) y "una cosa a la vez", el orden propuesto es:
+El supervisor ve **SUS SERVICIOS EN FILAS**:
+`servicio · tope del mes ($, a costo) · pedido a costo · barra de consumo · estado`
 
-1. **SQL de las 5 tablas** (script versionado, A.5). Empezar por `producto` y `precio_producto` (el catálogo), que son la base.
-2. **Script de importación del catálogo** desde la planilla actual, con limpieza de códigos.
-3. **Pantalla de catálogo** (ABM de productos y precios) para RRHH/Logística.
-4. **Apertura de período** (Gerente de Logística).
-5. **Pantalla del supervisor** (carga + semáforo del 6%).
-6. **Pantalla del auditor** (revisión, ajuste, autorización).
-7. **Etapas de compra y entrega.**
+**Arriba, 4 indicadores con color:**
+`ELEVADOS` (verde) · `BORRADORES` (azul) · `SIN INICIAR` (gris) · `OBSERVADOS` (naranja)
 
-Cada paso se cierra con su propio commit (A.3) y su diagnóstico previo (A.4).
+### Carga
+Click en la fila → ventana de catálogo del servicio: productos con proveedor y tipo de uso, cantidades, y la **BARRA DEL TOPE LLENÁNDOSE EN VIVO** con semáforo:
+
+| Color | Significado |
+|---|---|
+| 🟢 Verde | Normal |
+| 🟡 Amarillo | Cerca del tope, o con producto CON AUTORIZACIÓN |
+| 🔴 Rojo | Excede |
+
+Botón **"REPETIR MES ANTERIOR"**.
+
+### Estados
+```
+SIN INICIAR → BORRADOR (re-editable) → ELEVADO → OBSERVADO POR AUDITOR
+```
+
+**ELEVADO** es reversible mientras la ventana esté abierta y el auditor no lo haya tomado.
+
+### Ventana y cierre
+Ventana mensual parametrizable, recordatorio **24 hs antes**.
+
+> Al cierre, los borradores NO elevados **SE ELEVAN AUTOMÁTICAMENTE** tal como estén, con notificación al supervisor.
+
+### Detección FUERA DE ESTÁNDAR
+El sistema compara el pedido contra el **ESTÁNDAR del servicio** (historial de pedidos + perfil definido al alta del servicio/tipo de servicio).
+
+**Tres reglas**, umbrales parametrizables en Configuración:
+
+| # | Regla | Detecta |
+|---|---|---|
+| a | **PRODUCTO FUERA DE PERFIL** | Nunca lo pidió / no corresponde al tipo |
+| b | **CANTIDAD ANÓMALA** | Muy sobre su promedio |
+| c | **SALTO DE CONSUMO** | Total muy sobre su promedio, **aunque no supere el tope** |
+
+Al elevar con desvíos, el supervisor ve el aviso con el detalle y **debe JUSTIFICAR**: motivo de lista parametrizable + texto libre. La justificación viaja con el pedido a la bandeja (motivo `FUERA DE ESTÁNDAR`).
+
+> Logística ve este tab como **panel de seguimiento** (quién cargó / quién falta, por supervisor).
 
 ---
 
-## Historial de versiones
+## 5. Tab BANDEJA DEL AUDITOR
 
-| Versión | Fecha | Cambios |
-|---------|-------|---------|
-| 1.0 | 2026-07-11 | Diseño inicial del módulo. Flujo de estados, modelo de 5 tablas, alcance v1. |
+Función dentro de Logística. **Caen SOLO:**
+
+`EXCEDE TOPE` · `CON AUTORIZACIÓN` · `FUERA DE VENTANA` · `FUERA DE ESTÁNDAR`
+*(con su detalle y justificación del supervisor)*
+
+El resto pasa **directo a Compras**. Contador de pendientes en la pestaña.
+
+### Revisión
+Tocando la fila, el auditor abre **LA MISMA VENTANA del supervisor en modo auditor**:
+- Columna **"pedido del supervisor"** — fija
+- Columna **"propuesta del auditor"** — editable
+- **DIFF marcado por línea** (12 → 6) y el tope recalculando en vivo
+- Motivo (parametrizable) + texto libre
+
+### Acuerdo — camino normal
+**"DEVOLVER CON PROPUESTA"** → al supervisor le llega `OBSERVADO` con el diff línea por línea. Puede:
+- **ACEPTAR PROPUESTA** → un click → aprobado directo, no vuelve a la bandeja
+- **Modificar y re-elevar** → vuelve a la bandeja para acordar
+
+### Atajo
+**"APROBAR CON AJUSTE DIRECTO"** → sigue con el recorte y el supervisor queda notificado.
+
+Disponibilidad parametrizable en Configuración: `siempre` / `solo cerca del cierre` / `nunca`.
+
+> La fecha de consolidación es el límite: ahí la última palabra es del auditor.
+
+---
+
+## 6. Tab COMPRAS
+
+### Propuesta de orden
+La **ORDEN PROPUESTA** la arma el sistema:
+
+```
+consolidado de pedidos aprobados
+  NETEADO contra stock (pedido − existencias)
++ líneas de REFUERZO DE STOCK sugeridas
+  (productos bajo mínimo, hasta nivel objetivo)
+```
+
+Los mínimos y niveles objetivo se definen en Configuración *(ver documento STOCK)*.
+
+Logística decide **línea por línea**: acepta / edita / quita.
+
+### Solicitud de presupuesto
+Etapa **opcional** antes de la orden firme.
+
+- La solicitud va **SIN PRECIOS** (que el proveedor tire su mejor número)
+- **NUNCA** incluye información de otros proveedores
+- **ALCANCE** seleccionable con checkbox por línea: orden completa (default) / solo líneas sustituidas por el comparador / selección manual
+
+> Si se cotizan las sustituidas y el ahorro se achica, el comparador recalcula y pregunta si se mantiene el cambio.
+
+### Proveedor nuevo
+Botón **"+ PRESUPUESTAR A UN PROVEEDOR NUEVO (fuera de cartera)"**: alta rápida (razón social + contacto) que lo crea en el padrón de Proveedores en estado `EN EVALUACIÓN`.
+
+Si cotiza bien y se le compra, se completa la ficha y pasa a `ACTIVO`.
+
+> El padrón funciona también como **cartera de potenciales**.
+
+### Fichas de solicitud
+Cada solicitud es una **FICHA estilo CRM comercial**:
+
+```
+ARMADA → ENVIADA → COTIZACIÓN RECIBIDA → ANALIZADA → ORDEN FIRME
+```
+
+Con seguimiento cronológico con usuario, contacto del proveedor (del padrón), notas y recordatorios automáticos de respuesta.
+
+**Historial lista-vs-cotizado por proveedor** — *quién afloja cuando compite*.
+
+### Cotización
+Se carga a mano o importando con la plantilla del proveedor. El sistema compara línea por línea contra la lista vigente (Δ%).
+
+**Decisión:**
+- **CONVERTIR EN ORDEN FIRME** a precios cotizados → quedan como vigencia `COTIZACIÓN PUNTUAL`, **no pisan la lista**
+- **Desestimar** → comprar a lista
+
+### Orden de compra firme
+**DOS CAMINOS:**
+1. **Directa** — "Enviar orden firme" = comprar el pedido del mes a precios de LISTA vigente, sin presupuestar
+2. **Vía cotización** — a precios COTIZADOS
+
+Por proveedor, a costo, con **OBSERVACIONES POR LÍNEA**.
+*(Caso real: "varias fragancias, que no sea papaya ni canela ni coco")*
+
+Exportable en el formato del archivo de compra actual de Richard. La orden queda `PENDIENTE` esperando mercadería y factura.
+
+---
+
+## 7. Recepción y match de factura (3 patas)
+
+### Recepción
+Cuando llega la mercadería, Logística registra **QUÉ ENTRÓ** contra la orden (puede ser parcial — la orden muestra avance y backorder).
+
+> Todo lo recibido **ENTRA AL STOCK valorizado a lo pagado**.
+
+### Factura
+La factura del proveedor **SE SUBE EN ESTE MÓDULO**, sobre la orden pendiente.
+
+> La controla quien conoce la orden y recibió la mercadería — mismo principio que Máquinas: **Logística controla, Finanzas paga**.
+
+El sistema matchea solo: `ORDEN vs RECIBIDO vs FACTURADO`, línea por línea.
+
+### Resultados
+| Resultado | Qué significa |
+|---|---|
+| **MATCH OK** | Pasa automático |
+| **OBSERVADA** | Facturó de más, precio distinto al cotizado, o algo que no llegó → se reclama la diferencia, registrado |
+| **PARCIAL** | La orden sigue abierta |
+
+> **Caso real que esto atrapa:** las compras a Nimi valuadas con lista de mayo — la factura llega **+10,9% arriba** y hoy nadie lo ve. Acá salta `OBSERVADA` al instante con la diferencia por línea.
+
+### A pago
+Con el **MATCH OK**, la factura viaja al circuito de Finanzas: imputación a la cta cte del proveedor (subcuenta `PROV-xxx` del plan de cuentas cuando esté el módulo contable) y pago.
+
+> ⚠️ **Finanzas nunca paga una factura sin match de Logística.**
+
+Una sola carga: el asiento contable se generará automático al confirmar el match.
+
+---
+
+## 8. Tab HOJA DE RECORRIDO
+
+Logística proyecta el **recorrido del mes**: SALIDAS de reparto por zona, con **FECHA LÍMITE** de entrega por servicio. El tab Entregas hereda estos parámetros.
+
+### Nueva salida
+`fecha de salida · zona/recorrido (parametrizable) · responsable del reparto · límite de entrega default · recordatorio (N días antes, parametrizable)`
+
+El sistema **SUGIERE** los servicios de esa zona con pedido aprobado del período, mostrando el estado de armado de cada uno. Logística:
+- Tilda cuáles entran
+- Define el **ORDEN DE VISITA** (1, 2, 3...)
+- Puede pisar el límite por servicio
+- Carga observaciones *("entregar antes de las 10 hs")*
+- Puede sumar un servicio de otra zona si queda de paso
+
+### Plantilla y repetición
+El recorrido del mes se guarda como **PLANTILLA**.
+
+Botón **"REPETIR RECORRIDO DEL MES ANTERIOR"**: copia todas las salidas con las fechas corridas al mes actual — Logística ajusta y confirma.
+
+### Riesgo
+Un pedido con backorder o armado incompleto con el límite encima queda **EN RIESGO ⚠**.
+
+Logística decide: entrega parcial · reprogramar a otra salida · esperar la mercadería. Recordatorios automáticos antes de cada salida.
+
+### Origen de las zonas
+> ⚠️ Las direcciones **NO se cargan acá**: viven en el **MAESTRO DE SERVICIOS** del módulo COMERCIAL — cada alta de servicio ya carga DIRECCIÓN y LOCALIDAD (CABA / Prov. de Bs. As.).
+
+**Agregar ahí el campo ZONA DE REPARTO** (parametrizable): la hoja de recorrido lo **LEE** de Comercial, no duplica datos.
+
+---
+
+## 9. Tab ENTREGAS
+
+### Inicio
+Arranca con la **RECEPCIÓN** (no con la orden firme). El sistema cruza lo recibido contra los pedidos aprobados y marca qué servicios se pueden **ARMAR COMPLETOS** y cuáles quedan cortos por backorder.
+
+> Se arman igual los completos.
+
+### Estados y checklist
+```
+PENDIENTE → EN ARMADO → ARMADO → EN REPARTO → ENTREGADO
+```
+
+- **EN ARMADO:** checklist producto por producto — se tilda lo que entra en la caja; **cada tilde es una SALIDA de stock**
+- **ARMADO:** checklist completo → se **GENERA EL REMITO automáticamente**, reflejando exactamente lo que va en la caja. El backorder sale después con remito propio
+
+### Remito
+Formato **"Consignaciones" de Mónica** (numeración correlativa continuada, parametrizable):
+
+`membrete · N° · fecha · presentado a/enviar a · cód. cliente · CUIT · términos · comprobante · líneas con código interno (+ ex-Mónica en transición) · descripción · cantidad · PRECIO VENTA · importe · total · firma`
+
+> ⚠️ **SIN recargos visibles.** Se imprime **POR DUPLICADO** y viaja con el pedido.
+
+### Confirmación de entrega
+Al volver el reparto (o desde el celular en el momento):
+- **QUIÉN RECIBIÓ** (nombre y aclaración)
+- **FOTO DEL REMITO FIRMADO** adjunta
+
+En servicios **PAGAN**, esa foto viaja a **FINANZAS**, que la **adjunta al mail** junto con la factura para el cliente.
+
+**FIRMA REQUERIDA** parametrizable por servicio:
+| Tipo | Quién firma | Para qué |
+|---|---|---|
+| **CLIENTE** | Default en PAGAN | El remito firmado respalda la factura |
+| **PERSONAL PROPIO** | NO PAGAN | Constancia interna |
+
+> Recién con **ENTREGADO** impacta el costo al centro de costos del servicio (a PPP del stock).
+
+### Límites a la vista
+Columna **"ENTREGA LÍMITE"** heredada de la Hoja de recorrido:
+
+`ENTREGADO ✔` / `HOY` / `FALTAN N DÍAS` / `EN RIESGO ⚠` *(backorder o armado incompleto con el límite encima)*
+
+Con la zona y fecha de cada servicio.
+
+### Destino
+```
+PAGAN    → remito firmado a FINANZAS → factura a PRECIO VENTA
+           + envío del remito al cliente → cta cte del cliente
+NO PAGAN → constancia interna → costo al económico del servicio
+```
+
+---
+
+## 10. Roles
+
+| Rol | Responsabilidades |
+|---|---|
+| **SUPERVISOR** | Carga pedidos, justifica desvíos, acepta propuestas del auditor |
+| **AUDITOR** *(Logística)* | Bandeja propia: revisa en la ventana con diff, devuelve con propuesta o aprueba con ajuste (según Config) |
+| **LOGÍSTICA** | Catálogo e imports, comparador y equivalencias, propuesta de orden, presupuestos, recepción, factura y match, armado y entregas |
+| **FINANZAS** | Cascada de recargos y overrides, tope (% en Config), factura PAGAN a precio venta, paga facturas con match OK |
+
+---
+
+## 11. CONFIGURACIÓN — todo lo parametrizable, en un solo lugar
+
+- % del **tope** (con vigencias — pasado congelado)
+- **Recargo** general y overrides
+- **Fechas de ventana** y recordatorios
+- **Umbrales de FUERA DE ESTÁNDAR**
+- **Motivos** de justificación del supervisor
+- **Motivos del auditor** y de "mantener" del comparador
+- **"Aprobar con ajuste directo"**: siempre / cerca del cierre / nunca
+- **Tipos de uso**
+- **Firma requerida** por servicio
+- **Numeración de remitos**
+- **Alerta de lista de proveedor desactualizada** (N meses)
+- **Zonas de reparto** y recordatorios de salida
+- **Stock mínimo y nivel objetivo** por producto *(ver doc STOCK)*
+
+---
+
+## 12. Estadísticas y auditoría
+
+> Todo con **timestamp y responsable**.
+
+**Reportes:**
+- Gasto por servicio vs tope (histórico, con el % vigente de cada período)
+- Ganancia por productos (venta − costo)
+- Ahorro del comparador (tomado / no tomado)
+- Lista-vs-cotizado por proveedor
+- Recortes del auditor
+- Desvíos de estándar por servicio
+- Facturas observadas y diferencias reclamadas
+- Excepciones fuera de ventana
+- Productos más pedidos
+
+---
+
+## 13. Datos de arranque
+
+### Catálogo
+- `CATALOGO_PRODUCTOS_para_Fede.xlsx` — 113 productos con cód. Mónica
+- Lista **THAMES** agosto — 443 productos, cód. proveedor + costo real
+- Lista **NIMI** junio — 560 productos, multimarca *(importar con alerta de desactualizada)*
+- **Recargo general inicial: 30%**
+
+### Proveedores
+`PROV-001` THAMES y `PROV-002` NIMI, del maestro de Proveedores *(doc propio)*.
+
+### Remitos
+Numeración continuando el correlativo de Mónica *(rango 4600-4700 en los analizados)*.
+
+### Pendiente
+> ⚠️ La hoja **"PEDIDO PAPEL"** de la planilla de área está **rota (#REF!)** — el circuito del papel se revisa aparte con Logística.

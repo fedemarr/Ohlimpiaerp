@@ -2,7 +2,7 @@
 // Este archivo se irá vaciando a medida que se migren módulos.
 // No agregar código nuevo acá.
 
-import { DB, PERFILES, MENU, BADGE_MAP, AREAS, LOCALIDADES_BA, currentUser, MODULOS_SISTEMA } from '@shared/state.js';
+import { DB, PERFILES, MENU, BADGE_MAP, AREAS, LOCALIDADES_BA, currentUser } from '@shared/state.js';
 import { $, initials, avatarEl, badge, formatPeriodo, hoyStr, esFeriado, esFinde, getDiasDelMes, calcularDiasEntre, toTitleCase, cleanText, applyTitleCase, validarCampos, fillSelect, fillDL } from '@shared/helpers.js';
 import { toast, abrirModal, cerrarModal, activarOrdenamiento } from '@shared/ui.js';
 import { supaSync, supaDel, supaInit } from '@shared/supabase.js';
@@ -10,6 +10,8 @@ import { crearNotificacion } from '@shared/notificaciones.js';
 import { obtenerValorHoraVigente, getCategoriaById } from './modules/categorias/consultas.js';
 import { pctEfectivoObjetivo, pctEfectivoCliente, pctGeneralVigente, esEditorSupervision, esMismoSupervisor, adicionalSupervisionDe, detalleAdicionalSupervision } from './modules/supervision/supervision.js';
 import { listarAdjuntos, obtenerUrlFirmada, subirAdjunto, borrarAdjunto, MAX_SIZE as ADJ_MAX_SIZE } from '@shared/adjuntos.js';
+// v098 — Tab "Acceso y perfiles" de Configuración (matriz + usuarios + alta).
+import { renderTabAccesosPerfiles } from '@modules/accesos/index.js';
 import { DIAS_SEMANA, checklistDiasHtml } from '@shared/horarioDias.js';
 
 // ========== ESTADO ==========
@@ -99,7 +101,6 @@ function renderConfiguracion(){
   renderConfigLista('disponibilidadesHorarias','lista-disponibilidades-horarias');
   ['estadosLegales','tiposLegales','abogados'].forEach(k=>renderConfigLista(k,'lista-'+({estadosLegales:'estados-legales',tiposLegales:'tipos-legales',abogados:'abogados'}[k])));
   ['tiposMedicos','estadosMedicos','medicosCfg'].forEach(k=>renderConfigLista(k,'lista-'+({tiposMedicos:'tipos-medicos',estadosMedicos:'estados-medicos',medicosCfg:'medicos-cfg'}[k])));
-  renderTablaPerfilesModulos();
   renderGrillaFuncionesUsuario();
   poblarSelectFuncionUsuario();
   if (window.renderConfigMotivosReas) window.renderConfigMotivosReas();
@@ -119,6 +120,8 @@ function cfgTab(nombre, btn){
   if(target) target.classList.add('active');
   if(btn) btn.classList.add('active');
   if(nombre==='operaciones-cfg'){ renderMotivosEFT(); renderMotivosNF(); }
+  // v098 — la matriz de accesos se renderiza on-demand al entrar a la tab.
+  if(nombre==='usuarios-cfg' && window.renderTabAccesosPerfiles) window.renderTabAccesosPerfiles();
 }
 
 // ========== BUSCADOR GLOBAL ==========
@@ -141,52 +144,16 @@ function agregarItem(key,inputId,listId){
 }
 function eliminarItem(key,idx,listId){DB[key].splice(idx,1);renderConfigLista(key,listId);poblarSelects();}
 
-function renderTablaUsuarios(){
-  const el=$('tabla-usuarios');if(!el)return;
-  el.innerHTML=DB.usuarios.map(u=>{
-    const p=PERFILES[u.perfil];
-    const mods=p?p.modulos.slice(0,4).join(', ')+(p.modulos.length>4?' +'+( p.modulos.length-4)+' más':''):'—';
-    return `<tr>
-      <td style="font-weight:500;">${u.nombre}</td>
-      <td style="font-family:'DM Mono',monospace;font-size:12px;">${u.email}</td>
-      <td>${p?`<span class="badge ${p.color}">${u.perfil}</span>`:'—'}</td>
-      <td style="font-size:12px;color:var(--texto-suave);">${mods}</td>
-      <td>${badge(u.activo?'Activo':'Baja')}</td>
-      <td><button class="btn btn-secondary btn-xs" onclick="toast('Editar usuario ${u.nombre}')">Editar</button></td>
-    </tr>`;
-  }).join('');
-}
-
-function actualizarPermisosPreview(){
-  const perfil=$('u-perfil').value;
-  const el=$('permisos-preview');if(!el)return;
-  const p=PERFILES[perfil];
-  if(!p){el.innerHTML='<span style="color:var(--texto-muy-suave);">Seleccioná un perfil para ver los módulos con acceso</span>';return;}
-  el.innerHTML=`<strong>Acceso:</strong> ${p.desc}<br><div style="margin-top:6px;display:flex;gap:5px;flex-wrap:wrap;">${p.modulos.map(m=>`<span class="chip">${m}</span>`).join('')}</div>`;
-}
-
-function guardarUsuario(){
-  const nombre=$('u-nombre').value.trim(),email=$('u-email').value.trim(),pass=$('u-pass').value,perfil=$('u-perfil').value;
-  if(!nombre||!email||!pass||!perfil){toast('Completá todos los campos obligatorios');return;}
-  const funcion=($('u-funcion')||{value:''}).value;
-  DB.usuarios.push({id:Date.now(),nombre,email,pass,perfil,funcion,activo:true});
-  cerrarModal('modal-usuario');
-  renderTablaUsuarios();
-  renderTablaPerfilesModulos();
-  supaSync('usuarios', DB.usuarios[DB.usuarios.length-1]); toast('✓ Usuario creado');
-}
-
-function actualizarFuncionUsuario(userId, funcion){
-  const u=DB.usuarios.find(x=>x.id===userId);
-  if(u){
-    u.funcion=funcion;
-    toast(`✓ ${u.nombre}: función actualizada a "${funcion||'Sin función'}"`);
-    // Actualizar aprobadores si la función está en la lista
-    if(funcion&&DB.aprobadoresReas.includes(funcion)){
-      toast(`✓ ${u.nombre} queda autorizado/a para aprobar reasignaciones como "${funcion}"`,4000);
-    }
-  }
-}
+// ========== USUARIOS Y ACCESOS ==========
+// v098: la tabla "perfiles × módulos", renderTablaUsuarios,
+// actualizarPermisosPreview y guardarUsuario (push con pass en texto plano +
+// supaSync incompatible con el esquema uuid de public.usuarios) se ELIMINARON.
+// Su reemplazo vive en src/modules/accesos/ — enganchado en cfgTab al entrar
+// a la tab 'usuarios-cfg'. El alta de usuarios va por api/crear-usuario.js
+// (Supabase Auth + service role). Se conservan las funciones de
+// "⭐ Función en la organización" que pertenecen a la tab Puestos.
+// La edición de perfil/función/nickname de cada usuario ahora vive en la
+// card "Accesos individuales" del módulo accesos (accSetUsuario).
 
 // Render grilla de funciones en configuración
 function renderGrillaFuncionesUsuario(){
@@ -231,12 +198,8 @@ function eliminarFuncionUsuario(idx){
 }
 
 function poblarSelectFuncionUsuario(){
-  // Poblar select en modal de nuevo usuario
-  const sel=$('u-funcion');
-  if(sel){
-    const ph=sel.options[0]?.outerHTML||'<option value="">— Sin función asignada —</option>';
-    sel.innerHTML=ph+DB.funcionesUsuario.map(f=>`<option>${f}</option>`).join('');
-  }
+  // Select de función en el aprobador de reasignaciones (el del modal de
+  // nuevo usuario desapareció con el modal — v098 usa acc-nuevo-funcion).
   // Actualizar aprobadores de reasignaciones con funciones disponibles
   const selAprob=$('nuevo-aprobador-reas');
   if(selAprob){
@@ -388,148 +351,10 @@ function eliminarPersonaArea(area,idx){
 
 
 
-// ========== PERFILES DE MÓDULO — TABLA MATRICIAL ==========
-
-// Permisos: 0 = sin acceso, 1 = solo lectura, 2 = puede modificar
-// Se inicializa desde el perfil del usuario
-function getPermisosIniciales(perfil){
-  const p=PERFILES[perfil];
-  if(!p) return {};
-  const permisos={};
-  MODULOS_SISTEMA.forEach(m=>{
-    permisos[m.key]=p.modulos.includes(m.key)?2:0;
-  });
-  return permisos;
-}
-
-// Estado de permisos por usuario
-let permisosUsuarios={};
-function initPermisosUsuarios(){
-  DB.usuarios.forEach(u=>{
-    if(!permisosUsuarios[u.id]) permisosUsuarios[u.id]=getPermisosIniciales(u.perfil);
-  });
-}
-
-function renderTablaPerfilesModulos(){
-  initPermisosUsuarios();
-  const thead=$('thead-perfiles');
-  const tbody=$('tbody-perfiles');
-  if(!thead||!tbody) return;
-
-  // Header — columnas fijas + módulos (SIN botones globales de columna)
-  thead.innerHTML=`<tr>
-    <th style="text-align:left;padding:10px 14px;font-size:11px;font-weight:600;color:var(--texto-suave);background:#f8f9fd;border:1px solid var(--borde);min-width:180px;">Usuario / Asociado</th>
-    <th style="padding:8px 10px;font-size:11px;font-weight:600;color:var(--texto-suave);background:#f8f9fd;border:1px solid var(--borde);min-width:80px;">Nickname</th>
-    <th style="padding:8px 10px;font-size:11px;font-weight:600;color:var(--texto-suave);background:#f8f9fd;border:1px solid var(--borde);min-width:100px;">Perfil sistema</th>
-    <th style="padding:8px 10px;font-size:11px;font-weight:600;color:var(--texto-suave);background:var(--acento-suave);border:1px solid #e6c84a;min-width:130px;">⭐ Función en la org.</th>
-    ${MODULOS_SISTEMA.map(m=>`
-      </th>`).join('')}
-    <th style="padding:8px 10px;font-size:11px;font-weight:600;color:var(--texto-suave);background:#f8f9fd;border:1px solid var(--borde);text-align:center;min-width:130px;">Acciones</th>
-  </tr>`;
-
-  // Filas — una por usuario, con botones de asignar/quitar por fila
-  tbody.innerHTML=DB.usuarios.map(u=>{
-    const perms=permisosUsuarios[u.id]||{};
-    const p=PERFILES[u.perfil];
-    // Legajo vinculado
-    const legajo=DB.legajos.find(l=>l.nombre.toLowerCase().includes(u.nombre.split(' ')[0].toLowerCase()));
-    const nickname=u.nickname||u.nombre.split(' ')[0];
-    return `<tr>
-      <td style="padding:10px 14px;border:1px solid var(--borde);">
-        <div style="display:flex;align-items:center;gap:10px;">
-          <div class="avatar" style="width:30px;height:30px;font-size:11px;">${initials(u.nombre)}</div>
-          <div>
-            <div style="font-weight:500;font-size:13px;">${u.nombre}</div>
-            <div style="font-size:11px;color:var(--texto-muy-suave);">${u.email}</div>
-            ${legajo?`<div style="font-size:10px;color:var(--azul);">📁 Legajo N°${legajo.nro} — ${legajo.funcion}</div>`:'<div style="font-size:10px;color:var(--texto-muy-suave);">Sin legajo vinculado</div>'}
-          </div>
-        </div>
-      </td>
-      <td style="padding:8px;border:1px solid var(--borde);text-align:center;">
-        <input type="text" value="${nickname}"
-          style="width:70px;padding:4px 6px;border:1px solid var(--borde-fuerte);border-radius:6px;font-size:12px;text-align:center;outline:none;"
-          onchange="actualizarNickname(${u.id},this.value)"
-          placeholder="Nick...">
-      </td>
-      <td style="padding:8px;border:1px solid var(--borde);text-align:center;">
-        <span class="badge ${p?p.color:'badge-gris'}" style="font-size:10px;">${u.perfil.split(' ')[0]}</span>
-      </td>
-      <td style="padding:8px;border:1px solid var(--borde);background:var(--acento-suave);">
-        <select style="width:100%;padding:4px 6px;border:1px solid #e6c84a;border-radius:6px;font-size:12px;font-family:inherit;outline:none;background:white;cursor:pointer;"
-          onchange="actualizarFuncionUsuario(${u.id},this.value)">
-          <option value="">— Sin función —</option>
-          ${DB.funcionesUsuario.map(f=>`<option${u.funcion===f?' selected':''}>${f}</option>`).join('')}
-        </select>
-        ${u.funcion?`<div style="font-size:10px;color:#7a6000;margin-top:3px;text-align:center;">✓ ${u.funcion}</div>`:''}
-      </td>
-      ${MODULOS_SISTEMA.map(m=>{
-        const nivel=perms[m.key]||0;
-        const cls=nivel===2?'modificar':nivel===1?'lectura':'sin-acceso';
-        const ico=nivel===2?'✏️':nivel===1?'👁':'—';
-        const titulo=nivel===2?'Puede modificar — click para cambiar':nivel===1?'Solo lectura — click para cambiar':'Sin acceso — click para dar acceso';
-        return `<td style="padding:4px;border:1px solid var(--borde);text-align:center;">
-        </td>`;
-      }).join('')}
-      <td style="padding:6px 10px;border:1px solid var(--borde);text-align:center;">
-        <div style="display:flex;flex-direction:column;gap:4px;align-items:center;">
-          <button class="btn btn-xs" style="background:var(--verde-claro);color:var(--verde);border:1px solid #9fdaba;font-size:10px;width:100%;" onclick="asignarTodosUsuario(${u.id},2)" title="Dar acceso completo a todos los módulos">✏️ Todos modificar</button>
-          <button class="btn btn-xs" style="background:var(--azul-claro);color:var(--azul);border:1px solid #b8c8e8;font-size:10px;width:100%;" onclick="asignarTodosUsuario(${u.id},1)" title="Dar solo lectura en todos los módulos">👁 Todos lectura</button>
-          <button class="btn btn-xs" style="background:var(--rojo-suave);color:var(--rojo);border:1px solid #f5c6c0;font-size:10px;width:100%;" onclick="asignarTodosUsuario(${u.id},0)" title="Quitar todos los accesos de este usuario">— Quitar todos</button>
-        </div>
-      </td>
-    </tr>`;
-  }).join('');
-}
-
-function ciclarPermiso(userId, modulo){
-  if(!permisosUsuarios[userId]) permisosUsuarios[userId]={};
-  const actual=permisosUsuarios[userId][modulo]||0;
-  permisosUsuarios[userId][modulo]=(actual+1)%3; // 0→1→2→0
-  renderTablaPerfilesModulos();
-  const niveles=['sin acceso','solo lectura','puede modificar'];
-  const u=DB.usuarios.find(x=>x.id===userId);
-  toast(`${u?.nombre} — ${modulo}: ${niveles[permisosUsuarios[userId][modulo]]}`);
-}
-
-function asignarColumna(modulo, nivel){
-  DB.usuarios.forEach(u=>{
-    if(!permisosUsuarios[u.id]) permisosUsuarios[u.id]={};
-    permisosUsuarios[u.id][modulo]=nivel;
-  });
-  renderTablaPerfilesModulos();
-  const niveles=['sin acceso','solo lectura','puede modificar'];
-  toast(`✓ Módulo "${modulo}": todos los usuarios → ${niveles[nivel]}`);
-}
-
-function asignarTodosUsuario(userId, nivel){
-  if(!permisosUsuarios[userId]) permisosUsuarios[userId]={};
-  MODULOS_SISTEMA.forEach(m=>{ permisosUsuarios[userId][m.key]=nivel; });
-  renderTablaPerfilesModulos();
-  const u=DB.usuarios.find(x=>x.id===userId);
-  const niveles=['sin acceso a ningún módulo','solo lectura en todos los módulos','acceso completo a todos los módulos'];
-  toast(`✓ ${u?.nombre}: ${niveles[nivel]}`);
-}
-
-function actualizarNickname(userId, nick){
-  const u=DB.usuarios.find(x=>x.id===userId);
-  if(u){
-    u.nickname=nick.trim();
-    // Actualizar también en lista de RRHH si corresponde
-    poblarSelects();
-    toast(`✓ Nickname de ${u.nombre} actualizado a "${nick}"`);
-  }
-}
-
-// Mantener compatibilidad con funciones que las llaman
-function asignarTodosModulos(){ DB.usuarios.forEach(u=>asignarTodosUsuario(u.id,2)); }
-function quitarTodosModulos(){
-  if(!confirm('¿Seguro que querés quitar todos los accesos de todos los usuarios?')) return;
-  DB.usuarios.forEach(u=>asignarTodosUsuario(u.id,0));
-}
-
-
-// Actualizar renderTablaUsuarios para apuntar a la nueva función
-// renderTablaUsuarios — definida arriba, apunta a renderTablaPerfilesModulos
+// ========== PERFILES DE MODULO — TABLA MATRICIAL ==========
+// v098: bloque eliminado (renderTablaPerfilesModulos y afines — la grilla
+// salia vacia y los permisos vivian solo en memoria, sin persistir).
+// Reemplazo completo en src/modules/accesos/, enganchado en cfgTab.
 
 // ========== FILTRAR CANDIDATOS ACTUALIZADO ==========
 
@@ -13669,12 +13494,9 @@ window.accionLiqAdmin = accionLiqAdmin;
 window.activarAgente = activarAgente;
 window.actualizarEscalaModal = actualizarEscalaModal;
 window.actualizarFechaCobro = actualizarFechaCobro;
-window.actualizarFuncionUsuario = actualizarFuncionUsuario;
 window.actualizarHorasAdmin = actualizarHorasAdmin;
 window.actualizarHorasSuplemento = actualizarHorasSuplemento;
 window.actualizarModalAsoc = actualizarModalAsoc;
-window.actualizarNickname = actualizarNickname;
-window.actualizarPermisosPreview = actualizarPermisosPreview;
 window.actualizarPreviewFormula = actualizarPreviewFormula;
 window.actualizarProyeccion = actualizarProyeccion;
 window.actualizarValorHoraAdmin = actualizarValorHoraAdmin;
@@ -13719,9 +13541,6 @@ window.aplicarPctGeneralLote = aplicarPctGeneralLote;
 window.recalcularFilaLote = recalcularFilaLote;
 window.guardarLotePrecios = guardarLotePrecios;
 window.poblarObjetivosProyeccion = poblarObjetivosProyeccion;
-window.asignarColumna = asignarColumna;
-window.asignarTodosModulos = asignarTodosModulos;
-window.asignarTodosUsuario = asignarTodosUsuario;
 window.autorizarPago = autorizarPago;
 window.avanzarEtapa = avanzarEtapa;
 window.buscarAsocGrilla = buscarAsocGrilla;
@@ -13747,7 +13566,6 @@ window.guardarDetalleNC = guardarDetalleNC;
 window.imprimirNC = imprimirNC;
 window.seleccionarFirmaNC = seleccionarFirmaNC;
 window.cfgTab = cfgTab;
-window.ciclarPermiso = ciclarPermiso;
 window.confirmarAgregarAsoc = confirmarAgregarAsoc;
 window.confirmarAjusteNivelacion = confirmarAjusteNivelacion;
 window.confirmarCargaRapidaMant = confirmarCargaRapidaMant;
@@ -13816,7 +13634,6 @@ window.getCategoriasPorTipo = getCategoriasPorTipo;
 window.getHorasRetenDeServicios = getHorasRetenDeServicios;
 window.getLimiteCategoria = getLimiteCategoria;
 window.getNetoUltimoMes = getNetoUltimoMes;
-window.getPermisosIniciales = getPermisosIniciales;
 window.getProyeccionAnual = getProyeccionAnual;
 window.getTablaVigente = getTablaVigente;
 window.getValoresPeriodo = getValoresPeriodo;
@@ -13840,7 +13657,6 @@ window.guardarObjetivo = guardarObjetivo;
 window.guardarParitaria = guardarParitaria;
 window.guardarPropuestaPrecio = guardarPropuestaPrecio;
 window.guardarReclamo = guardarReclamo;
-window.guardarUsuario = guardarUsuario;
 window.guardarVacAdmin = guardarVacAdmin;
 window.buscarAsocVac = buscarAsocVac;
 window.seleccionarAsocVac = seleccionarAsocVac;
@@ -13868,7 +13684,6 @@ window.eliminarComisionExterno = eliminarComisionExterno;
 window.abrirComisionPersona = abrirComisionPersona;
 window.toggleModoAvanzadoPago = toggleModoAvanzadoPago;
 window.guardarPagoComision = guardarPagoComision;
-window.initPermisosUsuarios = initPermisosUsuarios;
 window.initResumenMes = initResumenMes;
 window.liberarRetencion = liberarRetencion;
 window.mantenerCategoria = mantenerCategoria;
@@ -13897,7 +13712,6 @@ window.proyectarAumentoAsociados = proyectarAumentoAsociados;
 window.quitarAsociadoGrilla = quitarAsociadoGrilla;
 window.quitarPersonalAdmin = quitarPersonalAdmin;
 window.quitarSuplemento = quitarSuplemento;
-window.quitarTodosModulos = quitarTodosModulos;
 window.recalcCatVH = recalcCatVH;
 window.reactivarObjetivo = reactivarObjetivo;
 window.reconciliarPeriodosOperaciones = reconciliarPeriodosOperaciones;
@@ -13979,8 +13793,6 @@ window.renderRetenes = renderRetenes;
 window.renderSMVM = renderSMVM;
 window.renderStatsCRM = renderStatsCRM;
 window.renderStatsReclamos = renderStatsReclamos;
-window.renderTablaPerfilesModulos = renderTablaPerfilesModulos;
-window.renderTablaUsuarios = renderTablaUsuarios;
 window.renderTablasCategorias = renderTablasCategorias;
 window.renderVacAdmin = renderVacAdmin;
 window.renderVacOp = renderVacOp;
@@ -14069,3 +13881,4 @@ window.verParitaria = verParitaria;
 window.verReclamo = verReclamo;
 window.verificarAccionesVencidas = verificarAccionesVencidas;
 window.verificarEFTGrilla = verificarEFTGrilla;
+

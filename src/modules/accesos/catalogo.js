@@ -1,0 +1,105 @@
+// =============================================================================
+// GENERADO — NO editar a mano. Fuente: MATRIZ_ACCESOS_PERFILES hoja
+// "MATRIZ PERFILES" vía scripts/gen_v098.cjs (regenera sql/v098 también).
+// =============================================================================
+
+export const MODULOS_ACCESOS = [
+  { key: 'liq_admin', label: 'Liquidación Administración', area: 'LIQUIDACIÓN', nota: 'Finanzas liquida; GG define la nivelación (la carga Finanzas)' },
+  { key: 'liquidacion', label: 'Liquidación de horas', area: 'LIQUIDACIÓN', nota: 'Operaciones carga horas; Finanzas liquida; supervisor ve sus servicios' },
+  { key: 'mantenimiento', label: 'Mantenimiento', area: 'LIQUIDACIÓN' },
+  { key: 'reasignaciones', label: 'Reasignaciones', area: 'LIQUIDACIÓN' },
+  { key: 'retenes', label: 'Retenes', area: 'LIQUIDACIÓN' },
+  // ── fin LIQUIDACIÓN ──
+  { key: 'clientes', label: 'Clientes', area: 'COMERCIAL' },
+  { key: 'comisiones', label: 'Comisiones', area: 'COMERCIAL', nota: 'Comercial administra coordinadores; Finanzas paga' },
+  { key: 'crm', label: 'CRM Comercial', area: 'COMERCIAL' },
+  { key: 'cobros', label: 'Gestión de cobros', area: 'COMERCIAL' },
+  { key: 'precios', label: 'Gestión de precios', area: 'COMERCIAL' },
+  { key: 'reclamos', label: 'Reclamos y NC', area: 'COMERCIAL' },
+  { key: 'objetivos', label: 'Servicios', area: 'COMERCIAL', nota: 'Alta Comercial; lleva dirección/localidad + ZONA DE REPARTO (recorridos)' },
+  { key: 'supervision', label: 'Supervisión de servicios', area: 'COMERCIAL', nota: 'El % lo edita SOLO Finanzas; supervisor ve su reporte' },
+  { key: 'supervisores', label: 'Supervisores', area: 'COMERCIAL' },
+  // ── fin COMERCIAL ──
+  { key: 'legajos', label: 'Legajos', area: 'PERSONAL', nota: 'Los talles de uniforme viven acá (precargan pedidos)' },
+  { key: 'capacitaciones', label: 'Capacitaciones', area: 'PERSONAL' },
+  { key: 'competencia', label: 'Competencia anual', area: 'PERSONAL' },
+  { key: 'descansos', label: 'Descansos', area: 'PERSONAL' },
+  { key: 'enfermos', label: 'Enfermos y accidentes', area: 'PERSONAL' },
+  { key: 'sanciones', label: 'Sanciones', area: 'PERSONAL' },
+  { key: 'legal', label: 'Situaciones legales', area: 'PERSONAL' },
+  { key: 'vacaciones', label: 'Vacaciones', area: 'PERSONAL' },
+  { key: 'monotributos', label: 'Monotributos', area: 'PERSONAL', nota: 'RRHH: padrón y categorías · Finanzas: pago mensual' },
+  { key: 'uniformes', label: 'Uniformes', area: 'PERSONAL', nota: 'Supervisor pide (los suyos) · Logística prepara/entrega · RRHH custodia Recepción' },
+  // ── fin PERSONAL ──
+  { key: 'categorias', label: 'Categorías', area: 'ADMINISTRACIÓN', nota: 'El nomenclador nuevo de RRHH (Gabi); vigencias' },
+  { key: 'feriados', label: 'Feriados', area: 'ADMINISTRACIÓN' },
+  { key: 'paritarias', label: 'Paritarias', area: 'ADMINISTRACIÓN' },
+  { key: 'smvm', label: 'SMVM histórico', area: 'ADMINISTRACIÓN' },
+  { key: 'configuracion', label: 'Configuración', area: 'ADMINISTRACIÓN', nota: 'Finanzas: tope %, recargos, % supervisión; el resto de parámetros = Admin' },
+  // ── fin ADMINISTRACIÓN ──
+  { key: 'pedido_productos', label: 'Pedido de productos', area: 'LOGÍSTICA', nota: 'Supervisor: SUS pedidos · Auditor: bandeja · Logística: catálogo/compras/entregas · Finanzas: recargos y facturación PAGAN' },
+  { key: 'proveedores', label: 'Proveedores', area: 'LOGÍSTICA', nota: 'Alta y edición Logística; Finanzas usa CBU/condiciones de pago' },
+  { key: 'stock', label: 'Stock', area: 'LOGÍSTICA', nota: 'El auditor lee diferencias de inventario' },
+  { key: 'maquinas', label: 'Máquinas', area: 'LOGÍSTICA', nota: 'Operario reporta · supervisor actas/notificado · Logística opera · Finanzas paga' },
+  // ── fin LOGÍSTICA ──
+  { key: 'futuro_cuenta_corriente', label: 'Cuenta corriente (futuro)', area: 'FUTUROS' },
+  { key: 'futuro_contable', label: 'Contable (futuro)', area: 'FUTUROS' },
+  { key: 'futuro_politicas', label: 'Políticas (futuro)', area: 'FUTUROS', nota: 'Lectura amplia: todos consultan la política vigente' },
+  { key: 'futuro_seguros', label: 'Seguros (futuro)', area: 'FUTUROS' },
+];
+
+export const COLUMNAS_MATRIZ = [
+  { col: 'ADMIN', perfil: 'Administrador total' },
+  { col: 'GERENCIA GRAL', perfil: 'Gerencia General' },
+  { col: 'CONSEJO', perfil: 'Consejo Directivo' },
+  { col: 'FINANZAS', perfil: 'Finanzas' },
+  { col: 'RRHH', perfil: 'RRHH' },
+  { col: 'LOGÍSTICA', perfil: 'Logística' },
+  { col: 'AUDITOR', perfil: 'Auditor' },
+  { col: 'SUPERVISOR', perfil: 'Supervisor' },
+  { col: 'VENTAS', perfil: 'Comercial' },
+  { col: 'OPERACIONES', perfil: 'Operaciones' },
+  { col: 'SISTEMAS/DEV', perfil: 'DEVELOPER' },
+];
+
+// Snapshot exacto de la planilla (nivel por perfil y módulo). Alimenta el
+// botón "Restaurar valores de la planilla" de la matriz.
+export const MATRIZ_SEED = {
+  liq_admin: { 'Administrador total': 2, 'Gerencia General': 2, 'Consejo Directivo': 1, 'Finanzas': 2, 'RRHH': 0, 'Logística': 0, 'Auditor': 0, 'Supervisor': 0, 'Comercial': 0, 'Operaciones': 0, 'DEVELOPER': 2 },
+  liquidacion: { 'Administrador total': 2, 'Gerencia General': 2, 'Consejo Directivo': 1, 'Finanzas': 2, 'RRHH': 1, 'Logística': 0, 'Auditor': 1, 'Supervisor': 1, 'Comercial': 0, 'Operaciones': 2, 'DEVELOPER': 2 },
+  mantenimiento: { 'Administrador total': 2, 'Gerencia General': 2, 'Consejo Directivo': 1, 'Finanzas': 2, 'RRHH': 1, 'Logística': 0, 'Auditor': 0, 'Supervisor': 1, 'Comercial': 0, 'Operaciones': 2, 'DEVELOPER': 2 },
+  reasignaciones: { 'Administrador total': 2, 'Gerencia General': 2, 'Consejo Directivo': 1, 'Finanzas': 0, 'RRHH': 1, 'Logística': 0, 'Auditor': 0, 'Supervisor': 1, 'Comercial': 0, 'Operaciones': 2, 'DEVELOPER': 2 },
+  retenes: { 'Administrador total': 2, 'Gerencia General': 2, 'Consejo Directivo': 1, 'Finanzas': 2, 'RRHH': 1, 'Logística': 0, 'Auditor': 1, 'Supervisor': 1, 'Comercial': 0, 'Operaciones': 2, 'DEVELOPER': 2 },
+  clientes: { 'Administrador total': 2, 'Gerencia General': 2, 'Consejo Directivo': 1, 'Finanzas': 1, 'RRHH': 0, 'Logística': 1, 'Auditor': 0, 'Supervisor': 0, 'Comercial': 2, 'Operaciones': 1, 'DEVELOPER': 2 },
+  comisiones: { 'Administrador total': 2, 'Gerencia General': 2, 'Consejo Directivo': 1, 'Finanzas': 2, 'RRHH': 0, 'Logística': 0, 'Auditor': 0, 'Supervisor': 0, 'Comercial': 2, 'Operaciones': 0, 'DEVELOPER': 2 },
+  crm: { 'Administrador total': 2, 'Gerencia General': 2, 'Consejo Directivo': 1, 'Finanzas': 0, 'RRHH': 0, 'Logística': 0, 'Auditor': 0, 'Supervisor': 0, 'Comercial': 2, 'Operaciones': 0, 'DEVELOPER': 2 },
+  cobros: { 'Administrador total': 2, 'Gerencia General': 2, 'Consejo Directivo': 1, 'Finanzas': 2, 'RRHH': 0, 'Logística': 0, 'Auditor': 0, 'Supervisor': 0, 'Comercial': 2, 'Operaciones': 0, 'DEVELOPER': 2 },
+  precios: { 'Administrador total': 2, 'Gerencia General': 2, 'Consejo Directivo': 1, 'Finanzas': 2, 'RRHH': 0, 'Logística': 0, 'Auditor': 0, 'Supervisor': 0, 'Comercial': 2, 'Operaciones': 0, 'DEVELOPER': 2 },
+  reclamos: { 'Administrador total': 2, 'Gerencia General': 2, 'Consejo Directivo': 2, 'Finanzas': 2, 'RRHH': 2, 'Logística': 2, 'Auditor': 2, 'Supervisor': 2, 'Comercial': 2, 'Operaciones': 1, 'DEVELOPER': 2 },
+  objetivos: { 'Administrador total': 2, 'Gerencia General': 2, 'Consejo Directivo': 1, 'Finanzas': 1, 'RRHH': 1, 'Logística': 1, 'Auditor': 1, 'Supervisor': 1, 'Comercial': 2, 'Operaciones': 2, 'DEVELOPER': 2 },
+  supervision: { 'Administrador total': 2, 'Gerencia General': 2, 'Consejo Directivo': 1, 'Finanzas': 2, 'RRHH': 0, 'Logística': 0, 'Auditor': 0, 'Supervisor': 0, 'Comercial': 1, 'Operaciones': 1, 'DEVELOPER': 2 },
+  supervisores: { 'Administrador total': 2, 'Gerencia General': 2, 'Consejo Directivo': 1, 'Finanzas': 1, 'RRHH': 1, 'Logística': 0, 'Auditor': 0, 'Supervisor': 1, 'Comercial': 1, 'Operaciones': 2, 'DEVELOPER': 2 },
+  legajos: { 'Administrador total': 2, 'Gerencia General': 2, 'Consejo Directivo': 1, 'Finanzas': 1, 'RRHH': 2, 'Logística': 0, 'Auditor': 0, 'Supervisor': 0, 'Comercial': 0, 'Operaciones': 1, 'DEVELOPER': 2 },
+  capacitaciones: { 'Administrador total': 2, 'Gerencia General': 2, 'Consejo Directivo': 1, 'Finanzas': 0, 'RRHH': 2, 'Logística': 2, 'Auditor': 0, 'Supervisor': 1, 'Comercial': 0, 'Operaciones': 2, 'DEVELOPER': 2 },
+  competencia: { 'Administrador total': 2, 'Gerencia General': 2, 'Consejo Directivo': 1, 'Finanzas': 1, 'RRHH': 2, 'Logística': 1, 'Auditor': 1, 'Supervisor': 1, 'Comercial': 1, 'Operaciones': 1, 'DEVELOPER': 2 },
+  descansos: { 'Administrador total': 2, 'Gerencia General': 2, 'Consejo Directivo': 1, 'Finanzas': 0, 'RRHH': 2, 'Logística': 0, 'Auditor': 0, 'Supervisor': 1, 'Comercial': 0, 'Operaciones': 2, 'DEVELOPER': 2 },
+  enfermos: { 'Administrador total': 2, 'Gerencia General': 2, 'Consejo Directivo': 1, 'Finanzas': 0, 'RRHH': 2, 'Logística': 0, 'Auditor': 0, 'Supervisor': 1, 'Comercial': 0, 'Operaciones': 1, 'DEVELOPER': 2 },
+  sanciones: { 'Administrador total': 2, 'Gerencia General': 2, 'Consejo Directivo': 1, 'Finanzas': 1, 'RRHH': 2, 'Logística': 1, 'Auditor': 1, 'Supervisor': 1, 'Comercial': 1, 'Operaciones': 2, 'DEVELOPER': 2 },
+  legal: { 'Administrador total': 2, 'Gerencia General': 2, 'Consejo Directivo': 1, 'Finanzas': 0, 'RRHH': 2, 'Logística': 0, 'Auditor': 0, 'Supervisor': 0, 'Comercial': 0, 'Operaciones': 0, 'DEVELOPER': 2 },
+  vacaciones: { 'Administrador total': 2, 'Gerencia General': 2, 'Consejo Directivo': 1, 'Finanzas': 0, 'RRHH': 2, 'Logística': 0, 'Auditor': 0, 'Supervisor': 0, 'Comercial': 0, 'Operaciones': 0, 'DEVELOPER': 2 },
+  monotributos: { 'Administrador total': 2, 'Gerencia General': 2, 'Consejo Directivo': 1, 'Finanzas': 2, 'RRHH': 2, 'Logística': 0, 'Auditor': 0, 'Supervisor': 0, 'Comercial': 0, 'Operaciones': 0, 'DEVELOPER': 2 },
+  uniformes: { 'Administrador total': 2, 'Gerencia General': 2, 'Consejo Directivo': 1, 'Finanzas': 1, 'RRHH': 2, 'Logística': 2, 'Auditor': 1, 'Supervisor': 2, 'Comercial': 1, 'Operaciones': 1, 'DEVELOPER': 2 },
+  categorias: { 'Administrador total': 2, 'Gerencia General': 2, 'Consejo Directivo': 1, 'Finanzas': 1, 'RRHH': 2, 'Logística': 0, 'Auditor': 0, 'Supervisor': 1, 'Comercial': 1, 'Operaciones': 1, 'DEVELOPER': 2 },
+  feriados: { 'Administrador total': 2, 'Gerencia General': 2, 'Consejo Directivo': 1, 'Finanzas': 1, 'RRHH': 2, 'Logística': 1, 'Auditor': 0, 'Supervisor': 1, 'Comercial': 1, 'Operaciones': 1, 'DEVELOPER': 2 },
+  paritarias: { 'Administrador total': 2, 'Gerencia General': 2, 'Consejo Directivo': 1, 'Finanzas': 1, 'RRHH': 2, 'Logística': 0, 'Auditor': 0, 'Supervisor': 0, 'Comercial': 1, 'Operaciones': 0, 'DEVELOPER': 2 },
+  smvm: { 'Administrador total': 2, 'Gerencia General': 2, 'Consejo Directivo': 1, 'Finanzas': 1, 'RRHH': 2, 'Logística': 0, 'Auditor': 0, 'Supervisor': 0, 'Comercial': 1, 'Operaciones': 0, 'DEVELOPER': 2 },
+  configuracion: { 'Administrador total': 2, 'Gerencia General': 2, 'Consejo Directivo': 2, 'Finanzas': 1, 'RRHH': 1, 'Logística': 1, 'Auditor': 1, 'Supervisor': 1, 'Comercial': 1, 'Operaciones': 1, 'DEVELOPER': 2 },
+  pedido_productos: { 'Administrador total': 2, 'Gerencia General': 2, 'Consejo Directivo': 1, 'Finanzas': 2, 'RRHH': 0, 'Logística': 2, 'Auditor': 2, 'Supervisor': 2, 'Comercial': 1, 'Operaciones': 1, 'DEVELOPER': 2 },
+  proveedores: { 'Administrador total': 2, 'Gerencia General': 2, 'Consejo Directivo': 1, 'Finanzas': 2, 'RRHH': 0, 'Logística': 2, 'Auditor': 0, 'Supervisor': 0, 'Comercial': 1, 'Operaciones': 1, 'DEVELOPER': 2 },
+  stock: { 'Administrador total': 2, 'Gerencia General': 2, 'Consejo Directivo': 1, 'Finanzas': 1, 'RRHH': 0, 'Logística': 2, 'Auditor': 1, 'Supervisor': 0, 'Comercial': 0, 'Operaciones': 1, 'DEVELOPER': 2 },
+  maquinas: { 'Administrador total': 2, 'Gerencia General': 2, 'Consejo Directivo': 1, 'Finanzas': 2, 'RRHH': 0, 'Logística': 2, 'Auditor': 1, 'Supervisor': 2, 'Comercial': 1, 'Operaciones': 1, 'DEVELOPER': 2 },
+  futuro_cuenta_corriente: { 'Administrador total': 2, 'Gerencia General': 2, 'Consejo Directivo': 1, 'Finanzas': 2, 'RRHH': 0, 'Logística': 0, 'Auditor': 0, 'Supervisor': 0, 'Comercial': 1, 'Operaciones': 0, 'DEVELOPER': 2 },
+  futuro_contable: { 'Administrador total': 2, 'Gerencia General': 2, 'Consejo Directivo': 1, 'Finanzas': 2, 'RRHH': 0, 'Logística': 0, 'Auditor': 0, 'Supervisor': 0, 'Comercial': 0, 'Operaciones': 0, 'DEVELOPER': 2 },
+  futuro_politicas: { 'Administrador total': 2, 'Gerencia General': 2, 'Consejo Directivo': 1, 'Finanzas': 1, 'RRHH': 2, 'Logística': 1, 'Auditor': 1, 'Supervisor': 1, 'Comercial': 1, 'Operaciones': 1, 'DEVELOPER': 2 },
+  futuro_seguros: { 'Administrador total': 2, 'Gerencia General': 2, 'Consejo Directivo': 1, 'Finanzas': 2, 'RRHH': 2, 'Logística': 1, 'Auditor': 0, 'Supervisor': 0, 'Comercial': 0, 'Operaciones': 1, 'DEVELOPER': 2 },
+};

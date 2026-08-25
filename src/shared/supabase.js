@@ -117,6 +117,13 @@ export const _SM = {
   tickets: 'tickets',
   vacaciones: 'vacaciones',
   notificacionesSistema: 'notificaciones_sistema',
+  // v098 — Matriz de accesos y perfiles (Configuración → Acceso y perfiles).
+  // OJO: NO se escriben con supaSync/supaDel (upsert por unique key
+  // perfil+modulo_key / usuario_id+modulo_key, no por id_local). El módulo
+  // accesos usa SUPA directo; esta entrada solo habilita la LECTURA de
+  // supaInit() para que el menú pueda decidir visibilidad sin fetch extra.
+  perfilAccesos: 'perfil_accesos',
+  usuarioAccesos: 'usuario_accesos',
   descansos: 'descansos',
   pedidosUniformes: 'pedidos_uniformes',
   pedidoUniformePrendas: 'pedido_uniforme_prendas',
@@ -166,6 +173,8 @@ export const _SM = {
   ppItems: 'pp_items',
   // v094 — Maestro de proveedores
   proveedores: 'proveedores',
+  // v100 — Módulo Proveedores: contactos de la ficha (área Logística)
+  proveedorContactos: 'proveedor_contactos',
   // v089 — Superadmin: registro de empresas clientes (solo en el Supabase
   // de Ohlimpia — no es dato operativo de ninguna empresa cliente).
   empresasCliente: 'empresas_cliente',
@@ -539,6 +548,9 @@ export function _toSnake(obj) {
     costoCongelado: 'costo_congelado', ajustadoPor: 'ajustado_por',
     ajustadoEn: 'ajustado_en', cantAntesAjuste: 'cant_antes_ajuste',
     proveedorIdLocal: 'proveedor_id_local',
+    // v100 — Módulo Proveedores (ficha completa)
+    condArca: 'cond_arca', condPago: 'cond_pago',
+    cbuAlias: 'cbu_alias', plazoEntregaDias: 'plazo_entrega_dias',
     // v095 — Stock de productos
     costoPpp: 'costo_ppp', costoVigente: 'costo_vigente',
     stockMinimo: 'stock_minimo', stockObjetivo: 'stock_objetivo',
@@ -599,6 +611,7 @@ export function _toSnake(obj) {
     snapshotId: 'snapshot_id', descripcionFiltro: 'descripcion_filtro',
     clientesIds: 'clientes_ids', fechaAplicacion: 'fecha_aplicacion',
     filaId: 'fila_id', usuarioId: 'usuario_id', usuarioEmail: 'usuario_email',
+    moduloKey: 'modulo_key', // v098 — perfil_accesos / usuario_accesos
     hechoAt: 'hecho_at', datosAnteriores: 'datos_anteriores',
     datosNuevos: 'datos_nuevos', auditoriaId: 'auditoria_id',
     precioAntes: 'precio_antes', precioDespues: 'precio_despues',
@@ -945,6 +958,9 @@ export function _toCamel(obj) {
     costo_congelado: 'costoCongelado', ajustado_por: 'ajustadoPor',
     ajustado_en: 'ajustadoEn', cant_antes_ajuste: 'cantAntesAjuste',
     proveedor_id_local: 'proveedorIdLocal',
+    // v100 — Módulo Proveedores (ficha completa)
+    cond_arca: 'condArca', cond_pago: 'condPago',
+    cbu_alias: 'cbuAlias', plazo_entrega_dias: 'plazoEntregaDias',
     // v095 — Stock de productos
     costo_ppp: 'costoPpp', costo_vigente: 'costoVigente',
     stock_minimo: 'stockMinimo', stock_objetivo: 'stockObjetivo',
@@ -1003,6 +1019,7 @@ export function _toCamel(obj) {
     snapshot_id: 'snapshotId', descripcion_filtro: 'descripcionFiltro',
     clientes_ids: 'clientesIds', fecha_aplicacion: 'fechaAplicacion',
     fila_id: 'filaId', usuario_id: 'usuarioId', usuario_email: 'usuarioEmail',
+    modulo_key: 'moduloKey', // v098 — perfil_accesos / usuario_accesos
     hecho_at: 'hechoAt', datos_anteriores: 'datosAnteriores',
     datos_nuevos: 'datosNuevos', auditoria_id: 'auditoriaId',
     precio_antes: 'precioAntes', precio_despues: 'precioDespues',

@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Proveedores — Mockup</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;font-family:'Segoe UI',Arial,sans-serif}
+body{background:#f0f2f7;color:#1c2430}
+.top{background:#1b2a5e;color:#fff;padding:14px 26px;display:flex;align-items:center;gap:16px}
+.top h1{font-size:17px;font-weight:600}
+.top .crumb{font-size:12px;opacity:.75}
+.wrap{max-width:1200px;margin:0 auto;padding:18px 22px 60px}
+.card{background:#fff;border:1px solid #dde1ec;border-radius:10px;padding:16px 18px;margin-bottom:14px;box-shadow:0 1px 3px rgba(20,30,60,.05)}
+.card h2{font-size:14.5px;color:#1b2a5e;margin-bottom:10px}
+.banner{border-radius:8px;padding:10px 14px;font-size:13px;margin-bottom:14px;display:flex;gap:10px;align-items:center}
+.banner.info{background:#e7f0ff;border:1px solid #b9d2f5;color:#1b3f77}
+.banner.warn{background:#fff6e0;border:1px solid #eed49a;color:#7a5a10}
+table{width:100%;border-collapse:collapse;font-size:12.8px}
+th{background:#f4f6fb;color:#3c4560;text-align:left;padding:8px 10px;font-size:11.5px;text-transform:uppercase;letter-spacing:.3px;border-bottom:2px solid #dde1ec;white-space:nowrap}
+td{padding:8px 10px;border-bottom:1px solid #eceef5;vertical-align:middle}
+tr.clk{cursor:pointer}
+tr.clk:hover td{background:#f2f6ff}
+.num{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+.chip{display:inline-block;padding:2px 10px;border-radius:11px;font-size:11px;font-weight:700;white-space:nowrap}
+.c-gris{background:#eceef3;color:#5a6478}
+.c-azul{background:#dbe7ff;color:#1b3f9e}
+.c-verde{background:#d9f2e2;color:#156a3a}
+.c-nara{background:#ffe8d6;color:#a04a08}
+.c-rojo{background:#fddede;color:#a11c1c}
+.c-viol{background:#ece0fa;color:#5b2ca0}
+.kpis{display:flex;gap:12px;margin-bottom:14px;flex-wrap:wrap}
+.kpi{background:#fff;border:1px solid #dde1ec;border-radius:10px;padding:12px 18px;min-width:150px}
+.kpi .v{font-size:20px;font-weight:700;color:#1b2a5e}
+.kpi .l{font-size:11.5px;color:#6a7386;margin-top:2px}
+.btn{border:none;border-radius:7px;padding:8px 16px;font-size:12.8px;font-weight:600;cursor:pointer}
+.b-pri{background:#1b2a5e;color:#fff}.b-pri:hover{background:#25397c}
+.b-sec{background:#eceef3;color:#39425a}.b-sec:hover{background:#dfe2ec}
+.b-line{background:#fff;color:#1b2a5e;border:1.5px solid #1b2a5e}
+.mut{color:#7a8296;font-size:11.5px}
+.tag{font-size:10.5px;font-weight:700;padding:1px 8px;border-radius:6px;background:#e4ecf7;color:#2b4d80;margin-right:4px;display:inline-block;margin-bottom:2px}
+.tag.rep{background:#fdeee0;color:#9a4d07}
+.tag.alq{background:#e8f6ec;color:#1d6b3a}
+.tag.uni{background:#f3e8fb;color:#6b2fa8}
+.modal-bg{display:none;position:fixed;inset:0;background:rgba(15,22,45,.55);z-index:50;align-items:flex-start;justify-content:center;padding:30px 16px;overflow:auto}
+.modal-bg.open{display:flex}
+.modal{background:#fff;border-radius:12px;max-width:640px;width:100%;box-shadow:0 12px 40px rgba(10,18,45,.35)}
+.m-head{padding:16px 22px;border-bottom:1px solid #e3e6ef;display:flex;align-items:center;gap:14px}
+.m-head h3{font-size:15.5px;color:#1b2a5e}
+.m-head .x{margin-left:auto;font-size:20px;cursor:pointer;color:#8a92a6;background:none;border:none}
+.m-body{padding:16px 22px;max-height:65vh;overflow:auto}
+.m-foot{padding:14px 22px;border-top:1px solid #e3e6ef;display:flex;gap:10px;align-items:center}
+.inp{width:100%;padding:7px 9px;border:1.5px solid #c6cbda;border-radius:6px;font-size:13px}
+.inp:focus{border-color:#1b2a5e;outline:none}
+.frow{display:flex;gap:12px;margin-bottom:10px}
+.frow>div{flex:1}
+.flab{font-size:11.5px;color:#5a6478;font-weight:600;margin-bottom:3px}
+.fichagrid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+@media(max-width:900px){.fichagrid{grid-template-columns:1fr}}
+.dato{margin-bottom:7px;font-size:13px}
+.dato b{color:#39425a}
+.alerta{background:#fff3f0;border:1px solid #f2c4b8;border-radius:8px;padding:10px 14px;font-size:12.5px;color:#8c2f14;margin-bottom:12px}
+</style>
+</head>
+<body>
+<div class="top">
+  <h1>Proveedores</h1><span class="crumb">Logística › Proveedores · módulo nuevo · alta y edición: LOGÍSTICA</span>
+</div>
+<div class="wrap">
+
+<!-- ================= VISTA PADRON ================= -->
+<div id="vPadron">
+  <div class="banner info">ℹ️ <span><b>Maestro general de proveedores.</b> Acá conviven todos los tipos: productos, reparación de máquinas, alquileres, uniformes… Los módulos (Pedido de productos, Máquinas) apuntan a este padrón por el <b>código PROV</b>. A futuro, cada proveedor lleva su <b>subcuenta en el plan de cuentas</b> (Pasivo → Proveedores → PROV-xxx) del módulo contable.</span></div>
+  <div class="kpis">
+    <div class="kpi"><div class="v">5</div><div class="l">Proveedores activos</div></div>
+    <div class="kpi"><div class="v">2</div><div class="l">Con lista de productos</div></div>
+    <div class="kpi"><div class="v" style="color:#a11c1c">1</div><div class="l">Con lista desactualizada</div></div>
+    <div class="kpi"><div class="v">$ 12,2 M</div><div class="l">Compras del mes (todos)</div></div>
+  </div>
+  <div class="card">
+    <div style="display:flex;gap:10px;margin-bottom:12px">
+      <button class="btn b-pri" onclick="mOpen('mAlta')">+ Alta de proveedor</button>
+      <span class="mut" style="margin-left:auto">Tocá una fila para abrir la ficha del proveedor</span>
+    </div>
+    <table>
+      <tr><th>Código</th><th>Razón social</th><th>CUIT</th><th>Rubros</th><th>Última lista de precios</th><th class="num">Compras 2026</th><th>Estado</th></tr>
+      <tr class="clk" onclick="ficha('thames')"><td><b>PROV-001</b></td><td>THAMES (Aguirre 736, CABA)</td><td class="mut">30-XXXXXXXX-X</td><td><span class="tag">PRODUCTOS</span></td><td><span class="chip c-verde">AGO 2026 · vigente</span></td><td class="num">$ 61.480.320</td><td><span class="chip c-verde">ACTIVO</span></td></tr>
+      <tr class="clk" onclick="ficha('nimi')"><td><b>PROV-002</b></td><td>NIMI PROFESIONAL</td><td class="mut">30-XXXXXXXX-X</td><td><span class="tag">PRODUCTOS</span> <span class="mut">multimarca DV/SCJ/3M…</span></td><td><span class="chip c-rojo">JUN 2026 · hace 2 meses ⚠</span></td><td class="num">$ 18.940.115</td><td><span class="chip c-verde">ACTIVO</span></td></tr>
+      <tr class="clk" onclick="ficha('gen')"><td><b>PROV-003</b></td><td>TÉCNICO MAQ. S.R.L. <span class="mut">(demo)</span></td><td class="mut">30-XXXXXXXX-X</td><td><span class="tag rep">REPARACIÓN MÁQUINAS</span></td><td class="mut">— no aplica</td><td class="num">$ 4.310.200</td><td><span class="chip c-verde">ACTIVO</span></td></tr>
+      <tr class="clk" onclick="ficha('gen')"><td><b>PROV-004</b></td><td>ALQUIMAQ S.A. <span class="mut">(demo)</span></td><td class="mut">30-XXXXXXXX-X</td><td><span class="tag alq">ALQUILER MÁQUINAS</span></td><td class="mut">— no aplica</td><td class="num">$ 7.856.000</td><td><span class="chip c-verde">ACTIVO</span></td></tr>
+      <tr class="clk" onclick="ficha('gen')"><td><b>PROV-005</b></td><td>TEXTIL UNIFORMES <span class="mut">(demo)</span></td><td class="mut">30-XXXXXXXX-X</td><td><span class="tag uni">UNIFORMES</span></td><td class="mut">— no aplica</td><td class="num">$ 2.115.400</td><td><span class="chip c-gris">INACTIVO</span></td></tr>
+    </table>
+  </div>
+</div>
+
+<!-- ================= VISTA FICHA THAMES ================= -->
+<div id="vThames" style="display:none">
+  <div style="margin-bottom:12px"><button class="btn b-sec" onclick="volver()">← Volver al padrón</button></div>
+  <div class="card">
+    <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap">
+      <h2 style="font-size:17px;margin:0">PROV-001 · THAMES</h2>
+      <span class="tag">PRODUCTOS</span><span class="chip c-verde">ACTIVO</span>
+      <span style="margin-left:auto"><button class="btn b-line">✎ Editar</button></span>
+    </div>
+  </div>
+  <div class="fichagrid">
+    <div class="card">
+      <h2>Datos</h2>
+      <div class="dato"><b>Razón social:</b> Thames</div>
+      <div class="dato"><b>CUIT:</b> 30-XXXXXXXX-X · <b>Cond. ARCA:</b> Responsable Inscripto (Factura A)</div>
+      <div class="dato"><b>Dirección:</b> Aguirre 736 (1414) CABA</div>
+      <div class="dato"><b>Mail:</b> ventas@thames.com.ar</div>
+      <div class="dato"><b>Teléfono:</b> 11-4855-XXXX</div>
+      <div class="dato"><b>Condiciones de pago:</b> Cta cte 30 días</div>
+      <div class="dato"><b>CBU/Alias:</b> thames.pagos.ar · Banco Galicia</div>
+      <div class="dato"><b>Frecuencia de pedido:</b> mensual (1ra semana) · <b>Plazo de entrega:</b> 5 días hábiles</div>
+      <div class="dato"><b>Observaciones:</b> <span class="mut">retira Logística por depósito Aguirre si urge</span></div>
+      <div class="dato"><b>Alta:</b> 16/08/2026 · logistica.richard</div>
+      <div class="dato"><b>Cuenta contable:</b> <span class="chip c-gris">SE ASIGNA CON EL MÓDULO CONTABLE</span> <span class="mut">Pasivo → Proveedores → PROV-001</span></div>
+      <div class="dato"><b>Adjuntos:</b> <span class="chip c-azul">📎 Constancia ARCA</span> <span class="chip c-azul">📎 Acuerdo precios 2026</span> <button class="btn b-sec" style="padding:3px 10px">+ Adjuntar</button></div>
+    </div>
+    <div class="card">
+      <h2>Catálogo y listas de precios</h2>
+      <div class="dato"><b>Productos activos en catálogo:</b> 443</div>
+      <div class="dato"><b>Última lista importada:</b> AGOSTO 2026 <span class="chip c-verde">VIGENTE</span></div>
+      <h2 style="margin-top:12px">Historial de imports</h2>
+      <table>
+        <tr><th>Fecha</th><th>Archivo</th><th class="num">Actualizados</th><th class="num">Altas</th><th>Usuario</th></tr>
+        <tr><td class="mut">16/08/2026</td><td class="mut">AGOSTO 2026 AUMENTO 30.xlsx</td><td class="num">438</td><td class="num">3</td><td class="mut">logistica.richard</td></tr>
+        <tr><td class="mut">14/07/2026</td><td class="mut">JULIO 2026.xlsx</td><td class="num">412</td><td class="num">1</td><td class="mut">logistica.richard</td></tr>
+      </table>
+      <div class="mut" style="margin-top:6px">El import se hace desde Pedido de productos → Catálogo. Acá queda el registro.</div>
+    </div>
+  </div>
+  <div class="card">
+    <h2>Contactos <span class="mut" style="font-weight:400">· roles parametrizables ⚙</span></h2>
+    <table>
+      <tr><th>Nombre</th><th>Rol</th><th>Celular</th><th>Mail</th><th></th></tr>
+      <tr><td>Marcela D.</td><td><span class="chip c-azul">VENDEDOR</span></td><td class="mut">11-5XXX-XXXX</td><td class="mut">marcela@thames.com.ar</td><td><button class="btn b-sec" style="padding:3px 10px">✎</button></td></tr>
+      <tr><td>Pablo R.</td><td><span class="chip c-viol">ADMINISTRACIÓN</span></td><td class="mut">11-6XXX-XXXX</td><td class="mut">admin@thames.com.ar</td><td><button class="btn b-sec" style="padding:3px 10px">✎</button></td></tr>
+      <tr><td>Depósito</td><td><span class="chip c-nara">ENTREGAS</span></td><td class="mut">11-4XXX-XXXX</td><td class="mut">—</td><td><button class="btn b-sec" style="padding:3px 10px">✎</button></td></tr>
+    </table>
+    <button class="btn b-sec" style="margin-top:10px">+ Agregar contacto</button>
+  </div>
+  <div class="card">
+    <h2>Compras por período</h2>
+    <table>
+      <tr><th>Período</th><th class="num">Líneas</th><th class="num">Total (costo)</th><th>Orden</th><th>Factura</th></tr>
+      <tr><td>AGOSTO 2026</td><td class="num">51</td><td class="num">$ 9.658.898,64</td><td><span class="chip c-nara">PENDIENTE ENVÍO</span></td><td class="mut">—</td></tr>
+      <tr><td>JULIO 2026</td><td class="num">47</td><td class="num">$ 8.912.140,00</td><td><span class="chip c-verde">RECIBIDA</span></td><td><span class="chip c-verde">PAGADA</span></td></tr>
+    </table>
+  </div>
+</div>
+
+<!-- ================= VISTA FICHA NIMI ================= -->
+<div id="vNimi" style="display:none">
+  <div style="margin-bottom:12px"><button class="btn b-sec" onclick="volver()">← Volver al padrón</button></div>
+  <div class="card">
+    <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap">
+      <h2 style="font-size:17px;margin:0">PROV-002 · NIMI PROFESIONAL</h2>
+      <span class="tag">PRODUCTOS</span><span class="chip c-verde">ACTIVO</span>
+      <span style="margin-left:auto"><button class="btn b-line">✎ Editar</button></span>
+    </div>
+  </div>
+  <div class="alerta">⚠ <b>Lista de precios desactualizada:</b> la última lista importada es de <b>JUNIO 2026</b> (hace 2 meses). Además, las órdenes de compra de junio y agosto se valuaron con precios de <b>MAYO</b> — la lista de junio vino <b>+10,9%</b> en todos los productos, así que la factura va a llegar más cara que la orden. Pedir lista vigente antes de la próxima compra.</div>
+  <div class="fichagrid">
+    <div class="card">
+      <h2>Datos</h2>
+      <div class="dato"><b>Razón social:</b> Nimi Profesional</div>
+      <div class="dato"><b>CUIT:</b> 30-XXXXXXXX-X · <b>Cond. ARCA:</b> Responsable Inscripto (Factura A)</div>
+      <div class="dato"><b>Mail:</b> ventas@nimiprofesional.com.ar</div>
+      <div class="dato"><b>Teléfono:</b> 11-XXXX-XXXX</div>
+      <div class="dato"><b>Condiciones de pago:</b> a definir · <b>CBU/Alias:</b> a cargar</div>
+      <div class="dato"><b>Frecuencia de pedido:</b> mensual · <b>Plazo de entrega:</b> a definir</div>
+      <div class="dato"><b>Marcas que distribuye:</b> Diversey (DV), Johnson (SCJ), 3M, ITA, POL (bolsas), Elegante…</div>
+      <div class="dato"><b>Observaciones:</b> <span class="mut">pedir lista actualizada TODOS los meses antes de comprar</span></div>
+      <div class="dato"><b>Cuenta contable:</b> <span class="chip c-gris">SE ASIGNA CON EL MÓDULO CONTABLE</span> <span class="mut">Pasivo → Proveedores → PROV-002</span></div>
+      <div class="dato"><b>Adjuntos:</b> <span class="chip c-azul">📎 Lista Junio 2026</span> <button class="btn b-sec" style="padding:3px 10px">+ Adjuntar</button></div>
+    </div>
+    <div class="card">
+      <h2>Catálogo y listas de precios</h2>
+      <div class="dato"><b>Productos activos en catálogo:</b> 560 <span class="mut">(68 ya estaban en el catálogo por área como "Diversey")</span></div>
+      <div class="dato"><b>Última lista importada:</b> JUNIO 2026 <span class="chip c-rojo">HACE 2 MESES ⚠</span></div>
+      <h2 style="margin-top:12px">Historial de imports</h2>
+      <table>
+        <tr><th>Fecha</th><th>Archivo</th><th class="num">Actualizados</th><th class="num">Altas</th><th>Usuario</th></tr>
+        <tr><td class="mut">16/08/2026</td><td class="mut">Lista General Nimi Junio 2026.xlsx</td><td class="num">550</td><td class="num">10</td><td class="mut">logistica.richard</td></tr>
+      </table>
+      <div class="mut" style="margin-top:6px">10 códigos de las compras jun/ago no figuran en la lista de junio → posibles discontinuados, a revisar.</div>
+    </div>
+  </div>
+  <div class="card">
+    <h2>Contactos <span class="mut" style="font-weight:400">· roles parametrizables ⚙</span></h2>
+    <table>
+      <tr><th>Nombre</th><th>Rol</th><th>Celular</th><th>Mail</th><th></th></tr>
+      <tr><td>Vendedor Nimi</td><td><span class="chip c-azul">VENDEDOR</span></td><td class="mut">11-XXXX-XXXX</td><td class="mut">a cargar</td><td><button class="btn b-sec" style="padding:3px 10px">✎</button></td></tr>
+    </table>
+    <button class="btn b-sec" style="margin-top:10px">+ Agregar contacto</button>
+  </div>
+  <div class="card">
+    <h2>Compras por período</h2>
+    <table>
+      <tr><th>Período</th><th class="num">Líneas</th><th class="num">Total (costo)</th><th>Orden</th><th>Observación</th></tr>
+      <tr><td>AGOSTO 2026</td><td class="num">5</td><td class="num">$ 2.522.735,32</td><td><span class="chip c-azul">ENVIADA</span></td><td class="mut" style="color:#a11c1c">valuada a precios MAYO — factura vendrá +10,9%</td></tr>
+      <tr><td>JUNIO 2026</td><td class="num">6</td><td class="num">$ 2.687.383,52</td><td><span class="chip c-verde">RECIBIDA</span></td><td class="mut" style="color:#a11c1c">valuada a precios MAYO</td></tr>
+    </table>
+  </div>
+</div>
+
+<!-- ================= VISTA FICHA GENERICA ================= -->
+<div id="vGen" style="display:none">
+  <div style="margin-bottom:12px"><button class="btn b-sec" onclick="volver()">← Volver al padrón</button></div>
+  <div class="card">
+    <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap">
+      <h2 style="font-size:17px;margin:0">PROV-003 · TÉCNICO MAQ. S.R.L. <span class="mut">(demo)</span></h2>
+      <span class="tag rep">REPARACIÓN MÁQUINAS</span><span class="chip c-verde">ACTIVO</span>
+      <span style="margin-left:auto"><button class="btn b-line">✎ Editar</button></span>
+    </div>
+  </div>
+  <div class="fichagrid">
+    <div class="card">
+      <h2>Datos</h2>
+      <div class="dato"><b>Razón social:</b> Técnico Maq. S.R.L.</div>
+      <div class="dato"><b>CUIT:</b> 30-XXXXXXXX-X · <b>Cond. ARCA:</b> Monotributo (Factura C)</div>
+      <div class="dato"><b>Mail:</b> taller@… · <b>Teléfono:</b> 11-XXXX-XXXX</div>
+      <div class="dato"><b>Condiciones de pago:</b> contra factura, con OK de Logística (control contra acta)</div>
+      <div class="dato"><b>CBU/Alias:</b> a cargar</div>
+      <div class="dato"><b>Cuenta contable:</b> <span class="chip c-gris">SE ASIGNA CON EL MÓDULO CONTABLE</span></div>
+      <div class="dato" style="margin-top:6px"><b>Contactos:</b> Miguel Ángel <span class="chip c-nara">TÉCNICO</span> <span class="mut">11-XXXX-XXXX</span> <button class="btn b-sec" style="padding:3px 10px">+ Agregar</button></div>
+    </div>
+    <div class="card">
+      <h2>Actividad (viene del módulo Máquinas)</h2>
+      <div class="dato"><b>Tickets de reparación 2026:</b> 14 (12 facturados, 2 en curso)</div>
+      <div class="dato"><b>Facturas observadas:</b> 1 (dif. contra acta — reclamada)</div>
+      <div class="dato"><b>Total facturado 2026:</b> $ 4.310.200</div>
+      <div class="mut">Un proveedor sin lista de productos no muestra la sección de imports. Cada rubro trae su vista de actividad.</div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== MODAL ALTA ===== -->
+<div class="modal-bg" id="mAlta">
+  <div class="modal">
+    <div class="m-head"><h3>Alta de proveedor</h3><button class="x" onclick="mClose('mAlta')">✕</button></div>
+    <div class="m-body">
+      <div class="banner info" style="margin-bottom:12px">El código se asigna solo (siguiente: <b>PROV-006</b>). Alta y edición: LOGÍSTICA.</div>
+      <div class="frow"><div><div class="flab">Razón social *</div><input class="inp" placeholder="Ej: Nimi Profesional"></div>
+        <div><div class="flab">CUIT</div><input class="inp" placeholder="30-XXXXXXXX-X"></div></div>
+      <div class="frow"><div><div class="flab">Condición ARCA</div><select class="inp"><option>Responsable Inscripto (Factura A)</option><option>Monotributo (Factura C)</option><option>Exento</option></select></div>
+        <div><div class="flab">Dirección</div><input class="inp"></div></div>
+      <div class="frow"><div><div class="flab">Mail</div><input class="inp" placeholder="ventas@…"></div>
+        <div><div class="flab">Teléfono</div><input class="inp" placeholder="11-XXXX-XXXX"></div></div>
+      <div class="frow"><div><div class="flab">Condiciones de pago</div><select class="inp"><option>Contado</option><option>Cta cte 30 días</option><option>Contra factura c/ OK Logística</option></select></div>
+        <div><div class="flab">CBU / Alias · Banco</div><input class="inp" placeholder="alias.pagos · Banco…"></div></div>
+      <div class="frow"><div><div class="flab">Frecuencia de pedido</div><select class="inp"><option>Mensual</option><option>Quincenal</option><option>A demanda</option></select></div>
+        <div><div class="flab">Plazo de entrega (días)</div><input class="inp" placeholder="5"></div>
+        <div><div class="flab">Estado</div><select class="inp"><option>ACTIVO</option><option>INACTIVO</option></select></div></div>
+      <div class="flab">Rubros (multi-selección, parametrizables)</div>
+      <div style="margin-bottom:10px">
+        <span class="tag">☑ PRODUCTOS</span><span class="tag rep">☐ REPARACIÓN MÁQUINAS</span><span class="tag alq">☐ ALQUILER MÁQUINAS</span><span class="tag uni">☐ UNIFORMES</span><span class="tag" style="background:#eceef3;color:#5a6478">☐ OTRO…</span>
+      </div>
+      <div class="flab">Observaciones</div>
+      <input class="inp" style="margin-bottom:10px" placeholder="Ej: que no sea fragancia papaya, canela ni coco">
+      <div class="flab">Contactos <span style="font-weight:400;color:#7a8296">· se cargan también después, desde la ficha · roles parametrizables ⚙</span></div>
+      <div class="frow"><div><input class="inp" placeholder="Nombre"></div>
+        <div><select class="inp"><option>VENDEDOR</option><option>ADMINISTRACIÓN</option><option>ENTREGAS</option><option>TÉCNICO</option><option>DUEÑO</option><option>⚙ Gestionar roles…</option></select></div>
+        <div><input class="inp" placeholder="Celular"></div>
+        <div><input class="inp" placeholder="Mail"></div></div>
+      <div class="mut">Si tiene rubro PRODUCTOS, queda habilitado para importar listas de precios desde Pedido de productos → Catálogo. Cuando esté el módulo contable, el alta genera también la subcuenta en el plan de cuentas (Pasivo → Proveedores → PROV-xxx). Adjuntos (constancia ARCA, contratos, acuerdos) se cargan desde la ficha.</div>
+    </div>
+    <div class="m-foot"><button class="btn b-pri" onclick="mClose('mAlta')">Dar de alta</button><button class="btn b-sec" onclick="mClose('mAlta')">Cancelar</button></div>
+  </div>
+</div>
+
+<script>
+function ficha(k){
+  document.getElementById('vPadron').style.display='none';
+  document.getElementById('vThames').style.display = k==='thames'?'block':'none';
+  document.getElementById('vNimi').style.display   = k==='nimi'  ?'block':'none';
+  document.getElementById('vGen').style.display    = k==='gen'   ?'block':'none';
+  window.scrollTo(0,0);
+}
+function volver(){
+  document.getElementById('vPadron').style.display='block';
+  ['vThames','vNimi','vGen'].forEach(id=>document.getElementById(id).style.display='none');
+}
+function mOpen(id){document.getElementById(id).classList.add('open')}
+function mClose(id){document.getElementById(id).classList.remove('open')}
+</script>
+</body>
+</html>

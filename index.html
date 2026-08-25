@@ -857,29 +857,69 @@
     </div>
   </div>
 
-  <!-- TAB: ACCESOS Y PERFILES UNIFICADO -->
+  <!-- TAB: ACCESOS Y PERFILES UNIFICADO (v098 — módulo src/modules/accesos/) -->
   <div id="cfg-tab-usuarios-cfg" class="tab-content">
     <div class="card">
       <div class="card-header">
         <div>
-          <h3>🔐 Accesos y perfiles de usuarios</h3>
-          <div style="font-size:12px;color:var(--texto-suave);margin-top:2px;">Cada usuario está vinculado a su legajo. Definí nickname y nivel de acceso por módulo desde esta pantalla.</div>
+          <h3>🔐 Matriz de accesos por perfil</h3>
+          <div style="font-size:12px;color:var(--texto-suave);margin-top:2px;">El perfil es la plantilla que precarga la grilla de cada usuario; después se ajusta individual. "Modificar" no implica ver todo: adentro rige el alcance por rol.</div>
         </div>
-        <button class="btn btn-primary btn-sm" onclick="abrirModal('modal-usuario')">+ Nuevo usuario</button>
+        <button id="acc-btn-restaurar" class="btn btn-secondary btn-sm" onclick="accRestaurarPlanilla()">↺ Restaurar valores de la planilla</button>
       </div>
-      <div class="card-body" style="padding:0;">
-        <div class="tabla-wrap" style="overflow-x:auto;">
-          <table id="tabla-perfiles-modulos" style="border-collapse:collapse;font-size:12px;width:100%;">
-            <thead id="thead-perfiles"></thead>
-            <tbody id="tbody-perfiles"></tbody>
-          </table>
+      <div class="card-body" style="padding:14px 20px;">
+        <div id="accesos-matriz-wrap"></div>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:18px;">
+      <div class="card-header">
+        <div>
+          <h3>👤 Accesos individuales por usuario</h3>
+          <div style="font-size:12px;color:var(--texto-suave);margin-top:2px;">Ajustes puntuales sobre la plantilla del perfil. Lo no ajustado sigue a la plantilla; si la plantilla cambia, el usuario la hereda.</div>
         </div>
-        <div style="padding:14px 20px;border-top:1px solid var(--borde);display:flex;gap:20px;font-size:11px;color:var(--texto-suave);align-items:center;flex-wrap:wrap;">
-          <span style="font-weight:600;">Leyenda:</span>
-          <span style="display:flex;align-items:center;gap:5px;"><span class="pm-cell modificar" style="width:22px;height:22px;font-size:12px;">✏️</span> Puede modificar</span>
-          <span style="display:flex;align-items:center;gap:5px;"><span class="pm-cell lectura" style="width:22px;height:22px;font-size:12px;">👁</span> Solo lectura</span>
-          <span style="display:flex;align-items:center;gap:5px;"><span class="pm-cell sin-acceso" style="width:22px;height:22px;font-size:12px;">—</span> Sin acceso</span>
-          <span style="color:var(--texto-muy-suave);">Hacé click en cualquier celda para cambiar el nivel de acceso.</span>
+        <select id="acc-sel-usuario" class="input" style="max-width:280px;" onchange="accSelUsuario()"></select>
+      </div>
+      <div class="card-body" style="padding:14px 20px;">
+        <div id="accesos-usuario-wrap"></div>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:18px;">
+      <div class="card-header">
+        <div>
+          <h3>➕ Nuevo usuario del sistema</h3>
+          <div style="font-size:12px;color:var(--texto-suave);margin-top:2px;">Crea la cuenta de Supabase Auth y su registro en <code>usuarios</code>. La contraseña inicial se sugiere automática — copiala y pasásela al usuario.</div>
+        </div>
+      </div>
+      <div class="card-body" style="padding:14px 20px;">
+        <div class="form-grid gap-12">
+          <div class="form-grid form-grid-2">
+            <div class="form-group"><label>Nombre completo *</label><input type="text" id="acc-nuevo-nombre" oninput="accAutoNick()"></div>
+            <div class="form-group"><label>Usuario (email) *</label><input type="email" id="acc-nuevo-email" placeholder="nombre@tuempresa.com"></div>
+          </div>
+          <div class="form-grid form-grid-2">
+            <div class="form-group"><label>Perfil del sistema *</label><select id="acc-nuevo-perfil"></select></div>
+            <div class="form-group"><label>Nickname (para menciones)</label><input type="text" id="acc-nuevo-nickname" placeholder="se autocompleta" oninput="accNickManual()"></div>
+          </div>
+          <div class="form-grid form-grid-2">
+            <div class="form-group">
+              <label>⭐ Función en la organización</label>
+              <select id="acc-nuevo-funcion"></select>
+              <span class="form-hint">Cargo dentro de la coop. Se usa para autorizar acciones específicas (ej: aprobación de reasignaciones por Gerente).</span>
+            </div>
+            <div class="form-group">
+              <label>Contraseña inicial</label>
+              <div style="display:flex;gap:8px;">
+                <input type="text" id="acc-nuevo-pass" readonly style="flex:1;font-family:monospace;">
+                <button type="button" class="btn btn-secondary btn-sm" onclick="accRegenPass()">↻</button>
+              </div>
+              <span class="form-hint">Mínimo 8 caracteres. El usuario la cambia después desde su cuenta.</span>
+            </div>
+          </div>
+          <div style="display:flex;justify-content:flex-end;">
+            <button id="acc-btn-crear-usuario" type="button" class="btn btn-primary" onclick="accCrearUsuario()">Crear usuario</button>
+          </div>
         </div>
       </div>
     </div>
@@ -4959,6 +4999,125 @@
   </div>
 </div>
 
+<!-- PROVEEDORES (v100 — módulo Logística, src/modules/proveedores/) -->
+<div class="screen" id="screen-proveedores">
+  <div class="stats-grid" id="prov-stats"></div>
+  <!-- VISTA PADRÓN -->
+  <div id="prov-vista-padron">
+    <div class="card">
+      <div class="card-header">
+        <h3>Maestro de proveedores</h3>
+        <div class="filtros-bar">
+          <select id="prov-filtro-rubro" onchange="filtrarProveedores()" style="padding:6px 10px;border:1px solid var(--borde-fuerte);border-radius:var(--radio);font-size:13px;outline:none;">
+            <option value="">Todos los rubros</option>
+            <option value="PRODUCTOS">Productos</option>
+            <option value="REPARACIÓN MÁQUINAS">Reparación máquinas</option>
+            <option value="ALQUILER MÁQUINAS">Alquiler máquinas</option>
+            <option value="UNIFORMES">Uniformes</option>
+            <option value="OTRO">Otro</option>
+          </select>
+          <select id="prov-filtro-estado" onchange="filtrarProveedores()" style="padding:6px 10px;border:1px solid var(--borde-fuerte);border-radius:var(--radio);font-size:13px;outline:none;">
+            <option value="">Activos e inactivos</option>
+            <option value="activo">Solo activos</option>
+            <option value="inactivo">Solo inactivos</option>
+          </select>
+          <input type="text" placeholder="🔍 Código, razón social, CUIT..." id="prov-buscar" oninput="filtrarProveedores()">
+        </div>
+      </div>
+      <div style="font-size:12px;color:var(--texto-suave);margin-bottom:8px;">Maestro general de proveedores — los módulos (Pedido de productos, Máquinas) apuntan acá por el código PROV. Tocá una fila para abrir la ficha.</div>
+      <div class="tabla-wrap"><table>
+        <thead><tr>
+          <th style="text-align:left;padding:8px 10px;">Código</th>
+          <th style="text-align:left;padding:8px;">Razón social</th>
+          <th style="text-align:left;padding:8px;">CUIT</th>
+          <th style="text-align:left;padding:8px;">Rubros</th>
+          <th style="text-align:left;padding:8px;">Última lista de precios</th>
+          <th style="text-align:right;padding:8px;">Compras del año</th>
+          <th style="text-align:center;padding:8px;">Estado</th>
+        </tr></thead>
+        <tbody id="tbody-prov-padron"></tbody>
+      </table></div>
+    </div>
+  </div>
+  <!-- VISTA FICHA (render dinámico) -->
+  <div id="prov-vista-ficha" style="display:none">
+    <div id="prov-ficha-cont"></div>
+  </div>
+</div>
+
+<!-- MODAL ALTA/EDICIÓN PROVEEDOR (v100) -->
+<div class="modal-overlay" id="modal-prov-form">
+  <div class="modal" style="max-width:640px;">
+    <div class="modal-header"><h3 id="prov-form-title">Alta de proveedor</h3><button class="btn-close" onclick="cerrarModal('modal-prov-form')">✕</button></div>
+    <div class="modal-body">
+      <div style="background:#e7f0ff;border:1px solid #b9d2f5;color:#1b3f77;border-radius:8px;padding:8px 12px;font-size:12.5px;margin-bottom:12px;">El código se asigna solo: <b id="prov-f-codigo-hint">PROV-…</b>. Alta y edición: Logística (según matriz de accesos).</div>
+      <input type="hidden" id="prov-f-id">
+      <div class="form-section">Identificación</div>
+      <div class="form-group" style="display:grid;grid-template-columns:2fr 1fr;gap:10px;">
+        <div><label>Razón social *</label><input id="prov-f-nombre" placeholder="Ej: Nimi Profesional"></div>
+        <div><label>CUIT</label><input id="prov-f-cuit" placeholder="30-XXXXXXXX-X"></div>
+      </div>
+      <div class="form-group" style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+        <div><label>Condición ARCA</label><select id="prov-f-arca"><option value="">—</option><option>Responsable Inscripto (Factura A)</option><option>Monotributo (Factura C)</option><option>Exento</option></select></div>
+        <div><label>Dirección</label><input id="prov-f-direccion" placeholder="Calle, altura, localidad"></div>
+      </div>
+      <div class="form-group" style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+        <div><label>Mail</label><input id="prov-f-mail" placeholder="ventas@…"></div>
+        <div><label>Teléfono</label><input id="prov-f-tel" placeholder="11-XXXX-XXXX"></div>
+      </div>
+      <div class="form-section">Pagos y compras</div>
+      <div class="form-group" style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+        <div><label>Condiciones de pago</label><select id="prov-f-pago"><option value="">—</option><option>Contado</option><option>Cta cte 30 días</option><option>Contra factura c/ OK Logística</option></select></div>
+        <div><label>CBU / Alias</label><input id="prov-f-cbu" placeholder="alias.pagos.ar"></div>
+      </div>
+      <div class="form-group" style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;">
+        <div><label>Banco</label><input id="prov-f-banco" placeholder="Banco…"></div>
+        <div><label>Frecuencia de pedido</label><select id="prov-f-frec"><option value="">—</option><option>Mensual</option><option>Quincenal</option><option>A demanda</option></select></div>
+        <div><label>Plazo entrega (días)</label><input type="number" min="0" step="1" id="prov-f-plazo" placeholder="5"></div>
+      </div>
+      <div class="form-section">Clasificación</div>
+      <div class="form-group" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:4px;">
+        <label style="display:inline-flex;align-items:center;gap:5px;font-size:12.5px;font-weight:400;"><input type="checkbox" name="prov-rubro" value="PRODUCTOS"> Productos</label>
+        <label style="display:inline-flex;align-items:center;gap:5px;font-size:12.5px;font-weight:400;"><input type="checkbox" name="prov-rubro" value="REPARACIÓN MÁQUINAS"> Reparación máquinas</label>
+        <label style="display:inline-flex;align-items:center;gap:5px;font-size:12.5px;font-weight:400;"><input type="checkbox" name="prov-rubro" value="ALQUILER MÁQUINAS"> Alquiler máquinas</label>
+        <label style="display:inline-flex;align-items:center;gap:5px;font-size:12.5px;font-weight:400;"><input type="checkbox" name="prov-rubro" value="UNIFORMES"> Uniformes</label>
+        <label style="display:inline-flex;align-items:center;gap:5px;font-size:12.5px;font-weight:400;"><input type="checkbox" name="prov-rubro" value="OTRO"> Otro</label>
+      </div>
+      <div class="form-group" style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+        <div><label>Marcas que distribuye</label><input id="prov-f-marcas" placeholder="DV, SCJ, 3M…"></div>
+        <div><label>Estado</label><select id="prov-f-estado"><option value="activo">Activo</option><option value="inactivo">Inactivo</option></select></div>
+      </div>
+      <div class="form-group"><label>Observaciones</label><input id="prov-f-obs" placeholder="Ej: pedir lista actualizada todos los meses antes de comprar"></div>
+      <p style="font-size:11.5px;color:var(--texto-suave);margin-top:8px;">Con rubro PRODUCTOS queda habilitado para el catálogo de Pedido de productos. Los contactos se cargan desde la ficha.</p>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="cerrarModal('modal-prov-form')">Cancelar</button>
+      <button class="btn btn-primary" onclick="guardarProveedor()">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL CONTACTO DE PROVEEDOR (v100) -->
+<div class="modal-overlay" id="modal-prov-contacto">
+  <div class="modal" style="max-width:420px;">
+    <div class="modal-header"><h3 id="provc-title">Nuevo contacto</h3><button class="btn-close" onclick="cerrarModal('modal-prov-contacto')">✕</button></div>
+    <div class="modal-body">
+      <input type="hidden" id="provc-id">
+      <input type="hidden" id="provc-prov-id">
+      <div class="form-group"><label>Nombre *</label><input id="provc-nombre" placeholder="Ej: Marcela D."></div>
+      <div class="form-group"><label>Rol</label><select id="provc-rol"><option>VENDEDOR</option><option>ADMINISTRACIÓN</option><option>ENTREGAS</option><option>TÉCNICO</option><option>DUEÑO</option><option>OTRO</option></select></div>
+      <div class="form-group" style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+        <div><label>Celular</label><input id="provc-cel" placeholder="11-XXXX-XXXX"></div>
+        <div><label>Mail</label><input id="provc-mail" placeholder="nombre@proveedor…"></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="cerrarModal('modal-prov-contacto')">Cancelar</button>
+      <button class="btn btn-primary" onclick="guardarProvContacto()">Guardar</button>
+    </div>
+  </div>
+</div>
+
 <!-- RETENCIONES -->
 <div class="screen" id="screen-retenciones">
   <div class="stats-grid">
@@ -5967,42 +6126,8 @@
   </div>
 </div>
 
-<!-- MODAL USUARIO -->
-<div class="modal-overlay" id="modal-usuario">
-  <div class="modal" style="max-width:580px;">
-    <div class="modal-header"><h3>Nuevo usuario del sistema</h3><button class="btn-close" onclick="cerrarModal('modal-usuario')">×</button></div>
-    <div class="modal-body">
-      <div class="form-grid gap-12">
-        <div class="form-grid form-grid-2">
-          <div class="form-group"><label>Nombre completo *</label><input type="text" id="u-nombre"></div>
-          <div class="form-group"><label>Usuario (email) *</label><input type="email" id="u-email" placeholder="nombre@tuempresa.com"></div>
-        </div>
-        <div class="form-grid form-grid-2">
-          <div class="form-group"><label>Contraseña inicial *</label><input type="password" id="u-pass" placeholder="Mínimo 8 caracteres"></div>
-          <div class="form-group"><label>Perfil del sistema *</label>
-            <select id="u-perfil" onchange="actualizarPermisosPreview()">
-              <option value="">— Seleccionar perfil —</option>
-              <option>Administrador total</option><option>RRHH</option><option>Operaciones</option>
-              <option>Finanzas</option><option>Supervisor</option><option>Comercial</option><option>Logística</option>
-            </select>
-          </div>
-        </div>
-        <div class="form-group">
-          <label>⭐ Función en la organización</label>
-          <select id="u-funcion">
-            <option value="">— Sin función asignada —</option>
-          </select>
-          <span class="form-hint">Cargo dentro de la coop. Se usa para autorizar acciones específicas (ej: aprobación de reasignaciones por Gerente).</span>
-        </div>
-        <div id="permisos-preview" style="background:var(--fondo);border-radius:var(--radio);padding:12px 14px;border:1px solid var(--borde);font-size:12px;"></div>
-      </div>
-    </div>
-    <div class="modal-footer">
-      <button class="btn btn-secondary" onclick="cerrarModal('modal-usuario')">Cancelar</button>
-      <button class="btn btn-primary" onclick="guardarUsuario()">Crear usuario</button>
-    </div>
-  </div>
-</div>
+<!-- (v098) El modal "modal-usuario" se eliminó: el alta de usuarios ahora es
+     una card dentro de la tab cfg-tab-usuarios-cfg, vía api/crear-usuario.js. -->
 
 <!-- MODAL PERSONAL RRHH -->
 <div class="modal-overlay" id="modal-personal-rrhh">

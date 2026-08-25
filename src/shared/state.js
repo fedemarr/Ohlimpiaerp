@@ -36,8 +36,11 @@ export const DB = {
   ppPrecios: [],
   ppPedidos: [],
   ppItems: [],
-  // v094 — Maestro de proveedores (mínimo para conexión con pp_productos)
+  // v094 — Maestro de proveedores (mínimo para conexión con pp_productos).
+  // v100 lo extiende con ficha completa (CUIT, ARCA, pagos, rubros…) y agrega
+  // la tabla de contactos. Módulo: src/modules/proveedores/ (área Logística).
   proveedores: [],
+  proveedorContactos: [],
   // v095 — Stock de productos de limpieza (ver src/modules/uniformes/stock.js)
   stockProductos: [],
   stockProductosMovimientos: [],
@@ -253,6 +256,14 @@ export const DB = {
   // del sistema (compartida, ver shared/notificaciones.js).
   vacaciones: [],
   notificacionesSistema: [],
+  // v098 — Matriz de accesos y perfiles (Configuración → Acceso y perfiles).
+  // perfilAccesos = plantilla editable por perfil (seed: hoja MATRIZ PERFILES
+  // de la planilla, sql/v098). usuarioAccesos = override individual por
+  // usuario. Efectivo = override ?? plantilla ?? fallback PERFILES.modulos.
+  // Ver src/modules/accesos/ — las tablas NO usan supaSync/supaDel (upsert
+  // por unique key, no id_local), se escriben con SUPA directo desde ahí.
+  perfilAccesos: [],
+  usuarioAccesos: [],
 };
 
 // SERVICIO_SUPERVISOR (código de servicio → supervisor) se movió a la
@@ -262,7 +273,7 @@ export const DB = {
 // ========== PERFILES Y ACCESOS ==========
 
 export const PERFILES = {
-  'Administrador total': { color: 'badge-rojo', modulos: ['inicio', 'candidatos', 'pedidos', 'psicotecnico', 'preocupacional', 'documentacion', 'altas', 'legajos', 'reasignaciones', 'legal', 'enfermos', 'capacitaciones', 'vacaciones', 'descansos', 'competencia', 'clientes', 'objetivos', 'precios', 'paritarias', 'categorias', 'crm', 'negociaciones', 'reclamos', 'cobros', 'comisiones', 'supervisores', 'supervision', 'liquidacion', 'feriados', 'liq_admin', 'liquidaciones', 'retenes', 'mantenimiento', 'configuracion', 'smvm', 'monotributos', 'uniformes', 'stock', 'pedido_productos', 'retenciones', 'descuentos', 'sanciones', 'adelantos', 'pedidos_adelantos', 'gestion_adelantos', 'sugerencias', 'maquinas'], desc: 'Acceso completo.' },
+  'Administrador total': { color: 'badge-rojo', modulos: ['inicio', 'candidatos', 'pedidos', 'psicotecnico', 'preocupacional', 'documentacion', 'altas', 'legajos', 'reasignaciones', 'legal', 'enfermos', 'capacitaciones', 'vacaciones', 'descansos', 'competencia', 'clientes', 'objetivos', 'precios', 'paritarias', 'categorias', 'crm', 'negociaciones', 'reclamos', 'cobros', 'comisiones', 'supervisores', 'supervision', 'liquidacion', 'feriados', 'liq_admin', 'liquidaciones', 'retenes', 'mantenimiento', 'configuracion', 'smvm', 'monotributos', 'uniformes', 'stock', 'pedido_productos', 'retenciones', 'descuentos', 'sanciones', 'adelantos', 'pedidos_adelantos', 'gestion_adelantos', 'sugerencias', 'proveedores', 'maquinas'], desc: 'Acceso completo.' },
   // Reorganización de menú/permisos (Lautaro, 12/08/2026): RRHH tiene que
   // VER toda el área Personal — antes no veía 'legal' ni 'enfermos' pese a
   // que esas 2 pantallas ya listaban 'RRHH' en su propio item.perfiles
@@ -272,13 +283,22 @@ export const PERFILES = {
   // sección de menú Finanzas — la sección es organización, no permiso.
   'RRHH': { color: 'badge-azul', modulos: ['inicio', 'candidatos', 'psicotecnico', 'preocupacional', 'documentacion', 'altas', 'legajos', 'reasignaciones', 'legal', 'enfermos', 'capacitaciones', 'vacaciones', 'descansos', 'competencia', 'reclamos', 'paritarias', 'categorias', 'liquidacion', 'liq_admin', 'liquidaciones', 'retenes', 'monotributos', 'uniformes', 'retenciones', 'descuentos', 'sanciones', 'adelantos', 'pedidos_adelantos', 'gestion_adelantos', 'sugerencias'], desc: 'RRHH, legajos, capacitaciones.' },
   'Operaciones': { color: 'badge-verde', modulos: ['inicio', 'pedidos', 'legajos', 'reasignaciones', 'capacitaciones', 'vacaciones', 'descansos', 'competencia', 'clientes', 'objetivos', 'precios', 'paritarias', 'crm', 'negociaciones', 'reclamos', 'cobros', 'comisiones', 'supervisores', 'supervision', 'liquidacion', 'retenes', 'mantenimiento', 'feriados', 'uniformes', 'sanciones', 'pedidos_adelantos', 'sugerencias'], desc: 'Operaciones y ventas.' },
-  'Finanzas': { color: 'badge-acento', modulos: ['inicio', 'legajos', 'smvm', 'cobros', 'comisiones', 'paritarias', 'supervision', 'liquidacion', 'liq_admin', 'liquidaciones', 'retenes', 'mantenimiento', 'monotributos', 'retenciones', 'descuentos', 'adelantos', 'gestion_adelantos', 'sugerencias', 'maquinas'], desc: 'Finanzas y liquidación.' },
+  'Finanzas': { color: 'badge-acento', modulos: ['inicio', 'legajos', 'smvm', 'cobros', 'comisiones', 'paritarias', 'supervision', 'liquidacion', 'liq_admin', 'liquidaciones', 'retenes', 'mantenimiento', 'monotributos', 'retenciones', 'descuentos', 'adelantos', 'gestion_adelantos', 'sugerencias', 'proveedores', 'maquinas'], desc: 'Finanzas y liquidación.' },
   'Supervisor': { color: 'badge-gris', modulos: ['inicio', 'pedidos', 'legajos', 'descansos', 'competencia', 'liquidacion', 'liquidaciones', 'adelantos', 'pedidos_adelantos', 'uniformes', 'sanciones', 'sugerencias', 'retenciones', 'pedido_productos'], desc: 'Pedidos, legajos, descansos, competencia y liquidación de horas.' },
   'Comercial': { color: 'badge-naranja', modulos: ['inicio', 'clientes', 'objetivos', 'precios', 'supervision', 'crm', 'negociaciones', 'reclamos', 'comisiones', 'sugerencias'], desc: 'Clientes, objetivos, precios, CRM, negociación, reclamos y comisiones.' },
   // "Auditor interno" (MODULO_PEDIDO_PRODUCTOS.md §3) no tiene perfil propio
   // en el sistema todavía — hasta que se cree uno, la etapa de auditoría del
   // pedido de productos queda dentro de este perfil (Gerente de Logística).
-  'Logística': { color: 'badge-gris', modulos: ['inicio', 'legajos', 'uniformes', 'stock', 'pedido_productos', 'sugerencias', 'maquinas'], desc: 'Consulta de legajos, gestión de pedidos de uniformes, stock, pedido de productos y máquinas.' },
+  'Logística': { color: 'badge-gris', modulos: ['inicio', 'legajos', 'uniformes', 'stock', 'pedido_productos', 'proveedores', 'sugerencias', 'maquinas'], desc: 'Consulta de legajos, gestión de pedidos de uniformes, stock, pedido de productos y máquinas.' },
+  // Perfiles nuevos de la Matriz de Accesos (ticket "matriz acceso perfiles",
+  // 24/08/2026): la planilla define 11 columnas de perfiles y estas 3 no
+  // existían en el sistema. .modulos queda VACÍO a propósito — su acceso real
+  // lo gobierna la matriz en Supabase (perfil_accesos, sql/v098) vía
+  // puedeVer()/nivelAcceso(); el array solo importa como fallback si la tabla
+  // todavía no tiene filas para ese perfil.
+  'Gerencia General': { color: 'badge-rojo', modulos: [], desc: 'Gerencia general — define nivelaciones, visión de todo el negocio.' },
+  'Consejo Directivo': { color: 'badge-acento', modulos: [], desc: 'Órgano de administración de la cooperativa — lectura amplia.' },
+  'Auditor': { color: 'badge-naranja', modulos: [], desc: 'Auditoría interna — lectura de pedidos, stock e inventario.' },
   'Asociado': { color: 'badge-verde', modulos: ['mis_adelantos', 'sugerencias'], desc: 'Portal del asociado — pedidos de adelanto y préstamo.' },
   // 'empresas' agregado acá (18/08/2026, a pedido de Fede) — entra con su
   // login de siempre (fede@ohlimpia.com) en vez de necesitar una cuenta
@@ -337,6 +357,7 @@ export const MENU = [
   ]},
   { section: 'Logística', items: [
     { key: 'pedido_productos', icon: '🧴', label: 'Pedido de productos', perfiles: ['Administrador total', 'Logística', 'Supervisor'] },
+    { key: 'proveedores', icon: '🚚', label: 'Proveedores', perfiles: ['Administrador total', 'Logística', 'Finanzas'] },
     { key: 'stock', icon: '📦', label: 'Stock', perfiles: ['Administrador total', 'Logística'] },
     { key: 'uniformes', icon: '👕', label: 'Uniformes', perfiles: ['Administrador total', 'RRHH', 'Operaciones', 'Supervisor', 'Logística'] },
     { key: 'maquinas', icon: '🏭', label: 'Máquinas', perfiles: ['Administrador total', 'Logística', 'Finanzas'] },

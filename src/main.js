@@ -48,6 +48,10 @@ import { superadminScreenConfig } from './modules/superadmin/index.js';
 import { maquinasScreenConfig, filtrarMaquinas } from './modules/maquinas/index.js';
 import { negociacionesScreenConfig } from './modules/negociaciones/index.js';
 import { preciosScreenConfig } from './modules/precios/index.js';
+import { proveedoresScreenConfig } from './modules/proveedores/index.js';
+// v098 — Tab "Acceso y perfiles" (no registra screen: la engancha legacy.js
+// en cfgTab). El import temprano garantiza window.renderTabAccesosPerfiles.
+import './modules/accesos/index.js';
 
 // ========== BIND SHARED A WINDOW (PRIMERO) ==========
 // Estas funciones las llama el HTML con onclick — deben estar en window
@@ -108,6 +112,7 @@ registerScreens(superadminScreenConfig);
 registerScreens(maquinasScreenConfig);
 registerScreens(negociacionesScreenConfig);
 registerScreens(preciosScreenConfig);
+registerScreens(proveedoresScreenConfig);
 
 // ========== REGISTRAR FILTROS DE BÚSQUEDA GLOBAL ==========
 

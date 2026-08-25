@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Stock — Mockup</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;font-family:'Segoe UI',Arial,sans-serif}
+body{background:#f0f2f7;color:#1c2430}
+.top{background:#1b2a5e;color:#fff;padding:14px 26px;display:flex;align-items:center;gap:16px}
+.top h1{font-size:17px;font-weight:600}
+.top .crumb{font-size:12px;opacity:.75}
+.wrap{max-width:1240px;margin:0 auto;padding:18px 22px 60px}
+.tabs{display:flex;gap:4px;border-bottom:2px solid #d8dce8;margin-bottom:16px;flex-wrap:wrap}
+.tab{padding:10px 18px;font-size:13.5px;font-weight:600;color:#5a6478;cursor:pointer;border-radius:8px 8px 0 0}
+.tab:hover{background:#e6e9f2}
+.tab.act{color:#1b2a5e;background:#fff;border:2px solid #d8dce8;border-bottom:2px solid #fff;margin-bottom:-2px}
+.panel{display:none}.panel.act{display:block}
+.card{background:#fff;border:1px solid #dde1ec;border-radius:10px;padding:16px 18px;margin-bottom:14px;box-shadow:0 1px 3px rgba(20,30,60,.05)}
+.card h2{font-size:14.5px;color:#1b2a5e;margin-bottom:10px}
+.banner{border-radius:8px;padding:10px 14px;font-size:13px;margin-bottom:14px;display:flex;gap:10px;align-items:center}
+.banner.info{background:#e7f0ff;border:1px solid #b9d2f5;color:#1b3f77}
+table{width:100%;border-collapse:collapse;font-size:12.8px}
+th{background:#f4f6fb;color:#3c4560;text-align:left;padding:8px 10px;font-size:11.5px;text-transform:uppercase;letter-spacing:.3px;border-bottom:2px solid #dde1ec;white-space:nowrap}
+td{padding:8px 10px;border-bottom:1px solid #eceef5;vertical-align:middle}
+.num{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+.chip{display:inline-block;padding:2px 10px;border-radius:11px;font-size:11px;font-weight:700;white-space:nowrap}
+.c-gris{background:#eceef3;color:#5a6478}
+.c-azul{background:#dbe7ff;color:#1b3f9e}
+.c-verde{background:#d9f2e2;color:#156a3a}
+.c-nara{background:#ffe8d6;color:#a04a08}
+.c-rojo{background:#fddede;color:#a11c1c}
+.c-viol{background:#ece0fa;color:#5b2ca0}
+.kpis{display:flex;gap:12px;margin-bottom:14px;flex-wrap:wrap}
+.kpi{background:#fff;border:1px solid #dde1ec;border-radius:10px;padding:12px 18px;min-width:170px}
+.kpi .v{font-size:19px;font-weight:700;color:#1b2a5e}
+.kpi .l{font-size:11.5px;color:#6a7386;margin-top:2px}
+.btn{border:none;border-radius:7px;padding:8px 16px;font-size:12.8px;font-weight:600;cursor:pointer}
+.b-pri{background:#1b2a5e;color:#fff}.b-pri:hover{background:#25397c}
+.b-sec{background:#eceef3;color:#39425a}.b-sec:hover{background:#dfe2ec}
+.mut{color:#7a8296;font-size:11.5px}
+.fchip{padding:5px 14px;border-radius:16px;font-size:12px;font-weight:700;cursor:pointer;background:#eceef3;color:#5a6478;border:1.5px solid transparent}
+.fchip.act{background:#1b2a5e;color:#fff}
+.modal-bg{display:none;position:fixed;inset:0;background:rgba(15,22,45,.55);z-index:50;align-items:flex-start;justify-content:center;padding:30px 16px;overflow:auto}
+.modal-bg.open{display:flex}
+.modal{background:#fff;border-radius:12px;max-width:640px;width:100%;box-shadow:0 12px 40px rgba(10,18,45,.35)}
+.m-head{padding:16px 22px;border-bottom:1px solid #e3e6ef;display:flex;align-items:center;gap:14px}
+.m-head h3{font-size:15.5px;color:#1b2a5e}
+.m-head .x{margin-left:auto;font-size:20px;cursor:pointer;color:#8a92a6;background:none;border:none}
+.m-body{padding:16px 22px;max-height:62vh;overflow:auto}
+.m-foot{padding:14px 22px;border-top:1px solid #e3e6ef;display:flex;gap:10px}
+.qty{width:80px;padding:5px 6px;border:1.5px solid #c6cbda;border-radius:6px;font-size:13px;text-align:right}
+</style>
+</head>
+<body>
+<div class="top">
+  <h1>Stock</h1><span class="crumb">Logística › Stock · depósito central · opera LOGÍSTICA · valuación: costo promedio ponderado (PPP)</span>
+</div>
+<div class="wrap">
+
+<div class="tabs">
+  <div class="tab act" onclick="tab(0,this)">Existencias</div>
+  <div class="tab" onclick="tab(1,this)">Movimientos</div>
+  <div class="tab" onclick="tab(2,this)">Inventario</div>
+</div>
+
+<!-- ========== TAB 0: EXISTENCIAS ========== -->
+<div class="panel act" id="p0">
+  <div class="banner info">ℹ️ <span><b>Valuación oficial = PPP</b> (lo que realmente se pagó, cotizaciones incluidas): es el costo que impacta al servicio cuando el producto sale. <b>Valor de reposición</b> (lista vigente) como referencia de gestión: cuánto costaría recomprar el depósito hoy. Toda entrada y salida pasa por acá — nada se mueve sin registro.</span></div>
+  <div class="kpis">
+    <div class="kpi"><div class="v">$ 4.812.360</div><div class="l">Valor del stock (PPP)</div></div>
+    <div class="kpi"><div class="v">$ 5.293.700</div><div class="l">Valor de reposición (vigente)</div></div>
+    <div class="kpi"><div class="v" style="color:#156a3a">+$ 481.340</div><div class="l">Comprado antes del aumento (10%)</div></div>
+    <div class="kpi"><div class="v" style="color:#a11c1c">4</div><div class="l">Productos bajo mínimo ⚠</div></div>
+  </div>
+  <div class="card">
+    <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap">
+      <span class="fchip act">TODOS</span><span class="fchip">PRODUCTOS</span><span class="fchip">UNIFORMES</span>
+      <span style="margin-left:auto" class="mut">Consumibles de máquinas: viven en el módulo Máquinas (definido)</span>
+    </div>
+    <table>
+      <tr><th>Producto</th><th>Categoría</th><th class="num">Existencia</th><th class="num">PPP unit.</th><th class="num">Vigente unit.</th><th class="num">Valor PPP</th><th class="num">Valor reposición</th><th class="num">Mínimo ⚙</th><th>Estado</th></tr>
+      <tr><td>LAVANDINA BIO-LAV 60% × 5L</td><td><span class="chip c-azul">PRODUCTOS</span></td><td class="num"><b>160</b></td><td class="num">$ 4.322,13</td><td class="num">$ 4.559,00</td><td class="num">$ 691.541</td><td class="num">$ 729.440</td><td class="num">40</td><td><span class="chip c-verde">OK</span></td></tr>
+      <tr><td>PAP TOALLA INTERC BLANCA</td><td><span class="chip c-azul">PRODUCTOS</span></td><td class="num"><b>12</b></td><td class="num">$ 14.208,00</td><td class="num">$ 14.900,00</td><td class="num">$ 170.496</td><td class="num">$ 178.800</td><td class="num">20</td><td><span class="chip c-rojo">REPONER ⚠</span></td></tr>
+      <tr><td>BOLSA 60X90 NEGRA</td><td><span class="chip c-azul">PRODUCTOS</span></td><td class="num"><b>1.450</b></td><td class="num">$ 60,10</td><td class="num">$ 63,83</td><td class="num">$ 87.145</td><td class="num">$ 92.554</td><td class="num">500</td><td><span class="chip c-verde">OK</span></td></tr>
+      <tr><td>DETERGENTE BIO-DET × 5L</td><td><span class="chip c-azul">PRODUCTOS</span></td><td class="num"><b>18</b></td><td class="num">$ 7.106,50</td><td class="num">$ 7.340,00</td><td class="num">$ 127.917</td><td class="num">$ 132.120</td><td class="num">15</td><td><span class="chip c-nara">CERCA DEL MÍNIMO</span></td></tr>
+      <tr><td>BUZO FRIZA AZUL (todos los talles)</td><td><span class="chip c-viol">UNIFORMES</span></td><td class="num"><b>214</b></td><td class="num">$ 18.900,00</td><td class="num">$ 21.300,00</td><td class="num">$ 4.044.600</td><td class="num">$ 4.558.200</td><td class="num">60</td><td><span class="chip c-verde">OK</span></td></tr>
+      <tr><td>CALZADO DE SEGURIDAD (pares)</td><td><span class="chip c-viol">UNIFORMES</span></td><td class="num"><b>36</b></td><td class="num">$ 32.400,00</td><td class="num">$ 35.100,00</td><td class="num">$ 1.166.400</td><td class="num">$ 1.263.600</td><td class="num">40</td><td><span class="chip c-rojo">REPONER ⚠</span></td></tr>
+    </table>
+    <div class="mut" style="margin-top:8px">… resto del depósito · <b>los mínimos se definen en CONFIGURACIÓN</b> (por producto, con nivel objetivo para el refuerzo) · la alerta REPONER genera la sugerencia de compra que Logística acepta o no en el tab Compras.</div>
+  </div>
+  <div class="card">
+    <h2>Propuesta de compra — neteo + colchón · SEPTIEMBRE <span class="mut" style="font-weight:400">· el sistema PROPONE acá → Logística DECIDE en el tab Compras</span></h2>
+    <table>
+      <tr><th>Producto</th><th class="num">Pedido servicios</th><th class="num">En stock</th><th class="num">A COMPRAR (neto)</th><th class="num">Refuerzo sugerido ⚙</th><th class="num">Orden propuesta</th><th>Decisión de Logística</th></tr>
+      <tr><td>LAVANDINA BIO-LAV 60% × 5L</td><td class="num">40</td><td class="num">160</td><td class="num" style="color:#156a3a"><b>0</b> <span class="mut">(sale de depósito)</span></td><td class="num">—</td><td class="num"><b>0</b></td><td><span class="chip c-gris">SIN COMPRA</span></td></tr>
+      <tr><td>PAP TOALLA INTERC BLANCA</td><td class="num">40</td><td class="num">12</td><td class="num"><b>28</b></td><td class="num" style="color:#1b3f9e">+20 <span class="mut">(bajo mínimo → hasta objetivo)</span></td><td class="num"><b>48</b></td><td id="decP"><button class="btn b-sec" style="padding:3px 9px" onclick="this.parentNode.innerHTML='<span class=\'chip c-verde\'>ACEPTADO 48</span>'">Aceptar</button> <button class="btn b-sec" style="padding:3px 9px" onclick="this.parentNode.innerHTML='<span class=\'chip c-nara\'>EDITADO → 38</span>'">Editar</button> <button class="btn b-sec" style="padding:3px 9px" onclick="this.parentNode.innerHTML='<span class=\'chip c-gris\'>REFUERZO QUITADO → 28</span>'">Quitar refuerzo</button></td></tr>
+      <tr><td>BOLSA 60X90 NEGRA</td><td class="num">800</td><td class="num">1.450</td><td class="num" style="color:#156a3a"><b>0</b></td><td class="num">—</td><td class="num"><b>0</b></td><td><span class="chip c-gris">SIN COMPRA</span></td></tr>
+    </table>
+    <div class="mut" style="margin-top:8px">El neteo (pedido − stock) y el refuerzo sugerido (productos bajo mínimo, hasta su nivel objetivo — ambos definidos en <b>CONFIGURACIÓN</b>) arman la ORDEN PROPUESTA. Esa propuesta aparece en el <b>tab Compras</b> como base: Logística acepta, edita o quita cada línea, y recién ahí sale la solicitud de presupuesto o la orden firme. El refuerzo aceptado viaja marcado como REFUERZO DE STOCK: queda en depósito, sin imputar a servicios, visible y valorizado.</div>
+  </div>
+</div>
+
+<!-- ========== TAB 1: MOVIMIENTOS ========== -->
+<div class="panel" id="p1">
+  <div class="banner info">📋 <span>Todo movimiento con fecha, tipo, valorización, referencia y responsable. <b>ENTRADA</b> = recepción de orden de compra (valorizada a lo pagado — cotización incluida). <b>SALIDA</b> = entrega a servicio (valorizada a PPP → costo al centro de costos). <b>AJUSTE</b> = inventario, merma o rotura, siempre con motivo.</span></div>
+  <div class="card">
+    <h2>Movimientos — AGOSTO 2026</h2>
+    <table>
+      <tr><th>Fecha</th><th>Tipo</th><th>Producto</th><th class="num">Cantidad</th><th class="num">Valorización</th><th>Referencia</th><th>Usuario</th></tr>
+      <tr><td class="mut">17/08 11:32</td><td><span class="chip c-rojo">SALIDA</span></td><td>Pack pedido ASCENSORES.GERHARDT (5 productos)</td><td class="num">−34</td><td class="num">$ 26.413 <span class="mut">(PPP)</span></td><td class="mut">Remito R-4721 · entrega confirmada</td><td class="mut">logistica.deposito</td></tr>
+      <tr><td class="mut">16/08 15:04</td><td><span class="chip c-rojo">SALIDA</span></td><td>Pack pedido AGENCIA.FIBRA (5 productos)</td><td class="num">−35</td><td class="num">$ 106.353 <span class="mut">(PPP)</span></td><td class="mut">Remito R-4720 · entrega confirmada</td><td class="mut">logistica.deposito</td></tr>
+      <tr><td class="mut">14/08 09:20</td><td><span class="chip c-verde">ENTRADA</span></td><td>Recepción orden THAMES (48 líneas)</td><td class="num">+1.812</td><td class="num">$ 9.024.310 <span class="mut">(precios cotizados SP-014)</span></td><td class="mut">OC-2026-031 · recepción parcial 48/51</td><td class="mut">logistica.richard</td></tr>
+      <tr><td class="mut">14/08 09:20</td><td><span class="chip c-azul">REFUERZO</span></td><td>PAP TOALLA INTERC BLANCA (colchón)</td><td class="num">+20</td><td class="num">$ 284.160</td><td class="mut">OC-2026-031 · línea REFUERZO DE STOCK</td><td class="mut">logistica.richard</td></tr>
+      <tr><td class="mut">05/08 17:45</td><td><span class="chip c-nara">AJUSTE −</span></td><td>DETERGENTE BIO-DET × 5L</td><td class="num">−2</td><td class="num">$ 14.213</td><td class="mut">Motivo: ROTURA en depósito (bidones perforados)</td><td class="mut">logistica.deposito</td></tr>
+      <tr><td class="mut">01/08 10:00</td><td><span class="chip c-nara">AJUSTE +</span></td><td>BOLSA 60X90 NEGRA</td><td class="num">+50</td><td class="num">$ 3.005</td><td class="mut">Inventario JUL: diferencia de conteo</td><td class="mut">logistica.richard</td></tr>
+    </table>
+    <div class="mut" style="margin-top:8px">Los uniformes mueven igual: cada entrega de uniforme descuenta, cada compra suma (regla ya definida en el módulo Uniformes).</div>
+  </div>
+</div>
+
+<!-- ========== TAB 2: INVENTARIO ========== -->
+<div class="panel" id="p2">
+  <div class="banner info">🔍 <span>Conteo físico periódico: se cuenta lo real, el sistema muestra la diferencia contra el teórico y el ajuste queda registrado con motivo y responsable. Frecuencia parametrizable (sugerido: mensual, con la ventana de pedidos cerrada).</span></div>
+  <div class="kpis">
+    <div class="kpi"><div class="v">31/07/2026</div><div class="l">Último inventario</div></div>
+    <div class="kpi"><div class="v">98,7%</div><div class="l">Exactitud del conteo (teórico vs físico)</div></div>
+    <div class="kpi"><div class="v">$ 17.218</div><div class="l">Ajustes del último conteo</div></div>
+  </div>
+  <div class="card">
+    <div style="display:flex;gap:10px;margin-bottom:12px">
+      <button class="btn b-pri" onclick="mOpen('mConteo')">▶ Iniciar conteo AGOSTO</button>
+      <span class="mut" style="margin-left:auto">El conteo congela movimientos del depósito mientras dura (parametrizable)</span>
+    </div>
+    <h2>Inventario JULIO 2026 — cerrado</h2>
+    <table>
+      <tr><th>Producto</th><th class="num">Teórico</th><th class="num">Contado</th><th class="num">Diferencia</th><th>Ajuste</th><th>Motivo</th></tr>
+      <tr><td>BOLSA 60X90 NEGRA</td><td class="num">1.400</td><td class="num">1.450</td><td class="num" style="color:#156a3a">+50</td><td><span class="chip c-nara">AJUSTE +50</span></td><td class="mut">entrega mal cargada en junio (corregida)</td></tr>
+      <tr><td>DETERGENTE BIO-DET × 5L</td><td class="num">22</td><td class="num">20</td><td class="num" style="color:#a11c1c">−2</td><td><span class="chip c-nara">AJUSTE −2</span></td><td class="mut">rotura no registrada</td></tr>
+      <tr><td>LAVANDINA BIO-LAV 60% × 5L</td><td class="num">160</td><td class="num">160</td><td class="num">0</td><td><span class="chip c-verde">SIN DIFERENCIA</span></td><td class="mut">—</td></tr>
+    </table>
+    <div class="mut" style="margin-top:8px">Diferencias recurrentes en un producto = señal para el auditor (salidas sin registrar, mermas). Historial de exactitud por inventario → Estadísticas.</div>
+  </div>
+</div>
+
+</div><!-- wrap -->
+
+<!-- ===== MODAL: conteo ===== -->
+<div class="modal-bg" id="mConteo">
+  <div class="modal">
+    <div class="m-head"><h3>Conteo físico — AGOSTO 2026</h3><button class="x" onclick="mClose('mConteo')">✕</button></div>
+    <div class="m-body">
+      <div class="banner info" style="margin-bottom:12px">Cargá lo contado — la diferencia se calcula sola. El teórico no se muestra durante el conteo (conteo ciego, para que no se "copie") — parametrizable.</div>
+      <table>
+        <tr><th>Producto</th><th class="num">Contado</th></tr>
+        <tr><td>LAVANDINA BIO-LAV 60% × 5L</td><td class="num"><input class="qty" type="number" placeholder="0"></td></tr>
+        <tr><td>PAP TOALLA INTERC BLANCA</td><td class="num"><input class="qty" type="number" placeholder="0"></td></tr>
+        <tr><td>BOLSA 60X90 NEGRA</td><td class="num"><input class="qty" type="number" placeholder="0"></td></tr>
+        <tr><td class="mut" colspan="2">… se recorre todo el depósito, se puede pausar y retomar</td></tr>
+      </table>
+    </div>
+    <div class="m-foot">
+      <button class="btn b-pri" onclick="mClose('mConteo')">Cerrar conteo y generar ajustes</button>
+      <button class="btn b-sec" onclick="mClose('mConteo')">Pausar</button>
+    </div>
+  </div>
+</div>
+
+<script>
+function tab(i,el){ document.querySelectorAll('.tab').forEach(t=>t.classList.remove('act')); el.classList.add('act');
+  document.querySelectorAll('.panel').forEach(p=>p.classList.remove('act')); document.getElementById('p'+i).classList.add('act'); }
+function mOpen(id){document.getElementById(id).classList.add('open')}
+function mClose(id){document.getElementById(id).classList.remove('open')}
+</script>
+</body>
+</html>

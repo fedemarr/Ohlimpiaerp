@@ -1,0 +1,10 @@
+REGLAS
+
+REQUERIMIENTOS PARA FEDE — pantalla Configuración › Accesos y perfiles:
+1. Las columnas de módulos se generan del REGISTRO DE MÓDULOS del sistema — no lista fija. Todo módulo creado (y los futuros) aparece solo en la grilla.
+"2. Columnas AGRUPADAS por área del menú (Liquidación / Comercial / Personal / Administración / Logística), colapsables — con 30+ módulos la fila plana no se navega."
+"3. El PERFIL funciona como PLANTILLA: al asignarlo, la matriz del usuario se precarga con la hoja MATRIZ PERFILES; después se ajusta individual (override por celda, como ya está)."
+"4. Módulo NUEVO → default ""— sin acceso"" para todos; se completa actualizando las plantillas de perfil (y se reaplica a quienes no tienen override)."
+"5. ""M"" no implica ver todo: DENTRO de cada módulo rige el alcance por rol ya definido (supervisor ve solo SUS servicios/pedidos/operarios; auditor su bandeja; etc.)."
+6. Los 4 de Logística sin mail necesitan USUARIO igual (login propio). Fede Dev mantiene perfil DEVELOPER.
+7. Consejo: Bianchi (secretaria) y Ricardo (síndico) suman las LECTURAS del perfil CONSEJO sobre su perfil de área.

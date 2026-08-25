@@ -1,0 +1,39 @@
+ASIGNACIÓN DE PERFIL POR USUARIO (37),,,
+,,,
+USUARIO,MAIL/USUARIO,PERFIL SUGERIDO,OVERRIDES / NOTAS
+Juan Manuel Eliçabe,jmelicabe,GERENCIA GRAL,
+Juan Carlos Peretti,jcperetti,CONSEJO,Presidente
+Natividad Guillén,nguillen,FINANZAS,Coordinadora · Tesorera del consejo
+Jorgelina Bianchi,jbianchi,VENTAS,Coordinadora Ventas · Secretaria del consejo (sumar lecturas de CONSEJO)
+Ricardo Eliçabe,relicabe,OPERACIONES,Coordinador · Síndico (sumar lecturas de CONSEJO)
+Lautaro Eliçabe,lelicabe,FINANZAS,⚙ Override: + Configuración total (proyecto ERP)
+Cecilia Recalde,crecalde,FINANZAS,
+Junior Ayala,jayala,FINANZAS,
+Gabriela Soledad Lucero,glucero,RRHH,Coordinadora
+Jimena Martínez Guillen,jmartinezguillen,RRHH,
+Marina Iglesias Eliçabe,melicabe,RRHH,
+Martina Ramirez,mramirez,RRHH,
+Matilde Noceti,mnoceti,RRHH,
+Naara Rodriguez,nrodriguez,RRHH,
+Richard Recalde,rrecalde,LOGÍSTICA,Coordinador
+Maximiliano Poncino,(crear usuario),LOGÍSTICA,
+Miguel Angel Pereyra,(crear usuario),LOGÍSTICA,Técnico máquinas: + M en tickets de Máquinas
+Lucas Ariel Sosa,(crear usuario),LOGÍSTICA,
+Alex Federico Ramirez Recalde,(crear usuario),LOGÍSTICA,
+Gina Martinez Guillen,gmartinezguillen,VENTAS,
+Álvaro Jesús Uballes,ajuballes,VENTAS,Hijo — distinto de Alvaro padre
+Polo Eliçabe,pelicabe,VENTAS,
+Marcelo Gonzalez Moure,mgmoure,AUDITOR,Audita PRODUCTOS (bandeja de Pedido de productos)
+Alejandro Cacciato,acacciato,SUPERVISOR,
+Alfredo Arispe,aarispe,SUPERVISOR,
+Alvaro Uballes,auballes,SUPERVISOR,
+Claudia Cazenave,ccazenave,SUPERVISOR,
+Claudio González,cgonzalez,SUPERVISOR,
+Dario Lage,dlage,SUPERVISOR,
+Lorena Unzain,lunzain,SUPERVISOR,
+Matías Maidana,mmaidana,SUPERVISOR,
+Fabio Benvenuto,fbenvenuto,SUPERVISOR,+ auxiliar operaciones
+Patricia Scaglia,pscaglia,SUPERVISOR,+ auxiliar operaciones
+Santiago Ayala,sayala,SUPERVISOR,+ auxiliar operaciones
+Fernando Lascano,flascano,OPERACIONES,Auxiliar
+Federico Martinez,fmartinez,SISTEMAS/DEV,

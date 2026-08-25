@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>FinFlow — CRM de negociación</title>
+  <script>
+    const __css = document.createElement("link");
+    __css.rel = "stylesheet";
+    __css.href = `../css/styles.css?v=${Date.now()}`;
+    document.head.appendChild(__css);
+  </script>
+
+  <!-- Anti-flash de sesión: oculta el contenido hasta que la guardia resuelva.
+       Va inline y sin red porque es lo único que actúa antes del primer pintado.
+       El fondo se fija acá también: styles.css llega por red, y sin esto el flash
+       de contenido se cambiaría por un flash blanco.
+       Failsafe de 3s: si la guardia nunca llega (red caída, esm.sh inaccesible),
+       revela igual. Nunca dejar la pantalla en blanco para siempre. -->
+  <style>html.au-espera { background: #0f1419; } html.au-espera body { visibility: hidden; }</style>
+  <script>
+    document.documentElement.classList.add("au-espera");
+    setTimeout(function () { document.documentElement.classList.remove("au-espera"); }, 3000);
+  </script>
+
+  <style>
+    /* Ancho completo: la lista es de trabajo masivo, el max-width global estorba. */
+    body.page-crm main { max-width: none; width: 100%; padding: 1rem 1.2rem 2rem; box-sizing: border-box; }
+    /* El contenedor es el único con scroll, para que el thead sticky tenga contra qué pegarse.
+       El ALTO lo mide js/shared/alto-tabla.js: acá no va ningún número. El
+       `calc(100vh - 190px)` que había era la suma de encabezado + filtros a un
+       escalado de pantalla, y con Windows al 125% la tabla se pasaba del viewport. */
+    [data-role=crm-container] { overflow: auto; }
+    table[data-role=tabla-casos] { table-layout: fixed; width: 100%; }
+    /* Títulos centrados (igual que las columnas fijas de Precios); los valores del
+       cuerpo mantienen su alineación a la izquierda. El padding lateral reserva los
+       6px del handle de redimensión, para que el título centrado no se le monte. */
+    table[data-role=tabla-casos] th { position: sticky; top: 0; background: var(--panel, #1a1f27); z-index: 2;
+                                      text-align: center; padding-left: 10px; padding-right: 10px; }
+    table[data-role=tabla-casos] td { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    table[data-role=tabla-casos] td.crm-sel { text-align: center; overflow: visible; }
+    /* Lo vacío se escribe, no se deja en blanco: una celda vacía se lee como error,
+       un texto en gris se lee como dato conocido. */
+    .crm-vacio { color: var(--muted); font-style: italic; }
+    .crm-cliente { font-weight: 600; }
+    /* Al filtrar, los nombres de Cliente en azul: mismo criterio que Precios. Avisa
+       de un vistazo que lo que se ve es un recorte, sin tener que leer el contador. */
+    table[data-role=tabla-casos].filtrando td.crm-cliente { color: #38bdf8; }
+    .crm-fecha { font-variant-numeric: tabular-nums; }
+    /* Marca de que la celda tiene detalle en el hover. Un dato que solo aparece al
+       pasar el mouse, sin nada que lo anuncie, es un dato escondido. */
+    .crm-prox-det { color: var(--muted); font-size: 11px; }
+
+    /* SEMÁFORO. Umbral del amarillo: 3 días (ver crm.js).
+       PUNTO y a la IZQUIERDA de la fecha: se lee de izquierda a derecha y lo primero
+       que hay que saber es si urge. Y MÁS GRANDE que el de naturaleza porque es la
+       señal que hay que poder leer sin fijar la vista. */
+    .crm-sem { display: inline-block; width: 14px; height: 14px; border-radius: 50%;
+               margin-right: 8px; vertical-align: middle; }
+    .crm-sem-verde    { background: #22c55e; }
+    .crm-sem-amarillo { background: #facc15; }
+    .crm-sem-rojo     { background: #ef4444; }
+
+    /* ANCHOS FIJOS. La fecha con cifras de ancho parejo, y el "(en N d)" con caja
+       fija: sin eso, "(hoy)" y "(hace 12 d)" corren todo lo que sigue, y al recorrer
+       300 filas hay que buscar cada elemento en cada una en vez de leer una columna. */
+    td.crm-prox .crm-fecha, td.crm-prox-fija .crm-fecha {
+      display: inline-block; font-variant-numeric: tabular-nums; }
+    .crm-dias { display: inline-block; width: 64px; margin-left: 5px;
+                font-size: 11px; color: var(--muted); }
+
+    /* DE QUIÉN DEPENDE la acción. CUADRADITO, no círculo: distinta FORMA que el
+       semáforo a propósito. Son dos señales distintas y el naranja de acá vive cerca
+       del amarillo de allá, así que el tono solo no alcanza para separarlas. Además
+       nunca están pegadas — la fecha entera va en el medio.
+       NARANJA = lo tengo que hacer yo, tiene que saltar.
+       AZUL    = depende de un tercero, puede pasar más desapercibido. */
+    .crm-dep { display: inline-block; width: 11px; height: 11px; border-radius: 2px;
+               margin-right: 6px; vertical-align: middle; }
+    .crm-dep-nosotros { background: #f97316; }
+    .crm-dep-terceros { background: #5b87c5; }
+    /* Sin clasificar: hueco, no invisible. Que se note que falta el dato. */
+    .crm-dep-nada { background: transparent; box-shadow: inset 0 0 0 1px var(--muted); }
+
+    /* Flechita de expandir. Control PROPIO, separado de la selección: solo ella
+       abre el detalle, el resto de la fila sigue libre para tildar. */
+    .crm-exp { display: inline-block; width: 1.1em; color: var(--muted);
+               cursor: pointer; user-select: none; font-size: 10px; }
+    .crm-exp:hover { color: #38bdf8; }
+
+    /* Fila de detalle. Va como una fila más y no como panel flotante: acompaña el
+       scroll y no tapa las filas de al lado. Tiene que ANULAR el nowrap/ellipsis
+       que llevan todas las celdas de esta tabla, que es justo lo que impedía
+       mostrar acá el historial. */
+    tr.crm-detalle > td { white-space: normal; overflow: visible; text-overflow: clip;
+                          background: rgba(255,255,255,0.03); padding: 10px 14px 12px 34px; }
+    .crm-det-tit { font-size: 11px; text-transform: uppercase; letter-spacing: .05em;
+                   color: var(--muted); margin: 4px 0 4px; }
+    .crm-det-tit + .crm-det-tit, .crm-det-obs + .crm-det-tit,
+    .crm-det-linea + .crm-det-tit, .crm-det-vacio + .crm-det-tit { margin-top: 12px; }
+    .crm-det-linea { font-size: 13px; }
+    .crm-det-sub { font-size: 12px; color: var(--muted); margin-top: 2px; }
+    .crm-det-vacio { font-size: 12px; color: var(--muted); font-style: italic; }
+    .crm-det-obs { margin: 0; padding-left: 18px; font-size: 12.5px; line-height: 1.55; }
+    .crm-det-obs li { margin-bottom: 2px; }
+    /* Gestiones: cada una es un bloque, no una línea suelta, porque puede llevar
+       debajo quién negoció. */
+    .crm-det-ges { margin: 0; padding-left: 18px; font-size: 12.5px; line-height: 1.5; }
+    .crm-det-ges li { margin-bottom: 6px; }
+    /* El botón vive dentro del título de la sección: queda pegado a lo que agrega,
+       en vez de perdido al pie del panel. */
+    .crm-det-btn { font-size: 11px; padding: 1px 8px; margin-left: 10px;
+                   text-transform: none; letter-spacing: 0; vertical-align: middle; }
+    /* Cartuchos de estado. MISMA CAJA para todos, como los de responsable: antes
+       "Enviada" quedaba mucho más chico que "Pendiente de envío" y la columna se
+       leía como un serrucho. display:block + tope + centrado.
+
+       EL padding-right RESERVA EL LUGAR DEL 📄 EN TODAS LAS CELDAS, tengan ícono o
+       no. Reservarlo solo en las que lo tienen dejaría los cartuchos de distinto
+       ancho según el caso tuviera PDF guardado, que es justo el serrucho que estas
+       reglas vienen a evitar.
+       El position:relative es el ancla del ícono. Acá SÍ hace falta declararlo: a
+       diferencia del th (que ya es sticky) y de la columna Nota de Precios, esta
+       celda no tiene ningún position propio. */
+    td.crm-est { vertical-align: middle; position: relative; padding-right: 18px; }
+
+    /* Ver la nota de aumento. Solo aparece si ESE caso tiene el PDF guardado; sin
+       archivo no se pinta nada, porque no habría nada que abrir.
+
+       ANCLADO AL BORDE DERECHO de la columna y centrado en el alto, igual que el 📄
+       de la columna Nota de Precios. Antes vivía en la celda del cliente y ahí se
+       perdía: el nombre largo se corta con puntos suspensivos y se llevaba el ícono
+       puesto, justo en las filas de nombre más largo.
+       FUERA DEL FLUJO (absolute), así no empuja al cartucho ni le cambia el ancho.
+       El padding propio agranda el área clickeable sin agrandar el dibujo: el ícono
+       mide once píxeles y comparte celda con una celda-acción, así que errarle no
+       puede ser fácil. */
+    .crm-nota-pdf { position: absolute; right: 2px; top: 50%; transform: translateY(-50%);
+                    padding: 3px 2px; cursor: pointer; font-size: 11px; line-height: 1;
+                    opacity: .8; user-select: none; }
+    .crm-nota-pdf:hover { opacity: 1; }
+
+    /* CELDAS-ACCIÓN: Estado, Responsable, Últ. gestión y Próxima acción abren el
+       formulario de ESE caso. Tienen que anunciarse: si no, la única forma de
+       descubrirlas es tropezárselas.
+       El subrayado punteado es la señal en reposo —discreta, no compite con los
+       cartuchos de color— y el fondo aparece al pasar el mouse.
+
+       LAS CUATRO responden igual, a propósito. Que dos respondan al clic y dos no
+       sería peor que si ninguna lo hiciera: nunca se sabría cuál es cuál. */
+    td.crm-est, td.crm-ult, td.crm-resp, td.crm-prox { cursor: pointer; }
+    td.crm-est .crm-badge, td.crm-resp .crm-etq,
+    td.crm-ult, td.crm-prox { text-decoration: underline dotted rgba(255,255,255,0.35); text-underline-offset: 3px; }
+    td.crm-est:hover, td.crm-ult:hover,
+    td.crm-resp:hover, td.crm-prox:hover { background: rgba(56,189,248,0.12); }
+    td.crm-est:hover .crm-badge, td.crm-resp:hover .crm-etq,
+    td.crm-ult:hover, td.crm-prox:hover { text-decoration-color: #38bdf8; }
+    .crm-badge { display: block; max-width: 150px; margin: 3px auto; padding: 1px 8px;
+                 border-radius: 10px; border: 1px solid rgba(255,255,255,0.18);
+                 font-size: 11px; line-height: 15px; font-weight: 600; text-align: center;
+                 overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+    /* UN COLOR POR ESTADO, y RELLENO, no solo el texto y el borde.
+       Antes había dos pares con el color IDÉNTICO —sin_respuesta con
+       en_renegociacion, y precerrada con cerrada— así que el color no distinguía
+       nada: había que leer el texto igual.
+       Ahora los siete tienen TONO propio. La separación es principalmente por
+       tono; el brillo solo ayuda en el par verde (precerrada clara, cerrada
+       oscura), que comparten matiz.
+         gris    = todavía no salió           azul    = en la cancha del cliente
+         ámbar   = se pasó el tiempo          violeta = negociación abierta
+         rojo    = volvió atrás               verde   = resuelto
+         verde oscuro = cobrado y archivado
+       El azul es #0284c7 y no un azul más oscuro porque contra el violeta de
+       "en renegociación" quedaban parecidos en tono Y en brillo a la vez. */
+    .crm-e-pendiente_envio   { background: #4b5563; color: #e5e7eb; }
+    .crm-e-enviada           { background: #0284c7; color: #ffffff; }
+    .crm-e-sin_respuesta     { background: #b45309; color: #ffffff; }
+    .crm-e-en_renegociacion  { background: #6d28d9; color: #ffffff; }
+    .crm-e-reclamo_posterior { background: #b91c1c; color: #ffffff; }
+    .crm-e-precerrada        { background: #15803d; color: #ffffff; }
+    /* Cerrada va más apagada a propósito: está terminada y cobrada, no compite
+       por atención con lo que todavía hay que trabajar. */
+    .crm-e-cerrada           { background: #14532d; color: #86efac; }
+
+    /* Cartucho de responsable con SU color. El color y el contraste del texto los
+       calcula js/shared/etiquetas-color.js, la misma función que usa Precios.
+       display:block (no inline-block) para que TODOS midan igual: el cartucho
+       llena el ancho de la columna y lo sigue si cambia, en vez de encogerse al
+       largo del nombre — así la columna se lee como una sola pila de etiquetas
+       parejas y no como un serrucho. Mismas medidas que .chip-etq de Precios.
+
+       Con TOPE de ancho y centrado (margin auto): sin el tope, al ensanchar la
+       columna el cartucho se estiraba hasta ocuparla entera y se leía como una
+       barra de color, no como una etiqueta. Llena hasta 150px y ahí se queda. */
+    td.crm-resp { vertical-align: middle; }
+    .crm-etq { display: block; max-width: 150px; margin: 3px auto; padding: 1px 6px; border-radius: 9px;
+               font-size: 11px; line-height: 15px; font-weight: 600; text-align: center;
+               overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    /* "Sin asignar": sin color, pero MISMA caja que el cartucho. Como texto suelto
+       medía menos de alto y dejaba la tabla con renglones desparejos según la fila
+       tuviera responsable o no. */
+    .crm-etq-vacio { background: none; font-weight: 400; font-style: italic; color: var(--muted); }
+
+    /* Líneas divisorias entre columnas: mismo criterio que Precios (24-jul), donde
+       sin ellas no se veía dónde terminaba cada columna. NO suman ancho: styles.css
+       declara `* { box-sizing: border-box }` (l.13) y `border-collapse: collapse`
+       (l.40) para toda tabla, así que el borde cae dentro del ancho del colgroup.
+       La última columna no lleva: sería una línea suelta contra el borde de la tabla. */
+    table[data-role=tabla-casos] th:not(:last-child),
+    table[data-role=tabla-casos] td:not(:last-child) { border-right: 1px solid rgba(255,255,255,0.22); }
+
+    /* Handle de redimensión, igual que en Precios: una franja de 6px pegada al
+       borde derecho del encabezado. No necesita position:relative en el th porque
+       el th ya es sticky, y sticky alcanza para anclar un absolute. */
+    table[data-role=tabla-casos] thead th { overflow: hidden; }
+    .col-resize { position: absolute; top: 0; right: 0; width: 6px; height: 100%;
+                  cursor: col-resize; user-select: none; z-index: 5; }
+    .col-resize:hover { background: rgba(56,189,248,0.5); }
+    /* La divisoria se resalta al apuntar el handle: avisa QUÉ borde se va a mover. */
+    table[data-role=tabla-casos] thead th:has(.col-resize:hover) { border-right-color: rgba(56,189,248,0.5); }
+
+    /* Barra de controles (primera fila). Va con su propia clase y no sobre .row
+       porque las filas de chips de abajo también son .row y no se tocan.
+
+       Es flex con align-items:flex-end. Antes no era flex —no existe un .row
+       genérico en styles.css— y cada control caía donde lo dejaba su línea de base.
+       Se alinea por el FINAL y no por el centro porque los <label> de .controls son
+       columnas (rótulo arriba, control abajo): alineando abajo, los controles quedan
+       a la misma altura tengan rótulo o no. */
+    .crm-barra { display: flex; align-items: flex-end; flex-wrap: wrap; gap: .75rem; }
+    /* El buscador venía SIN estilo: styles.css solo contempla `.controls select` e
+       `input[type=number]`, así que quedaba un input crudo del navegador al lado de
+       controles con fondo y borde. Mismos valores que el select, para que combinen. */
+    .page-crm .controls .crm-barra input[type=search] {
+      background: #0b0e12; color: var(--text); border: 1px solid var(--border);
+      border-radius: 6px; padding: 0.4rem 0.6rem; margin-top: 0.25rem;
+      font-family: inherit; font-size: 0.9rem; min-width: 200px;
+    }
+    /* «Vencidos»: casillero y texto EN LÍNEA. Sin esto hereda el flex-direction:column
+       de `.controls label` y el texto queda debajo del casillero. */
+    .crm-barra label.crm-check { flex-direction: row; align-items: center; gap: .4rem;
+                                 text-transform: none; letter-spacing: .02em; font-size: .8rem;
+                                 padding-bottom: .45rem; }
+    .crm-barra label.crm-check input { margin: 0; }
+    /* El botón, con la misma caja que los inputs: igual padding vertical y un borde
+       transparente que ocupa el lugar del borde del input, así miden lo mismo de alto. */
+    .crm-barra button { font-size: .85rem; padding: .4rem .8rem; border: 1px solid transparent; }
+    /* El estado no es un control: se va a la derecha para que los controles se lean
+       como un grupo y no como una lista donde el último es distinto. */
+    .crm-barra .status { margin-left: auto; padding-bottom: .5rem; }
+
+    /* Barra de acciones en bloque. Mismo criterio de alineación que la barra de
+       controles, y separada del grupo de chips por una línea: lo de arriba filtra,
+       lo de acá ESCRIBE en la base. Que se lean como dos cosas distintas es a
+       propósito. */
+    .crm-acc { display: flex; align-items: center; flex-wrap: wrap; gap: .5rem;
+               margin-top: .6rem; padding-top: .6rem; border-top: 1px solid var(--border); }
+    .crm-acc button { font-size: .85rem; padding: .35rem .8rem; border: 1px solid transparent; }
+    .crm-acc-n { font-size: .85rem; color: var(--muted); min-width: 190px; }
+    /* Con selección, el contador deja de ser gris: es el dato que dice cuántos
+       casos va a tocar el botón de al lado. */
+    .crm-acc-n.crm-acc-hay { color: var(--text); font-weight: 600; }
+    /* Resultado de la última acción. En ámbar cuando la base tocó MENOS casos de
+       los seleccionados: una acción que no hizo nada no se puede ver igual que una
+       que funcionó. */
+    .crm-acc-msg { font-size: .85rem; color: var(--muted); margin-left: auto; }
+    .crm-acc-msg.crm-acc-alerta { color: #eab308; font-weight: 600; }
+
+    /* Modal de acción. Reusa el fondo y la caja del cartel compartido
+       (css/styles.css, .cfm-*): es la misma chapa de modal, no vale duplicarla. */
+    .crm-modal-msg { font-size: 13px; line-height: 1.5; margin: 6px 0 12px; }
+    .crm-modal-fila { display: flex; gap: 8px; align-items: center; font-size: 13px; margin-bottom: 10px; }
+    .crm-modal-fila select { flex: 1; }
+    .crm-modal-chk { display: flex; gap: 8px; align-items: center; font-size: 13px; margin-bottom: 8px; cursor: pointer; }
+    /* La advertencia del efecto sobre la ficha del cliente. No es letra chica
+       decorativa: esta acción escribe en una tabla que no es la que estás mirando. */
+    .crm-modal-nota { font-size: 12px; line-height: 1.45; color: var(--muted);
+                      border-left: 2px solid rgba(234,179,8,0.6); padding-left: 8px; margin: 10px 0 14px; }
+    /* "Avanzar el caso": el cuadro del camino principal. Tres bloques con su
+       encabezado — ¿qué pasó? / ¿en qué queda? / ¿qué sigue? — para que no se lea
+       como una lista de siete campos sino como tres preguntas cortas. */
+    .crm-av-tit { font-size: 11px; text-transform: uppercase; letter-spacing: .05em;
+                  color: #38bdf8; font-weight: 700; margin: 14px 0 6px;
+                  border-top: 1px solid var(--border); padding-top: 10px; }
+    /* Contexto, no campo: qué venías a cumplir. */
+    .crm-av-pend { font-size: 12.5px; margin: 2px 0 4px; }
+    /* Cuándo y Canal comparten renglón: son cortos, y en renglones separados el
+       cuadro se estira sin ganar nada. */
+    .crm-av-fila2 { display: flex; gap: 10px; }
+    .crm-av-fila2 > label { flex: 1; }
+    /* La TRANSICIÓN. La flecha muestra el movimiento —lo que era, lo que pasa a
+       ser—; un separador marcaría dos secciones, que no es lo que está pasando. */
+    .crm-av-trans { display: flex; align-items: center; gap: 8px; font-size: 13px; }
+    .crm-av-trans .crm-badge { margin: 0; max-width: 150px; flex: none; }
+    .crm-av-trans select { flex: 1; }
+    .crm-av-flecha { color: #38bdf8; font-size: 15px; flex: none; }
+
+    /* Aviso de validación DENTRO del modal: la barra de acciones queda tapada por
+       el fondo oscuro, así que un aviso allá no se vería. Vacío no ocupa lugar. */
+    .crm-modal-err { font-size: 12.5px; color: var(--err, #e3524f); font-weight: 600; margin-bottom: 8px; }
+    .crm-modal-err:empty { display: none; }
+
+    /* Los chips de filtro (.crm-chip*) se mudaron a css/styles.css al usarlos una
+       segunda pantalla (Deuda por cliente y mes). Ahí está el bloque completo con
+       sus comentarios y la verificación de cascada. */
+    .crm-off { color: var(--muted); }
+  </style>
+</head>
+<body class="page-crm">
+  <header>
+    <h1>FinFlow — CRM de negociación</h1>
+    <nav>
+      <a href="inicio.html">Inicio</a> · <a href="precios.html">Precios</a> · <a href="clientes-abm.html">Clientes</a> · <a href="configuracion.html">⚙️ Config</a>
+    </nav>
+  </header>
+
+  <main>
+    <section class="controls" data-role="crm-filtros">
+      <div class="row crm-barra">
+        <label>Paritaria <select data-role="f-paritaria"></select></label>
+        <label>Cliente <input type="search" data-role="f-texto" placeholder="Buscar…" /></label>
+        <button type="button" data-role="expandir" title="Abrir el detalle de todos los casos filtrados">Expandir todos</button>
+        <button type="button" data-role="contraer" title="Cerrar todos los detalles abiertos">Contraer todos</button>
+        <button type="button" data-role="limpiar-filtros"
+                title="Vuelve la pantalla al estado inicial: Estado en «Abiertos», la paritaria vigente y el resto sin filtro">Limpiar filtros</button>
+        <span class="status" data-role="crm-status">Cargando…</span>
+      </div>
+      <div class="row crm-chips">
+        <span class="crm-chips-tit">Estado</span>
+        <span data-role="f-estados"></span>
+      </div>
+      <div class="row crm-chips">
+        <span class="crm-chips-tit">Responsable</span>
+        <span data-role="f-responsables"></span>
+      </div>
+      <!-- Agenda: lo vencido y de quién depende. Es la fila de la pregunta del
+           lunes a la mañana — "qué tengo que trabajar yo". -->
+      <div class="row crm-chips">
+        <span class="crm-chips-tit">Agenda</span>
+        <span data-role="f-agenda"></span>
+      </div>
+      <!-- Barra de acciones en bloque. SIEMPRE presente, con los botones apagados
+           cuando no hay selección: si apareciera y desapareciera, el alto de la
+           tabla saltaría en cada clic. -->
+      <div class="row crm-acc">
+        <span class="crm-acc-n" data-role="sel-n">Ningún caso seleccionado</span>
+        <button type="button" data-role="acc-estado" disabled>Cambiar estado</button>
+        <button type="button" data-role="acc-resp" disabled>Asignar responsable</button>
+        <button type="button" data-role="sel-limpiar" disabled>Limpiar selección</button>
+        <span class="crm-acc-msg" data-role="acc-msg"></span>
+      </div>
+    </section>
+
+    <section class="zone-grow">
+      <div class="scroll-x" data-role="crm-container">
+        <table data-role="tabla-casos">
+          <!-- data-col liga cada <col> con su handle del encabezado y con el ancho
+               guardado. Se busca por atributo y no por posición: si algún día se
+               agrega una columna en el medio, los índices se corren y el atributo no.
+               La ÚLTIMA va sin ancho a propósito: absorbe el espacio sobrante, así
+               arrastrar una columna la mueve 1:1 en vez de repartir la diferencia
+               entre todas (la tabla es width:100% + table-layout:fixed). Por eso
+               tampoco lleva handle: no tiene un ancho propio que ajustar. -->
+          <colgroup>
+            <col style="width:38px" />
+            <col data-col="cliente" style="width:320px" />
+            <col data-col="estado" style="width:150px" />
+            <col data-col="resp" style="width:150px" />
+            <col data-col="ult" style="width:180px" />
+            <col />
+          </colgroup>
+          <thead>
+            <tr>
+              <th class="crm-sel"><input type="checkbox" data-role="sel-todos" title="Seleccionar todo lo que está filtrado" /></th>
+              <th>Cliente <span class="funnel" data-fcol="cliente" title="Filtrar por esta columna">▾</span><span class="col-resize" data-col="cliente" title="Arrastrar para ajustar el ancho"></span></th>
+              <th>Estado <span class="funnel" data-fcol="estado" title="Filtrar por esta columna">▾</span><span class="col-resize" data-col="estado" title="Arrastrar para ajustar el ancho"></span></th>
+              <th>Responsable <span class="funnel" data-fcol="responsable" title="Filtrar por esta columna">▾</span><span class="col-resize" data-col="resp" title="Arrastrar para ajustar el ancho"></span></th>
+              <th>Últ. gestión <span class="funnel" data-fcol="ult" title="Filtrar por esta columna">▾</span><span class="col-resize" data-col="ult" title="Arrastrar para ajustar el ancho"></span></th>
+              <th>Próxima acción <span class="funnel" data-fcol="prox" title="Filtrar por esta columna">▾</span></th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+
+  <!-- Modal de acción en bloque. El fondo y la caja son los del cartel compartido. -->
+  <div class="cfm-fondo" data-role="modal-acc" hidden>
+    <div class="cfm-caja" data-role="modal-acc-box"></div>
+  </div>
+
+  <script type="module">
+    const v = Date.now();
+    import(`../js/pages/crm.js?v=${v}`).catch(console.error);
+  </script>
+</body>
+</html>
