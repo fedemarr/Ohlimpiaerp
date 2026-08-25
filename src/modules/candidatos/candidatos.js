@@ -512,7 +512,7 @@ export async function guardarCandidato() {
     { id: 'c-apellido', label: 'Apellido' },
     { id: 'c-nombre', label: 'Nombre' },
     { id: 'c-dni', label: 'DNI' },
-    { id: 'c-tel', label: 'Teléfono' },
+    { id: 'c-tel', label: 'Celular' },
     { id: 'c-calle', label: 'Calle y número' },
     { id: 'c-zona', label: 'Zona de residencia' },
   ], toast)) return;

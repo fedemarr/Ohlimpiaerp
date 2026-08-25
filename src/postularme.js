@@ -45,7 +45,7 @@ async function enviarPostulacion(e) {
     { id: 'pm-apellido', label: 'Apellido' },
     { id: 'pm-nombre', label: 'Nombre' },
     { id: 'pm-dni', label: 'DNI' },
-    { id: 'pm-tel', label: 'Teléfono' },
+    { id: 'pm-tel', label: 'Celular' },
     { id: 'pm-calle', label: 'Calle y número' },
     { id: 'pm-zona', label: 'Provincia' },
   ], toast)) return;
