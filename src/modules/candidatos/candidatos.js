@@ -158,12 +158,16 @@ function mensajeErrorGuardado(generico) {
   const err = getLastSupaSyncError();
   if (!err) return generico;
   const msg = (err.message || '').toLowerCase();
+  console.error('supaSync error detallado:', { code: err.code, message: err.message, details: err.details, hint: err.hint });
   if (err.code === '23505' || msg.includes('duplicate key')) {
     if (msg.includes('dni')) return '⚠️ Ya existe un candidato con ese DNI en el sistema (puede haberlo cargado otra persona) — revisá antes de reintentar, no se puede repetir el mismo DNI.';
     return '⚠️ Ya existe un registro con ese dato — revisá antes de reintentar (reintentar tal cual no lo va a resolver).';
   }
   if (err.code === '42501' || msg.includes('row-level security') || msg.includes('permission denied')) {
     return '⚠️ Tu sesión no tiene permiso para guardar ahora — cerrá sesión, volvé a entrar, y si sigue avisá a sistemas.';
+  }
+  if (msg.includes('column') && msg.includes('does not exist')) {
+    return '⚠️ Error de esquema: falta una columna en la base de datos — avisá a sistemas para ejecutar la migración pendiente.';
   }
   return generico;
 }
