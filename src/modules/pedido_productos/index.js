@@ -10,6 +10,11 @@ export {
   renderComprasPP, marcarEnCompraPP, marcarEntregadoPP,
 } from './pedido_productos.js';
 
+export {
+  abrirImportarListadoPP, cambiarProveedorImportPP,
+  seleccionarArchivoListadoPP, confirmarImportarListadoPP,
+} from './importarListado.js';
+
 // ========== SCREEN CONFIG ==========
 
 import { renderPedidoProductos } from './pedido_productos.js';
@@ -35,6 +40,11 @@ import {
   renderComprasPP, marcarEnCompraPP, marcarEntregadoPP,
 } from './pedido_productos.js';
 
+import {
+  abrirImportarListadoPP, cambiarProveedorImportPP,
+  seleccionarArchivoListadoPP, confirmarImportarListadoPP,
+} from './importarListado.js';
+
 window.tabPP = tabPP;
 window.renderCatalogoPP = renderCatalogoPP;
 window.abrirNuevoProductoPP = abrirNuevoProductoPP;
@@ -58,3 +68,7 @@ window.autorizarPedidoPP = autorizarPedidoPP;
 window.renderComprasPP = renderComprasPP;
 window.marcarEnCompraPP = marcarEnCompraPP;
 window.marcarEntregadoPP = marcarEntregadoPP;
+window.abrirImportarListadoPP = abrirImportarListadoPP;
+window.cambiarProveedorImportPP = cambiarProveedorImportPP;
+window.seleccionarArchivoListadoPP = seleccionarArchivoListadoPP;
+window.confirmarImportarListadoPP = confirmarImportarListadoPP;
