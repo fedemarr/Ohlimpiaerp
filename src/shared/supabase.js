@@ -18,6 +18,8 @@ export const SUPA = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 export const _SM = {
   legajos: 'legajos',
   pedidos: 'pedidos',
+  pedidosEventos: 'pedidos_eventos',
+  pedidosMotivosCancelacion: 'pedidos_motivos_cancelacion',
   perfilPersonalAtributos: 'perfil_personal_atributos',
   candidatos: 'candidatos',
   psicos: 'psicos',
@@ -617,6 +619,9 @@ export function _toSnake(obj) {
     precioAntes: 'precio_antes', precioDespues: 'precio_despues',
     pdfPath: 'pdf_path', pdfNombre: 'pdf_nombre', pdfSubidoEn: 'pdf_subido_en',
     claveFiscal: 'claveFiscal', // already exists above, dedup handled by object literal
+    // v106 — Pedidos de personal: ajustes de mockup (workflow, timeline, config)
+    ingresoTipo: 'ingreso_tipo', nombreCandidato: 'nombre_candidato',
+    nroSocioCandidato: 'nro_socio_candidato', motivoDetalle: 'motivo_detalle',
   };
   const r = {};
   for (const [k, v] of Object.entries(obj)) {
@@ -1024,6 +1029,9 @@ export function _toCamel(obj) {
     datos_nuevos: 'datosNuevos', auditoria_id: 'auditoriaId',
     precio_antes: 'precioAntes', precio_despues: 'precioDespues',
     pdf_path: 'pdfPath', pdf_nombre: 'pdfNombre', pdf_subido_en: 'pdfSubidoEn',
+    // v106 — Pedidos de personal: ajustes de mockup (workflow, timeline, config)
+    ingreso_tipo: 'ingresoTipo', nombre_candidato: 'nombreCandidato',
+    nro_socio_candidato: 'nroSocioCandidato', motivo_detalle: 'motivoDetalle',
   };
   const r = {};
   for (const [k, v] of Object.entries(obj)) {

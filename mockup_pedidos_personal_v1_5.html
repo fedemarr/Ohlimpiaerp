@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pedidos de personal — v1 para salir</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;font-family:'Segoe UI',Arial,sans-serif}
+body{background:#f0f2f7;color:#1c2430}
+.top{background:#1b2a5e;color:#fff;padding:14px 26px;display:flex;align-items:center;gap:16px}
+.top h1{font-size:17px;font-weight:600}
+.top .crumb{font-size:12px;opacity:.75}
+.wrap{max-width:1300px;margin:0 auto;padding:18px 22px 60px}
+.tabs{display:flex;gap:4px;border-bottom:2px solid #d8dce8;margin-bottom:16px;flex-wrap:wrap}
+.tab{padding:10px 18px;font-size:13.5px;font-weight:600;color:#5a6478;cursor:pointer;border-radius:8px 8px 0 0}
+.tab.act{color:#1b2a5e;background:#fff;border:2px solid #d8dce8;border-bottom:2px solid #fff;margin-bottom:-2px}
+.tab .n{background:#e8590c;color:#fff;border-radius:10px;font-size:10.5px;padding:1px 7px;margin-left:6px}
+.panel{display:none}.panel.act{display:block}
+.card{background:#fff;border:1px solid #dde1ec;border-radius:10px;padding:16px 18px;margin-bottom:14px;box-shadow:0 1px 3px rgba(20,30,60,.05);overflow-x:auto}
+.banner{border-radius:8px;padding:10px 14px;font-size:12.8px;margin-bottom:14px;display:flex;gap:10px;align-items:flex-start}
+.banner.info{background:#e7f0ff;border:1px solid #b9d2f5;color:#1b3f77}
+table{width:100%;border-collapse:collapse;font-size:12.8px}
+th{background:#f4f6fb;color:#3c4560;text-align:left;padding:8px 10px;font-size:11px;text-transform:uppercase;letter-spacing:.3px;border-bottom:2px solid #dde1ec;white-space:nowrap}
+td{padding:8px 10px;border-bottom:1px solid #eceef5;vertical-align:middle}
+.num{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+.chip{display:inline-block;padding:2px 10px;border-radius:11px;font-size:10.5px;font-weight:700;white-space:nowrap}
+.c-gris{background:#eceef3;color:#5a6478}
+.c-azul{background:#dbe7ff;color:#1b3f9e}
+.c-verde{background:#d9f2e2;color:#156a3a}
+.c-nara{background:#ffe8d6;color:#a04a08}
+.c-rojo{background:#fddede;color:#a11c1c}
+.c-viol{background:#ece0fa;color:#5b2ca0}
+.kpis{display:flex;gap:12px;margin-bottom:14px;flex-wrap:wrap}
+.kpi{background:#fff;border:1px solid #dde1ec;border-radius:10px;padding:12px 18px;min-width:150px}
+.kpi .v{font-size:20px;font-weight:700;color:#1b2a5e}
+.kpi .l{font-size:11.5px;color:#6a7386;margin-top:2px}
+.btn{border:none;border-radius:7px;padding:8px 14px;font-size:12.5px;font-weight:600;cursor:pointer;white-space:nowrap}
+.b-pri{background:#1b2a5e;color:#fff}
+.b-sec{background:#eceef3;color:#39425a}
+.b-ok{background:#1d7a43;color:#fff}
+.b-warn{background:#c96a10;color:#fff}
+.mut{color:#7a8296;font-size:11.5px}
+.inp{padding:7px 9px;border:1.5px solid #c6cbda;border-radius:7px;font-size:13px;background:#fff}
+.mini{border:none;background:#eceef3;color:#39425a;border-radius:6px;padding:2px 9px;font-size:10.5px;font-weight:700;cursor:pointer}
+.modal-bg{display:none;position:fixed;inset:0;background:rgba(15,22,45,.55);z-index:50;align-items:flex-start;justify-content:center;padding:34px 16px;overflow:auto}
+.modal-bg.open{display:flex}
+.modal{background:#fff;border-radius:12px;max-width:660px;width:100%;box-shadow:0 12px 40px rgba(10,18,45,.35)}
+.m-head{padding:16px 22px;border-bottom:1px solid #e3e6ef;display:flex;align-items:center;gap:12px}
+.m-head h3{font-size:15px;color:#1b2a5e}
+.m-head .x{margin-left:auto;font-size:19px;cursor:pointer;color:#8a92a6;background:none;border:none}
+.m-body{padding:16px 22px;max-height:66vh;overflow:auto}
+.m-foot{padding:13px 22px;border-top:1px solid #e3e6ef;display:flex;gap:10px;flex-wrap:wrap}
+.tl{border-left:2.5px solid #dde1ec;margin-left:8px;padding-left:16px;margin-top:6px}
+.tl .ev{position:relative;margin-bottom:8px;font-size:12.3px}
+.tl .ev:before{content:'';position:absolute;left:-22.5px;top:3px;width:10px;height:10px;border-radius:50%;background:#1b2a5e}
+.tl .ev .f{font-size:10.5px;color:#7a8296}
+.dato{font-size:12.8px}.dato b{color:#3c4560;font-size:10.5px;text-transform:uppercase;letter-spacing:.3px;display:block}
+</style>
+</head>
+<body>
+<div class="top">
+  <h1>Pedidos de personal <span class="chip c-azul" style="margin-left:8px">V1 — PARA SALIR YA</span></h1>
+  <span class="crumb">Operaciones (Santiago Ayala) carga → a RRHH le salta la notificación → busca → marca el pedido CUBIERTO. Módulo INFORMATIVO: no escribe en legajos ni grillas — la conexión real del asociado nace en el alta/legajo.</span>
+</div>
+<div class="wrap">
+
+<div class="kpis">
+  <div class="kpi" style="border-left:5px solid #e0a010"><div class="v" style="color:#8a6404">3</div><div class="l">Pendientes</div></div>
+  <div class="kpi"><div class="v" style="color:#1b3f9e">2</div><div class="l">En búsqueda</div></div>
+  <div class="kpi" style="border-left:5px solid #d33c50;background:#fff5f5"><div class="v" style="color:#a11c1c">2</div><div class="l">VENCIDOS ⚠ (+N días sin movimiento ⚙)</div></div>
+  <div class="kpi"><div class="v" style="color:#156a3a">4</div><div class="l">Cubiertos este mes</div></div>
+  <div class="kpi"><div class="v">6 días</div><div class="l">Tiempo promedio de cobertura</div></div>
+</div>
+
+<div class="tabs">
+  <div class="tab act" onclick="tab(0,this)">📋 Activos <span class="n">5</span></div>
+  <div class="tab" onclick="tab(1,this)">🕘 Historial</div>
+</div>
+
+<!-- ============ ACTIVOS ============ -->
+<div class="panel act" id="p0">
+  <div class="card">
+    <div style="display:flex;gap:10px;margin-bottom:12px;flex-wrap:wrap">
+      <input class="inp" style="width:200px" placeholder="🔍 Buscar…">
+      <select class="inp"><option>Estado: todos</option><option>Pendiente</option><option>En búsqueda</option></select>
+      <select class="inp"><option>Urgencia: todas</option></select>
+      <select class="inp"><option>Supervisor: todos</option></select>
+      <button class="btn b-pri" style="margin-left:auto" onclick="mOpen('mNuevo')">+ Nuevo pedido</button>
+    </div>
+    <table>
+      <tr><th>N°</th><th>Fecha</th><th>Cargado por</th><th>Servicio</th><th>Supervisor</th><th>Puesto</th><th class="num">Cant.</th><th>Fecha límite</th><th class="num">Días</th><th>Urgencia</th><th>Estado</th><th></th></tr>
+      <tr style="background:#fff5f5"><td class="mut">PP-102</td><td class="mut">08/04</td><td class="mut">S. Ayala</td><td><b>GYM.RECOLETA</b></td><td class="mut">A. Uballes</td><td><span class="chip c-azul">Operario/a</span></td><td class="num"><b>2</b></td><td class="mut">15/04 ⚠</td><td class="num" style="color:#a11c1c"><b>139</b></td><td><span class="chip c-rojo">ALTA</span></td><td><span class="chip c-rojo">VENCIDO ⚠</span></td><td><button class="btn b-sec" onclick="mOpen('mDet')">Ver</button></td></tr>
+      <tr><td class="mut">PP-103</td><td class="mut">09/04</td><td class="mut">S. Ayala</td><td><b>GYM.RECOLETA</b></td><td class="mut">C. Cazenave</td><td><span class="chip c-azul">Operario/a</span></td><td class="num">1</td><td class="mut">—</td><td class="num" style="color:#a11c1c"><b>138</b></td><td><span class="chip c-rojo">ALTA</span></td><td><span class="chip c-rojo">VENCIDO ⚠</span></td><td><button class="btn b-sec" onclick="mOpen('mDet')">Ver</button></td></tr>
+      <tr><td class="mut">PP-131</td><td class="mut">06/07</td><td class="mut">S. Ayala</td><td><b>HOSPITAL.CAMPANA</b></td><td class="mut">A. Cacciato</td><td><span class="chip c-azul">Op. + Extra Sanidad</span></td><td class="num">1</td><td class="mut">01/09</td><td class="num">50</td><td><span class="chip c-rojo">ALTA</span></td><td><span class="chip c-azul">EN BÚSQUEDA · rrhh.matilde</span></td><td><button class="btn b-sec" onclick="mOpen('mDet')">Ver</button></td></tr>
+      <tr id="filaLanus"><td class="mut">PP-140</td><td class="mut">17/08</td><td class="mut">S. Ayala</td><td><b>JOSIMAR.LANUS</b></td><td class="mut">Josimar B.</td><td><span class="chip c-viol">Referente</span></td><td class="num">1</td><td class="mut">25/08</td><td class="num">9</td><td><span class="chip c-nara">MEDIA</span></td><td id="estLanus"><span class="chip c-azul">EN BÚSQUEDA · rrhh.matilde</span></td><td><button class="btn b-sec" onclick="mOpen('mDet')">Ver</button></td></tr>
+      <tr id="filaMoron"><td class="mut">PP-141</td><td class="mut">25/08</td><td class="mut">S. Ayala</td><td><b>CHANGO.MORON</b></td><td class="mut">L. Unzain</td><td><span class="chip c-azul">Operario/a</span></td><td class="num">1</td><td class="mut">01/09</td><td class="num">1</td><td><span class="chip c-nara">MEDIA</span></td><td id="estMoron"><span class="chip c-nara">PENDIENTE</span></td><td><button class="btn b-sec" onclick="mOpen('mDet2')">Ver</button></td></tr>
+    </table>
+    <div class="mut" style="margin-top:8px">Los pedidos NUEVOS le saltan a RRHH como notificación 🔔. "Días" = antigüedad; con urgencia Alta y +N días sin movimiento (⚙) pasa a VENCIDO en rojo. Cada supervisor ve solo SUS pedidos; Operaciones y RRHH ven todo. El puesto sale del catálogo de Categorías.</div>
+  </div>
+</div>
+
+<!-- ============ HISTORIAL ============ -->
+<div class="panel" id="p1">
+  <div class="card">
+    <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap">
+      <select class="inp"><option>2026</option></select>
+      <select class="inp"><option>Resultado: todos</option><option>Cubiertos</option><option>Cancelados</option></select>
+      <input class="inp" style="flex:1;min-width:180px" placeholder="🔍 Buscar…">
+      <button class="btn b-sec">⬇ Exportar</button>
+    </div>
+    <table>
+      <tr><th>N°</th><th>Pedido</th><th>Servicio</th><th>Puesto</th><th>Resultado</th><th>Persona asignada</th><th class="num">Días</th><th>Cerró</th></tr>
+      <tr><td class="mut">PP-138</td><td class="mut">12/08 · S. Ayala</td><td>CHANGO.MORON</td><td><span class="chip c-azul">Operario/a</span></td><td><span class="chip c-verde">CUBIERTO ✔</span></td><td><b>Soto Valeria</b> <span class="chip c-verde" style="font-size:9.5px">INGRESO NUEVO</span> <span class="mut">legajo 5577 ↗</span></td><td class="num">4</td><td class="mut">16/08 · rrhh.matilde</td></tr>
+      <tr><td class="mut">PP-135</td><td class="mut">05/08 · S. Ayala</td><td>CHANGO.MORDERQUI</td><td><span class="chip c-viol">Referente</span></td><td><span class="chip c-verde">CUBIERTO ✔</span></td><td><b>Nieva Enzo</b> <span class="chip c-azul" style="font-size:9.5px">INTERNO</span> <span class="mut">legajo 5065 ↗</span></td><td class="num">2</td><td class="mut">07/08 · rrhh.matilde</td></tr>
+      <tr><td class="mut">PP-129</td><td class="mut">28/07 · S. Ayala</td><td>CHANGO.SARANDI</td><td><span class="chip c-azul">Operario/a</span></td><td><span class="chip c-gris">CANCELADO</span></td><td class="mut">motivo: el cliente redujo horas</td><td class="num">9</td><td class="mut">06/08 · s.ayala</td></tr>
+    </table>
+    <div class="mut" style="margin-top:8px">"Persona asignada" es INFORMATIVA — la conexión real de la persona con el servicio nace en el alta de asociado / legajo. Si tiene legajo, el N° de socio queda como referencia clickeable. "Días" (pedido → inicio) alimenta el KPI de tiempo de cobertura.</div>
+  </div>
+</div>
+
+</div>
+
+<!-- ===== MODAL: nuevo pedido ===== -->
+<div class="modal-bg" id="mNuevo">
+  <div class="modal" style="max-width:700px">
+    <div class="m-head"><h3>+ Nuevo pedido de personal</h3><span class="mut">PP-142 (auto)</span><button class="x" onclick="mClose('mNuevo')">✕</button></div>
+    <div class="m-body">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px 18px;font-size:12.8px">
+        <span><b>Cargado por:</b><br><input class="inp" style="width:100%" value="s.ayala — Centro de operaciones (auto)" disabled></span>
+        <span><b>Supervisor *:</b><br><select class="inp" id="selSup" style="width:100%" onchange="filtraServ()"><option>— Seleccionar —</option><option>Alvaro Uballes</option><option>Alejandro Cacciato</option><option>Claudia Cazenave</option><option>Lorena Unzain</option><option>Josimar B.</option></select> <span class="mut">al elegirlo, abajo aparecen SUS servicios</span></span>
+        <span><b>Servicio / cliente *:</b><br><select class="inp" id="selServ" style="width:100%" onchange="zonaAuto()"><option>— primero elegí el supervisor —</option></select></span>
+        <span><b>Zona (auto):</b><br><input class="inp" id="inpZona" style="width:100%" value="se completa con el servicio" disabled></span>
+        <span><b>Puesto *:</b><br><select class="inp" style="width:100%"><option>Operario/a — $ 4.383,11</option><option>Operario/a Media Jornada</option><option>Operario + Extra Sanidad</option><option>Referente</option><option>Reten General</option><option>Runner</option></select> <span class="mut">del catálogo de Categorías (activas)</span></span>
+        <span style="display:flex;gap:14px"><span style="flex:1"><b>Cantidad *:</b><br><input class="inp" style="width:100%" value="1"></span><span style="flex:1"><b>Urgencia:</b><br><select class="inp" style="width:100%"><option>Media</option><option>Alta</option><option>Baja</option></select></span></span>
+        <span><b>Fecha límite *:</b><br><input class="inp" style="width:100%" value="01/09/2026"> <span class="mut">con esto la urgencia envejece (VENCIDO ⚙)</span></span>
+      </div>
+      <div style="border-top:1px solid #e3e6ef;margin:14px 0 10px;padding-top:10px;font-size:12.8px">
+        <b style="color:#1b3f9e;font-size:11px;text-transform:uppercase">Horario y días</b><br>
+        <span style="display:inline-flex;gap:10px;margin-top:6px;align-items:center;flex-wrap:wrap">
+          <label><input type="checkbox" checked> L</label>
+          <label><input type="checkbox" checked> M</label>
+          <label><input type="checkbox" checked> X</label>
+          <label><input type="checkbox" checked> J</label>
+          <label><input type="checkbox" checked> V</label>
+          <label><input type="checkbox"> S</label>
+          <label><input type="checkbox"> D</label>
+          <label><input type="checkbox"> Fer.</label>
+          · de <input class="inp" style="width:80px" value="06:00"> a <input class="inp" style="width:80px" value="14:00"> · <select class="inp"><option>Fijo</option><option>Rotativo</option></select>
+        </span>
+      </div>
+      <div style="border-top:1px solid #e3e6ef;margin:10px 0;padding-top:10px;font-size:12.8px">
+        <b style="color:#1b3f9e;font-size:11px;text-transform:uppercase">Perfil del personal</b><br>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px 16px;margin-top:8px">
+          <span>Género:<br><select class="inp" style="width:100%"><option>—</option><option>F/M</option><option>Femenino</option><option>Masculino</option></select></span>
+          <span>Experiencia:<br><select class="inp" style="width:100%"><option>—</option><option>Sin experiencia específica</option><option>Con experiencia requerida</option></select></span>
+          <span>Tipo de tarea:<br><select class="inp" style="width:100%"><option>—</option><option>Limpieza general</option><option>Limpieza profunda</option><option>Mantenimiento</option><option>Cuidado de espacios</option></select></span>
+          <span>Turno:<br><select class="inp" style="width:100%"><option>—</option><option>Mañana</option><option>Tarde</option><option>Noche</option><option>Rotativo</option></select></span>
+          <span>Disponibilidad horaria:<br><select class="inp" style="width:100%"><option>—</option><option>Full time</option><option>Media jornada</option><option>Fines de semana</option><option>Solo nocturno</option></select></span>
+        </div>
+        <div style="margin-top:8px;display:flex;gap:14px;flex-wrap:wrap;align-items:center">Certificaciones <span class="mut">(⚙ parametrizables)</span>:
+          <label><input type="checkbox"> Libreta sanitaria</label>
+          <label><input type="checkbox"> Curso manipulación de alimentos</label>
+          <label><input type="checkbox"> Trabajo en altura</label>
+          <label><input type="checkbox"> Habilitación espacios de salud</label>
+        </div>
+      </div>
+      <div style="margin-top:8px"><input class="inp" style="width:100%" placeholder="Observaciones…"></div>
+      <div class="mut" style="margin-top:10px">Al guardar: estado PENDIENTE · 🔔 notificación a RRHH para que lo tome · el supervisor del servicio lo ve entre SUS pedidos.</div>
+    </div>
+    <div class="m-foot">
+      <button class="btn b-pri" onclick="mClose('mNuevo')">Guardar pedido → notifica a RRHH</button>
+      <button class="btn b-sec" onclick="mClose('mNuevo')">Cancelar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== MODAL: detalle del pedido ===== -->
+<div class="modal-bg" id="mDet">
+  <div class="modal" style="max-width:700px">
+    <div class="m-head"><h3>Pedido PP-140 — JOSIMAR.LANUS</h3><span class="chip c-azul">EN BÚSQUEDA</span><button class="x" onclick="mClose('mDet')">✕</button></div>
+    <div class="m-body">
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px 20px;margin-bottom:14px">
+        <div class="dato"><b>Servicio / cliente</b>JOSIMAR.LANUS</div>
+        <div class="dato"><b>Supervisor (auto)</b>Josimar B.</div>
+        <div class="dato"><b>Zona (auto)</b>Prov. BA · Lanús</div>
+        <div class="dato"><b>Puesto</b>Referente</div>
+        <div class="dato"><b>Cantidad</b>1</div>
+        <div class="dato"><b>Fecha límite</b>25/08/2026</div>
+        <div class="dato"><b>Urgencia</b>Media</div>
+        <div class="dato"><b>Cargado por</b>s.ayala · 17/08</div>
+        <div class="dato"><b>Horario</b>L a V · 06:00–14:00 · Fijo</div>
+      </div>
+      <div style="font-size:12.8px;margin-bottom:12px"><b style="color:#3c4560;font-size:10.5px;text-transform:uppercase">Perfil solicitado</b><br>Experiencia +1 año · <span class="chip c-gris">Sin certificaciones requeridas</span> · Obs.: "que conozca la zona"</div>
+      <b style="font-size:13px;color:#1b2a5e">Historial del pedido</b>
+      <div class="tl" id="tlDet">
+        <div class="ev"><b>EN BÚSQUEDA</b> — lo tomó rrhh.matilde<div class="f">18/08 · 09:40</div></div>
+        <div class="ev"><b>CREADO</b> — cargado por s.ayala (Centro de operaciones) · notificación a RRHH 🔔<div class="f">17/08 · 16:22</div></div>
+      </div>
+    </div>
+    <div class="m-foot">
+      <button class="btn b-ok" onclick="mClose('mDet');mOpen('mComp')">✔ Pedido cubierto</button>
+      <button class="btn b-warn" onclick="mClose('mDet');mOpen('mCanc')">✕ Cancelar pedido</button>
+      <button class="btn b-sec">✏ Editar</button>
+      <button class="btn b-sec" onclick="mClose('mDet')">Cerrar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== MODAL: detalle pedido PENDIENTE (tomar en busqueda) ===== -->
+<div class="modal-bg" id="mDet2">
+  <div class="modal" style="max-width:700px">
+    <div class="m-head"><h3>Pedido PP-141 — CHANGO.MORON</h3><span class="chip c-nara" id="chipDet2">PENDIENTE</span><button class="x" onclick="mClose('mDet2')">✕</button></div>
+    <div class="m-body">
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px 20px;margin-bottom:14px">
+        <div class="dato"><b>Servicio / cliente</b>CHANGO.MORON</div>
+        <div class="dato"><b>Supervisor (auto)</b>L. Unzain</div>
+        <div class="dato"><b>Zona (auto)</b>Prov. BA · Morón</div>
+        <div class="dato"><b>Puesto</b>Operario/a</div>
+        <div class="dato"><b>Cantidad</b>1</div>
+        <div class="dato"><b>Fecha límite</b>01/09/2026</div>
+        <div class="dato"><b>Urgencia</b>Media</div>
+        <div class="dato"><b>Cargado por</b>s.ayala · 25/08</div>
+        <div class="dato"><b>Horario</b>L a S · 14:00–22:00 · Fijo</div>
+      </div>
+      <div style="font-size:12.8px;margin-bottom:12px"><b style="color:#3c4560;font-size:10.5px;text-transform:uppercase">Perfil solicitado</b><br>Género F/M · Sin experiencia específica · Limpieza general · Turno tarde · Full time</div>
+      <b style="font-size:13px;color:#1b2a5e">Historial del pedido</b>
+      <div class="tl" id="tlDet2">
+        <div class="ev"><b>CREADO</b> — cargado por s.ayala (Centro de operaciones) · notificación a RRHH 🔔<div class="f">25/08 · 10:15</div></div>
+      </div>
+      <div class="mut" style="margin-top:8px">Al pasarlo a EN BÚSQUEDA: queda con tu usuario y <b>🔔 le avisa a quien lo cargó (s.ayala)</b> que ya se está trabajando.</div>
+    </div>
+    <div class="m-foot">
+      <button class="btn b-pri" id="btnTomar" onclick="tomar()">🔍 En búsqueda (avisa a s.ayala)</button>
+      <button class="btn b-warn" onclick="mClose('mDet2');mOpen('mCanc')">✕ Cancelar pedido</button>
+      <button class="btn b-sec" onclick="mClose('mDet2')">Cerrar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== MODAL: marcar completado ===== -->
+<div class="modal-bg" id="mComp">
+  <div class="modal">
+    <div class="m-head"><h3>✔ Pedido cubierto — PP-140 — JOSIMAR.LANUS · Referente</h3><button class="x" onclick="mClose('mComp')">✕</button></div>
+    <div class="m-body">
+      <div class="banner info" style="margin-bottom:12px">Solo INFORMATIVO: acá se registra cómo se cubrió — la conexión real de la persona con el servicio y el supervisor ya se hizo (o se hace) por el <b>alta de asociado / legajo</b>. Este módulo no toca nada de eso.</div>
+      <div style="display:flex;flex-direction:column;gap:8px;font-size:13px;margin-bottom:12px">
+        <label><input type="radio" name="como" checked> <b>Ingreso nuevo</b> <span class="mut">— la persona entró a la cooperativa para este pedido</span></label>
+        <label><input type="radio" name="como"> <b>Asociado interno</b> <span class="mut">— se cubrió con alguien que ya estaba</span></label>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px 18px;font-size:12.8px">
+        <span><b>Nombre y apellido *:</b><br><input class="inp" style="width:100%" value="Prieto Candela"></span>
+        <span><b>N° de socio (si ya tiene legajo):</b><br><input class="inp" style="width:100%" value="5581"> <span class="mut">queda como referencia clickeable</span></span>
+        <span><b>Fecha de inicio *:</b><br><input class="inp" style="width:100%" value="25/08/2026"></span>
+        <span><b>Observación:</b><br><input class="inp" style="width:100%" placeholder="Opcional…"></span>
+      </div>
+      <div class="mut" style="margin-top:10px">Al confirmar: el pedido pasa a <b>CUBIERTO</b>, sale de los activos, va al Historial con el tiempo de cobertura (17/08 → 25/08 = 8 días) y le llega la notificación a quien lo cargó (s.ayala) y al supervisor.</div>
+    </div>
+    <div class="m-foot">
+      <button class="btn b-ok" onclick="completar()">✔ Confirmar — pedido cubierto</button>
+      <button class="btn b-sec" onclick="mClose('mComp')">Volver</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== MODAL: cancelar ===== -->
+<div class="modal-bg" id="mCanc">
+  <div class="modal">
+    <div class="m-head"><h3>✕ Cancelar pedido PP-140</h3><button class="x" onclick="mClose('mCanc')">✕</button></div>
+    <div class="m-body">
+      <div style="font-size:12.8px"><b>Motivo * (⚙ parametrizable):</b><br>
+      <select class="inp" style="width:100%;margin-top:4px"><option>— Seleccionar —</option><option>El cliente redujo horas</option><option>Se cubrió por otro lado</option><option>El servicio se dio de baja</option><option>Pedido duplicado</option><option>Otro</option></select></div>
+      <div style="margin-top:10px"><input class="inp" style="width:100%" placeholder="Detalle (opcional)…"></div>
+      <div class="mut" style="margin-top:10px">Pasa a CANCELADO, sale de los activos y queda en el Historial con el motivo. Notificación a quien lo cargó.</div>
+    </div>
+    <div class="m-foot">
+      <button class="btn b-warn" onclick="mClose('mCanc')">Confirmar cancelación</button>
+      <button class="btn b-sec" onclick="mClose('mCanc')">Volver</button>
+    </div>
+  </div>
+</div>
+
+<script>
+function tab(i,el){ document.querySelectorAll('.tab').forEach(t=>t.classList.remove('act')); el.classList.add('act');
+  document.querySelectorAll('.panel').forEach(p=>p.classList.remove('act')); document.getElementById('p'+i).classList.add('act'); }
+function mOpen(id){document.getElementById(id).classList.add('open')}
+function mClose(id){document.getElementById(id).classList.remove('open')}
+const SERV={
+ 'Alvaro Uballes':[['HIT.LIBERTADOR.8614','CABA · Núñez'],['HIT.LIBERTADOR.CEL','CABA · Núñez'],['GYM.RECOLETA','CABA · Recoleta'],['EVENTO.HIT.LIBERTADOR','CABA · Núñez'],['HIT.POLO','CABA · Palermo']],
+ 'Alejandro Cacciato':[['HOSPITAL.CAMPANA','Prov. BA · Campana'],['CHANGO.MORDERQUI','Prov. BA · Derqui'],['CHANGO.PILAR','Prov. BA · Pilar']],
+ 'Claudia Cazenave':[['GYM.RECOLETA','CABA · Recoleta'],['GYM.DEVOTO','CABA · Devoto']],
+ 'Lorena Unzain':[['CHANGO.MORON','Prov. BA · Morón'],['CHANGO.LAFERRERE','Prov. BA · La Ferrere'],['CHANGO.CASEROS','Prov. BA · Caseros']],
+ 'Josimar B.':[['JOSIMAR.LANUS','Prov. BA · Lanús'],['JOSIMAR.BARRACAS','CABA · Barracas'],['JOSIMAR.QUILMES','Prov. BA · Quilmes']]
+};
+function filtraServ(){
+  const sup=document.getElementById('selSup').value;
+  const sel=document.getElementById('selServ');
+  sel.innerHTML='';
+  const lst=SERV[sup];
+  if(!lst){ sel.innerHTML='<option>— primero elegí el supervisor —</option>'; return; }
+  sel.innerHTML='<option>— elegir entre los '+lst.length+' servicios de '+sup.split(' ')[0]+' —</option>'+lst.map(s=>'<option data-z="'+s[1]+'">'+s[0]+'</option>').join('');
+  document.getElementById('inpZona').value='se completa con el servicio';
+}
+function zonaAuto(){
+  const sel=document.getElementById('selServ');
+  const opt=sel.options[sel.selectedIndex];
+  document.getElementById('inpZona').value=opt.dataset.z||'se completa con el servicio';
+}
+function tomar(){
+  document.getElementById('estMoron').innerHTML='<span class="chip c-azul">EN BÚSQUEDA · rrhh.matilde</span>';
+  document.getElementById('chipDet2').className='chip c-azul';
+  document.getElementById('chipDet2').textContent='EN BÚSQUEDA';
+  const d=document.createElement('div'); d.className='ev';
+  d.innerHTML='<b>EN BÚSQUEDA</b> — lo tomó rrhh.matilde · 🔔 notificado s.ayala<div class="f">26/08 · ahora</div>';
+  document.getElementById('tlDet2').prepend(d);
+  const b=document.getElementById('btnTomar');
+  b.outerHTML='<button class="btn b-ok" onclick="mClose(\'mDet2\');mOpen(\'mComp\')">✔ Pedido cubierto</button>';
+}
+function completar(){
+  const tr=document.getElementById('filaLanus');
+  tr.style.background='#f4fbf7';
+  document.getElementById('estLanus').innerHTML='<span class="chip c-verde">CUBIERTO ✔ · Prieto C. (5581) · inicia 25/08</span>';
+  tr.lastElementChild.innerHTML='<span class="mut">al Historial</span>';
+  mClose('mComp');
+}
+</script>
+</body>
+</html>

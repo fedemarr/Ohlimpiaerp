@@ -214,6 +214,10 @@ export const DB = {
   // mismo motivo que legacy.js (ver supaInit() en supabase.js): no debe
   // haber información de Ohlimpia en el bundle de JS de otra empresa.
   pedidos: [],
+  // v106 — Pedidos de personal: timeline de eventos + catálogo de motivos
+  // de cancelación (parametrizable, mismo patrón que perfilPersonalAtributos).
+  pedidosEventos: [],
+  pedidosMotivosCancelacion: [],
   psicos: [],
   preocupacionales: [],
   documentacionIngreso: [],
@@ -451,6 +455,8 @@ export const BADGE_MAP = {
   'Cubierto': 'badge-verde', 'Pendiente': 'badge-acento', 'En búsqueda': 'badge-azul', 'Cancelado': 'badge-rojo', 'Pausado': 'badge-gris',
   'Apto': 'badge-verde', 'No apto': 'badge-rojo', 'Apto condicional': 'badge-naranja', 'Ingreso': 'badge-verde', 'Baja': 'badge-rojo',
   'Alto': 'badge-rojo', 'Medio': 'badge-acento', 'Bajo': 'badge-verde', 'Activo': 'badge-verde', 'Completo': 'badge-verde',
+  // v106 — Pedidos de personal: urgencia pasa de Alto/Medio/Bajo a Alta/Media/Baja
+  'Alta': 'badge-rojo', 'Media': 'badge-acento', 'Baja': 'badge-verde',
   'Carta documento recibida': 'badge-naranja', 'Carta documento contestada': 'badge-acento', 'Conciliación SECLO': 'badge-rojo',
   'Conciliación interna': 'badge-naranja', 'Estado judicial': 'badge-rojo', 'Cerrado': 'badge-gris',
   '1CD': 'badge-naranja', '2CD': 'badge-rojo', 'Exclusión': 'badge-rojo',
