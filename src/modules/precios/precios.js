@@ -1753,6 +1753,23 @@ function seleccionVisibles(pop, val) {
     const chk = lb.querySelector('input[type=checkbox]'); if (chk) chk.checked = val;
   });
 }
+// Posiciona un popup (position:fixed) pegado a `r` (getBoundingClientRect
+// del elemento que lo abrió), clampeado a la ventana en los dos ejes.
+// Antes sólo se clampeaba horizontal — un popup largo (la lista de 75
+// clientes, con "Aplicar"/"Limpiar" al final) abierto cerca del borde
+// inferior de una ventana chica empujaba esos botones fuera de la
+// pantalla, sin scroll propio del popup para llegar a ellos (ticket
+// "no me deja poner aceptar para filtrar", 08/2026). Mismo criterio que
+// ya usaba abrirPaleta() para el selector de color — se generaliza acá.
+function posicionarPopup(pop, r) {
+  pop.hidden = false;   // mostrar antes de medir offsetWidth/offsetHeight
+  const top = (r.bottom + 4 + pop.offsetHeight > window.innerHeight)
+    ? (r.top - pop.offsetHeight - 4)
+    : (r.bottom + 4);
+  pop.style.left = Math.max(8, Math.min(r.left, window.innerWidth - pop.offsetWidth - 8)) + "px";
+  pop.style.top = Math.max(8, top) + "px";
+}
+
 function abrirPopupFiltro(funnel) {
   const col = funnel.dataset.fcol;
   const pop = document.querySelector("[data-role=filtro-popup]");
@@ -1808,9 +1825,7 @@ function abrirPopupFiltro(funnel) {
   pop.dataset.col = col;
   pop.dataset.mode = "fija";
   const r = funnel.getBoundingClientRect();
-  pop.hidden = false;
-  pop.style.left = Math.max(8, Math.min(r.left, window.innerWidth - pop.offsetWidth - 8)) + "px";
-  pop.style.top = (r.bottom + 4) + "px";
+  posicionarPopup(pop, r);
   const foco = pop.querySelector("input"); if (foco) foco.focus();
 }
 // ---- popup contextual de una columna de MES (prueba) ----
@@ -1848,9 +1863,7 @@ function abrirPopupMes(funnel) {
     + `<div class="fp-acc"><button data-role="pm-aplicar">Aplicar</button><button data-role="pm-quitar">Quitar</button></div>`;
   pop.dataset.mode = "mes"; pop.dataset.mes = mes; pop.dataset.campo = campo;
   const r = funnel.getBoundingClientRect();
-  pop.hidden = false;
-  pop.style.left = Math.max(8, Math.min(r.left, window.innerWidth - pop.offsetWidth - 8)) + "px";
-  pop.style.top = (r.bottom + 4) + "px";
+  posicionarPopup(pop, r);
   sincroPmOp();
 }
 function aplicarPopupMes() {
@@ -2007,9 +2020,7 @@ function abrirMenuColumnas(btn) {
     + `<div class="fp-title" style="font-weight:600;margin:10px 0 4px">Meses</div>`
     + `<div style="max-height:220px;overflow:auto;">${mesesHtml}</div>`;
   const r = btn.getBoundingClientRect();
-  pop.hidden = false;
-  pop.style.left = Math.max(8, Math.min(r.left, window.innerWidth - pop.offsetWidth - 8)) + "px";
-  pop.style.top = (r.bottom + 4) + "px";
+  posicionarPopup(pop, r);
 }
 // El <select> vive DENTRO del th de Nota y el thead se reconstruye entero en cada
 // render: por eso el listener va DELEGADO en el thead y no atado al elemento, que se
@@ -2905,10 +2916,7 @@ function abrirPaleta(anchor, colorActual, onPick) {
   pop.innerHTML = `<div class="cp-grid">${grid}</div>`
     + `<div class="cp-acc"><button type="button" data-role="cp-sincolor">Sin color</button><button type="button" data-role="cp-otro">Otro…</button></div>`;
   const r = anchor.getBoundingClientRect();
-  pop.hidden = false;   // mostrar antes de medir para posicionar sin tapar
-  const top = (r.bottom + 4 + pop.offsetHeight > window.innerHeight) ? (r.top - pop.offsetHeight - 4) : (r.bottom + 4);
-  pop.style.left = Math.max(8, Math.min(r.left, window.innerWidth - pop.offsetWidth - 8)) + "px";
-  pop.style.top = Math.max(8, top) + "px";
+  posicionarPopup(pop, r);
 }
 function cerrarPaleta() { const pop = document.querySelector("[data-role=color-pop]"); if (pop) pop.hidden = true; _paletaOnPick = null; }
 function wireColorPop() {
