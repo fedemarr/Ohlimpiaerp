@@ -4402,6 +4402,45 @@ function wireBackupRestore() {
   });
 }
 
+// Crea, en sucursales, la fila que le falte a cualquier objetivo activo
+// (mismo criterio de "activo" que usa el módulo Objetivos/Servicios:
+// estado='Operativo' y no anulado). Muta `suc` en el lugar (le agrega las
+// filas nuevas) para que el resto de init() ya las vea sin recargar.
+// El match es por codigo_objetivo=objetivos.codigo — es el único
+// identificador estable compartido entre las dos tablas.
+async function sincronizarSucursalesDesdeObjetivos(suc, clientes) {
+  try {
+    const objetivosActivos = await fetchAllRows(
+      "objetivos",
+      "codigo, nombre, tipo, cliente_id_local",
+      (q) => q.eq("estado", "Operativo").or("anulado.is.null,anulado.eq.false")
+    );
+    const codigosExistentes = new Set(suc.map((s) => s.codigo_objetivo).filter(Boolean));
+    // objetivos.cliente_id_local (texto truncado) → clientes.id (uuid).
+    const clientePorIdLocal = new Map(clientes.map((c) => [c.id_local, c.id]));
+
+    const faltantes = objetivosActivos.filter((o) => o.codigo && !codigosExistentes.has(o.codigo));
+    if (!faltantes.length) return;
+
+    const filasNuevas = [];
+    for (const o of faltantes) {
+      const clienteId = clientePorIdLocal.get(o.cliente_id_local);
+      if (!clienteId) continue;   // objetivo sin cliente resoluble — no se inventa uno
+      const { data, error } = await supabase.from("sucursales")
+        .insert({ cliente_id: clienteId, codigo_objetivo: o.codigo, nombre: o.nombre, tipo_servicio: o.tipo || null, activo: true })
+        .select("id, cliente_id, codigo_objetivo, nombre, tipo_servicio")
+        .single();
+      if (error) { console.error("sincronizarSucursalesDesdeObjetivos:", o.codigo, error.message); continue; }
+      filasNuevas.push(data);
+    }
+    if (filasNuevas.length) suc.push(...filasNuevas);
+  } catch (e) {
+    // No bloquea la carga de la pantalla por esto — peor es peor sincronizado
+    // que no cargar nada. Queda en consola para diagnosticar.
+    console.error("sincronizarSucursalesDesdeObjetivos falló:", e);
+  }
+}
+
 async function init() {
   const status = document.querySelector("[data-role=status]");
   try {
@@ -4411,11 +4450,27 @@ async function init() {
       // "id" = orden estable para paginar en paralelo (es la PK). Ver fetchAllRows.
       fetchAllRows("objetivo_precios", "sucursal_id, codigo_objetivo, mes, precio_hora, precio_hora_b, tipo_precio, tipo, tipo_servicio, paritaria_id, escala_id", null, "id"),
       fetchAllRows("sucursales", "id, cliente_id, codigo_objetivo, nombre, tipo_servicio"),
-      fetchAllRows("clientes", "id, nombre, descuento_pronto_pago, industria_id, grupo_id, responsable_id, cuit, email_para, email_cc"),
+      // id_local: hace falta para reconciliar contra objetivos.cliente_id_local
+      // en sincronizarSucursalesDesdeObjetivos() — objetivos nunca persiste el
+      // uuid del cliente, sólo el id_local truncado (mismo patrón que
+      // reconciliarClienteIdObjetivos() en legacy.js).
+      fetchAllRows("clientes", "id, id_local, nombre, descuento_pronto_pago, industria_id, grupo_id, responsable_id, cuit, email_para, email_cc"),
       fetchAllRows("industrias", "id, nombre"),
       fetchAllRows("objetivo_comisionistas", "sucursal_id, persona_id, rol, vigente_hasta"),
       fetchAllRows("personas", "id, nombre"),
     ]);
+    // Reconciliación (ticket "Archivo de precios de cliente", 08/2026): un
+    // servicio activo en Objetivos (estado='Operativo', no anulado) tiene que
+    // tener SIEMPRE su fila en sucursales, o desaparece del Archivo de
+    // precios sin que nada avise. Antes de este ticket sucursales tenía 4
+    // filas de prueba contra 164 servicios activos reales — el backfill
+    // inicial ya se aplicó a mano; esto es la parte que evita que vuelva a
+    // pasar con los servicios que se activen de acá en más. Mismo criterio
+    // de "activo" que usa el módulo Objetivos/Servicios (renderObjetivos,
+    // legacy.js) — antes acá no se filtraba por nada, sucursales.activo ni
+    // se leía.
+    await sincronizarSucursalesDesdeObjetivos(suc, clientes);
+
     const horizonte = leerHorizonteDesdeIndices(indices);
     const MESES = calcularMeses(horizonte);
 

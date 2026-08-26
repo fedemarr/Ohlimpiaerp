@@ -1,0 +1,23 @@
+-- v104: sacar el CHECK constraint de sucursales.tipo_servicio
+--
+-- Causa raíz de "faltan servicios activos en Precios" (ticket "Archivo de
+-- precios de cliente", 08/2026): sucursales.tipo_servicio tenía un CHECK
+-- que sólo permitía 'vigilancia' | 'custodia' | 'otro' — vocabulario de
+-- una empresa de seguridad, heredado sin adaptar del port de FinFlow
+-- (sql/v097a_precios.sql, la app original de la que se portó el módulo
+-- Precios LIGE es de otro rubro). Ohlimpia es una cooperativa de
+-- limpieza: sus servicios reales (objetivos.tipo) son 'Limpieza', 'OBRA',
+-- 'RUNNER' — ninguno matchea esos 3 valores, así que CUALQUIER intento de
+-- crear una fila en sucursales para un servicio real fallaba con
+-- "violates check constraint sucursales_tipo_servicio_check", dejando la
+-- tabla casi vacía (4 filas de prueba, contra 164 servicios activos
+-- reales en objetivos).
+--
+-- Se saca el constraint en vez de ampliarlo a la lista real: tipo_servicio
+-- acá es sólo informativo (no gobierna ninguna lógica de negocio en
+-- precios.js, a diferencia de estado_candidato que sí tiene una máquina
+-- de estados) — no tiene sentido mantenerlo cerrado a una lista fija que
+-- va a quedar desactualizada de nuevo apenas aparezca un tipo de servicio
+-- nuevo en Objetivos.
+
+ALTER TABLE public.sucursales DROP CONSTRAINT IF EXISTS sucursales_tipo_servicio_check;
