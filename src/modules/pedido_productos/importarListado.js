@@ -1,5 +1,6 @@
 // Importador de listado de precios de proveedor (ticket "Importar listado
-// de precios", 08/2026) — módulo Pedido de Productos, tab Catálogo.
+// de precios", 08/2026; extendido en ticket "Detección automática de
+// proveedor", 08/2026) — módulo Pedido de Productos, tab Catálogo.
 //
 // Objetivo: el proveedor manda periódicamente un CSV con su lista de
 // precios; se sube acá, se arma un diff contra el catálogo actual
@@ -7,20 +8,47 @@
 // escribe algo en Supabase cuando el usuario confirma — igual que
 // legajos/importarCbu.js (mismo patrón de preview + confirmar).
 //
-// Formato confirmado con archivo real ("Lista General de Precios - Nimi
-// Profesional", 08/2026): CSV con columnas Código, Descripción, Cod,
-// Precio — "Cod" es un código de rubro/marca (PU, POL, 3M, DV, ITA...),
-// NO el identificador del producto, así que no se mapea (evita matchear
-// mal contra codigo_monica). Precio en formato argentino
-// ("11.584,41" = 11584.41).
+// Formato confirmado con 2 archivos reales de proveedores distintos:
+//   - "Lista General de Precios - Nimi Profesional" (08/2026): columnas
+//     Código, Descripción, Cod, Precio. "Cod" es un código de rubro/marca
+//     (PU, POL, 3M, DV, ITA...), NO el identificador del producto — no se
+//     mapea, para no matchear mal contra codigo_monica. Precio en formato
+//     argentino puro ("11.584,41" = 11584.41).
+//   - "COMPRA AGOSTO 2026 THAMES" (08/2026): columnas CODIGO, DESCRIPCION,
+//     DESCRIP.ADICIONAL, PRECIO, CANTIDAD, con filas de encabezado/
+//     dirección antes de la fila de columnas real (se busca la fila que
+//     tenga Código+Precio, no se asume que es la primera). Precio con
+//     signo $ y, cuando es un entero, SIN coma decimal — "$21.577" es
+//     21577, no 21.577 (ver parsearPrecioAR: un solo punto con
+//     exactamente 3 dígitos después se interpreta como separador de
+//     miles, no decimal).
 //
-// Match: por codigo_monica (columna "Código" del archivo) — es el único
-// identificador estable que tiene pp_productos. Productos del catálogo
-// sin codigo_monica cargado no se pueden diffear de forma confiable
-// (no hay con qué compararlos) y quedan afuera del diff — no se marcan
-// como "de baja" por descarte. Filas del archivo sin código tampoco se
-// importan (se listan como inválidas) por el mismo motivo: crear un
-// producto sin código rompería el matching en la próxima importación.
+// Detección de proveedor (ticket "Detección automática", 08/2026): por
+// NOMBRE DEL ARCHIVO — ambos archivos reales llevan el nombre del
+// proveedor en el nombre del archivo tal cual figura en proveedores.nombre
+// ("... THAMES ...", "... Nimi Profesional ..."), y es la señal más
+// simple, determinística y fácil de auditar (no depende de aprender la
+// estructura de columnas de cada proveedor, que además puede cambiar mes
+// a mes). Si el nombre del archivo no matchea ningún proveedor activo (o
+// matchea más de uno), NO se autocompleta — el selector queda vacío y hay
+// que elegirlo a mano; nunca se asume un proveedor "a ciegas".
+//
+// Aislamiento por proveedor: el diff sólo compara contra productos del
+// MISMO proveedor seleccionado/detectado (pp_productos.proveedor_id_local)
+// — nunca contra el catálogo de otro proveedor, aunque dos proveedores
+// usen el mismo código de producto por coincidencia. Un producto que
+// existe con ese código pero de OTRO proveedor (o sin proveedor asignado)
+// se trata como si no existiera → aparece como "nuevo" en vez de pisar
+// el producto ajeno.
+//
+// Match dentro del proveedor: por codigo_monica (columna "Código"/
+// "CODIGO" del archivo) — es el único identificador estable que tiene
+// pp_productos. Productos del proveedor sin codigo_monica cargado no se
+// pueden diffear de forma confiable y quedan afuera del diff — no se
+// marcan como "de baja" por descarte. Filas del archivo sin código
+// tampoco se importan (se listan como inválidas) por el mismo motivo:
+// crear un producto sin código rompería el matching en la próxima
+// importación.
 //
 // Mismo criterio que los otros importadores del proyecto (legajos/
 // importarCbu.js, candidatos/importadorHistorico.js): CSV texto plano,
@@ -63,15 +91,17 @@ function crearHTMLModal() {
       '<div class="modal-body">',
         '<div class="alerta alerta-info" style="margin-bottom:12px;">',
           'Subí el CSV que manda el proveedor (columnas <strong>Código</strong>, <strong>Descripción</strong> y <strong>Precio</strong> — el orden no importa). ',
-          'Se arma una comparación contra el catálogo actual: <strong>nada se guarda todavía</strong>, revisá abajo y confirmá.',
-        '</div>',
-        '<div class="form-group">',
-          '<label>Proveedor de este listado</label>',
-          '<select id="imp-pp-proveedor" style="width:100%;padding:8px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;" onchange="cambiarProveedorImportPP()"></select>',
+          'El proveedor se detecta solo por el nombre del archivo; si no se puede, elegilo a mano. ',
+          'Se arma una comparación <strong>solo contra el catálogo de ese proveedor</strong>: <strong>nada se guarda todavía</strong>, revisá abajo y confirmá.',
         '</div>',
         '<div class="form-group">',
           '<label>Archivo CSV</label>',
-          '<input type="file" id="imp-pp-file" accept=".csv,.txt,text/csv" onchange="seleccionarArchivoListadoPP()" disabled>',
+          '<input type="file" id="imp-pp-file" accept=".csv,.txt,text/csv" onchange="seleccionarArchivoListadoPP()">',
+        '</div>',
+        '<div id="imp-pp-deteccion" style="display:none;margin-bottom:8px;padding:8px 10px;border-radius:6px;font-size:12.5px;"></div>',
+        '<div class="form-group">',
+          '<label>Proveedor de este listado</label>',
+          '<select id="imp-pp-proveedor" style="width:100%;padding:8px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;" onchange="cambiarProveedorImportPP()"></select>',
         '</div>',
         '<div id="imp-pp-aviso-encoding" style="display:none;margin-top:8px;padding:8px 10px;border-radius:6px;font-size:12px;background:#fffbeb;border:1px solid #fcd34d;color:#92400e;">',
           '⚠️ El archivo parece tener caracteres mal codificados (probablemente se guardó como "CSV" en vez de "CSV UTF-8" desde Excel). Revisá los nombres antes de confirmar.',
@@ -96,7 +126,8 @@ export function abrirImportarListadoPP() {
   if (provSel) {
     provSel.innerHTML = '<option value="">Seleccionar...</option>' + provs.map(p => `<option value="${p.id}">${p.nombre}</option>`).join('');
   }
-  const fileEl = $('imp-pp-file'); if (fileEl) { fileEl.value = ''; fileEl.disabled = true; }
+  const fileEl = $('imp-pp-file'); if (fileEl) fileEl.value = '';
+  const deteccionEl = $('imp-pp-deteccion'); if (deteccionEl) deteccionEl.style.display = 'none';
   const diffEl = $('imp-pp-diff'); if (diffEl) diffEl.innerHTML = '';
   const resEl = $('imp-pp-resumen'); if (resEl) resEl.textContent = '';
   const avisoEl = $('imp-pp-aviso-encoding'); if (avisoEl) avisoEl.style.display = 'none';
@@ -105,9 +136,12 @@ export function abrirImportarListadoPP() {
   abrirModal('modal-importar-listado-pp');
 }
 
+// El usuario puede cambiar el proveedor detectado a mano — si ya había un
+// archivo parseado, recalcula el diff contra el catálogo del nuevo
+// proveedor elegido (el diff está scopeado por proveedor, ver
+// calcularDiffYRenderizar).
 export function cambiarProveedorImportPP() {
-  const fileEl = $('imp-pp-file');
-  if (fileEl) fileEl.disabled = !($('imp-pp-proveedor') || {}).value;
+  if (_filasParseadas.length) calcularDiffYRenderizar();
 }
 
 // ========== NORMALIZACIÓN / PARSER ==========
@@ -160,8 +194,11 @@ function parseCSV(texto) {
 }
 
 // "11.584,41" (formato argentino: punto de miles, coma decimal) → 11584.41.
-// También tolera que ya venga en formato "11584.41" (punto decimal, sin
-// miles) o con símbolo de moneda/espacios sueltos.
+// También tolera símbolo de moneda/espacios sueltos ("$8.426"), y el caso
+// real de THAMES: precios enteros con SOLO punto de miles y sin coma
+// decimal ("$21.577" = 21577, no 21.577) — se distingue de un decimal real
+// mirando cuántos dígitos quedan después del último punto: exactamente 3
+// dígitos con más dígitos antes → separador de miles, se descarta.
 function parsearPrecioAR(v) {
   let s = (v || '').trim().replace(/[^\d.,\-]/g, '');
   if (!s) return null;
@@ -174,22 +211,54 @@ function parsearPrecioAR(v) {
       : s.replace(/,/g, '');
   } else if (tieneComa) {
     s = s.replace(',', '.');
+  } else if (tienePunto) {
+    const partes = s.split('.');
+    const ultima = partes[partes.length - 1];
+    if (partes.length > 1 && ultima.length === 3) s = s.replace(/\./g, '');
   }
   const n = parseFloat(s);
   return isNaN(n) ? null : n;
 }
 
+// Detección de proveedor por nombre de archivo (ver comentario de cabecera
+// del módulo) — sólo autocompleta si matchea EXACTAMENTE un proveedor
+// activo; ante 0 o más de 1 match, no asume nada.
+function detectarProveedorPorNombreArchivo(nombreArchivo) {
+  const nombreLower = (nombreArchivo || '').toLowerCase();
+  const candidatos = (DB.proveedores || []).filter(p => !p.anulado && p.nombre && nombreLower.includes(p.nombre.trim().toLowerCase()));
+  return candidatos.length === 1 ? candidatos[0] : null;
+}
+
 // ========== SELECCIONAR ARCHIVO ==========
 
 export function seleccionarArchivoListadoPP() {
-  if (!($('imp-pp-proveedor') || {}).value) {
-    toast('⚠️ Elegí primero el proveedor de este listado');
-    const input = $('imp-pp-file'); if (input) input.value = '';
-    return;
-  }
   const input = $('imp-pp-file');
   const file = input && input.files && input.files[0];
   if (!file) return;
+
+  // Detección automática por nombre de archivo (ver cabecera del módulo).
+  const detectado = detectarProveedorPorNombreArchivo(file.name);
+  const provSel = $('imp-pp-proveedor');
+  const deteccionEl = $('imp-pp-deteccion');
+  if (detectado) {
+    if (provSel) provSel.value = detectado.id;
+    if (deteccionEl) {
+      deteccionEl.style.display = 'block';
+      deteccionEl.style.background = '#d1fae5';
+      deteccionEl.style.border = '1px solid #6ee7b7';
+      deteccionEl.style.color = '#065f46';
+      deteccionEl.innerHTML = `✓ Proveedor detectado por el nombre del archivo: <strong>${detectado.nombre}</strong>`;
+    }
+  } else {
+    if (deteccionEl) {
+      deteccionEl.style.display = 'block';
+      deteccionEl.style.background = '#fef3c7';
+      deteccionEl.style.border = '1px solid #fcd34d';
+      deteccionEl.style.color = '#92400e';
+      deteccionEl.innerHTML = '⚠️ No se pudo detectar el proveedor por el nombre del archivo — elegilo manualmente abajo.';
+    }
+  }
+
   const reader = new FileReader();
   reader.onload = e => {
     const texto = String(e.target.result || '');
@@ -228,7 +297,19 @@ function calcularDiffYRenderizar() {
     return;
   }
 
-  const catalogoActivo = (DB.ppProductos || []).filter(p => !p.anulado);
+  const proveedorId = ($('imp-pp-proveedor') || {}).value || '';
+  if (!proveedorId) {
+    $('imp-pp-diff').innerHTML = '<p style="padding:10px;color:#dc2626;">Elegí el proveedor de este listado para armar la comparación — sin proveedor no se puede saber contra qué catálogo comparar.</p>';
+    $('imp-pp-resumen').textContent = '';
+    $('btn-confirmar-import-listado-pp').style.display = 'none';
+    return;
+  }
+
+  // Scopeado por proveedor (ver cabecera del módulo): sólo entra al diff
+  // lo que YA es de este proveedor. Un código que coincide con un
+  // producto de OTRO proveedor (o sin proveedor asignado) se trata como
+  // inexistente acá — nunca se pisa un producto ajeno.
+  const catalogoActivo = (DB.ppProductos || []).filter(p => !p.anulado && String(p.proveedorIdLocal || '') === String(proveedorId));
   const catalogoPorCodigo = new Map(catalogoActivo.filter(p => p.codigoMonica).map(p => [p.codigoMonica.trim().toLowerCase(), p]));
 
   const nuevos = [], modificados = [], sinCambios = [], invalidas = [];
@@ -333,6 +414,7 @@ let _importando = false;
 export async function confirmarImportarListadoPP() {
   if (_importando || !_diff) return;
   const proveedorId = ($('imp-pp-proveedor') || {}).value || null;
+  if (!proveedorId) { toast('⚠️ Elegí el proveedor de este listado antes de confirmar'); return; }
 
   const seleccionados = grupo => Array.from(document.querySelectorAll(`.imp-pp-check[data-grupo="${grupo}"]:checked`)).map(el => parseInt(el.dataset.idx, 10));
   const idxNuevos = seleccionados('nuevos');
@@ -386,10 +468,9 @@ export async function confirmarImportarListadoPP() {
       DB.ppPrecios.push(nuevo);
       const okNuevo = await supaSync('ppPrecios', nuevo);
       if (!okNuevo) throw new Error('no se pudo guardar el precio nuevo');
-      if (proveedorId && m.producto.proveedorIdLocal !== proveedorId) {
-        m.producto.proveedorIdLocal = proveedorId;
-        await supaSync('ppProductos', m.producto);
-      }
+      // No hace falta reasignar proveedorIdLocal acá: el diff está
+      // scopeado por proveedor (calcularDiffYRenderizar), así que
+      // m.producto ya es de este proveedor por construcción.
     } catch (e) {
       fallos.push({ codigo: m.codigo, descripcion: m.descripcion, error: e.message || 'Error desconocido' });
     }
