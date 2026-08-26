@@ -59,7 +59,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--fondo);color:var(--texto)
 .logout-btn{margin-left:auto;background:none;border:none;cursor:pointer;color:rgba(255,255,255,.4);font-size:16px;padding:4px;}
 .logout-btn:hover{color:white;}
 
-.main{margin-left:228px;flex:1;display:flex;flex-direction:column;min-height:100vh;}
+.main{margin-left:228px;flex:1;min-width:0;display:flex;flex-direction:column;min-height:100vh;}
 .topbar{background:white;border-bottom:1px solid var(--borde);padding:0 28px;height:54px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:50;box-shadow:0 1px 4px rgba(27,79,168,.06);}
 .topbar-title{font-size:15px;font-weight:600;color:var(--azul-oscuro);}
 .topbar-actions{display:flex;gap:8px;align-items:center;}
