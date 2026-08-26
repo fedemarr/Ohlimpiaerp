@@ -1546,6 +1546,7 @@ function render() {
 }
 
 // ================= FILTROS por columna (combinables, AND) =================
+let textoBusqueda = "";
 const filtros = { clientes: new Set(), industrias: new Set(), coordinadores: new Set(), coordTipo: "", grupos: new Set(), responsables: new Set(), nota: new Set(), mes: [] };
 let FILTROS_OPC = { clientes: [], industrias: [], coordinadores: [], grupos: [], responsables: [] };
 let descDeCliente = new Map();
@@ -1610,6 +1611,10 @@ function valoresColumna(mes, campo) {
   return [...m.entries()].map(([v, disp]) => ({ v, disp })).sort((a, b) => a.v - b.v);
 }
 function objetivoPasa(tr) {
+  if (textoBusqueda) {
+    const txt = normaliza((tr.dataset.txt || "") + " " + (tr.dataset.objDe || ""));
+    if (!txt.includes(textoBusqueda)) return false;
+  }
   if (modoArmarGrupo) {   // modo armar: solo clientes SIN esa etiqueta (grupo o responsable, según abmTipo)
     const cli = tr.dataset.objDe;
     if ((abmTipo === "responsable" ? responsableDeCliente.get(cli) : grupoDeCliente.get(cli))) return false;
@@ -1642,13 +1647,14 @@ function objetivoPasa(tr) {
 function aplicarFiltros() {
   const activos = filtrosActivos();
   const modo = modoArmarGrupo;
+  const busca = !!textoBusqueda;
   const tabla = document.querySelector("[data-role=tabla-precios]");
-  tabla?.classList.toggle("filtrando", activos > 0 || modo);
+  tabla?.classList.toggle("filtrando", activos > 0 || modo || busca);
   tabla?.classList.toggle("modo-grupo", modo);
   const objRows = [...document.querySelectorAll("tr.rel-obj")];
   const cliRows = [...document.querySelectorAll("tr.rel-cliente")];
 
-  if (!activos && !modo) {
+  if (!activos && !modo && !busca) {
     // sin filtros → restaurar plegado normal
     cliRows.forEach((tr) => {
       tr.hidden = false;
@@ -1681,7 +1687,7 @@ function actualizarFiltrosInfo() {
   const info = document.querySelector("[data-role=filtros-info]");
   if (info) info.textContent = n ? `${n} filtro${n > 1 ? "s" : ""} activo${n > 1 ? "s" : ""}` : "";
   const btn = document.querySelector("[data-role=limpiar-filtros]");
-  if (btn) btn.disabled = n === 0;
+  if (btn) btn.disabled = n === 0 && !textoBusqueda;
   // limpiar marcas de columna/mes
   document.querySelectorAll("th.col-filtrada").forEach((t) => t.classList.remove("col-filtrada"));
   document.querySelectorAll("th.mes-filtrado").forEach((t) => t.classList.remove("mes-filtrado"));
@@ -1704,6 +1710,8 @@ function actualizarFiltrosInfo() {
 }
 
 function limpiarFiltros() {
+  textoBusqueda = "";
+  const busq = document.querySelector("[data-role=buscador-precios]"); if (busq) busq.value = "";
   filtros.clientes.clear(); filtros.industrias.clear(); filtros.coordinadores.clear(); filtros.coordTipo = ""; filtros.grupos.clear(); filtros.responsables.clear(); filtros.nota.clear(); filtros.mes = [];
   renderChips(); cerrarPopup(); aplicarFiltros();
 }
@@ -2101,6 +2109,12 @@ function wireFiltros() {
     filtros.mes.splice(Number(x.dataset.chip), 1); renderChips(); aplicarFiltros();
   });
   document.querySelector("[data-role=limpiar-filtros]")?.addEventListener("click", limpiarFiltros);
+
+  // Buscador de texto libre (cliente / objetivo)
+  document.querySelector("[data-role=buscador-precios]")?.addEventListener("input", (e) => {
+    textoBusqueda = normaliza(e.target.value);
+    aplicarFiltros();
+  });
 }
 
 // Deja el MES EN CURSO a la vista al abrir (con un par de meses previos de contexto a la izquierda).
