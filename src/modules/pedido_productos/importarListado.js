@@ -65,6 +65,24 @@ import { renderCatalogoPP } from './pedido_productos.js';
 function _id(prefijo) { return prefijo + '-' + Date.now() + '-' + Math.floor(Math.random() * 10000); }
 function _money(n) { return '$ ' + (Number(n) || 0).toLocaleString('es-AR', { minimumFractionDigits: 2 }); }
 
+// FIX 27/08 (ticket "importar CSV no guarda precios"): supaSync trunca
+// el id_local REAL de cualquier tabla a los últimos 9 caracteres
+// (src/shared/supabase.js). pp_precios.producto_id_local es un campo de
+// referencia de TEXTO LIBRE (no un id_local propio), así que nada lo
+// trunca solo — si acá se guarda prod.id completo (recién creado,
+// "PPP-<timestamp>-<random>"), matchea perfecto en la MISMA sesión
+// (prod.id todavía es el objeto en memoria) pero deja de matchear
+// apenas la página recarga: _toCamel() reasigna producto.id =
+// producto.idLocal (la versión truncada) para cualquier producto que
+// venga de Supabase, y la comparación exacta contra el precio (que
+// sigue con el id completo) nunca vuelve a encontrarlo. Resultado
+// exacto del bug reportado: el producto se crea bien, pero su precio
+// "desaparece" (queda mostrando "sin precio") ni bien se refresca. Se
+// trunca ACÁ, al guardar, para que quede ya alineado con el mismo
+// id_local que va a tener el producto — mismo criterio que periodoIdLocal
+// en pedido_productos.js.
+function _idTrunc(v) { return String(v || '').slice(-9); }
+
 // ========== ESTADO INTERNO ==========
 
 let _filasParseadas = [];
@@ -353,7 +371,7 @@ function calcularDiffYRenderizar() {
 }
 
 function precioVigenteLocal(productoId, fechaISO = hoyStr()) {
-  const precios = (DB.ppPrecios || []).filter(pr => String(pr.productoIdLocal) === String(productoId) && !pr.anulado);
+  const precios = (DB.ppPrecios || []).filter(pr => _idTrunc(pr.productoIdLocal) === _idTrunc(productoId) && !pr.anulado);
   const vigente = precios.find(pr => pr.vigenciaDesde <= fechaISO && (!pr.vigenciaHasta || pr.vigenciaHasta >= fechaISO));
   return vigente ? Number(vigente.costoUnit) : null;
 }
@@ -439,7 +457,7 @@ export async function confirmarImportarListadoPP() {
       if (!DB.ppProductos) DB.ppProductos = [];
       DB.ppProductos.push(prod);
       const ok1 = await supaSync('ppProductos', prod);
-      const precio = { id: _id('PPR'), productoIdLocal: prod.id, costoUnit: n.precio, vigenciaDesde: hoy, vigenciaHasta: null, anulado: false };
+      const precio = { id: _id('PPR'), productoIdLocal: _idTrunc(prod.id), costoUnit: n.precio, vigenciaDesde: hoy, vigenciaHasta: null, anulado: false };
       if (!DB.ppPrecios) DB.ppPrecios = [];
       DB.ppPrecios.push(precio);
       const ok2 = await supaSync('ppPrecios', precio);
@@ -456,14 +474,14 @@ export async function confirmarImportarListadoPP() {
       // Mismo mecanismo que guardarNuevoPrecioPP(): cierra el precio
       // vigente (si había uno) el día antes y abre uno nuevo desde hoy —
       // no pisa costo_unit, conserva el historial.
-      const vigenteActual = (DB.ppPrecios || []).find(p => String(p.productoIdLocal) === String(m.producto.id) && !p.anulado && !p.vigenciaHasta);
+      const vigenteActual = (DB.ppPrecios || []).find(p => _idTrunc(p.productoIdLocal) === _idTrunc(m.producto.id) && !p.anulado && !p.vigenciaHasta);
       if (vigenteActual) {
         const diaAntes = new Date(hoy + 'T12:00:00'); diaAntes.setDate(diaAntes.getDate() - 1);
         vigenteActual.vigenciaHasta = diaAntes.toISOString().slice(0, 10);
         const okCierre = await supaSync('ppPrecios', vigenteActual);
         if (!okCierre) throw new Error('no se pudo cerrar el precio anterior');
       }
-      const nuevo = { id: _id('PPR'), productoIdLocal: m.producto.id, costoUnit: m.precio, vigenciaDesde: hoy, vigenciaHasta: null, anulado: false };
+      const nuevo = { id: _id('PPR'), productoIdLocal: _idTrunc(m.producto.id), costoUnit: m.precio, vigenciaDesde: hoy, vigenciaHasta: null, anulado: false };
       if (!DB.ppPrecios) DB.ppPrecios = [];
       DB.ppPrecios.push(nuevo);
       const okNuevo = await supaSync('ppPrecios', nuevo);

@@ -42,14 +42,22 @@ function _money(n) { return '$ ' + (Number(n) || 0).toLocaleString('es-AR', { mi
 // truncado a 9 da "4331-6756", igual que el id_local real del período).
 const _idTrunc = (v) => String(v || '').slice(-9);
 
-function getProductoPP(id) { return (DB.ppProductos || []).find(p => String(p.id) === String(id)); }
+function getProductoPP(id) { return (DB.ppProductos || []).find(p => _idTrunc(p.id) === _idTrunc(id)); }
 function getPedidoPP(id) { return (DB.ppPedidos || []).find(p => String(p.id) === String(id)); }
 function getPeriodoPP(id) { return (DB.ppPeriodos || []).find(p => _idTrunc(p.id) === _idTrunc(id)); }
 function getProveedorPP(id) { return (DB.proveedores || []).find(p => String(p.id) === String(id) && !p.anulado); }
 function itemsDePedido(pedidoId) { return (DB.ppItems || []).filter(i => String(i.pedidoIdLocal) === String(pedidoId) && !i.anulado); }
 
 function precioVigente(productoId, fechaISO = hoyStr()) {
-  const precios = (DB.ppPrecios || []).filter(pr => String(pr.productoIdLocal) === String(productoId) && !pr.anulado);
+  // FIX 27/08 (ticket "importar CSV no guarda precios"): mismo bug de
+  // truncamiento que periodoIdLocal (ver _idTrunc arriba) pero acá con
+  // productoIdLocal. Un producto CREADO junto con su precio (alta manual
+  // o import de listado) guarda productoIdLocal = prod.id COMPLETO en
+  // el momento de la creación; tras la primera recarga, prod.id pasa a
+  // ser el id_local TRUNCADO (9 caracteres) — la comparación exacta
+  // dejaba de encontrar el precio, aunque SÍ estaba guardado en la
+  // base: el catálogo mostraba "sin precio" en rojo después de recargar.
+  const precios = (DB.ppPrecios || []).filter(pr => _idTrunc(pr.productoIdLocal) === _idTrunc(productoId) && !pr.anulado);
   const vigente = precios.find(pr => pr.vigenciaDesde <= fechaISO && (!pr.vigenciaHasta || pr.vigenciaHasta >= fechaISO));
   return vigente ? Number(vigente.costoUnit) || 0 : 0;
 }
@@ -274,7 +282,7 @@ export function guardarProductoPP() {
   }
   supaSync('ppProductos', prod);
   if (costoInicial > 0) {
-    const precio = { id: _id('PPR'), productoIdLocal: prod.id, costoUnit: costoInicial, vigenciaDesde: hoyStr(), vigenciaHasta: null, anulado: false };
+    const precio = { id: _id('PPR'), productoIdLocal: _idTrunc(prod.id), costoUnit: costoInicial, vigenciaDesde: hoyStr(), vigenciaHasta: null, anulado: false };
     if (!DB.ppPrecios) DB.ppPrecios = [];
     DB.ppPrecios.push(precio);
     supaSync('ppPrecios', precio);
@@ -330,7 +338,7 @@ function ensureModalPrecioPP() {
 function renderModalPrecioPP() {
   const prod = getProductoPP(_ppPrecioProductoId); if (!prod) return;
   $('pp-precio-titulo').textContent = `Precios — ${prod.descripcion}`;
-  const precios = (DB.ppPrecios || []).filter(p => String(p.productoIdLocal) === String(prod.id) && !p.anulado).sort((a, b) => b.vigenciaDesde.localeCompare(a.vigenciaDesde));
+  const precios = (DB.ppPrecios || []).filter(p => _idTrunc(p.productoIdLocal) === _idTrunc(prod.id) && !p.anulado).sort((a, b) => b.vigenciaDesde.localeCompare(a.vigenciaDesde));
   if (!precios.length) { $('pp-precio-historial').innerHTML = '<p style="font-size:12px;color:var(--texto-suave);">Sin precios cargados todavía.</p>'; return; }
   $('pp-precio-historial').innerHTML = precios.map(p => `
     <div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid var(--borde);font-size:12.5px;">
@@ -344,13 +352,13 @@ export function guardarNuevoPrecioPP() {
   const desde = $('pp-precio-nuevo-desde').value;
   if (!monto || monto <= 0) { toast('⚠️ Falta el costo unitario'); return; }
   if (!desde) { toast('⚠️ Falta la fecha de vigencia'); return; }
-  const vigenteActual = (DB.ppPrecios || []).find(p => String(p.productoIdLocal) === String(prod.id) && !p.anulado && !p.vigenciaHasta);
+  const vigenteActual = (DB.ppPrecios || []).find(p => _idTrunc(p.productoIdLocal) === _idTrunc(prod.id) && !p.anulado && !p.vigenciaHasta);
   if (vigenteActual) {
     const diaAntes = new Date(desde + 'T12:00:00'); diaAntes.setDate(diaAntes.getDate() - 1);
     vigenteActual.vigenciaHasta = diaAntes.toISOString().slice(0, 10);
     supaSync('ppPrecios', vigenteActual);
   }
-  const nuevo = { id: _id('PPR'), productoIdLocal: prod.id, costoUnit: monto, vigenciaDesde: desde, vigenciaHasta: null, anulado: false };
+  const nuevo = { id: _id('PPR'), productoIdLocal: _idTrunc(prod.id), costoUnit: monto, vigenciaDesde: desde, vigenciaHasta: null, anulado: false };
   if (!DB.ppPrecios) DB.ppPrecios = [];
   DB.ppPrecios.push(nuevo);
   supaSync('ppPrecios', nuevo);
