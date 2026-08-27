@@ -263,7 +263,8 @@ export function renderFichaProveedor() {
     : filasCompra.map(f => {
       const pedidosDelMes = (DB.ppPedidos || []).filter(pd => {
         if (pd.anulado || pd.estado === 'borrador') return false;
-        const per = (DB.ppPeriodos || []).find(pp => String(pp.id) === String(pd.periodoIdLocal));
+        // FIX 27/08: mismo bug de truncamiento que logica.js/pedido_productos.js.
+        const per = (DB.ppPeriodos || []).find(pp => String(pp.id).slice(-9) === String(pd.periodoIdLocal).slice(-9));
         return per && per.mes === f.mes;
       });
       // ¿Algún item de esos pedidos es de este proveedor? (para el conteo real)

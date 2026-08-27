@@ -28,9 +28,23 @@ const COLOR_TIPO_USO = { apertura: '#f59e0b', tratamiento_piso: '#7c3aed', con_a
 function _id(prefijo) { return prefijo + '-' + Date.now() + '-' + Math.floor(Math.random() * 10000); }
 function _money(n) { return '$ ' + (Number(n) || 0).toLocaleString('es-AR', { minimumFractionDigits: 2 }); }
 
+// FIX 27/08 (en vivo, "Mis pedidos" vacío para Alejandro Cacciato):
+// pedido.periodoIdLocal se guardaba como periodo.id COMPLETO (ej.
+// "PPPER-1787748384331-6756"), pero supaSync trunca el id_local REAL de
+// cualquier tabla a los últimos 9 caracteres (src/shared/supabase.js) —
+// así que apenas la página recarga, _toCamel() reasigna periodo.id =
+// periodo.idLocal (la versión truncada, "4331-6756" para este caso
+// real). Comparar el id completo viejo contra el truncado nuevo nunca
+// matcheaba — rompía "Mis pedidos" para TODOS los supervisores después
+// de cualquier recarga, no solo para Cacciato. Se normalizan los dos
+// lados de cada comparación a los mismos 9 caracteres, sin tocar los
+// datos ya guardados (no hace falta backfill: "PPPER-...4331-6756"
+// truncado a 9 da "4331-6756", igual que el id_local real del período).
+const _idTrunc = (v) => String(v || '').slice(-9);
+
 function getProductoPP(id) { return (DB.ppProductos || []).find(p => String(p.id) === String(id)); }
 function getPedidoPP(id) { return (DB.ppPedidos || []).find(p => String(p.id) === String(id)); }
-function getPeriodoPP(id) { return (DB.ppPeriodos || []).find(p => String(p.id) === String(id)); }
+function getPeriodoPP(id) { return (DB.ppPeriodos || []).find(p => _idTrunc(p.id) === _idTrunc(id)); }
 function getProveedorPP(id) { return (DB.proveedores || []).find(p => String(p.id) === String(id) && !p.anulado); }
 function itemsDePedido(pedidoId) { return (DB.ppItems || []).filter(i => String(i.pedidoIdLocal) === String(pedidoId) && !i.anulado); }
 
@@ -141,8 +155,8 @@ export function poblarSelectsPeriodoPP() {
   ['pp-sup-periodo-sel', 'pp-aud-periodo-sel', 'pp-compra-periodo-sel'].forEach(id => {
     const sel = $(id); if (!sel) return;
     const actual = sel.value;
-    sel.innerHTML = periodos.map(p => `<option value="${p.id}">${p.mes}${p.estado === 'cerrado' ? ' (cerrado)' : ''}</option>`).join('');
-    if (actual && periodos.some(p => String(p.id) === actual)) sel.value = actual;
+    sel.innerHTML = periodos.map(p => `<option value="${_idTrunc(p.id)}">${p.mes}${p.estado === 'cerrado' ? ' (cerrado)' : ''}</option>`).join('');
+    if (actual && periodos.some(p => _idTrunc(p.id) === actual)) sel.value = actual;
   });
   _poblarFiltroProveedorPP();
 }
@@ -364,7 +378,7 @@ export function renderPeriodosPP() {
   const rows = (DB.ppPeriodos || []).filter(p => !p.anulado).sort((a, b) => b.mes.localeCompare(a.mes));
   if (!rows.length) { tbody.innerHTML = '<tr><td colspan="5" style="padding:40px;text-align:center;color:var(--texto-muy-suave);">Sin períodos habilitados todavía.</td></tr>'; return; }
   tbody.innerHTML = rows.map(p => {
-    const pedidosDelPeriodo = (DB.ppPedidos || []).filter(x => x.periodoIdLocal === p.id && !x.anulado);
+    const pedidosDelPeriodo = (DB.ppPedidos || []).filter(x => _idTrunc(x.periodoIdLocal) === _idTrunc(p.id) && !x.anulado);
     const cerrados = pedidosDelPeriodo.filter(x => x.estado !== 'borrador').length;
     return `<tr>
       <td style="padding:6px 12px;border:1px solid var(--borde);font-weight:600;">${p.mes}</td>
@@ -394,7 +408,7 @@ export function abrirPeriodoPP() {
     const facturacionNeta = (typeof window !== 'undefined' && window.calcularFacturacionMensualObjetivo) ? (window.calcularFacturacionMensualObjetivo(o) || 0) : 0;
     const supervisor = o.supervisorAsignado || getSupervisorDeCodigo(o.codigo) || '';
     const pedido = {
-      id: _id('PPPED'), periodoIdLocal: periodo.id, servicioCodigo: o.codigo,
+      id: _id('PPPED'), periodoIdLocal: _idTrunc(periodo.id), servicioCodigo: o.codigo,
       facturacionNeta, porcentajeTope: 0.06, estado: 'borrador', tipoPedido: 'mensual',
       supervisor, anulado: false,
     };
@@ -433,7 +447,7 @@ export function renderMisPedidosPP() {
   // tuviera. Mismo criterio ahora en los 3 módulos que filtran por "mis
   // servicios" (Liquidación de horas, Pedidos de personal, este).
   const misCodigos = new Set(serviciosDeSupervisor(currentUser?.nombre || ''));
-  const rows = (DB.ppPedidos || []).filter(p => !p.anulado && p.periodoIdLocal === periodoId && misCodigos.has(p.servicioCodigo));
+  const rows = (DB.ppPedidos || []).filter(p => !p.anulado && _idTrunc(p.periodoIdLocal) === _idTrunc(periodoId) && misCodigos.has(p.servicioCodigo));
   if (!rows.length) { tbody.innerHTML = '<tr><td colspan="5" style="padding:30px;text-align:center;color:var(--texto-muy-suave);">No hay servicios tuyos en este período. Si creés que es un error, pedile a RRHH que revise tu usuario en Configuración → Servicios.</td></tr>'; return; }
   tbody.innerHTML = rows.map(p => {
     const obj = (DB.objetivos || []).find(o => o.codigo === p.servicioCodigo);
@@ -556,7 +570,7 @@ export function renderAuditoriaPP() {
   const periodoId = ($('pp-aud-periodo-sel') || { value: '' }).value;
   if (!periodoId) { tbody.innerHTML = '<tr><td colspan="5" style="padding:30px;text-align:center;color:var(--texto-muy-suave);">No hay ningún período habilitado todavía.</td></tr>'; return; }
   const orden = { cerrado_supervisor: 0, en_auditoria: 1, autorizado: 2, en_compra: 3, entregado: 4 };
-  const rows = (DB.ppPedidos || []).filter(p => !p.anulado && p.periodoIdLocal === periodoId && orden[p.estado] != null)
+  const rows = (DB.ppPedidos || []).filter(p => !p.anulado && _idTrunc(p.periodoIdLocal) === _idTrunc(periodoId) && orden[p.estado] != null)
     .sort((a, b) => orden[a.estado] - orden[b.estado]);
   if (!rows.length) { tbody.innerHTML = '<tr><td colspan="5" style="padding:30px;text-align:center;color:var(--texto-muy-suave);">Todavía no hay pedidos cerrados por sus supervisores en este período.</td></tr>'; return; }
   tbody.innerHTML = rows.map(p => {
@@ -683,7 +697,7 @@ export function renderComprasPP() {
   const tbody = $('tbody-pp-compras'); if (!tbody) return;
   const periodoId = ($('pp-compra-periodo-sel') || { value: '' }).value;
   if (!periodoId) { tbody.innerHTML = '<tr><td colspan="4" style="padding:30px;text-align:center;color:var(--texto-muy-suave);">No hay ningún período habilitado todavía.</td></tr>'; return; }
-  const rows = (DB.ppPedidos || []).filter(p => !p.anulado && p.periodoIdLocal === periodoId && ['autorizado', 'en_compra', 'entregado'].includes(p.estado));
+  const rows = (DB.ppPedidos || []).filter(p => !p.anulado && _idTrunc(p.periodoIdLocal) === _idTrunc(periodoId) && ['autorizado', 'en_compra', 'entregado'].includes(p.estado));
   if (!rows.length) { tbody.innerHTML = '<tr><td colspan="4" style="padding:30px;text-align:center;color:var(--texto-muy-suave);">Todavía no hay pedidos autorizados en este período.</td></tr>'; return; }
   tbody.innerHTML = rows.map(p => {
     const obj = (DB.objetivos || []).find(o => o.codigo === p.servicioCodigo);

@@ -148,7 +148,13 @@ export function comprasPorPeriodoProveedor({ items, productos, pedidos, periodos
       .map(p => String(p.id))
   );
   const pedidoById = new Map((pedidos || []).filter(p => !p.anulado).map(p => [String(p.id), p]));
-  const periodoById = new Map((periodos || []).map(p => [String(p.id), p]));
+  // FIX 27/08: mismo bug que pedido_productos.js — pedido.periodoIdLocal
+  // se guardaba con el id COMPLETO del período, pero tras recargar la
+  // página periodo.id pasa a ser el id_local TRUNCADO (9 caracteres,
+  // ver supaSync en supabase.js). Se indexa por los últimos 9
+  // caracteres de los dos lados para que matchee sin importar cuál de
+  // las dos formas trae cada uno.
+  const periodoById = new Map((periodos || []).map(p => [String(p.id).slice(-9), p]));
   const porMes = new Map();
 
   (items || []).forEach(it => {
@@ -156,7 +162,7 @@ export function comprasPorPeriodoProveedor({ items, productos, pedidos, periodos
     if (!provIds.has(String(it.productoIdLocal))) return;
     const pedido = pedidoById.get(String(it.pedidoIdLocal));
     if (!pedido || pedido.estado === 'borrador') return;
-    const periodo = periodoById.get(String(pedido.periodoIdLocal));
+    const periodo = periodoById.get(String(pedido.periodoIdLocal).slice(-9));
     const mes = periodo ? periodo.mes : '?';
     const cant = it.cantAutorizada != null ? it.cantAutorizada : (it.cantSolicitada || 0);
     const costo = it.costoCongelado > 0

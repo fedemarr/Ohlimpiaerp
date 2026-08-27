@@ -11766,7 +11766,17 @@ function renderGrillasLiq(){
     const misCodigos=new Set(serviciosDeSupervisor(currentUser.nombre||''));
     objetivosVisibles=objetivosVisibles.filter(o=>misCodigos.has(o.codigo)||esMismoSupervisor(o.supervisorAsignado,currentUser.funcion)||DB.legajos.some(l=>l.servicio===o.codigo&&esMismoSupervisor(l.supervisor,currentUser.nombre)));
   }
-  if(supFil) objetivosVisibles=objetivosVisibles.filter(o=>o.supervisor===supFil);
+  // FIX 27/08: mismo bug que el de esSupervisor arriba pero en el
+  // desplegable manual "Supervisor" (liq-sup-fil) — comparaba contra
+  // o.supervisor, columna que no existe en objetivos (siempre
+  // undefined), así que elegir CUALQUIER supervisor del filtro vaciaba
+  // la grilla entera. Encontrado en vivo: Alejandro Cacciato elegido en
+  // el filtro seguía mostrando "No tenés servicios asignados" aunque el
+  // fix del 26/08 (esSupervisor) ya andaba bien.
+  if(supFil){
+    const misCodigosFil=new Set(serviciosDeSupervisor(supFil));
+    objetivosVisibles=objetivosVisibles.filter(o=>misCodigosFil.has(o.codigo)||esMismoSupervisor(o.supervisorAsignado,supFil)||DB.legajos.some(l=>l.servicio===o.codigo&&esMismoSupervisor(l.supervisor,supFil)));
+  }
   if(buscar) objetivosVisibles=objetivosVisibles.filter(o=>o.nombre.toLowerCase().includes(buscar)||o.codigo.toLowerCase().includes(buscar)||(DB.clientes.find(c=>c.id===o.clienteId)?.nombre||'').toLowerCase().includes(buscar));
   if(tipoFil) /* filtrar por tipo de grilla asociada */ 0;
 
