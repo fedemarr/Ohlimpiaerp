@@ -422,6 +422,13 @@ export function poblarFormAltaUsuario() {
     selFunc.innerHTML = '<option value="">— Sin función asignada —</option>' +
       (DB.funcionesUsuario || []).map(f => `<option>${escHtml(f)}</option>`).join('');
   }
+  // Ticket "vinculación automática" (26/08): sugiere el nombre EXACTO ya
+  // usado como supervisor en Objetivos/Configuración → Servicios, para
+  // que el usuario nazca coincidiendo con esa fuente. No restringe (sigue
+  // siendo texto libre, para RRHH/Finanzas/etc. que no están en la lista),
+  // solo evita el typo/mayúscula que rompe "mis servicios" después.
+  const dlSup = $('dl-acc-supervisores');
+  if (dlSup) dlSup.innerHTML = (DB.supervisores || []).map(s => `<option value="${escHtml(s)}">`).join('');
   if (!$('acc-nuevo-pass').value) $('acc-nuevo-pass').value = generarPass();
 }
 

@@ -11,6 +11,7 @@
 
 import { DB } from '@shared/state.js';
 import { $, cleanText } from '@shared/helpers.js';
+import { esMismoSupervisor } from '@modules/supervision/supervision.js';
 import { toast, abrirModal, cerrarModal } from '@shared/ui.js';
 import { supaSync, supaDel, getLastSupaSyncError } from '@shared/supabase.js';
 
@@ -30,11 +31,16 @@ function getServicioSupervisorById(id) {
 }
 
 // Fuente central de la relación servicio → supervisor. Prioridad:
-// 1) objetivo comercial Operativo (DB.objetivos) — fuente autoritativa
+// 1) objetivo comercial Operativo (DB.objetivos.supervisorAsignado) — fuente autoritativa
 // 2) lista puente servicios_supervisor (v067) — fallback operativo.
+//
+// mismoNombre() en vez de === (26/08, ticket "vinculación automática"):
+// legajos/objetivos pueden traer el nombre en MAYÚSCULAS desde un import
+// viejo, mientras que el usuario nace con el nombre tal cual lo tipeó
+// quien lo dio de alta — un === plano pierde el match por sí solo.
 export function getSupervisorDeCodigo(codigo) {
   const obj = (DB.objetivos || []).find(o => o.codigo === codigo && o.estado === 'Operativo' && !o.anulado);
-  if (obj && (obj.supervisor || obj.supervisorAsignado)) return obj.supervisor || obj.supervisorAsignado;
+  if (obj && obj.supervisorAsignado) return obj.supervisorAsignado;
   const s = (DB.serviciosSupervisor || []).find(x => x.codigo === codigo);
   return s ? s.supervisor : '';
 }
@@ -45,11 +51,10 @@ export function getSupervisorDeCodigo(codigo) {
 export function serviciosDeSupervisor(supervisor) {
   if (!supervisor) return [];
   const deObjetivos = (DB.objetivos || [])
-    .filter(o => o.estado === 'Operativo' && !o.anulado &&
-      (o.supervisor === supervisor || o.supervisorAsignado === supervisor))
+    .filter(o => o.estado === 'Operativo' && !o.anulado && esMismoSupervisor(o.supervisorAsignado, supervisor))
     .map(o => o.codigo);
   const dePuente = (DB.serviciosSupervisor || [])
-    .filter(s => s.supervisor === supervisor)
+    .filter(s => esMismoSupervisor(s.supervisor, supervisor))
     .map(s => s.codigo);
   return [...new Set([...deObjetivos, ...dePuente])];
 }

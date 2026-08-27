@@ -15,7 +15,7 @@ import { DB, currentUser } from '@shared/state.js';
 import { $, hoyStr } from '@shared/helpers.js';
 import { toast, abrirModal, cerrarModal } from '@shared/ui.js';
 import { supaSync } from '@shared/supabase.js';
-import { getSupervisorDeCodigo } from '@modules/servicios_supervisor/servicios_supervisor.js';
+import { getSupervisorDeCodigo, serviciosDeSupervisor } from '@modules/servicios_supervisor/servicios_supervisor.js';
 
 const LABEL_TIPO_USO = {
   apertura: 'Apertura de servicio',
@@ -426,9 +426,15 @@ export function renderMisPedidosPP() {
   const tbody = $('tbody-pp-mispedidos'); if (!tbody) return;
   const periodoId = ($('pp-sup-periodo-sel') || { value: '' }).value;
   if (!periodoId) { tbody.innerHTML = '<tr><td colspan="5" style="padding:30px;text-align:center;color:var(--texto-muy-suave);">No hay ningún período habilitado todavía.</td></tr>'; return; }
-  const misCodigos = new Set((DB.serviciosSupervisor || []).filter(s => s.supervisor === currentUser?.nombre).map(s => s.codigo));
+  // Unificado con serviciosDeSupervisor() (ticket "vinculación automática",
+  // 26/08): antes solo miraba servicios_supervisor con === estricto, así
+  // que un supervisor con objetivos pero sin fila en la tabla puente (o
+  // con el nombre en otra capitalización) veía "sin servicios" aunque sí
+  // tuviera. Mismo criterio ahora en los 3 módulos que filtran por "mis
+  // servicios" (Liquidación de horas, Pedidos de personal, este).
+  const misCodigos = new Set(serviciosDeSupervisor(currentUser?.nombre || ''));
   const rows = (DB.ppPedidos || []).filter(p => !p.anulado && p.periodoIdLocal === periodoId && misCodigos.has(p.servicioCodigo));
-  if (!rows.length) { tbody.innerHTML = '<tr><td colspan="5" style="padding:30px;text-align:center;color:var(--texto-muy-suave);">No hay servicios tuyos en este período (revisá que estés cargado como supervisor en Configuración → Servicios).</td></tr>'; return; }
+  if (!rows.length) { tbody.innerHTML = '<tr><td colspan="5" style="padding:30px;text-align:center;color:var(--texto-muy-suave);">No hay servicios tuyos en este período. Si creés que es un error, pedile a RRHH que revise tu usuario en Configuración → Servicios.</td></tr>'; return; }
   tbody.innerHTML = rows.map(p => {
     const obj = (DB.objetivos || []).find(o => o.codigo === p.servicioCodigo);
     const total = totalPedidoPP(p.id);

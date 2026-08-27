@@ -1,5 +1,6 @@
 import { DB, currentUser } from '@shared/state.js';
 import { $, badge, calcularDiasEntre } from '@shared/helpers.js';
+import { esMismoSupervisor } from '@modules/supervision/supervision.js';
 import { toast, cerrarModal, abrirModal } from '@shared/ui.js';
 import { supaSync, SUPA } from '@shared/supabase.js';
 import { checklistDiasHtml, formatearHorarioSemanal } from '@shared/horarioDias.js';
@@ -33,9 +34,9 @@ let tabPedidosActiva = 'activos';
 function pedidosVisiblesParaUsuario(lista) {
   if (currentUser?.perfil !== 'Supervisor') return lista;
   return lista.filter(p =>
-    p.supervisor === currentUser.nombre ||
-    p.supervisor === currentUser.funcion ||
-    (DB.legajos || []).some(l => l.servicio === p.servicio && l.supervisor === currentUser.nombre)
+    esMismoSupervisor(p.supervisor, currentUser.nombre) ||
+    esMismoSupervisor(p.supervisor, currentUser.funcion) ||
+    (DB.legajos || []).some(l => l.servicio === p.servicio && esMismoSupervisor(l.supervisor, currentUser.nombre))
   );
 }
 

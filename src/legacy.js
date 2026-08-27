@@ -9,6 +9,7 @@ import { supaSync, supaDel, supaInit } from '@shared/supabase.js';
 import { crearNotificacion } from '@shared/notificaciones.js';
 import { obtenerValorHoraVigente, getCategoriaById } from './modules/categorias/consultas.js';
 import { pctEfectivoObjetivo, pctEfectivoCliente, pctGeneralVigente, esEditorSupervision, esMismoSupervisor, adicionalSupervisionDe, detalleAdicionalSupervision } from './modules/supervision/supervision.js';
+import { serviciosDeSupervisor } from './modules/servicios_supervisor/servicios_supervisor.js';
 import { listarAdjuntos, obtenerUrlFirmada, subirAdjunto, borrarAdjunto, MAX_SIZE as ADJ_MAX_SIZE } from '@shared/adjuntos.js';
 // v098 — Tab "Acceso y perfiles" de Configuración (matriz + usuarios + alta).
 import { renderTabAccesosPerfiles } from '@modules/accesos/index.js';
@@ -11751,8 +11752,19 @@ function renderGrillasLiq(){
   // Obtener todas las grillas del mes + objetivos sin grilla (como filas vacías)
   let objetivosVisibles=DB.objetivos.filter(o=>o.estado==='Operativo');
   if(esSupervisor){
-    // Supervisor solo ve sus servicios
-    objetivosVisibles=objetivosVisibles.filter(o=>o.supervisor===currentUser.funcion||o.supervisor===currentUser.nombre||DB.legajos.some(l=>l.servicio===o.codigo&&l.supervisor===currentUser.nombre));
+    // Supervisor solo ve sus servicios. FIX 26/08 (ticket "vinculación
+    // automática"): "o.supervisor" no existe como columna en objetivos
+    // (la real es supervisorAsignado / v067 servicios_supervisor) — ese
+    // branch estaba muerto desde siempre. Y el match contra legajos.supervisor
+    // era case-sensitive: legajos trae varios nombres en MAYÚSCULAS de un
+    // import viejo, así que un supervisor con el nombre bien tipeado en su
+    // usuario (ej. "Alejandro Cacciato") nunca matcheaba contra "ALEJANDRO
+    // CACCIATO" y veía la grilla vacía aunque tuviera servicios reales.
+    // Mismo criterio ahora que Pedidos de personal / Pedido de productos:
+    // serviciosDeSupervisor() (unión objetivos+puente, comparación sin
+    // mayúsculas) + fallback por legajo, también sin mayúsculas.
+    const misCodigos=new Set(serviciosDeSupervisor(currentUser.nombre||''));
+    objetivosVisibles=objetivosVisibles.filter(o=>misCodigos.has(o.codigo)||esMismoSupervisor(o.supervisorAsignado,currentUser.funcion)||DB.legajos.some(l=>l.servicio===o.codigo&&esMismoSupervisor(l.supervisor,currentUser.nombre)));
   }
   if(supFil) objetivosVisibles=objetivosVisibles.filter(o=>o.supervisor===supFil);
   if(buscar) objetivosVisibles=objetivosVisibles.filter(o=>o.nombre.toLowerCase().includes(buscar)||o.codigo.toLowerCase().includes(buscar)||(DB.clientes.find(c=>c.id===o.clienteId)?.nombre||'').toLowerCase().includes(buscar));
@@ -11791,7 +11803,7 @@ function renderGrillasLiq(){
 
   if(!objetivosVisibles.length){
     tbody.innerHTML=`<tr><td colspan="100" style="padding:40px;text-align:center;color:var(--texto-muy-suave);">
-      ${esSupervisor?'No tenés servicios asignados':'Sin servicios para mostrar'}
+      ${esSupervisor?'No tenés servicios asignados todavía. Si creés que es un error, pedile a RRHH que revise tu usuario en Configuración → Servicios.':'Sin servicios para mostrar'}
     </td></tr>`;
     return;
   }
