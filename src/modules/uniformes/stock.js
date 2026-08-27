@@ -17,11 +17,56 @@
 import { DB, currentUser } from '@shared/state.js';
 import { $ } from '@shared/helpers.js';
 import { toast, abrirModal, cerrarModal } from '@shared/ui.js';
-import { supaSync } from '@shared/supabase.js';
+import { supaSync, SUPA } from '@shared/supabase.js';
 import { PRENDAS, TALLES_POR_PRENDA } from './catalogos.js';
+import { obtenerPrecioVigente } from './precios.js';
 
 function _id(prefijo) { return prefijo + '-' + Date.now() + '-' + Math.floor(Math.random() * 10000); }
 function _money(n) { return '$ ' + (Number(n) || 0).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
+export function hoyDDMMAAAA() { return new Date().toLocaleDateString('es-AR'); }
+function hoyHHMM() { return new Date().toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' }); }
+export function fechaHoraTxt() { return `${hoyDDMMAAAA()} ${hoyHHMM()}`; }
+
+// ========== CONFIG (v107): umbral BAJO⚠ y N meses de la propuesta general ==========
+// Parametrizable, mismo patrón que pedidos_config (v106): seed SQL, sin
+// ABM propia todavía — se edita directo en la tabla stock_config.
+export let stockConfig = { umbralBajoCriticoPct: 0.6, mesesPropuestaMinimo: 2 };
+let _configStockCargada = false;
+
+export async function cargarConfigStock() {
+  if (_configStockCargada) return;
+  _configStockCargada = true;
+  try {
+    const { data } = await SUPA.from('stock_config').select('clave,valor');
+    for (const row of (data || [])) {
+      if (row.clave === 'umbral_bajo_critico_pct' && typeof row.valor === 'number') stockConfig.umbralBajoCriticoPct = row.valor;
+      if (row.clave === 'meses_propuesta_minimo' && typeof row.valor === 'number') stockConfig.mesesPropuestaMinimo = row.valor;
+    }
+  } catch (e) { /* se queda con el default de arriba */ }
+}
+
+// ========== MÍNIMOS (v107): helpers de lectura, usados acá y en minimos.js ==========
+
+export function getMinimoUniforme(prenda, talle) {
+  const r = (DB.stockMinimos || []).find(m => m.categoria === 'UNIFORMES' && m.prenda === prenda && m.talle === talle);
+  return r ? (Number(r.minimo) || 0) : 0;
+}
+export function getMinimoProducto(productoIdLocal) {
+  const r = (DB.stockMinimos || []).find(m => m.categoria === 'PRODUCTOS' && String(m.productoIdLocal) === String(productoIdLocal));
+  return r ? (Number(r.minimo) || 0) : 0;
+}
+
+// Estado de 2 niveles (26/08): OK si existencia >= mínimo; si no,
+// BAJO⚠ (rojo) cuando además está debajo del umbral crítico (% del
+// mínimo, parametrizable) — si no, BAJO (ámbar) simple. Sin mínimo
+// cargado (0): no hay contra qué medir, queda OK — evita que TODA la
+// grilla salga en rojo el día que se abre el tab antes de cargar nada.
+export function estadoStock(existencia, minimo) {
+  if (!minimo) return { txt: 'OK', color: 'var(--verde)', chip: 'c-verde' };
+  if (existencia >= minimo) return { txt: 'OK', color: 'var(--verde)', chip: 'c-verde' };
+  if (existencia < minimo * stockConfig.umbralBajoCriticoPct) return { txt: 'BAJO ⚠', color: 'var(--rojo)', chip: 'c-rojo' };
+  return { txt: 'BAJO', color: 'var(--naranja)', chip: 'c-nara' };
+}
 
 // ========== STOCK DE UNIFORMES (v071, sin cambios) ==========
 
@@ -131,6 +176,9 @@ export async function recibirPedidoProductosPP(pedidoId, items) {
 // ========== UNIFICACIÓN: FILTRO Y RENDER COMBINADO ==========
 
 let _filtroCategoriaStock = 'todos';
+let _filtroPrendaStock = '';
+let _filtroTalleStock = '';
+let _filtroEstadoStock = '';
 
 export function filtrarCategoriaStock(cat) {
   _filtroCategoriaStock = cat;
@@ -139,12 +187,51 @@ export function filtrarCategoriaStock(cat) {
   });
   renderStock();
 }
+export function filtrarPrendaStock() { _filtroPrendaStock = ($('stock-fil-prenda') || { value: '' }).value; renderStock(); }
+export function filtrarTalleStock() { _filtroTalleStock = ($('stock-fil-talle') || { value: '' }).value; renderStock(); }
+export function filtrarEstadoStock() { _filtroEstadoStock = ($('stock-fil-estado') || { value: '' }).value; renderStock(); }
+
+// Orden lógico de talle DENTRO de una prenda (S→5XL / 35→46 / 36→60):
+// el catálogo (catalogos.js) ya guarda cada TALLES_POR_PRENDA en ese
+// orden — alfabético pondría "2XL" antes que "L". indexOf() sobre esa
+// misma lista es la fuente de verdad, sin inventar un orden aparte acá.
+function ordenTalle(prenda, talle) {
+  const i = (TALLES_POR_PRENDA[prenda] || []).indexOf(talle);
+  return i === -1 ? 999 : i;
+}
 
 // ========== TAB: EXISTENCIAS (unificado) ==========
 
-export function renderStock() {
+export async function renderStock() {
+  await cargarConfigStock();
+  poblarFiltrosPrendaTalleStock();
   _renderExistencias();
   _renderMovimientosUnificado();
+}
+
+// Puebla los <select> de Prenda/Talle una sola vez (opciones fijas del
+// catálogo — no dependen de qué stock haya cargado).
+function poblarFiltrosPrendaTalleStock() {
+  const selP = $('stock-fil-prenda');
+  if (selP && selP.options.length <= 1) {
+    selP.innerHTML = '<option value="">Prenda: todas</option>' + PRENDAS.map(p => `<option>${p}</option>`).join('');
+  }
+  const selT = $('stock-fil-talle');
+  if (selT && selT.options.length <= 1) {
+    const talles = [...new Set(Object.values(TALLES_POR_PRENDA).flat())];
+    // Orden "global" de talles para el filtro (no depende de una prenda
+    // en particular): S..5XL primero, después lo numérico tal cual está
+    // en el catálogo.
+    const ORDEN_LETRA = ['S', 'M', 'L', 'XL', '2XL', '3XL', '4XL', '5XL'];
+    talles.sort((a, b) => {
+      const ia = ORDEN_LETRA.indexOf(a), ib = ORDEN_LETRA.indexOf(b);
+      if (ia !== -1 && ib !== -1) return ia - ib;
+      if (ia !== -1) return -1;
+      if (ib !== -1) return 1;
+      return (Number(a) || 0) - (Number(b) || 0);
+    });
+    selT.innerHTML = '<option value="">Talle: todos</option>' + talles.map(t => `<option>${t}</option>`).join('');
+  }
 }
 
 function _renderExistencias() {
@@ -152,19 +239,26 @@ function _renderExistencias() {
   if (!tbody) return;
   const q = ($('stock-buscar') || {}).value?.toLowerCase() || '';
 
-  // Uniformes:Rows
-  let filasUniformes = (DB.stockUniformes || []).map(s => ({
-    categoria: 'UNIFORMES', nombre: s.prenda, detalle: s.talle,
-    cantidad: s.cantidad, costoPpp: 0, costoVigente: 0,
-    _raw: s,
-  }));
+  // Uniformes: rows (v107 — costo_ppp real de stock_uniformes, vigente
+  // del tab Precios, mínimo del tab Mínimos, estado en 2 niveles).
+  let filasUniformes = (DB.stockUniformes || []).map(s => {
+    const vigente = obtenerPrecioVigente(s.prenda, s.talle)?.precio || 0;
+    const minimo = getMinimoUniforme(s.prenda, s.talle);
+    return {
+      categoria: 'UNIFORMES', nombre: s.prenda, talle: s.talle,
+      cantidad: s.cantidad || 0, costoPpp: s.costoPpp || 0, costoVigente: vigente,
+      minimo, _ordenTalle: ordenTalle(s.prenda, s.talle),
+      _raw: s,
+    };
+  });
 
   // Productos: rows
   let filasProductos = (DB.stockProductos || []).map(s => {
     const prod = (DB.ppProductos || []).find(p => String(p.id) === String(s.productoIdLocal));
     return {
-      categoria: 'PRODUCTOS', nombre: prod?.descripcion || s.productoIdLocal, detalle: prod?.tipoUso || '',
-      cantidad: s.cantidad, costoPpp: s.costoPpp || 0, costoVigente: s.costoVigente || 0,
+      categoria: 'PRODUCTOS', nombre: prod?.descripcion || s.productoIdLocal, talle: '',
+      cantidad: s.cantidad || 0, costoPpp: s.costoPpp || 0, costoVigente: s.costoVigente || 0,
+      minimo: getMinimoProducto(s.productoIdLocal), _ordenTalle: 0,
       _raw: s,
     };
   });
@@ -175,36 +269,63 @@ function _renderExistencias() {
   if (_filtroCategoriaStock !== 'todos') {
     filas = filas.filter(f => f.categoria === _filtroCategoriaStock);
   }
+  // Prenda/Talle: solo tienen sentido en Uniformes — al elegir uno, las
+  // filas de Productos (sin talle/prenda) quedan afuera del recorte.
+  if (_filtroPrendaStock) filas = filas.filter(f => f.categoria === 'UNIFORMES' && f.nombre === _filtroPrendaStock);
+  if (_filtroTalleStock) filas = filas.filter(f => f.categoria === 'UNIFORMES' && f.talle === _filtroTalleStock);
 
   // Búsqueda
-  if (q) filas = filas.filter(f => f.nombre.toLowerCase().includes(q) || f.detalle.toLowerCase().includes(q));
+  if (q) filas = filas.filter(f => f.nombre.toLowerCase().includes(q) || (f.talle || '').toLowerCase().includes(q));
 
-  // Sort
-  filas.sort((a, b) => a.categoria.localeCompare(b.categoria) || a.nombre.localeCompare(b.nombre));
+  // Sort: categoría, prenda, y DENTRO de la prenda por el orden lógico
+  // del talle (no alfabético — ver ordenTalle()).
+  filas.sort((a, b) => a.categoria.localeCompare(b.categoria) || a.nombre.localeCompare(b.nombre) || a._ordenTalle - b._ordenTalle);
 
   const CAT_CHIP = { PRODUCTOS: '<span style="background:#dbe7ff;color:#1b3f9e;padding:1px 8px;border-radius:8px;font-size:10px;font-weight:700;">PRODUCTOS</span>', UNIFORMES: '<span style="background:#ece0fa;color:#5b2ca0;padding:1px 8px;border-radius:8px;font-size:10px;font-weight:700;">UNIFORMES</span>' };
 
+  // Estado (después del corte de filtros, para que el chip de Estado
+  // filtre sobre lo que realmente se está mostrando).
+  filas = filas.map(f => ({ ...f, _estado: estadoStock(f.cantidad, f.minimo) }));
+  if (_filtroEstadoStock) {
+    filas = filas.filter(f => _filtroEstadoStock === 'BAJO' ? f._estado.txt.startsWith('BAJO') : f._estado.txt === _filtroEstadoStock);
+  }
+
   if (!filas.length) {
-    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:24px;opacity:.5;">Sin stock cargado</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="10" style="text-align:center;padding:24px;opacity:.5;">Sin stock cargado</td></tr>';
     return;
   }
 
+  let totCant = 0, totPpp = 0, totRepo = 0;
   tbody.innerHTML = filas.map(f => {
     const esProd = f.categoria === 'PRODUCTOS';
-    const valorPpp = f.cantidad * f.costoPpp;
-    const valorRepo = f.cantidad * f.costoVigente;
-    const estado = f.cantidad <= 0 ? 'SIN STOCK' : f.cantidad <= 30 ? 'BAJO' : 'OK';
-    const estadoColor = f.cantidad <= 0 ? 'var(--rojo)' : f.cantidad <= 30 ? 'var(--naranja)' : 'var(--verde)';
-    return `<tr>
+    const tienePpp = f.costoPpp > 0;
+    const tieneVig = f.costoVigente > 0;
+    const valorPpp = tienePpp ? f.cantidad * f.costoPpp : null;
+    const valorRepo = tieneVig ? f.cantidad * f.costoVigente : null;
+    totCant += f.cantidad;
+    if (valorPpp != null) totPpp += valorPpp;
+    if (valorRepo != null) totRepo += valorRepo;
+    return `<tr${f._estado.txt === 'BAJO ⚠' ? ' style="background:var(--rojo-suave);"' : ''}>
       <td style="padding:5px 10px;border-bottom:1px solid var(--borde);font-weight:500;">${f.nombre}</td>
       <td style="padding:5px 8px;border-bottom:1px solid var(--borde);text-align:center;">${CAT_CHIP[f.categoria]}</td>
+      <td style="padding:5px 8px;border-bottom:1px solid var(--borde);text-align:center;font-weight:700;">${esProd ? '—' : f.talle}</td>
       <td style="padding:5px 8px;border-bottom:1px solid var(--borde);text-align:right;font-weight:700;color:${f.cantidad < 0 ? 'var(--rojo)' : f.cantidad === 0 ? 'var(--naranja)' : 'var(--texto)'};">${f.cantidad}${f.cantidad < 0 ? ' ⚠️' : ''}</td>
-      <td style="padding:5px 8px;border-bottom:1px solid var(--borde);text-align:right;">${esProd && f.costoPpp ? _money(f.costoPpp) : '—'}</td>
-      <td style="padding:5px 8px;border-bottom:1px solid var(--borde);text-align:right;">${esProd && f.costoVigente ? _money(f.costoVigente) : '—'}</td>
-      <td style="padding:5px 8px;border-bottom:1px solid var(--borde);text-align:right;">${esProd ? _money(valorPpp) : '—'}</td>
-      <td style="padding:5px 8px;border-bottom:1px solid var(--borde);text-align:center;"><span style="font-size:11px;font-weight:700;color:${estadoColor};">${estado}</span></td>
+      <td style="padding:5px 8px;border-bottom:1px solid var(--borde);text-align:right;color:var(--texto-suave);">${tienePpp ? _money(f.costoPpp) : '—'}</td>
+      <td style="padding:5px 8px;border-bottom:1px solid var(--borde);text-align:right;">${tieneVig ? _money(f.costoVigente) : '—'}</td>
+      <td style="padding:5px 8px;border-bottom:1px solid var(--borde);text-align:right;color:var(--texto-suave);">${valorPpp != null ? _money(valorPpp) : '—'}</td>
+      <td style="padding:5px 8px;border-bottom:1px solid var(--borde);text-align:right;font-weight:700;">${valorRepo != null ? _money(valorRepo) : '—'}</td>
+      <td style="padding:5px 8px;border-bottom:1px solid var(--borde);text-align:right;color:var(--texto-suave);">${f.minimo || '—'}</td>
+      <td style="padding:5px 8px;border-bottom:1px solid var(--borde);text-align:center;"><span style="font-size:11px;font-weight:700;color:${f._estado.color};">${f._estado.txt}</span></td>
     </tr>`;
-  }).join('');
+  }).join('')
+    + `<tr style="background:var(--fondo);font-weight:700;">
+      <td colspan="3" style="padding:6px 10px;text-align:right;">TOTAL (${filas.length} fila${filas.length === 1 ? '' : 's'})</td>
+      <td style="padding:6px 8px;text-align:right;">${totCant}</td>
+      <td></td><td></td>
+      <td style="padding:6px 8px;text-align:right;color:var(--texto-suave);">${totPpp ? _money(totPpp) : '—'}</td>
+      <td style="padding:6px 8px;text-align:right;">${totRepo ? _money(totRepo) : '—'}</td>
+      <td></td><td></td>
+    </tr>`;
 }
 
 export function filtrarStockUniformes() { renderStock(); }
@@ -497,6 +618,14 @@ export async function confirmarImportarStockInicial() {
 
 // ========== PANTALLA (tabs) ==========
 
+// Mínimos y Precios viven en módulos aparte (minimos.js, precios.js) —
+// para que este archivo no tenga que importarlos (precios.js YA importa
+// de acá arriba, así que la vuelta sería circular) se registran sus
+// render acá desde index.js al cargar, mismo patrón que
+// registerAuthCallbacks/registerNavCallbacks (auth.js/nav.js).
+const _renderPorTabExtra = {};
+export function registrarTabStockExtra(tab, renderFn) { _renderPorTabExtra[tab] = renderFn; }
+
 export function cambiarTabStockUniformes(tab, btn) {
   document.querySelectorAll('#screen-stock .tab-btn').forEach(b => b.classList.remove('active'));
   document.querySelectorAll('#screen-stock .tab-content').forEach(t => t.classList.remove('active'));
@@ -504,5 +633,6 @@ export function cambiarTabStockUniformes(tab, btn) {
   const el = $('stock-tab-' + tab);
   if (el) el.classList.add('active');
   if (tab === 'actual') renderStock();
-  if (tab === 'movimientos') _renderMovimientosUnificado();
+  else if (tab === 'movimientos') _renderMovimientosUnificado();
+  else if (_renderPorTabExtra[tab]) _renderPorTabExtra[tab]();
 }

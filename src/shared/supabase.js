@@ -20,6 +20,8 @@ export const _SM = {
   pedidos: 'pedidos',
   pedidosEventos: 'pedidos_eventos',
   pedidosMotivosCancelacion: 'pedidos_motivos_cancelacion',
+  stockMinimos: 'stock_minimos',
+  stockMinimosAjustes: 'stock_minimos_ajustes',
   perfilPersonalAtributos: 'perfil_personal_atributos',
   candidatos: 'candidatos',
   psicos: 'psicos',
@@ -622,6 +624,8 @@ export function _toSnake(obj) {
     // v106 — Pedidos de personal: ajustes de mockup (workflow, timeline, config)
     ingresoTipo: 'ingreso_tipo', nombreCandidato: 'nombre_candidato',
     nroSocioCandidato: 'nro_socio_candidato', motivoDetalle: 'motivo_detalle',
+    // v107 — Stock de uniformes: talles, mínimos y precios
+    valorAnterior: 'valor_anterior', valorNuevo: 'valor_nuevo',
   };
   const r = {};
   for (const [k, v] of Object.entries(obj)) {
@@ -1032,6 +1036,8 @@ export function _toCamel(obj) {
     // v106 — Pedidos de personal: ajustes de mockup (workflow, timeline, config)
     ingreso_tipo: 'ingresoTipo', nombre_candidato: 'nombreCandidato',
     nro_socio_candidato: 'nroSocioCandidato', motivo_detalle: 'motivoDetalle',
+    // v107 — Stock de uniformes: talles, mínimos y precios
+    valor_anterior: 'valorAnterior', valor_nuevo: 'valorNuevo',
   };
   const r = {};
   for (const [k, v] of Object.entries(obj)) {

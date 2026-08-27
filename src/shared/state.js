@@ -44,6 +44,10 @@ export const DB = {
   // v095 — Stock de productos de limpieza (ver src/modules/uniformes/stock.js)
   stockProductos: [],
   stockProductosMovimientos: [],
+  // v107 — Stock de uniformes: mínimos (uniformes + productos, misma tabla)
+  // y su registro de ajustes.
+  stockMinimos: [],
+  stockMinimosAjustes: [],
   // v096 — Módulo Máquinas (padrón, tickets, movimientos)
   maquinas: [],
   maquinasMovimientos: [],

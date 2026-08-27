@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Stock de uniformes — Talles + tab Mínimos</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;font-family:'Segoe UI',Arial,sans-serif}
+body{background:#f0f2f7;color:#1c2430}
+.top{background:#1b2a5e;color:#fff;padding:14px 26px;display:flex;align-items:center;gap:16px}
+.top h1{font-size:17px;font-weight:600}
+.top .crumb{font-size:12px;opacity:.75}
+.wrap{max-width:1200px;margin:0 auto;padding:18px 22px 60px}
+.tabs{display:flex;gap:4px;border-bottom:2px solid #d8dce8;margin-bottom:16px;flex-wrap:wrap}
+.tab{padding:10px 18px;font-size:13.5px;font-weight:600;color:#5a6478;cursor:pointer;border-radius:8px 8px 0 0}
+.tab.act{color:#1b2a5e;background:#fff;border:2px solid #d8dce8;border-bottom:2px solid #fff;margin-bottom:-2px}
+.panel{display:none}.panel.act{display:block}
+.card{background:#fff;border:1px solid #dde1ec;border-radius:10px;padding:16px 18px;margin-bottom:14px;box-shadow:0 1px 3px rgba(20,30,60,.05);overflow-x:auto}
+.banner{border-radius:8px;padding:10px 14px;font-size:12.8px;margin-bottom:14px;display:flex;gap:10px;align-items:flex-start}
+.banner.info{background:#e7f0ff;border:1px solid #b9d2f5;color:#1b3f77}
+table{width:100%;border-collapse:collapse;font-size:12.8px}
+th{background:#f4f6fb;color:#3c4560;text-align:left;padding:8px 10px;font-size:11px;text-transform:uppercase;letter-spacing:.3px;border-bottom:2px solid #dde1ec;white-space:nowrap}
+td{padding:7px 10px;border-bottom:1px solid #eceef5;vertical-align:middle}
+.num{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+.chip{display:inline-block;padding:2px 10px;border-radius:11px;font-size:10.5px;font-weight:700;white-space:nowrap}
+.c-gris{background:#eceef3;color:#5a6478}
+.c-azul{background:#dbe7ff;color:#1b3f9e}
+.c-verde{background:#d9f2e2;color:#156a3a}
+.c-nara{background:#ffe8d6;color:#a04a08}
+.c-rojo{background:#fddede;color:#a11c1c}
+.btn{border:none;border-radius:7px;padding:8px 14px;font-size:12.5px;font-weight:600;cursor:pointer;white-space:nowrap}
+.b-pri{background:#1b2a5e;color:#fff}
+.b-sec{background:#eceef3;color:#39425a}
+.mut{color:#7a8296;font-size:11.5px}
+.inp{padding:6px 8px;border:1.5px solid #c6cbda;border-radius:7px;font-size:13px;background:#fff}
+.mini{border:none;background:#eceef3;color:#39425a;border-radius:6px;padding:2px 9px;font-size:10.5px;font-weight:700;cursor:pointer}
+.grp td{background:#f7f8fc;font-weight:700;color:#1b2a5e;border-top:2px solid #dde1ec}
+.minin{width:70px;text-align:right;padding:4px 8px;border:1.5px solid #c6cbda;border-radius:6px;font-size:12.8px}
+.vcarg{color:#1b3f9e;font-weight:700}
+.vher{color:#9aa2b4;font-style:italic}
+.modal-bg{display:none;position:fixed;inset:0;background:rgba(15,22,45,.55);z-index:50;align-items:flex-start;justify-content:center;padding:34px 16px;overflow:auto}
+.modal-bg.open{display:flex}
+.modal{background:#fff;border-radius:12px;max-width:620px;width:100%;box-shadow:0 12px 40px rgba(10,18,45,.35)}
+.m-head{padding:16px 22px;border-bottom:1px solid #e3e6ef;display:flex;align-items:center;gap:12px}
+.m-head h3{font-size:15px;color:#1b2a5e}
+.m-head .x{margin-left:auto;font-size:19px;cursor:pointer;color:#8a92a6;background:none;border:none}
+.m-body{padding:16px 22px;max-height:64vh;overflow:auto}
+.m-foot{padding:13px 22px;border-top:1px solid #e3e6ef;display:flex;gap:10px}
+</style>
+</head>
+<body>
+<div class="top">
+  <h1>Stock de uniformes</h1>
+  <span class="crumb">Logística › Stock · con la columna TALLE en la grilla y el tab MÍNIMOS nuevo — los mínimos viven acá, no en Configuración (los ajusta quien mira el stock)</span>
+</div>
+<div class="wrap">
+
+<div class="tabs">
+  <div class="tab act" onclick="tab(0,this)">📦 Stock actual</div>
+  <div class="tab" onclick="tab(1,this)">🎯 Mínimos</div>
+  <div class="tab" onclick="tab(3,this)">💲 Precios</div>
+  <div class="tab" onclick="tab(2,this)">🕘 Movimientos</div>
+</div>
+
+<!-- ============ STOCK ACTUAL ============ -->
+<div class="panel act" id="p0">
+  <div class="banner info">📦 <span><b>Cambio 1 — columna TALLE:</b> cada fila es una combinación prenda+talle (así entró el import), pero la grilla no lo mostraba. Con la columna y el filtro, "¿cuántas camperas 3XL hay?" se responde de un vistazo. Talles en orden lógico (S→5XL, 35→46), no alfabético. El ESTADO se calcula contra los mínimos del tab de al lado.</span></div>
+  <div class="card">
+    <div style="display:flex;gap:10px;margin-bottom:12px;flex-wrap:wrap">
+      <button class="btn b-sec">Todos</button><button class="btn b-sec">Productos</button><button class="btn b-pri">Uniformes</button>
+      <select class="inp"><option>Prenda: todas</option><option>Ambo</option><option>Buzo</option><option>Campera</option><option>Calzado</option><option>Pantalón</option><option>Chomba</option></select>
+      <select class="inp"><option>Talle: todos</option><option>S</option><option>M</option><option>L</option><option>XL</option><option>2XL</option><option>3XL</option><option>4XL</option><option>5XL</option></select>
+      <select class="inp"><option>Estado: todos</option><option>BAJO</option><option>OK</option></select>
+      <span style="margin-left:auto"></span>
+      <button class="btn b-sec">⊞ Conteo físico</button>
+      <button class="btn b-sec">⬆ Importar stock (CSV)</button>
+    </div>
+    <table>
+      <tr><th>Producto</th><th>Categoría</th><th>Talle</th><th class="num">Existencia</th><th class="num">PPP unit.</th><th class="num">Vigente unit.</th><th class="num">Valor PPP</th><th class="num">Valor reposición</th><th class="num">Mínimo</th><th>Estado</th></tr>
+      <tr><td>Ambo</td><td><span class="chip c-gris">UNIFORMES</span></td><td><b>S</b></td><td class="num">40</td><td class="num mut">48.150,20</td><td class="num">52.300,00</td><td class="num mut">1.926.008,00</td><td class="num"><b>2.092.000,00</b></td><td class="num mut">25</td><td><span class="chip c-verde">OK</span></td></tr>
+      <tr><td>Ambo</td><td><span class="chip c-gris">UNIFORMES</span></td><td><b>M</b></td><td class="num">35</td><td class="num mut">48.150,20</td><td class="num">52.300,00</td><td class="num mut">1.685.257,00</td><td class="num"><b>1.830.500,00</b></td><td class="num mut">25</td><td><span class="chip c-verde">OK</span></td></tr>
+      <tr><td>Ambo</td><td><span class="chip c-gris">UNIFORMES</span></td><td><b>L</b></td><td class="num">35</td><td class="num mut">48.150,20</td><td class="num">52.300,00</td><td class="num mut">1.685.257,00</td><td class="num"><b>1.830.500,00</b></td><td class="num mut">25</td><td><span class="chip c-verde">OK</span></td></tr>
+      <tr style="background:#fff8f2"><td>Ambo</td><td><span class="chip c-gris">UNIFORMES</span></td><td><b>XL</b></td><td class="num">20</td><td class="num mut">48.150,20</td><td class="num">52.300,00</td><td class="num mut">963.004,00</td><td class="num"><b>1.046.000,00</b></td><td class="num mut">25</td><td><span class="chip c-nara">BAJO</span></td></tr>
+      <tr><td>Ambo</td><td><span class="chip c-gris">UNIFORMES</span></td><td><b>2XL</b></td><td class="num">30</td><td class="num mut">48.150,20</td><td class="num">52.300,00</td><td class="num mut">1.444.506,00</td><td class="num"><b>1.569.000,00</b></td><td class="num mut">25</td><td><span class="chip c-verde">OK</span></td></tr>
+      <tr style="background:#fff8f2"><td>Ambo</td><td><span class="chip c-gris">UNIFORMES</span></td><td><b>5XL</b></td><td class="num">11</td><td class="num mut">48.150,20</td><td class="num">52.300,00</td><td class="num mut">529.652,20</td><td class="num"><b>575.300,00</b></td><td class="num mut">15</td><td><span class="chip c-nara">BAJO</span></td></tr>
+      <tr style="background:#fff5f5"><td>Campera</td><td><span class="chip c-gris">UNIFORMES</span></td><td><b>S</b></td><td class="num">10</td><td class="num mut">36.980,00</td><td class="num">38.500,00</td><td class="num mut">369.800,00</td><td class="num"><b>385.000,00</b></td><td class="num mut">12</td><td><span class="chip c-rojo">BAJO ⚠</span></td></tr>
+      <tr><td>Campera</td><td><span class="chip c-gris">UNIFORMES</span></td><td><b>M</b></td><td class="num">13</td><td class="num mut">36.980,00</td><td class="num">38.500,00</td><td class="num mut">480.740,00</td><td class="num"><b>500.500,00</b></td><td class="num mut">12</td><td><span class="chip c-verde">OK</span></td></tr>
+      <tr><td class="mut" colspan="10">… resto de las 53 combinaciones (Buzo, Calzado 35–46, Pantalón 36–60, Chomba)</td></tr>
+      <tr style="background:#f4f6fb"><td colspan="3" style="font-weight:700;text-align:right">TOTAL UNIFORMES (1.080 un.)</td><td class="num" style="font-weight:700">1.080</td><td></td><td></td><td class="num" style="font-weight:700">42.610.480</td><td class="num" style="font-weight:700"><b>45.883.400</b></td><td></td><td></td></tr>
+    </table>
+    <div class="mut" style="margin-top:8px">La columna MÍNIMO acá es solo lectura (referencia) — se edita en el tab Mínimos. PPP unit. = de las compras · Vigente unit. = del tab Precios · Valor PPP = valuación contable · Valor reposición = existencia × vigente (y es la base del descuento al asociado). Remera sin precio: sus valores quedan en “—” hasta cargarlo.</div>
+  </div>
+</div>
+
+<!-- ============ MINIMOS ============ -->
+<div class="panel" id="p1">
+  <div class="banner info">🎯 <span><b>Cambio 2 — tab MÍNIMOS (nuevo):</b> el mínimo es un dato del stock y lo ajusta quien mira el stock — por eso vive acá y no en Configuración. Editás en línea y el ESTADO se recalcula al momento (probalo). El "mínimo general de la prenda" carga todos los talles de una vez; después retocás los que quieras. Todo ajuste queda en el Registro de ajustes con usuario y fecha.</span></div>
+  <div class="card">
+    <div style="display:flex;gap:10px;margin-bottom:12px;flex-wrap:wrap;align-items:center">
+      <select class="inp"><option>Prenda: todas</option><option>Ambo</option><option>Campera</option></select>
+      <span class="mut">mínimo = <input class="inp" style="width:45px;padding:3px 6px" value="2"> meses de consumo promedio (⚙) — <button class="mini">Propuesta general</button> · el sistema propone, el humano decide</span>
+      <button class="btn b-pri" style="margin-left:auto" onclick="alert('En el sistema: guarda todos los cambios y los manda al historial')">💾 Guardar cambios</button>
+    </div>
+    <table id="tmin">
+      <tr><th>Prenda</th><th>Talle</th><th class="num">Existencia</th><th class="num">Consumo prom./mes</th><th class="num" style="width:110px">Mínimo (editable)</th><th>Estado (en vivo)</th></tr>
+      <tr class="grp"><td colspan="3">🥼 AMBO — 215 unidades en 8 talles</td><td colspan="3" style="text-align:right;font-weight:400">mínimo general de la prenda <input class="minin" id="bulkAmbo" value="25"> <button class="mini" onclick="bulk('ambo')">Aplicar</button></td></tr>
+      <tr><td class="mut">Ambo</td><td><b>S</b></td><td class="num">40</td><td class="num mut">9</td><td class="num"><input class="minin ambo" data-ex="40" value="25" oninput="recalc(this)"></td><td class="est"><span class="chip c-verde">OK</span></td></tr>
+      <tr><td class="mut">Ambo</td><td><b>M</b></td><td class="num">35</td><td class="num mut">14</td><td class="num"><input class="minin ambo" data-ex="35" value="25" oninput="recalc(this)"></td><td class="est"><span class="chip c-verde">OK</span></td></tr>
+      <tr><td class="mut">Ambo</td><td><b>L</b></td><td class="num">35</td><td class="num mut">12</td><td class="num"><input class="minin ambo" data-ex="35" value="25" oninput="recalc(this)"></td><td class="est"><span class="chip c-verde">OK</span></td></tr>
+      <tr><td class="mut">Ambo</td><td><b>XL</b></td><td class="num">20</td><td class="num mut">10</td><td class="num"><input class="minin ambo" data-ex="20" value="25" oninput="recalc(this)"></td><td class="est"><span class="chip c-nara">BAJO</span></td></tr>
+      <tr><td class="mut">Ambo</td><td><b>2XL</b></td><td class="num">30</td><td class="num mut">11</td><td class="num"><input class="minin ambo" data-ex="30" value="25" oninput="recalc(this)"></td><td class="est"><span class="chip c-verde">OK</span></td></tr>
+      <tr><td class="mut">Ambo</td><td><b>3XL</b></td><td class="num">21</td><td class="num mut">8</td><td class="num"><input class="minin ambo" data-ex="21" value="25" oninput="recalc(this)"></td><td class="est"><span class="chip c-nara">BAJO</span></td></tr>
+      <tr><td class="mut">Ambo</td><td><b>4XL</b></td><td class="num">23</td><td class="num mut">7</td><td class="num"><input class="minin ambo" data-ex="23" value="25" oninput="recalc(this)"></td><td class="est"><span class="chip c-nara">BAJO</span></td></tr>
+      <tr><td class="mut">Ambo</td><td><b>5XL</b></td><td class="num">11</td><td class="num mut">4</td><td class="num"><input class="minin ambo" data-ex="11" value="15" oninput="recalc(this)"></td><td class="est"><span class="chip c-nara">BAJO</span></td></tr>
+      <tr class="grp"><td colspan="3">🧥 CAMPERA — 60 unidades en 5 talles</td><td colspan="3" style="text-align:right;font-weight:400">mínimo general de la prenda <input class="minin" id="bulkCampera" value="12"> <button class="mini" onclick="bulk('campera')">Aplicar</button></td></tr>
+      <tr><td class="mut">Campera</td><td><b>S</b></td><td class="num">10</td><td class="num mut">5</td><td class="num"><input class="minin campera" data-ex="10" value="12" oninput="recalc(this)"></td><td class="est"><span class="chip c-nara">BAJO</span></td></tr>
+      <tr><td class="mut">Campera</td><td><b>M</b></td><td class="num">13</td><td class="num mut">6</td><td class="num"><input class="minin campera" data-ex="13" value="12" oninput="recalc(this)"></td><td class="est"><span class="chip c-verde">OK</span></td></tr>
+      <tr><td class="mut">Campera</td><td><b>L</b></td><td class="num">12</td><td class="num mut">5</td><td class="num"><input class="minin campera" data-ex="12" value="12" oninput="recalc(this)"></td><td class="est"><span class="chip c-verde">OK</span></td></tr>
+      <tr><td class="mut" colspan="6">… resto de prendas (Buzo, Calzado, Pantalón, Chomba) con el mismo esquema. Productos de limpieza: misma grilla sin columna talle.</td></tr>
+    </table>
+    <div class="mut" style="margin-top:8px">El "Consumo prom./mes" sale solo de las entregas registradas (cada entrega descuenta stock). Los BAJO alimentan la <b>propuesta de compra</b> — misma lógica que productos: el sistema propone recomprar, Logística decide. Registro de ajustes: cada cambio de mínimo con usuario, fecha y valor anterior.</div>
+  </div>
+  <div class="card">
+    <h2 style="font-size:14px;color:#1b2a5e;margin-bottom:8px">🕘 Registro de ajustes</h2>
+    <table>
+      <tr><th>Fecha</th><th>Usuario</th><th>Cambio</th></tr>
+      <tr><td class="mut">26/08 15:10</td><td class="mut">logistica.richard</td><td>AMBO (8 talles): mínimo 20 → <b>25</b> (mínimo general de la prenda)</td></tr>
+      <tr><td class="mut">26/08 15:12</td><td class="mut">logistica.richard</td><td>AMBO 5XL: mínimo 25 → <b>15</b> (talle de baja rotación)</td></tr>
+    </table>
+  </div>
+</div>
+
+<!-- ============ PRECIOS ============ -->
+<div class="panel" id="p3">
+  <div class="banner info">💲 <span><b>Dos precios, dos orígenes:</b> el <b>PPP</b> se calcula SOLO desde las compras (nunca a mano) — valor contable. El <b>PRECIO DE REPOSICIÓN VIGENTE</b> se carga acá con vigencia mensual y es el <b>valor de descuento al asociado</b> (la constancia lo congela el día de la firma; las cuotas firmadas no cambian). Misma mecánica que Valores hora de Categorías: <span class="vcarg">azul = cargado ese mes</span> · <span class="vher">gris = heredado del último cargado</span>. Tocá "Cargar" y se abre la ventana con fecha y monto.</span></div>
+  <div class="card">
+    <div style="display:flex;gap:10px;margin-bottom:12px;flex-wrap:wrap;align-items:center">
+      <h2 style="font-size:14px;color:#1b2a5e;margin:0">Precio de reposición por prenda</h2>
+      <select class="inp"><option>2026</option><option>2025</option></select>
+      <button class="btn b-pri" style="margin-left:auto" onclick="mOpen('mMasiva')">+ Carga masiva</button>
+    </div>
+    <table>
+      <tr><th>Prenda</th><th class="num">JUL</th><th class="num">AGO</th><th class="num">SEP</th><th class="num">OCT</th><th class="num">NOV</th><th class="num">DIC</th><th class="num">PPP actual</th><th>Acciones</th></tr>
+      <tr><td><b>🥼 Ambo</b></td><td class="num vher">47.800,00</td><td class="num vcarg">52.300,00</td><td class="num vher">52.300,00</td><td class="num vher">52.300,00</td><td class="num vher">52.300,00</td><td class="num vher">52.300,00</td><td class="num mut">48.150,20</td><td><button class="mini" onclick="mOpen('mValPrenda')">Cargar</button> <button class="mini">🕘</button></td></tr>
+      <tr><td><b>🧥 Campera</b></td><td class="num vher">35.200,00</td><td class="num vcarg">38.500,00</td><td class="num vher">38.500,00</td><td class="num vher">38.500,00</td><td class="num vher">38.500,00</td><td class="num vher">38.500,00</td><td class="num mut">36.980,00</td><td><button class="mini" onclick="mOpen('mValPrenda')">Cargar</button> <button class="mini">🕘</button></td></tr>
+      <tr><td><b>🧶 Buzo</b></td><td class="num vher">27.500,00</td><td class="num vcarg">29.900,00</td><td class="num vher">29.900,00</td><td class="num vher">29.900,00</td><td class="num vher">29.900,00</td><td class="num vher">29.900,00</td><td class="num mut">27.410,00</td><td><button class="mini" onclick="mOpen('mValPrenda')">Cargar</button> <button class="mini">🕘</button></td></tr>
+      <tr><td><b>👟 Calzado</b></td><td class="num vcarg">61.200,00</td><td class="num vher">61.200,00</td><td class="num vher">61.200,00</td><td class="num vher">61.200,00</td><td class="num vher">61.200,00</td><td class="num vher">61.200,00</td><td class="num mut">58.930,50</td><td><button class="mini" onclick="mOpen('mValPrenda')">Cargar</button> <button class="mini">🕘</button></td></tr>
+      <tr><td><b>👖 Pantalón grafa</b></td><td class="num vher">29.900,00</td><td class="num vcarg">31.450,00</td><td class="num vher">31.450,00</td><td class="num vher">31.450,00</td><td class="num vher">31.450,00</td><td class="num vher">31.450,00</td><td class="num mut">29.870,00</td><td><button class="mini" onclick="mOpen('mValPrenda')">Cargar</button> <button class="mini">🕘</button></td></tr>
+      <tr><td><b>👕 Chomba</b></td><td class="num vher">17.900,00</td><td class="num vcarg">18.700,00</td><td class="num vher">18.700,00</td><td class="num vher">18.700,00</td><td class="num vher">18.700,00</td><td class="num vher">18.700,00</td><td class="num mut">17.220,00</td><td><button class="mini" onclick="mOpen('mValPrenda')">Cargar</button> <button class="mini">🕘</button></td></tr>
+      <tr style="background:#fff8f2"><td><b>Remera</b></td><td class="num mut">—</td><td class="num mut">—</td><td class="num mut">—</td><td class="num mut">—</td><td class="num mut">—</td><td class="num mut">—</td><td class="num mut">—</td><td><button class="mini" onclick="mOpen('mValPrenda')">Cargar</button> <button class="mini">🕘</button></td></tr>
+    </table>
+    <div class="mut" style="margin-top:8px">El valor rige desde el mes en que se carga y se hereda hacia adelante hasta cargar uno nuevo — no hace falta cargar los 12 meses. Prenda sin precio vigente (Remera, en ámbar) = alarma antes de armar un pedido con descuento. La VALORIZACIÓN del Stock actual sale de acá (existencia × reposición vigente) y del PPP para el valor contable. Cada carga queda en el Registro de ajustes.</div>
+  </div>
+</div>
+
+<!-- ===== MODAL: cargar precio de prenda ===== -->
+<div class="modal-bg" id="mValPrenda">
+  <div class="modal">
+    <div class="m-head"><h3>Cargar precio — Ambo</h3><button class="x" onclick="mClose('mValPrenda')">✕</button></div>
+    <div class="m-body">
+      <div style="display:flex;gap:14px;flex-wrap:wrap;font-size:12.8px">
+        <span><b>Nuevo precio $:</b> <input class="inp" value="52.300,00" style="width:120px"></span>
+        <span><b>Vigente desde:</b> <select class="inp"><option>SEP 2026</option><option>OCT 2026</option></select></span>
+      </div>
+      <div class="mut" style="margin-top:10px">Vigente actual: $ 52.300,00 (desde AGO 2026). El nuevo precio rige desde el mes elegido y se hereda hacia adelante. Los meses anteriores no se tocan — las constancias y cuotas ya firmadas quedan como estaban.</div>
+    </div>
+    <div class="m-foot">
+      <button class="btn b-pri" onclick="mClose('mValPrenda')">✔ Guardar vigencia</button>
+      <button class="btn b-sec" onclick="mClose('mValPrenda')">Cancelar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== MODAL: carga masiva de precios ===== -->
+<div class="modal-bg" id="mMasiva">
+  <div class="modal" style="max-width:660px">
+    <div class="m-head"><h3>+ Carga masiva de precios</h3><button class="x" onclick="mClose('mMasiva')">✕</button></div>
+    <div class="m-body">
+      <div style="background:#e7f0ff;border:1px solid #b9d2f5;border-radius:8px;padding:10px 12px;font-size:12.8px;margin-bottom:12px">
+        <b>% de aumento general:</b> <input class="inp" id="pPctU" value="8" style="width:70px" oninput="paritU()"> %
+        <button class="btn b-sec" style="padding:5px 12px" onclick="paritU()">⚡ Impactar en todas</button>
+        <span class="mut" style="display:block;margin-top:6px">Completa el precio nuevo de todas las prendas sobre su vigente. Después corregís a mano la que quieras, o la dejás en blanco para que no cambie.</span>
+      </div>
+      <table>
+        <tr><th>Prenda</th><th class="num">Vigente</th><th class="num" style="width:130px">Precio nuevo (editable)</th></tr>
+        <tr><td>🥼 Ambo</td><td class="num">$ 52.300,00</td><td class="num"><input class="minin pinu" data-base="52300" style="width:110px" value="56.484,00"></td></tr>
+        <tr><td>🧥 Campera</td><td class="num">$ 38.500,00</td><td class="num"><input class="minin pinu" data-base="38500" style="width:110px" value="41.580,00"></td></tr>
+        <tr><td>🧶 Buzo</td><td class="num">$ 29.900,00</td><td class="num"><input class="minin pinu" data-base="29900" style="width:110px" value="32.292,00"></td></tr>
+        <tr><td>👟 Calzado</td><td class="num">$ 61.200,00</td><td class="num"><input class="minin pinu" data-base="61200" style="width:110px" value="66.096,00"></td></tr>
+        <tr><td>👖 Pantalón grafa</td><td class="num">$ 31.450,00</td><td class="num"><input class="minin pinu" data-base="31450" style="width:110px" value="33.966,00"></td></tr>
+        <tr><td>👕 Chomba</td><td class="num">$ 18.700,00</td><td class="num"><input class="minin pinu" data-base="18700" style="width:110px" value="20.196,00"></td></tr>
+        <tr style="background:#fafbfd"><td class="mut">Remera (sin vigente — se carga sola desde su fila)</td><td class="num mut">—</td><td class="num"><input class="minin" style="width:110px" placeholder="—"></td></tr>
+      </table>
+      <div style="display:flex;gap:14px;flex-wrap:wrap;font-size:12.8px;margin-top:12px">
+        <span><b>Vigente desde *:</b> <select class="inp"><option>SEP 2026</option><option>OCT 2026</option></select> <span class="mut">(aplica a todas las cargadas)</span></span>
+      </div>
+      <div style="margin-top:8px"><b style="font-size:12.8px">Motivo *:</b> <input class="inp" style="width:100%;margin-top:4px" placeholder="Ej: aumento del proveedor de confección — lista SEP 2026"></div>
+      <div class="mut" style="margin-top:8px">Se crea una vigencia nueva SOLO para las cargadas; las vacías siguen heredando. Todo al Registro de ajustes con el motivo.</div>
+    </div>
+    <div class="m-foot">
+      <button class="btn b-pri" onclick="mClose('mMasiva')">✔ Guardar cambios</button>
+      <button class="btn b-sec" onclick="mClose('mMasiva')">Cancelar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ MOVIMIENTOS ============ -->
+<div class="panel" id="p2">
+  <div class="card">
+    <table>
+      <tr><th>Fecha</th><th>Movimiento</th><th>Prenda / Talle</th><th class="num">Cant.</th><th>Referencia</th></tr>
+      <tr><td class="mut">26/08</td><td><span class="chip c-azul">IMPORT CONTEO</span></td><td class="mut">53 combinaciones</td><td class="num">1.080</td><td class="mut">relevamiento 14/08 · STOCK_UNIFORMES_inicial.csv</td></tr>
+      <tr><td class="mut">—</td><td><span class="chip c-rojo">ENTREGA</span></td><td class="mut">descuenta al entregar pedido</td><td class="num">—</td><td class="mut">automático desde Uniformes</td></tr>
+      <tr><td class="mut">—</td><td><span class="chip c-verde">COMPRA</span></td><td class="mut">suma al registrar compra</td><td class="num">—</td><td class="mut">automático desde Nueva compra</td></tr>
+    </table>
+  </div>
+</div>
+
+</div>
+
+<script>
+function mOpen(id){document.getElementById(id).classList.add("open")}
+function mClose(id){document.getElementById(id).classList.remove("open")}
+function paritU(){
+  const p=parseFloat((document.getElementById("pPctU").value||"0").replace(",","."))/100;
+  document.querySelectorAll(".pinu").forEach(i=>{
+    const b=parseFloat(i.dataset.base);
+    i.value=Number((b*(1+p)).toFixed(2)).toLocaleString("es-AR",{minimumFractionDigits:2});
+  });
+}
+function tab(i,el){ document.querySelectorAll('.tab').forEach(t=>t.classList.remove('act')); el.classList.add('act');
+  document.querySelectorAll('.panel').forEach(p=>p.classList.remove('act')); document.getElementById('p'+i).classList.add('act'); }
+function recalc(inp){
+  const ex=parseFloat(inp.dataset.ex), min=parseFloat(inp.value)||0;
+  const cell=inp.closest('tr').querySelector('.est');
+  cell.innerHTML = ex>=min ? '<span class="chip c-verde">OK</span>' : (ex < min*0.6 ? '<span class="chip c-rojo">BAJO ⚠</span>' : '<span class="chip c-nara">BAJO</span>');
+}
+function bulk(cls){
+  const v=document.getElementById('bulk'+cls.charAt(0).toUpperCase()+cls.slice(1)).value;
+  document.querySelectorAll('.minin.'+cls).forEach(i=>{i.value=v;recalc(i);});
+}
+</script>
+</body>
+</html>

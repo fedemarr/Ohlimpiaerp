@@ -21,7 +21,14 @@ export {
 export {
   abrirGestionPrecios, cambiarPrendaPrecio, abrirNuevoPrecioUniforme, abrirEditarPrecioUniforme,
   abrirNuevoPrecioConVigencia, guardarPrecioUniforme, abrirHistorialPrecioUniforme,
+  renderPreciosUniformesGrid, filtrarAnioPreciosUniformes,
+  abrirCargaMasivaPreciosUniformes, aplicarPorcentajeMasivoPreciosUniformes, confirmarCargaMasivaPreciosUniformes,
 } from './precios.js';
+
+export {
+  renderMinimos, filtrarPrendaMinimos, recalcularMinimo,
+  aplicarMinimoGeneralPrenda, aplicarPropuestaGeneral, guardarCambiosMinimos,
+} from './minimos.js';
 
 export {
   filtrarDescuentosUniformes, renderDescuentosUniformes, exportarDescuentosUniformesExcel,
@@ -37,6 +44,7 @@ export { chequearAlertas24hs, chequear15Dias } from './vencimientos.js';
 export {
   cambiarTabStockUniformes, renderStock,
   filtrarStockUniformes, filtrarCategoriaStock,
+  filtrarPrendaStock, filtrarTalleStock, filtrarEstadoStock,
   abrirConteoFisico, cambiarCantidadContadaConteo, guardarConteoFisico,
   abrirImportarStockInicial, seleccionarArchivoImportStockInicial, confirmarImportarStockInicial,
 } from './stock.js';
@@ -110,14 +118,30 @@ import {
 import {
   abrirGestionPrecios, cambiarPrendaPrecio, abrirNuevoPrecioUniforme, abrirEditarPrecioUniforme,
   abrirNuevoPrecioConVigencia, guardarPrecioUniforme, abrirHistorialPrecioUniforme,
+  renderPreciosUniformesGrid, filtrarAnioPreciosUniformes,
+  abrirCargaMasivaPreciosUniformes, aplicarPorcentajeMasivoPreciosUniformes, confirmarCargaMasivaPreciosUniformes,
 } from './precios.js';
 import { filtrarDescuentosUniformes, exportarDescuentosUniformesExcel } from './descuentos.js';
 import { filtrarDevolucionesBaja, abrirGenerarOrdenManual, abrirCierreDevolucion, confirmarCierreDevolucion, generarOrdenDevolucionUniformes } from './devoluciones.js';
 import {
   cambiarTabStockUniformes, renderStock, filtrarStockUniformes, filtrarCategoriaStock,
+  filtrarPrendaStock, filtrarTalleStock, filtrarEstadoStock,
   abrirConteoFisico, cambiarCantidadContadaConteo, guardarConteoFisico,
   abrirImportarStockInicial, seleccionarArchivoImportStockInicial, confirmarImportarStockInicial,
+  registrarTabStockExtra,
 } from './stock.js';
+import {
+  renderMinimos, filtrarPrendaMinimos, recalcularMinimo,
+  aplicarMinimoGeneralPrenda, aplicarPropuestaGeneral, guardarCambiosMinimos,
+} from './minimos.js';
+
+// Mínimos y Precios son tabs de #screen-stock pero viven en módulos
+// aparte (ver comentario en stock.js) — se registran acá, una sola vez,
+// para que cambiarTabStockUniformes() pueda invocarlos sin que stock.js
+// tenga que importarlos (precios.js YA importa de stock.js → sería
+// circular).
+registrarTabStockExtra('minimos', renderMinimos);
+registrarTabStockExtra('precios', renderPreciosUniformesGrid);
 
 window.cambiarTabUniformes = cambiarTabUniformes;
 window.filtrarPendientesUniformes = filtrarPendientesUniformes;
@@ -159,6 +183,18 @@ window.abrirEditarPrecioUniforme = abrirEditarPrecioUniforme;
 window.abrirNuevoPrecioConVigencia = abrirNuevoPrecioConVigencia;
 window.guardarPrecioUniforme = guardarPrecioUniforme;
 window.abrirHistorialPrecioUniforme = abrirHistorialPrecioUniforme;
+window.renderPreciosUniformesGrid = renderPreciosUniformesGrid;
+window.filtrarAnioPreciosUniformes = filtrarAnioPreciosUniformes;
+window.abrirCargaMasivaPreciosUniformes = abrirCargaMasivaPreciosUniformes;
+window.aplicarPorcentajeMasivoPreciosUniformes = aplicarPorcentajeMasivoPreciosUniformes;
+window.confirmarCargaMasivaPreciosUniformes = confirmarCargaMasivaPreciosUniformes;
+
+window.renderMinimos = renderMinimos;
+window.filtrarPrendaMinimos = filtrarPrendaMinimos;
+window.recalcularMinimo = recalcularMinimo;
+window.aplicarMinimoGeneralPrenda = aplicarMinimoGeneralPrenda;
+window.aplicarPropuestaGeneral = aplicarPropuestaGeneral;
+window.guardarCambiosMinimos = guardarCambiosMinimos;
 
 window.filtrarDescuentosUniformes = filtrarDescuentosUniformes;
 window.exportarDescuentosUniformesExcel = exportarDescuentosUniformesExcel;
@@ -173,6 +209,9 @@ window.cambiarTabStockUniformes = cambiarTabStockUniformes;
 window.renderStock = renderStock;
 window.filtrarStockUniformes = filtrarStockUniformes;
 window.filtrarCategoriaStock = filtrarCategoriaStock;
+window.filtrarPrendaStock = filtrarPrendaStock;
+window.filtrarTalleStock = filtrarTalleStock;
+window.filtrarEstadoStock = filtrarEstadoStock;
 window.abrirConteoFisico = abrirConteoFisico;
 window.cambiarCantidadContadaConteo = cambiarCantidadContadaConteo;
 window.guardarConteoFisico = guardarConteoFisico;

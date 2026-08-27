@@ -152,6 +152,150 @@ export async function guardarPrecioUniforme() {
   }
   cerrarModal('modal-uniformes-precio');
   renderPreciosUniformes();
+  if ($('tbody-uni-precios-grid')) renderPreciosUniformesGrid();
+}
+
+// ========== TAB PRECIOS — GRID PRENDA × MES (v107) ==========
+//
+// Ticket "Stock de uniformes — talles, mínimos y precios" (26/08),
+// "misma mecánica que Valores hora de Categorías" (valores.js). Reusa
+// TAL CUAL preciosUniformes + obtenerPrecioVigente/guardarPrecioUniforme
+// de arriba — la única regla nueva es "SIN excepciones por talle": esta
+// vista siempre trabaja con talle null (precio general de la prenda).
+//
+// azul (cargado ese mes) vs gris itálica (heredado): se distingue
+// comparando si la vigencia que resuelve ESE mes empezó justo ese mes
+// (v.vigenciaDesde) o es una vigencia de un mes anterior que sigue
+// corriendo hacia adelante.
+
+const MESES_CORTOS = ['ENE', 'FEB', 'MAR', 'ABR', 'MAY', 'JUN', 'JUL', 'AGO', 'SEP', 'OCT', 'NOV', 'DIC'];
+
+export function poblarFiltroAnioPreciosUniformes() {
+  const sel = $('up-grid-anio');
+  if (!sel) return;
+  const actual = new Date().getFullYear();
+  sel.innerHTML = [actual, actual - 1].map(a => `<option value="${a}">${a}</option>`).join('');
+}
+
+export function filtrarAnioPreciosUniformes() { renderPreciosUniformesGrid(); }
+
+// PPP actual de la prenda (para la columna de referencia): promedio de
+// costo_ppp entre los talles que ya tengan uno cargado. Hoy siempre da
+// "—" porque no existe todavía el circuito de "Nueva compra" de
+// uniformes (compras_uniformes existe desde v071 sin UI — fuera de
+// alcance de este ticket) — la columna queda lista para cuando exista.
+function pppActualPrenda(prenda) {
+  const filas = (DB.stockUniformes || []).filter(s => s.prenda === prenda && s.costoPpp > 0);
+  if (!filas.length) return null;
+  return filas.reduce((s, f) => s + f.costoPpp, 0) / filas.length;
+}
+
+export function renderPreciosUniformesGrid() {
+  poblarFiltroAnioPreciosUniformes();
+  const tbody = $('tbody-uni-precios-grid');
+  if (!tbody) return;
+  const anio = parseInt(($('up-grid-anio') || {}).value, 10) || new Date().getFullYear();
+  const hoy = new Date().toISOString().slice(0, 10);
+
+  let sinVigente = [];
+  tbody.innerHTML = PRENDAS.map(prenda => {
+    const vigenteHoy = obtenerPrecioVigente(prenda, null, new Date());
+    if (!vigenteHoy) sinVigente.push(prenda);
+    let fila = `<tr${!vigenteHoy ? ' style="background:#fff8f2;"' : ''}><td style="font-weight:600;white-space:nowrap;">${prenda}</td>`;
+    fila += MESES_CORTOS.map((_, i) => {
+      const fechaMes = `${anio}-${String(i + 1).padStart(2, '0')}-01`;
+      const v = obtenerPrecioVigente(prenda, null, new Date(fechaMes + 'T00:00:00'));
+      if (!v) return `<td style="text-align:right;color:var(--texto-muy-suave);">—</td>`;
+      const cargadoEsteMes = v.vigenciaDesde && v.vigenciaDesde.slice(0, 7) === fechaMes.slice(0, 7);
+      const estilo = cargadoEsteMes ? 'color:var(--azul);font-weight:700;' : 'color:var(--texto-muy-suave);font-style:italic;';
+      return `<td style="text-align:right;${estilo}">${Number(v.precio).toLocaleString('es-AR', { minimumFractionDigits: 2 })}</td>`;
+    }).join('');
+    const ppp = pppActualPrenda(prenda);
+    fila += `<td style="text-align:right;color:var(--texto-suave);">${ppp ? ppp.toLocaleString('es-AR', { minimumFractionDigits: 2 }) : '—'}</td>`;
+    fila += `<td style="white-space:nowrap;">
+      <button class="btn btn-xs btn-secondary" onclick="abrirNuevoPrecioConVigencia('${prenda}','')">Cargar</button>
+      <button class="btn btn-xs btn-secondary" onclick="abrirHistorialPrecioUniforme('${prenda}','')" title="Historial">🕐</button>
+    </td></tr>`;
+    return fila;
+  }).join('');
+
+  const banner = $('up-alarma-sin-precio');
+  if (banner) {
+    banner.style.display = sinVigente.length ? 'flex' : 'none';
+    banner.textContent = sinVigente.length ? `⚠ Sin precio de reposición vigente: ${sinVigente.join(', ')}. No se puede armar una constancia de entrega con descuento para esa(s) prenda(s) hasta cargarlo.` : '';
+  }
+}
+
+// ========== CARGA MASIVA DE PRECIOS (v107) ==========
+// Mismo patrón que la carga masiva de Categorías (valores.js) + el paso
+// extra que pide el ticket: "% de aumento general" que precompleta
+// todas las filas sobre su vigente, editable a mano fila por fila.
+
+export function abrirCargaMasivaPreciosUniformes() {
+  const tbody = $('cmu-tbody');
+  if (!tbody) return;
+  tbody.innerHTML = PRENDAS.map(prenda => {
+    const v = obtenerPrecioVigente(prenda, null, new Date());
+    return `<tr data-cmu-prenda="${prenda}">
+      <td>${prenda}</td>
+      <td style="text-align:right;">${v ? '$' + Number(v.precio).toLocaleString('es-AR') : 'sin cargar'}</td>
+      <td><input type="number" min="0" step="0.01" class="cmu-input-nuevo" data-base="${v ? v.precio : ''}" style="width:110px;" placeholder="—"></td>
+    </tr>`;
+  }).join('');
+  const pct = $('cmu-pct'); if (pct) pct.value = '';
+  const vig = $('cmu-vigencia-desde'); if (vig) vig.value = new Date().toISOString().slice(0, 10);
+  const mot = $('cmu-motivo'); if (mot) mot.value = '';
+  abrirModal('modal-uniformes-precios-masiva');
+}
+
+// "⚡ Impactar en todas": aplica el % a cada fila que TENGA vigente. Las
+// prendas sin vigente (Remera) quedan en blanco — se cargan solas desde
+// su fila, como aclara el mockup.
+export function aplicarPorcentajeMasivoPreciosUniformes() {
+  const pct = parseFloat((($('cmu-pct') || {}).value || '0').replace(',', '.')) / 100;
+  document.querySelectorAll('#cmu-tbody .cmu-input-nuevo').forEach(inp => {
+    const base = parseFloat(inp.dataset.base);
+    if (!base) return;   // sin vigente: no se toca, se carga a mano si corresponde
+    inp.value = Number((base * (1 + pct)).toFixed(2));
+  });
+}
+
+export async function confirmarCargaMasivaPreciosUniformes() {
+  const vigenciaDesde = ($('cmu-vigencia-desde') || {}).value;
+  const motivo = (($('cmu-motivo') || {}).value || '').trim();
+  if (!vigenciaDesde) { toast('⚠️ Ingresá la fecha de vigencia'); return; }
+  if (!motivo) { toast('⚠️ El motivo es obligatorio'); return; }
+
+  const cambios = Array.from(document.querySelectorAll('#cmu-tbody tr')).map(tr => ({
+    prenda: tr.getAttribute('data-cmu-prenda'),
+    nuevoPrecio: parseFloat(tr.querySelector('.cmu-input-nuevo').value),
+  })).filter(f => !isNaN(f.nuevoPrecio) && f.nuevoPrecio >= 0);
+
+  if (!cambios.length) { toast('⚠️ No cargaste ningún precio nuevo'); return; }
+  if (!confirm(`Se van a crear ${cambios.length} vigencia(s) nueva(s) desde ${vigenciaDesde}. Las constancias/cuotas ya firmadas no se tocan. ¿Confirmás?`)) return;
+
+  let i = 0;
+  for (const cambio of cambios) {
+    const anterior = preciosVigentes().find(p => p.prenda === cambio.prenda && !p.talle);
+    if (anterior) {
+      const cierre = new Date(vigenciaDesde + 'T00:00:00');
+      cierre.setDate(cierre.getDate() - 1);
+      anterior.vigenciaHasta = cierre.toISOString().slice(0, 10);
+      await supaSync('preciosUniformes', anterior);
+    }
+    const nuevo = {
+      id: Date.now() + (i++),
+      prenda: cambio.prenda, talle: null, precio: cambio.nuevoPrecio, vigenciaDesde,
+      vigenciaHasta: null, cargadoPor: currentUser?.nombre || '', motivoCarga: motivo,
+    };
+    if (!DB.preciosUniformes) DB.preciosUniformes = [];
+    DB.preciosUniformes.push(nuevo);
+    await supaSync('preciosUniformes', nuevo);
+  }
+
+  cerrarModal('modal-uniformes-precios-masiva');
+  renderPreciosUniformesGrid();
+  toast(`✅ ${cambios.length} precio(s) actualizado(s)`);
 }
 
 // ========== HISTORIAL ==========

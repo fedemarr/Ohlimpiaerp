@@ -23,7 +23,15 @@ export const ESTADOS_FINALES = ['Cerrado', 'Rechazado por RRHH', 'Cancelado por 
 // + Buzo, Gorra (ticket "Uniforme" de Altas, 08/2026): faltaban en el
 // catálogo — el resto de las prendas pedidas (Chomba, Grafa/pantalón,
 // Campera) ya estaban acá.
-export const PRENDAS = ['Chomba', 'Grafa', 'Ambo', 'Polar', 'Campera', 'Zapatos', 'Buzo', 'Gorra'];
+// + Remera (ticket "Stock de uniformes — talles, mínimos y precios",
+// 26/08): el import de stock inicial la dejó afuera del catálogo a
+// propósito porque llegó en 0 unidades (sin relevar), pero el tab
+// Precios nuevo la necesita como fila propia desde el día uno — el
+// ticket pide explícitamente "cargar los precios... y Remera cuando
+// corresponda" y el mockup la muestra con alarma de "sin precio
+// vigente". Talles asumidos S..5XL como Chomba/Ambo/Polar/Campera/Buzo
+// (no hay dato real todavía — no hay stock que valide otra cosa).
+export const PRENDAS = ['Chomba', 'Grafa', 'Ambo', 'Polar', 'Campera', 'Zapatos', 'Buzo', 'Gorra', 'Remera'];
 
 // Notación de talles unificada a S/M/L/XL/2XL/3XL/4XL/5XL (ticket "Stock
 // inicial de uniformes", 08/2026): antes esta lista usaba XXL/XXXL/XXXXL
@@ -39,6 +47,7 @@ export const TALLES_POR_PRENDA = {
   Polar: ['S', 'M', 'L', 'XL', '2XL', '3XL', '4XL', '5XL'],
   Campera: ['S', 'M', 'L', 'XL', '2XL', '3XL', '4XL', '5XL'],
   Buzo: ['S', 'M', 'L', 'XL', '2XL', '3XL', '4XL', '5XL'],
+  Remera: ['S', 'M', 'L', 'XL', '2XL', '3XL', '4XL', '5XL'],
   // Grafa ya venía de 2 en 2 desde antes de este ticket (era la duda que
   // planteaba: "verificar si van de 2 en 2 o de 1 en 1") — se mantiene
   // el mismo criterio ya usado acá, no uno nuevo.
