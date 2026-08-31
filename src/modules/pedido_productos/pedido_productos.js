@@ -964,6 +964,14 @@ export function guardarBorradorPedidoPP() {
 // (salvo que el auditor lo devuelva OBSERVADO). Reutilizada por el cierre
 // automático de período (silencioso=true: sin toast/cierre de modal
 // individual, la notificación cambia de texto).
+// FIX (reporte de Lautaro, 31/08): un pedido que estaba OBSERVADO siempre
+// vuelve a la bandeja del auditor al re-confirmarse, corregido o no. Antes
+// se recalculaba motivosRevisionPP() desde cero y, si la corrección ya no
+// disparaba ninguna regla automática (ej: el supervisor bajó cantidades y
+// quedó dentro de presupuesto — justo lo que el auditor pidió), el pedido
+// se iba directo a 'confirmado' sin que el auditor lo volviera a ver.
+// Motivos como "FUERA DE ESTÁNDAR" ni están automatizados (ver TODO en
+// motivosRevisionPP) — esos casos se escapaban siempre.
 export async function confirmarPedidoPP(pedidoId, { silencioso = false, motivoNotif = null } = {}) {
   const id = pedidoId || _ppPedidoModalId;
   const pedido = getPedidoPP(id); if (!pedido || !['borrador', 'observado'].includes(pedido.estado)) return;
@@ -979,10 +987,11 @@ export async function confirmarPedidoPP(pedidoId, { silencioso = false, motivoNo
   // en adelante el total del pedido no se mueve aunque cambie el precio.
   for (const i of items) { i.costoCongelado = precioVigente(i.productoIdLocal); await supaSync('ppItems', i); }
 
+  const veniaObservado = pedido.estado === 'observado';
   pedido.confirmadoPor = currentUser?.nombre || (silencioso ? 'Sistema (cierre automático)' : '');
   pedido.confirmadoEn = new Date().toISOString();
   const motivos = motivosRevisionPP(pedido);
-  pedido.estado = motivos.length ? 'confirmado_revision' : 'confirmado';
+  pedido.estado = (motivos.length || veniaObservado) ? 'confirmado_revision' : 'confirmado';
   // Sale del estado OBSERVADO al re-confirmar: limpia la propuesta vieja
   // para que no quede colgada si este pedido se observa de nuevo más adelante.
   pedido.observadoPor = null; pedido.observadoEn = null; pedido.observadoMotivo = null; pedido.observadoComentario = null;
