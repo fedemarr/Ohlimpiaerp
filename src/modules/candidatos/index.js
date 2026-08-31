@@ -13,6 +13,7 @@ export {
   getCandById, getIdxById,
   abrirDetalleCandidatoPorId,
   abrirBajaCandidatoPorId, confirmarBajaCandidato, onChangeEstadoBajaCand,
+  eliminarCandidatoPorId,
   seleccionarArchivoEntrevistaCand, verAdjuntoEntrevistaCand, eliminarAdjuntoEntrevistaCand,
   seleccionarArchivoProcesoCand, verAdjuntoProcesoCand, eliminarAdjuntoProcesoCand,
 } from './candidatos.js';
@@ -92,6 +93,7 @@ import {
   registrarAsistencia, desmarcarAsistenciaPorId,
   abrirDetalleCandidatoPorId,
   abrirBajaCandidatoPorId, confirmarBajaCandidato, onChangeEstadoBajaCand,
+  eliminarCandidatoPorId,
   seleccionarArchivoEntrevistaCand, verAdjuntoEntrevistaCand, eliminarAdjuntoEntrevistaCand,
   seleccionarArchivoProcesoCand, verAdjuntoProcesoCand, eliminarAdjuntoProcesoCand,
 } from './candidatos.js';
@@ -140,6 +142,7 @@ window.abrirDetalleCandidatoPorId = abrirDetalleCandidatoPorId;
 window.abrirBajaCandidatoPorId = abrirBajaCandidatoPorId;
 window.confirmarBajaCandidato = confirmarBajaCandidato;
 window.onChangeEstadoBajaCand = onChangeEstadoBajaCand;
+window.eliminarCandidatoPorId = eliminarCandidatoPorId;
 window.seleccionarArchivoEntrevistaCand = seleccionarArchivoEntrevistaCand;
 window.verAdjuntoEntrevistaCand = verAdjuntoEntrevistaCand;
 window.eliminarAdjuntoEntrevistaCand = eliminarAdjuntoEntrevistaCand;

@@ -1,7 +1,7 @@
 import { DB, LOCALIDADES_BA, BARRIOS_CABA, PARTIDOS_LOCALIDADES, LOCALIDAD_A_PARTIDO, currentUser } from '@shared/state.js';
 import { $, toTitleCase, cleanText, validarCampos, badge, hoyStr } from '@shared/helpers.js';
 import { toast, abrirModal, cerrarModal, abrirModalInput } from '@shared/ui.js';
-import { supaSync, getLastSupaSyncError, SUPA } from '@shared/supabase.js';
+import { supaSync, supaDel, getLastSupaSyncError, SUPA } from '@shared/supabase.js';
 import { subirAdjunto, listarAdjuntos, obtenerUrlFirmada, borrarAdjunto, MAX_SIZE } from '@shared/adjuntos.js';
 import { guardarBorrador, guardarBorradorAhora, leerBorrador, limpiarBorrador } from '@shared/autosave.js';
 
@@ -223,6 +223,7 @@ function bindTbodyEvents(tbody) {
     else if (action === 'desmarcar-asistencia') desmarcarAsistenciaPorId(id);
     else if (action === 'whatsapp') abrirWhatsAppPorId(id);
     else if (action === 'citacion') enviarCitacionPorId(id);
+    else if (action === 'eliminar') eliminarCandidatoPorId(id);
   };
   tbody.onchange = function (e) {
     const sel = e.target.closest('select[data-action="asistencia"]');
@@ -322,6 +323,13 @@ function renderFilaCand(c) {
     // (Baja, Caducado, MT Social, MT con deuda) — disponible en cualquier
     // estado activo, no sólo en Entrevistado como Rechazar.
     btns += '<button data-action="dar-baja" data-id="' + cid + '" style="' + btnStyle + 'background:#f1f5f9;color:#475569;" title="Baja / Caducado / MT Social / MT con deuda">📁 Baja</button>';
+  }
+
+  // Histórico: solo permite eliminar el registro remanente (ver
+  // eliminarCandidatoPorId) — es un borrado real, con confirmación por
+  // nombre + DNI porque libera el DNI para reingresar en una carga masiva.
+  if (_candTab === 'historico') {
+    btns += '<button data-action="eliminar" data-id="' + cid + '" style="' + btnStyle + 'background:#fee2e2;color:#991b1b;" title="Eliminar definitivamente del histórico (libera el DNI para reingresar)">🗑️ Eliminar</button>';
   }
 
   // Precandidatos: botones específicos del estado
@@ -1439,4 +1447,41 @@ export async function confirmarBajaCandidato() {
   cerrarModal('modal-baja-cand');
   renderCandidatos();
   toast('📁 Candidato pasado a "' + estadoNuevo + '"');
+}
+
+// ========== ELIMINAR DEL HISTÓRICO ==========
+// Borrado real (no "Baja" — eso ya existe vía el botón 📁 Baja y es lo
+// correcto para un candidato que no sigue en el proceso). Esto es para
+// sacar del sistema un registro remanente que no debería existir: un
+// candidato que entró a la cooperativa y después se eliminó su legajo,
+// quedando su registro de candidato "colgado" en el tab Histórico. Ese
+// remanente no se ve en activos pero su DNI sigue "existiendo en
+// candidatos", así que la carga masiva (importador de histórico) lo
+// marca como "DNI ya existe en candidatos" y saltea la fila en cada
+// import. Ticket Candidatos "eliminar del histórico" 08/2026.
+//
+// Pide confirmación con nombre y DNI de por medio porque no tiene
+// vuelta atrás. No borra en cascada psicos / altas pendientes / turnos
+// vinculados por DNI — son del flujo de ingreso posterior; si hace falta
+// una limpieza en cascada es un pedido aparte.
+export async function eliminarCandidatoPorId(id) {
+  const c = getCandById(id);
+  if (!c) { toast('⚠️ Candidato no encontrado'); return; }
+  const nombreCompleto = (c.apellido ? c.apellido + ', ' : '') + (c.nombre || '');
+  if (!confirm(
+    '¿Eliminar definitivamente al candidato ' + nombreCompleto + ' (DNI ' + c.dni + ') del Histórico?\n\n'
+    + 'Esto borra el registro del sistema y libera el DNI para volver a cargarlo en una importación masiva. No se puede deshacer.\n'
+    + 'Si lo que querés es dejar constancia de que no sigue el proceso, cancelá esto y usá la opción "📁 Baja" en su lugar.'
+  )) return;
+
+  const ok = await supaDel('candidatos', idLocalCand(c.id));
+  if (!ok) {
+    const err = getLastSupaSyncError();
+    toast('⚠️ No se pudo eliminar en el servidor' + (err && err.message ? ' (' + err.message + ')' : '') + ' — reintentá o avisá a sistemas');
+    return;
+  }
+  const idx = getIdxById(id);
+  if (idx >= 0) DB.candidatos.splice(idx, 1);
+  renderCandidatos();
+  toast('🗑️ Candidato eliminado del histórico');
 }
