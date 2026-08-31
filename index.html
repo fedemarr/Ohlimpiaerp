@@ -2684,6 +2684,7 @@
         <div class="filtros-bar">
           <input type="text" placeholder="🔍 Buscar..." id="buscar-reclamo" oninput="filtrarReclamos()">
           <select id="cf-rec-tipo" onchange="filtrarReclamos()"><option value="">Todos los tipos</option></select>
+          <select id="cf-rec-origen" onchange="filtrarReclamos()"><option value="">Todos los orígenes</option><option value="cliente">Cliente</option><option value="interno">Interno</option></select>
           <select id="cf-rec-estado" onchange="filtrarReclamos()"><option value="">Todos los estados</option><option>Abierto</option><option>En tratamiento</option><option>Cerrado</option></select>
           <button class="btn btn-ghost btn-sm" onclick="abrirAgenteIA('reclamos',{})">🤖 Agente IA</button>
         </div>
@@ -6874,8 +6875,16 @@
     <div class="modal-body">
       <div class="form-grid gap-12">
         <div class="form-grid form-grid-2">
-          <div class="form-group"><label>Cliente *</label><select id="rec-cliente"></select></div>
+          <div class="form-group"><label>Origen *</label>
+            <select id="rec-origen" onchange="onChangeOrigenReclamo()">
+              <option value="cliente">Cliente</option>
+              <option value="interno">Interno (sin cliente)</option>
+            </select>
+          </div>
           <div class="form-group"><label>Servicio</label><select id="rec-objetivo"></select></div>
+        </div>
+        <div class="form-grid form-grid-2" id="rec-cliente-wrap">
+          <div class="form-group"><label>Cliente *</label><select id="rec-cliente"></select></div>
         </div>
         <div class="form-grid form-grid-3">
           <div class="form-group"><label>Tipo de reclamo *</label><select id="rec-tipo"></select></div>

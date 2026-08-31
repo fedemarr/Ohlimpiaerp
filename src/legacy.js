@@ -3055,7 +3055,9 @@ function renderReclamos(lista){
   const priCol={'Baja':'badge-gris','Media':'badge-acento','Alta':'badge-naranja','Urgente':'badge-rojo'};
   $('tbody-reclamos').innerHTML=rows.map((r)=>`<tr>
     <td style="font-size:12px;">${r.fecha}</td>
-    <td><div style="font-weight:500;font-size:12px;">${getCliente(r.clienteId)?.nombre||'—'}</div><div style="font-size:10px;color:var(--texto-suave);">${r.objetivoCod}</div></td>
+    <td>${r.esInterno
+      ? `<div style="font-weight:500;font-size:12px;"><span class="badge badge-gris">Interno</span></div>`
+      : `<div style="font-weight:500;font-size:12px;">${getCliente(r.clienteId)?.nombre||'—'}</div>`}<div style="font-size:10px;color:var(--texto-suave);">${r.objetivoCod}</div></td>
     <td><span class="chip" style="font-size:11px;">${r.tipo}</span></td>
     <td style="font-size:12px;max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${r.desc}</td>
     <td style="font-size:12px;">${r.iniciador}</td>
@@ -3102,7 +3104,7 @@ function renderReclamosBoard(){
                style="background:var(--fondo);border:1px solid var(--borde);border-left:3px solid ${priCol};border-radius:var(--radio);padding:10px;cursor:grab;"
                ondragstart="dragReclamo(event,'${r.id}')"
                onclick="verReclamo('${r.id}')">
-            <div style="font-weight:600;font-size:12px;">${getCliente(r.clienteId)?.nombre||'—'}</div>
+            <div style="font-weight:600;font-size:12px;">${r.esInterno?'<span class="badge badge-gris">Interno</span>':(getCliente(r.clienteId)?.nombre||'—')}</div>
             <div style="font-size:10px;color:var(--texto-suave);margin-top:2px;">${r.objetivoCod} · ${r.tipo}</div>
             <div style="font-size:11px;margin-top:4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${r.desc}</div>
             <div style="display:flex;justify-content:space-between;align-items:center;margin-top:6px;">
@@ -3133,8 +3135,9 @@ function dropReclamo(e,nuevoEstado){
 function filtrarReclamos(){
   const tipo=($('cf-rec-tipo')||{value:''}).value;
   const est=($('cf-rec-estado')||{value:''}).value;
+  const origen=($('cf-rec-origen')||{value:''}).value;
   const bg=($('buscar-reclamo')||{value:''}).value.toLowerCase();
-  renderReclamos(DB.reclamos.filter(r=>(!tipo||r.tipo===tipo)&&(!est||r.estado===est)&&(!bg||r.desc.toLowerCase().includes(bg)||r.objetivoCod.toLowerCase().includes(bg))));
+  renderReclamos(DB.reclamos.filter(r=>(!tipo||r.tipo===tipo)&&(!est||r.estado===est)&&(!origen||(origen==='interno'?!!r.esInterno:!r.esInterno))&&(!bg||r.desc.toLowerCase().includes(bg)||r.objetivoCod.toLowerCase().includes(bg))));
 }
 function cerrarReclamo(id){
   const r=getReclamoById(id);if(!r)return;
@@ -3147,7 +3150,8 @@ function verReclamo(id){
   const r=getReclamoById(id);if(!r)return;const cli=DB.clientes.find(c=>c.id===r.clienteId);
   const tiempoResp=r.fechaCierre?calcularDiasEntre(r.fecha,r.fechaCierre)+' días':'En curso';
   const html=`<div class="info-grid">
-    <div class="info-item"><div class="key">Cliente</div><div class="val">${cli?.nombre||'—'}</div></div>
+    <div class="info-item"><div class="key">Origen</div><div class="val">${r.esInterno?'Interno':'Cliente'}</div></div>
+    <div class="info-item"><div class="key">Cliente</div><div class="val">${r.esInterno?'<span class="badge badge-gris">—</span>':(cli?.nombre||'—')}</div></div>
     <div class="info-item"><div class="key">Objetivo</div><div class="val">${r.objetivoCod}</div></div>
     <div class="info-item"><div class="key">Tipo</div><div class="val">${r.tipo}</div></div>
     <div class="info-item"><div class="key">Prioridad</div><div class="val">${r.prioridad}</div></div>
@@ -3159,16 +3163,34 @@ function verReclamo(id){
   </div>
   <div style="margin-top:12px;"><strong>Descripción:</strong><p style="font-size:13px;color:var(--texto-suave);margin-top:4px;">${r.desc}</p></div>
   ${r.tratamiento?`<div style="margin-top:8px;"><strong>Tratamiento:</strong><p style="font-size:13px;color:var(--texto-suave);margin-top:4px;">${r.tratamiento}</p></div>`:''}`;
-  $('pedido-title').textContent=`📣 Reclamo — ${cli?.nombre||'—'}`;
+  $('pedido-title').textContent=`📣 Reclamo — ${r.esInterno?'Interno':(cli?.nombre||'—')}`;
   $('pedido-body').innerHTML=html;
   abrirModal('modal-ver-pedido');
 }
+// toggle Origen (Cliente / Interno). Si el reclamo es interno, el cliente
+// deja de ser obligatorio y se oculta el selector — ticket Reclamos/NC
+// internos (v111).
+function onChangeOrigenReclamo(){
+  const origen=$('rec-origen')?.value||'cliente';
+  const wrap=$('rec-cliente-wrap');
+  const cli=$('rec-cliente');
+  if(!wrap)return;
+  const esInterno=origen==='interno';
+  wrap.style.display=esInterno?'none':'';
+  // Sin cliente seleccionado cuando es interno (evita guardar un cliente
+  // que el usuario ya no ve ni eligió).
+  if(esInterno && cli) cli.value='';
+  wrap.querySelector('label').textContent=esInterno?'Cliente':'Cliente *';
+}
 function guardarReclamo(){
   const desc=$('rec-desc')?.value.trim();if(!desc){toast('Ingresá la descripción');return;}
+  const origen=$('rec-origen')?.value||'cliente';
+  const esInterno=origen==='interno';
   const cliId=parseInt($('rec-cliente')?.value)||0;
+  if(!esInterno && !cliId){toast('Seleccioná un cliente (o marcá el reclamo como Interno)');return;}
   const generaNC=$('rec-genera-nc')?.value==='Sí';
   const nroNC=generaNC?'NC-'+new Date().getFullYear()+'-'+String(DB.noConformidades.length+1).padStart(3,'0'):'';
-  const nuevo={id:Date.now(),clienteId:cliId,objetivoCod:$('rec-objetivo')?.value||'—',tipo:$('rec-tipo')?.value,prioridad:$('rec-prioridad')?.value,iniciador:$('rec-iniciador')?.value,desc,responsable:$('rec-responsable')?.value,estado:'Abierto',fecha:new Date().toLocaleDateString('es-AR'),fechaCierre:'',generaNC,nc:nroNC,tratamiento:''};
+  const nuevo={id:Date.now(),clienteId:cliId,esInterno,objetivoCod:$('rec-objetivo')?.value||'—',tipo:$('rec-tipo')?.value,prioridad:$('rec-prioridad')?.value,iniciador:$('rec-iniciador')?.value,desc,responsable:$('rec-responsable')?.value,estado:'Abierto',fecha:new Date().toLocaleDateString('es-AR'),fechaCierre:'',generaNC,nc:nroNC,tratamiento:''};
   DB.reclamos.push(nuevo);
   supaSync('reclamos', nuevo);
   // 2.5.1 (Delta Comercial v1.2): la NC se vincula al reclamo por
@@ -3181,7 +3203,7 @@ function guardarReclamo(){
   // siempre. Todo reclamo/NC cargado en el sistema vivió solo en memoria
   // del navegador y se perdía al recargar. Ya está en _SM ahora.
   if(generaNC){
-    const nuevaNC={id:Date.now()+1,nro:nroNC,fecha:new Date().toLocaleDateString('es-AR'),origen:'Reclamo externo',reclamoId:nuevo.id,causaRaiz:'',tratamiento:'',responsable:nuevo.responsable,fechaCierre:'',estado:'Abierta'};
+    const nuevaNC={id:Date.now()+1,nro:nroNC,fecha:new Date().toLocaleDateString('es-AR'),origen:(esInterno?'Interno':'Reclamo externo'),reclamoId:nuevo.id,esInterno,causaRaiz:'',tratamiento:'',responsable:nuevo.responsable,fechaCierre:'',estado:'Abierta'};
     DB.noConformidades.push(nuevaNC);
     supaSync('noConformidades', nuevaNC);
   }
@@ -3277,7 +3299,7 @@ function abrirDetalleNC(id){
   $('nc-det-titulo').textContent=`${nc.nro} — ${nc.estado}`;
   $('nc-det-info').innerHTML=`
     <div class="info-item"><div class="key">Origen</div><div class="val">${nc.origen}</div></div>
-    <div class="info-item"><div class="key">Cliente</div><div class="val">${cli?.nombre||'—'}</div></div>
+    <div class="info-item"><div class="key">Cliente</div><div class="val">${(nc.esInterno||reclamoVinculado?.esInterno)?'<span class="badge badge-gris">—</span>':(cli?.nombre||'—')}</div></div>
     <div class="info-item"><div class="key">Descripción</div><div class="val">${desc}</div></div>
     <div class="info-item"><div class="key">Responsable</div><div class="val">${nc.responsable||'—'}</div></div>`;
   $('nc-det-causa').value=nc.causaRaiz||'';
@@ -13679,6 +13701,7 @@ window.guardarObjetivo = guardarObjetivo;
 window.guardarParitaria = guardarParitaria;
 window.guardarPropuestaPrecio = guardarPropuestaPrecio;
 window.guardarReclamo = guardarReclamo;
+window.onChangeOrigenReclamo = onChangeOrigenReclamo;
 window.guardarVacAdmin = guardarVacAdmin;
 window.buscarAsocVac = buscarAsocVac;
 window.seleccionarAsocVac = seleccionarAsocVac;

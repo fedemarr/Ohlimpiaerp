@@ -294,6 +294,8 @@ export function _toSnake(obj) {
     // v082 — Reclamos/NC: fix de persistencia (nunca estaban en _SM)
     desc: 'col_desc', generaNC: 'genera_nc', causaRaiz: 'causa_raiz',
     reclamoId: 'reclamo_id', asociadoNroSocio: 'asociado_nro_socio', firmadaEn: 'firmada_en',
+    // v111 — Reclamos/NC internos (origen sin cliente obligatorio)
+    esInterno: 'es_interno',
     // Retenciones — tipificación (v076)
     motivoTipificado: 'motivo_tipificado', tipoValor: 'tipo_valor', origen: 'origen',
     creadoEn: 'creado_en', liberadoPor: 'liberado_por',
@@ -749,6 +751,7 @@ export function _toCamel(obj) {
     ajuste_usuario: 'ajusteUsuario', ajuste_fecha: 'ajusteFecha',
     col_desc: 'desc', genera_nc: 'generaNC', causa_raiz: 'causaRaiz',
     reclamo_id: 'reclamoId', asociado_nro_socio: 'asociadoNroSocio', firmada_en: 'firmadaEn',
+    es_interno: 'esInterno',
     // Retenciones — tipificación (v076)
     motivo_tipificado: 'motivoTipificado', tipo_valor: 'tipoValor',
     creado_en: 'creadoEn', liberado_por: 'liberadoPor',
