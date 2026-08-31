@@ -22,6 +22,11 @@ export const _SM = {
   pedidosMotivosCancelacion: 'pedidos_motivos_cancelacion',
   stockMinimos: 'stock_minimos',
   stockMinimosAjustes: 'stock_minimos_ajustes',
+  ppOrdenesCompra: 'pp_ordenes_compra',
+  ppRemitos: 'pp_remitos',
+  ppGruposEquivalencia: 'pp_grupos_equivalencia',
+  ppGruposEquivalenciaItems: 'pp_grupos_equivalencia_items',
+  proveedoresCtaCteMovimientos: 'proveedores_cta_cte_movimientos',
   perfilPersonalAtributos: 'perfil_personal_atributos',
   candidatos: 'candidatos',
   psicos: 'psicos',
@@ -632,6 +637,17 @@ export function _toSnake(obj) {
     confirmadoPor: 'confirmado_por', confirmadoEn: 'confirmado_en',
     observadoPor: 'observado_por', observadoEn: 'observado_en',
     observadoMotivo: 'observado_motivo', observadoComentario: 'observado_comentario',
+    // v109 — Pedido de productos: Compras por proveedor + Entregas
+    ordenCompraIdLocal: 'orden_compra_id_local', cantidadRecibida: 'cantidad_recibida',
+    unidadComun: 'unidad_comun', grupoIdLocal: 'grupo_id_local', factorConversion: 'factor_conversion',
+    proveedorIdLocal: 'proveedor_id_local',
+    confirmadaPor: 'confirmada_por', confirmadaEn: 'confirmada_en', enviadaEn: 'enviada_en',
+    recibidaEn: 'recibida_en', backorderFechaComprometida: 'backorder_fecha_comprometida',
+    facturaNro: 'factura_nro', facturaFecha: 'factura_fecha', facturaMonto: 'factura_monto',
+    facturaRegistradoPor: 'factura_registrado_por', facturaRegistradoEn: 'factura_registrado_en',
+    armadoPor: 'armado_por', armadoEn: 'armado_en', enRepartoEn: 'en_reparto_en',
+    entregadoA: 'entregado_a', fotoPath: 'foto_path', firmaCliente: 'firma_cliente',
+    fechaLimiteEntrega: 'fecha_limite_entrega',
   };
   const r = {};
   for (const [k, v] of Object.entries(obj)) {
@@ -1049,6 +1065,16 @@ export function _toCamel(obj) {
     confirmado_por: 'confirmadoPor', confirmado_en: 'confirmadoEn',
     observado_por: 'observadoPor', observado_en: 'observadoEn',
     observado_motivo: 'observadoMotivo', observado_comentario: 'observadoComentario',
+    // v109 — Pedido de productos: Compras por proveedor + Entregas
+    orden_compra_id_local: 'ordenCompraIdLocal', cantidad_recibida: 'cantidadRecibida',
+    unidad_comun: 'unidadComun', grupo_id_local: 'grupoIdLocal', factor_conversion: 'factorConversion',
+    confirmada_por: 'confirmadaPor', confirmada_en: 'confirmadaEn', enviada_en: 'enviadaEn',
+    recibida_en: 'recibidaEn', backorder_fecha_comprometida: 'backorderFechaComprometida',
+    factura_nro: 'facturaNro', factura_fecha: 'facturaFecha', factura_monto: 'facturaMonto',
+    factura_registrado_por: 'facturaRegistradoPor', factura_registrado_en: 'facturaRegistradoEn',
+    armado_por: 'armadoPor', armado_en: 'armadoEn', en_reparto_en: 'enRepartoEn',
+    entregado_a: 'entregadoA', foto_path: 'fotoPath', firma_cliente: 'firmaCliente',
+    fecha_limite_entrega: 'fechaLimiteEntrega',
   };
   const r = {};
   for (const [k, v] of Object.entries(obj)) {

@@ -4679,7 +4679,8 @@
     <button class="tab-btn" id="pp-tab-btn-periodos" onclick="tabPP('periodos',this)">📅 Períodos</button>
     <button class="tab-btn" id="pp-tab-btn-mispedidos" onclick="tabPP('mispedidos',this)">📋 Mis pedidos</button>
     <button class="tab-btn" id="pp-tab-btn-auditoria" onclick="tabPP('auditoria',this)">👤 Bandeja del auditor</button>
-    <button class="tab-btn" id="pp-tab-btn-compras" onclick="tabPP('compras',this)">🛒 Compra y entrega</button>
+    <button class="tab-btn" id="pp-tab-btn-compras" onclick="tabPP('compras',this)">🛒 Compras</button>
+    <button class="tab-btn" id="pp-tab-btn-entregas" onclick="tabPP('entregas',this)">🚚 Entregas</button>
   </div>
 
   <div id="pp-tab-catalogo" class="tab-content">
@@ -4789,22 +4790,60 @@
   </div>
 
   <div id="pp-tab-compras" class="tab-content">
-    <div class="card" style="margin-top:0;border-radius:0 var(--radio-lg) var(--radio-lg) var(--radio-lg);">
-      <div class="card-header">
-        <h3>🛒 Compra y entrega</h3>
-        <div class="filtros-bar">
-          <select id="pp-compra-periodo-sel" onchange="renderComprasPP()"></select>
-        </div>
-      </div>
-      <p style="font-size:12px;color:var(--texto-suave);padding:0 20px 10px;">// TODO: pendiente mockup — esta vista sigue organizada por servicio. El MD (punto 6) pide separarla en dos circuitos nuevos — COMPRAS por proveedor (consolidado, sugerencias, simulación, órdenes y seguimiento) y ENTREGAS por servicio (armado, remito, reparto) — quedan para la próxima vuelta (puntos 10 y 11 del checklist).</p>
-      <div class="tabla-wrap"><table style="width:100%;border-collapse:collapse;font-size:12.5px;">
-        <thead><tr style="background:#374151;color:white;">
-          <th style="padding:8px 12px;text-align:left;">Servicio</th><th style="padding:8px 12px;">Estado</th>
-          <th style="padding:8px 12px;">Total</th><th style="padding:8px 12px;">Acciones</th>
-        </tr></thead>
-        <tbody id="tbody-pp-compras"></tbody>
-      </table></div>
+    <div class="filtros-bar" style="margin-bottom:10px;">
+      <label style="font-size:12.5px;color:var(--texto-suave);">Período: <select id="pp-compra-periodo-sel" onchange="subTabComprasPP(document.querySelector('#pp-tab-compras .stab.act')?.dataset.sub||'consolidado',null)"></select></label>
     </div>
+    <div class="subtabs">
+      <span class="stab act" data-sub="consolidado" onclick="subTabComprasPP('consolidado',this)">1 · Consolidado del período</span>
+      <span class="stab" data-sub="sugerencias" onclick="subTabComprasPP('sugerencias',this)">2 · Sugerencias en la compra</span>
+      <span class="stab" data-sub="simulacion" onclick="subTabComprasPP('simulacion',this)">3 · Simulación mensual</span>
+      <span class="stab" data-sub="ordenes" onclick="subTabComprasPP('ordenes',this)">4 · Órdenes y seguimiento</span>
+      <span class="stab" data-sub="comparador" onclick="subTabComprasPP('comparador',this)">🔍 Comparador de precios</span>
+    </div>
+
+    <div class="sub act" id="pp-compras-sub-consolidado">
+      <p style="font-size:12px;color:var(--texto-suave);margin-bottom:10px;">Consolida por proveedor todo lo aprobado que todavía no tiene orden de compra — a precio de lista. Antes de confirmar, revisá 2 · Sugerencias.</p>
+      <div id="pp-compras-consolidado"></div>
+    </div>
+
+    <div class="sub" id="pp-compras-sub-sugerencias">
+      <p style="font-size:12px;color:var(--texto-suave);margin-bottom:10px;">El sistema SUGIERE equivalentes más baratos — nunca cambia nada solo. Se decide línea por línea.</p>
+      <div id="pp-compras-sugerencias"></div>
+    </div>
+
+    <div class="sub" id="pp-compras-sub-simulacion">
+      <div id="pp-compras-simulacion"></div>
+    </div>
+
+    <div class="sub" id="pp-compras-sub-ordenes">
+      <div id="pp-compras-ordenes" style="margin-bottom:16px;"></div>
+      <div class="card">
+        <div class="card-header"><h3>Órdenes del período</h3></div>
+        <div class="tabla-wrap"><table style="width:100%;border-collapse:collapse;font-size:12.5px;">
+          <thead><tr style="background:#374151;color:white;">
+            <th style="padding:8px 12px;text-align:left;">Orden</th><th style="padding:8px 12px;">Proveedor</th><th style="padding:8px 12px;">Líneas</th>
+            <th style="padding:8px 12px;">Total (costo)</th><th style="padding:8px 12px;">Estado</th><th style="padding:8px 12px;">Factura prov.</th>
+          </tr></thead>
+          <tbody id="tbody-pp-compras-ordenes"></tbody>
+        </table></div>
+      </div>
+    </div>
+
+    <div class="sub" id="pp-compras-sub-comparador">
+      <div style="display:flex;gap:10px;margin-bottom:12px;">
+        <button class="btn btn-primary btn-sm" onclick="abrirNuevoGrupoEquivalenciaPP()">+ Nuevo grupo de equivalencia</button>
+        <span class="text-muted" style="align-self:center;">Armado manual por Logística.</span>
+      </div>
+      <div id="pp-compras-comparador"></div>
+    </div>
+  </div>
+
+  <div id="pp-tab-entregas" class="tab-content">
+    <p style="font-size:12px;color:var(--texto-suave);margin-bottom:10px;">Arranca con lo recibido en Compras. Armado con checklist → remito → reparto → entregado.</p>
+    <div class="card"><div class="card-header"><h3>Listos para armar</h3></div><div id="pp-entregas-listos" class="fgrid" style="display:grid;grid-template-columns:1fr 1fr;gap:12px;padding:0 4px;"></div></div>
+    <div class="card"><div class="card-header"><h3>En curso</h3></div><div id="pp-entregas-curso" class="fgrid" style="display:grid;grid-template-columns:1fr 1fr;gap:12px;padding:0 4px;"></div></div>
+    <div class="card"><div class="card-header"><h3>📍 Hoja de recorrido</h3></div><div id="pp-hoja-recorrido"></div></div>
+    <div class="card"><div class="card-header"><h3>Entregados recientes</h3></div><div id="pp-entregas-hechos" style="padding:0 4px;"></div></div>
   </div>
 </div>
 

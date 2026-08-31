@@ -141,7 +141,12 @@ async function ajustarNivelStockProducto(productoIdLocal, cantidadNueva, costoUn
   return row;
 }
 
-async function registrarMovimientoStockProducto({ tipo, productoIdLocal, cantidad, costoUnitario, motivo, refTipo, refIdLocal }) {
+// Exportada (v109 — Pedido de productos: Compras/Entregas) para que
+// pedido_productos.js pueda registrar la ENTRADA al recibir una orden de
+// compra y la SALIDA al entregar un remito al servicio — mismo mecanismo
+// que ya usaba recibirPedidoProductosPP() (entrada), ahora reutilizable
+// para los dos sentidos sin duplicar la lógica de PPP/ledger.
+export async function registrarMovimientoStockProducto({ tipo, productoIdLocal, cantidad, costoUnitario, motivo, refTipo, refIdLocal }) {
   const delta = tipo === 'salida' ? -Math.abs(cantidad) : tipo === 'entrada' || tipo === 'refuerzo' ? Math.abs(cantidad) : cantidad;
   await ajustarNivelStockProducto(productoIdLocal, Math.abs(delta), costoUnitario || 0);
   const mov = {

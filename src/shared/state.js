@@ -48,6 +48,12 @@ export const DB = {
   // y su registro de ajustes.
   stockMinimos: [],
   stockMinimosAjustes: [],
+  // v109 — Pedido de productos: Compras por proveedor + Entregas
+  ppOrdenesCompra: [],
+  ppRemitos: [],
+  ppGruposEquivalencia: [],
+  ppGruposEquivalenciaItems: [],
+  proveedoresCtaCteMovimientos: [],
   // v096 — Módulo Máquinas (padrón, tickets, movimientos)
   maquinas: [],
   maquinasMovimientos: [],

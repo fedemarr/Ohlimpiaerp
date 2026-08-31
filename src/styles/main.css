@@ -236,6 +236,16 @@ tbody tr{cursor:pointer;transition:background .1s;}
 .tab-btn.active{color:var(--azul);border-bottom-color:var(--azul);}
 .tab-content{display:none !important;}.tab-content.active{display:block !important;}
 
+/* SUB-TABS (píldora) — segundo nivel dentro de un tab, ej. Compras
+   (ticket "Módulo productos" 31/08): Consolidado/Sugerencias/Simulación/
+   Órdenes/Comparador. Deliberadamente distinto de .tab-btn (que es el
+   nivel superior) para que se note que es un nivel más abajo. */
+.subtabs{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;}
+.stab{padding:6px 16px;border-radius:16px;font-size:12.5px;font-weight:700;cursor:pointer;background:var(--fondo);color:var(--texto-suave);border:1.5px solid transparent;font-family:inherit;}
+.stab:hover{background:var(--borde);}
+.stab.act{background:var(--azul);color:#fff;}
+.sub{display:none;}.sub.act{display:block;}
+
 /* FILTROS */
 .filtros-bar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;}
 .filtros-bar input,.filtros-bar select{padding:7px 11px;border:1px solid var(--borde-fuerte);border-radius:var(--radio);font-size:13px;font-family:inherit;background:white;outline:none;}

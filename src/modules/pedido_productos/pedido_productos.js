@@ -17,6 +17,8 @@ import { toast, abrirModal, cerrarModal } from '@shared/ui.js';
 import { supaSync } from '@shared/supabase.js';
 import { getSupervisorDeCodigo, serviciosDeSupervisor } from '@modules/servicios_supervisor/servicios_supervisor.js';
 import { crearNotificacion } from '@shared/notificaciones.js';
+import { renderConsolidadoPP, renderSugerenciasPP, renderSimulacionPP, renderOrdenesPP, renderComparadorPreciosPP } from './compras.js';
+import { renderEntregasPP } from './entregas.js';
 
 const LABEL_TIPO_USO = {
   apertura: 'Apertura de servicio',
@@ -289,7 +291,23 @@ export function tabPP(tab, btn) {
   if (tab === 'periodos') renderPeriodosPP();
   if (tab === 'mispedidos') renderMisPedidosPP();
   if (tab === 'auditoria') renderAuditoriaPP();
-  if (tab === 'compras') renderComprasPP();
+  // Compras (puntos 6a/10) tiene 5 subtabs propias — arranca siempre por
+  // Consolidado. Entregas (puntos 6b/11) es tab aparte, unidad servicio.
+  if (tab === 'compras') subTabComprasPP('consolidado', null);
+  if (tab === 'entregas') renderEntregasPP();
+}
+
+const RENDER_SUBTAB_COMPRAS = {
+  consolidado: renderConsolidadoPP, sugerencias: renderSugerenciasPP, simulacion: renderSimulacionPP,
+  ordenes: renderOrdenesPP, comparador: renderComparadorPreciosPP,
+};
+export function subTabComprasPP(sub, btn) {
+  document.querySelectorAll('#pp-tab-compras .stab').forEach(b => b.classList.remove('act'));
+  document.querySelectorAll('#pp-tab-compras .sub').forEach(s => s.classList.remove('act'));
+  if (btn) btn.classList.add('act');
+  else document.querySelector(`#pp-tab-compras .stab[data-sub="${sub}"]`)?.classList.add('act');
+  $('pp-compras-sub-' + sub)?.classList.add('act');
+  (RENDER_SUBTAB_COMPRAS[sub] || (() => {}))();
 }
 
 export function poblarSelectsPeriodoPP() {
