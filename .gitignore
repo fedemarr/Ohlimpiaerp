@@ -15,3 +15,4 @@ credenciales_usuarios_*.csv
 seguimiento_desarrollo/
 # Capturas personales sueltas
 screencapture-linkedin-*.png
+.env*
