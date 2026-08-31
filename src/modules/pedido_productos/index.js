@@ -4,9 +4,10 @@ export {
   renderPedidoProductos, tabPP, poblarSelectsPeriodoPP,
   renderCatalogoPP, abrirNuevoProductoPP, abrirEditarProductoPP, guardarProductoPP, anularProductoPP,
   abrirNuevoPrecioPP, guardarNuevoPrecioPP, corregirPrecioPP,
-  renderPeriodosPP, abrirPeriodoPP, cerrarPeriodoPP,
-  renderMisPedidosPP, abrirCargaPedidoPP, guardarItemPedidoPP, cerrarPedidoSupervisorPP,
-  renderAuditoriaPP, abrirAuditoriaPedidoPP, ajustarCantidadAuditoriaPP, autorizarPedidoPP,
+  renderPeriodosPP, abrirPeriodoPP, cerrarPeriodoPP, filtrarDesglosePeriodoPP, chequearCierrePeriodosPP,
+  renderMisPedidosPP, abrirCargaPedidoPP, filtrarCargaPedidoPP, guardarItemPedidoPP,
+  repetirPedidoMesAnteriorPP, guardarBorradorPedidoPP, confirmarPedidoPP, aceptarPropuestaAuditorPP,
+  renderAuditoriaPP, abrirAuditoriaPedidoPP, ajustarCantidadAuditoriaPP, aprobarPedidoPP, confirmarDevolverConPropuestaPP,
   renderComprasPP, marcarEnCompraPP, marcarEntregadoPP,
 } from './pedido_productos.js';
 
@@ -34,9 +35,10 @@ import {
   tabPP,
   renderCatalogoPP, abrirNuevoProductoPP, abrirEditarProductoPP, guardarProductoPP, anularProductoPP,
   abrirNuevoPrecioPP, guardarNuevoPrecioPP, corregirPrecioPP,
-  renderPeriodosPP, abrirPeriodoPP, cerrarPeriodoPP,
-  renderMisPedidosPP, abrirCargaPedidoPP, guardarItemPedidoPP, cerrarPedidoSupervisorPP,
-  renderAuditoriaPP, abrirAuditoriaPedidoPP, ajustarCantidadAuditoriaPP, autorizarPedidoPP,
+  renderPeriodosPP, abrirPeriodoPP, cerrarPeriodoPP, filtrarDesglosePeriodoPP,
+  renderMisPedidosPP, abrirCargaPedidoPP, filtrarCargaPedidoPP, guardarItemPedidoPP,
+  repetirPedidoMesAnteriorPP, guardarBorradorPedidoPP, confirmarPedidoPP, aceptarPropuestaAuditorPP,
+  renderAuditoriaPP, abrirAuditoriaPedidoPP, ajustarCantidadAuditoriaPP, aprobarPedidoPP, confirmarDevolverConPropuestaPP,
   renderComprasPP, marcarEnCompraPP, marcarEntregadoPP,
 } from './pedido_productos.js';
 
@@ -57,14 +59,20 @@ window.corregirPrecioPP = corregirPrecioPP;
 window.renderPeriodosPP = renderPeriodosPP;
 window.abrirPeriodoPP = abrirPeriodoPP;
 window.cerrarPeriodoPP = cerrarPeriodoPP;
+window.filtrarDesglosePeriodoPP = filtrarDesglosePeriodoPP;
 window.renderMisPedidosPP = renderMisPedidosPP;
 window.abrirCargaPedidoPP = abrirCargaPedidoPP;
+window.filtrarCargaPedidoPP = filtrarCargaPedidoPP;
 window.guardarItemPedidoPP = guardarItemPedidoPP;
-window.cerrarPedidoSupervisorPP = cerrarPedidoSupervisorPP;
+window.repetirPedidoMesAnteriorPP = repetirPedidoMesAnteriorPP;
+window.guardarBorradorPedidoPP = guardarBorradorPedidoPP;
+window.confirmarPedidoPP = confirmarPedidoPP;
+window.aceptarPropuestaAuditorPP = aceptarPropuestaAuditorPP;
 window.renderAuditoriaPP = renderAuditoriaPP;
 window.abrirAuditoriaPedidoPP = abrirAuditoriaPedidoPP;
 window.ajustarCantidadAuditoriaPP = ajustarCantidadAuditoriaPP;
-window.autorizarPedidoPP = autorizarPedidoPP;
+window.aprobarPedidoPP = aprobarPedidoPP;
+window.confirmarDevolverConPropuestaPP = confirmarDevolverConPropuestaPP;
 window.renderComprasPP = renderComprasPP;
 window.marcarEnCompraPP = marcarEnCompraPP;
 window.marcarEntregadoPP = marcarEntregadoPP;

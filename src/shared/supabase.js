@@ -626,6 +626,12 @@ export function _toSnake(obj) {
     nroSocioCandidato: 'nro_socio_candidato', motivoDetalle: 'motivo_detalle',
     // v107 — Stock de uniformes: talles, mínimos y precios
     valorAnterior: 'valor_anterior', valorNuevo: 'valor_nuevo',
+    // v108 — Pedido de productos: ajustes (períodos con cierre programado,
+    // pedidos confirmado/observado)
+    cierreProgramado: 'cierre_programado', recordatorioEnviado: 'recordatorio_enviado',
+    confirmadoPor: 'confirmado_por', confirmadoEn: 'confirmado_en',
+    observadoPor: 'observado_por', observadoEn: 'observado_en',
+    observadoMotivo: 'observado_motivo', observadoComentario: 'observado_comentario',
   };
   const r = {};
   for (const [k, v] of Object.entries(obj)) {
@@ -1038,6 +1044,11 @@ export function _toCamel(obj) {
     nro_socio_candidato: 'nroSocioCandidato', motivo_detalle: 'motivoDetalle',
     // v107 — Stock de uniformes: talles, mínimos y precios
     valor_anterior: 'valorAnterior', valor_nuevo: 'valorNuevo',
+    // v108 — Pedido de productos: ajustes
+    cierre_programado: 'cierreProgramado', recordatorio_enviado: 'recordatorioEnviado',
+    confirmado_por: 'confirmadoPor', confirmado_en: 'confirmadoEn',
+    observado_por: 'observadoPor', observado_en: 'observadoEn',
+    observado_motivo: 'observadoMotivo', observado_comentario: 'observadoComentario',
   };
   const r = {};
   for (const [k, v] of Object.entries(obj)) {

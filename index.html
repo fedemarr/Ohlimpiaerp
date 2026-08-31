@@ -4678,7 +4678,7 @@
     <button class="tab-btn" id="pp-tab-btn-catalogo" onclick="tabPP('catalogo',this)">🧴 Catálogo</button>
     <button class="tab-btn" id="pp-tab-btn-periodos" onclick="tabPP('periodos',this)">📅 Períodos</button>
     <button class="tab-btn" id="pp-tab-btn-mispedidos" onclick="tabPP('mispedidos',this)">📋 Mis pedidos</button>
-    <button class="tab-btn" id="pp-tab-btn-auditoria" onclick="tabPP('auditoria',this)">🔍 Auditoría</button>
+    <button class="tab-btn" id="pp-tab-btn-auditoria" onclick="tabPP('auditoria',this)">👤 Bandeja del auditor</button>
     <button class="tab-btn" id="pp-tab-btn-compras" onclick="tabPP('compras',this)">🛒 Compra y entrega</button>
   </div>
 
@@ -4702,6 +4702,7 @@
           <button class="btn btn-primary btn-sm" onclick="abrirNuevoProductoPP()">+ Nuevo producto</button>
         </div>
       </div>
+      <p style="font-size:12px;color:var(--texto-suave);padding:0 20px 10px;">COSTO = precio de lista del proveedor (import o ajuste manual — nunca "aumento general"). RECARGO = margen de Logística por servicio (30% general + servicios con margen propio). El presupuesto del mes se controla contra COSTO.</p>
       <div class="tabla-wrap"><table style="width:100%;border-collapse:collapse;font-size:12.5px;">
         <thead><tr style="background:#374151;color:white;">
           <th style="padding:8px 12px;">Cód. Mónica</th><th style="padding:8px 12px;text-align:left;">Producto</th>
@@ -4718,15 +4719,22 @@
       <div class="card-header">
         <h3>📅 Períodos</h3>
         <div class="filtros-bar">
-          <input type="month" id="pp-periodo-nuevo">
+          <input type="month" id="pp-periodo-nuevo" title="Mes">
+          <input type="datetime-local" id="pp-periodo-cierre" title="Fecha y hora de cierre de la ventana">
           <button class="btn btn-primary btn-sm" onclick="abrirPeriodoPP()">+ Habilitar período</button>
         </div>
       </div>
-      <p style="font-size:12px;color:var(--texto-suave);padding:0 20px 10px;">Al habilitar un período nace un pedido en Borrador para cada servicio en estado Operativo (Comercial → Objetivos), con la facturación neta y el tope del 6% congelados a ese momento.</p>
+      <p style="font-size:12px;color:var(--texto-suave);padding:0 20px 10px;">Un solo período EN CARGA a la vez: si ya hay uno abierto, el nuevo queda HABILITADO y abre solo cuando cierre el actual. Al cierre (manual o programado) los borradores se CONFIRMAN automáticamente tal como estén, con notificación — recordatorio 24 hs antes.</p>
+      <div class="stats-grid" style="grid-template-columns:repeat(4,1fr);padding:0 20px 14px;">
+        <div class="stat-card verde"><div class="stat-label">Confirmados</div><div class="stat-valor" id="pp-per-k-confirmados" style="cursor:pointer;" onclick="filtrarDesglosePeriodoPP('confirmado')">0</div></div>
+        <div class="stat-card azul"><div class="stat-label">Borradores</div><div class="stat-valor" id="pp-per-k-borradores" style="cursor:pointer;" onclick="filtrarDesglosePeriodoPP('borrador')">0</div></div>
+        <div class="stat-card"><div class="stat-label">Sin iniciar</div><div class="stat-valor" id="pp-per-k-siniciar" style="cursor:pointer;" onclick="filtrarDesglosePeriodoPP('sin_iniciar')">0</div></div>
+        <div class="stat-card acento"><div class="stat-label">Observados</div><div class="stat-valor" id="pp-per-k-observados">0</div></div>
+      </div>
       <div class="tabla-wrap"><table style="width:100%;border-collapse:collapse;font-size:12.5px;">
         <thead><tr style="background:#374151;color:white;">
-          <th style="padding:8px 12px;">Mes</th><th style="padding:8px 12px;">Estado</th><th style="padding:8px 12px;">Servicios</th>
-          <th style="padding:8px 12px;">Cerrados por el supervisor</th><th style="padding:8px 12px;">Acciones</th>
+          <th style="padding:8px 12px;">Mes</th><th style="padding:8px 12px;">Estado</th><th style="padding:8px 12px;">Cierre programado</th><th style="padding:8px 12px;">Servicios</th>
+          <th style="padding:8px 12px;">Confirmados</th><th style="padding:8px 12px;">Acciones</th>
         </tr></thead>
         <tbody id="tbody-pp-periodos"></tbody>
       </table></div>
@@ -4738,13 +4746,13 @@
       <div class="card-header">
         <h3>📋 Mis pedidos</h3>
         <div class="filtros-bar">
-          <select id="pp-sup-periodo-sel" onchange="renderMisPedidosPP()"></select>
+          <b id="pp-sup-periodo-label" style="color:var(--azul);"></b>
         </div>
       </div>
       <div class="tabla-wrap"><table style="width:100%;border-collapse:collapse;font-size:12.5px;">
         <thead><tr style="background:#374151;color:white;">
-          <th style="padding:8px 12px;text-align:left;">Servicio</th><th style="padding:8px 12px;">Estado</th>
-          <th style="padding:8px 12px;">Total</th><th style="padding:8px 12px;">% s/facturación</th><th style="padding:8px 12px;">Acciones</th>
+          <th style="padding:8px 12px;text-align:left;">Servicio</th><th style="padding:8px 12px;">Cobro</th><th style="padding:8px 12px;">Estado</th>
+          <th style="padding:8px 12px;">Pedido a costo</th><th style="padding:8px 12px;">Consumo del presupuesto</th><th style="padding:8px 12px;">Acciones</th>
         </tr></thead>
         <tbody id="tbody-pp-mispedidos"></tbody>
       </table></div>
@@ -4754,18 +4762,28 @@
   <div id="pp-tab-auditoria" class="tab-content">
     <div class="card" style="margin-top:0;border-radius:0 var(--radio-lg) var(--radio-lg) var(--radio-lg);">
       <div class="card-header">
-        <h3>🔍 Auditoría</h3>
+        <h3>👤 Bandeja del auditor</h3>
         <div class="filtros-bar">
           <select id="pp-aud-periodo-sel" onchange="renderAuditoriaPP()"></select>
         </div>
       </div>
-      <p style="font-size:12px;color:var(--texto-suave);padding:0 20px 10px;">El 6% es informativo, no bloquea — el auditor decide con criterio. Apertura de servicio y Tratamiento de piso exceden el tope por naturaleza.</p>
+      <p style="font-size:12px;color:var(--texto-suave);padding:0 20px 10px;">Acá caen todos los pedidos NO PAGAN (costo de la cooperativa, se revisan siempre) y, de los PAGAN, solo las excepciones: excede presupuesto, con autorización, fuera de ventana o fuera de estándar. Tocá la fila para revisar. Los PAGAN dentro del presupuesto y sin excepciones pasan directo a Compras — quedan abajo, solo para control.</p>
       <div class="tabla-wrap"><table style="width:100%;border-collapse:collapse;font-size:12.5px;">
         <thead><tr style="background:#374151;color:white;">
-          <th style="padding:8px 12px;text-align:left;">Servicio</th><th style="padding:8px 12px;">Estado</th>
-          <th style="padding:8px 12px;">Total</th><th style="padding:8px 12px;">% s/facturación</th><th style="padding:8px 12px;">Acciones</th>
+          <th style="padding:8px 12px;text-align:left;">Servicio</th><th style="padding:8px 12px;">Supervisor</th><th style="padding:8px 12px;text-align:left;">Motivo</th>
+          <th style="padding:8px 12px;">Presupuesto (costo)</th><th style="padding:8px 12px;">Pedido (costo)</th><th style="padding:8px 12px;">%</th>
         </tr></thead>
         <tbody id="tbody-pp-auditoria"></tbody>
+      </table></div>
+    </div>
+    <div class="card" style="border-radius:var(--radio-lg);">
+      <div class="card-header"><h3>Pasaron directo a Compras (PAGAN, dentro del presupuesto, sin excepciones)</h3></div>
+      <div class="tabla-wrap"><table style="width:100%;border-collapse:collapse;font-size:12.5px;">
+        <thead><tr style="background:#374151;color:white;">
+          <th style="padding:8px 12px;text-align:left;">Servicio</th><th style="padding:8px 12px;">Supervisor</th>
+          <th style="padding:8px 12px;">Presupuesto (costo)</th><th style="padding:8px 12px;">Pedido (costo)</th><th style="padding:8px 12px;">Confirmado</th>
+        </tr></thead>
+        <tbody id="tbody-pp-auditoria-directo"></tbody>
       </table></div>
     </div>
   </div>
@@ -4778,6 +4796,7 @@
           <select id="pp-compra-periodo-sel" onchange="renderComprasPP()"></select>
         </div>
       </div>
+      <p style="font-size:12px;color:var(--texto-suave);padding:0 20px 10px;">// TODO: pendiente mockup — esta vista sigue organizada por servicio. El MD (punto 6) pide separarla en dos circuitos nuevos — COMPRAS por proveedor (consolidado, sugerencias, simulación, órdenes y seguimiento) y ENTREGAS por servicio (armado, remito, reparto) — quedan para la próxima vuelta (puntos 10 y 11 del checklist).</p>
       <div class="tabla-wrap"><table style="width:100%;border-collapse:collapse;font-size:12.5px;">
         <thead><tr style="background:#374151;color:white;">
           <th style="padding:8px 12px;text-align:left;">Servicio</th><th style="padding:8px 12px;">Estado</th>
