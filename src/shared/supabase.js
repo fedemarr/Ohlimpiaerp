@@ -27,6 +27,8 @@ export const _SM = {
   ppGruposEquivalencia: 'pp_grupos_equivalencia',
   ppGruposEquivalenciaItems: 'pp_grupos_equivalencia_items',
   proveedoresCtaCteMovimientos: 'proveedores_cta_cte_movimientos',
+  ppRecargoGeneral: 'pp_recargo_general',
+  ppRecargoServicio: 'pp_recargo_servicio',
   perfilPersonalAtributos: 'perfil_personal_atributos',
   candidatos: 'candidatos',
   psicos: 'psicos',

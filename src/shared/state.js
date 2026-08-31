@@ -54,6 +54,8 @@ export const DB = {
   ppGruposEquivalencia: [],
   ppGruposEquivalenciaItems: [],
   proveedoresCtaCteMovimientos: [],
+  ppRecargoGeneral: [],
+  ppRecargoServicio: [],
   // v096 — Módulo Máquinas (padrón, tickets, movimientos)
   maquinas: [],
   maquinasMovimientos: [],

@@ -19,6 +19,8 @@ import { getSupervisorDeCodigo, serviciosDeSupervisor } from '@modules/servicios
 import { crearNotificacion } from '@shared/notificaciones.js';
 import { renderConsolidadoPP, renderSugerenciasPP, renderSimulacionPP, renderOrdenesPP, renderComparadorPreciosPP } from './compras.js';
 import { renderEntregasPP } from './entregas.js';
+import { renderRecargosPP } from './recargos.js';
+import { renderMargenPP } from './margen.js';
 
 const LABEL_TIPO_USO = {
   apertura: 'Apertura de servicio',
@@ -113,14 +115,14 @@ function esPaganPP(pedido) {
 // "general vigente hoy") para no romper el cálculo de P. VENTA REF.
 // mientras el tab de Recargos no exista.
 const RECARGO_GENERAL_DEFAULT = 0.30;
-function recargoVigenteServicioPP(servicioCodigo) {
-  const propio = (DB.recargosServicio || []).find(r => r.servicioCodigo === servicioCodigo && !r.anulado && !r.vigenciaHasta);
-  if (propio) return Number(propio.pct) || 0;
-  const general = (DB.recargosGeneral || []).filter(r => !r.anulado && !r.vigenciaHasta).sort((a, b) => (b.vigenciaDesde || '').localeCompare(a.vigenciaDesde || ''))[0];
-  return general ? Number(general.pct) || 0 : RECARGO_GENERAL_DEFAULT;
+export function recargoVigenteServicioPP(servicioCodigo) {
+  const propio = (DB.ppRecargoServicio || []).find(r => r.servicioCodigo === servicioCodigo && !r.anulado && !r.vigenciaHasta);
+  if (propio) return { pct: Number(propio.pct) || 0, propio: true };
+  const general = (DB.ppRecargoGeneral || []).filter(r => !r.anulado && !r.vigenciaHasta).sort((a, b) => (b.vigenciaDesde || '').localeCompare(a.vigenciaDesde || ''))[0];
+  return { pct: general ? Number(general.pct) || 0 : RECARGO_GENERAL_DEFAULT, propio: false };
 }
-function precioVentaPP(costo, servicioCodigo) {
-  return costo * (1 + recargoVigenteServicioPP(servicioCodigo));
+export function precioVentaPP(costo, servicioCodigo) {
+  return costo * (1 + recargoVigenteServicioPP(servicioCodigo).pct);
 }
 
 // Presupuesto del mes = facturación neta × % (por defecto 6%), a COSTO —
@@ -295,6 +297,8 @@ export function tabPP(tab, btn) {
   // Consolidado. Entregas (puntos 6b/11) es tab aparte, unidad servicio.
   if (tab === 'compras') subTabComprasPP('consolidado', null);
   if (tab === 'entregas') renderEntregasPP();
+  if (tab === 'recargos') renderRecargosPP();
+  if (tab === 'margen') renderMargenPP();
 }
 
 const RENDER_SUBTAB_COMPRAS = {
@@ -314,7 +318,7 @@ export function poblarSelectsPeriodoPP() {
   const periodos = (DB.ppPeriodos || []).filter(p => !p.anulado).sort((a, b) => b.mes.localeCompare(a.mes));
   // pp-sup-periodo-sel ya no existe (punto 8.1: el supervisor nunca elige
   // el mes) — "Mis pedidos" resuelve el período abierto solo, ver periodoAbiertoPP().
-  ['pp-aud-periodo-sel', 'pp-compra-periodo-sel'].forEach(id => {
+  ['pp-aud-periodo-sel', 'pp-compra-periodo-sel', 'pp-margen-periodo-sel'].forEach(id => {
     const sel = $(id); if (!sel) return;
     const actual = sel.value;
     sel.innerHTML = periodos.map(p => `<option value="${_idTrunc(p.id)}">${p.mes}${p.estado === 'cerrado' ? ' (cerrado)' : ''}</option>`).join('');

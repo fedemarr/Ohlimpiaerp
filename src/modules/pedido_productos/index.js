@@ -31,6 +31,12 @@ export {
   marcarEnRepartoPP, abrirEntregaFinalPP, confirmarEntregaFinalPP,
 } from './entregas.js';
 
+export {
+  renderRecargosPP, abrirNuevoRecargoGeneralPP, abrirCargarRecargoPropioPP, guardarRecargoPP,
+} from './recargos.js';
+
+export { renderMargenPP } from './margen.js';
+
 // ========== SCREEN CONFIG ==========
 
 import { renderPedidoProductos } from './pedido_productos.js';
@@ -76,6 +82,12 @@ import {
   renderEntregasPP, abrirArmadoPedidoPP, marcarItemArmadoPP, generarRemitoPP,
   marcarEnRepartoPP, abrirEntregaFinalPP, confirmarEntregaFinalPP,
 } from './entregas.js';
+
+import {
+  renderRecargosPP, abrirNuevoRecargoGeneralPP, abrirCargarRecargoPropioPP, guardarRecargoPP,
+} from './recargos.js';
+
+import { renderMargenPP } from './margen.js';
 
 window.tabPP = tabPP;
 window.renderCatalogoPP = renderCatalogoPP;
@@ -140,3 +152,9 @@ window.generarRemitoPP = generarRemitoPP;
 window.marcarEnRepartoPP = marcarEnRepartoPP;
 window.abrirEntregaFinalPP = abrirEntregaFinalPP;
 window.confirmarEntregaFinalPP = confirmarEntregaFinalPP;
+
+window.renderRecargosPP = renderRecargosPP;
+window.abrirNuevoRecargoGeneralPP = abrirNuevoRecargoGeneralPP;
+window.abrirCargarRecargoPropioPP = abrirCargarRecargoPropioPP;
+window.guardarRecargoPP = guardarRecargoPP;
+window.renderMargenPP = renderMargenPP;
