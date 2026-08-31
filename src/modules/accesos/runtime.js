@@ -7,9 +7,11 @@
 //              ?? plantilla del perfil (perfil_accesos, seed = planilla)
 //              ?? fallback PERFILES[perfil].modulos (2 si está incluido).
 //
-// Los módulos que NO figuran en la matriz (selección, dev_*, superadmin,
-// mis_adelantos, sugerencias…) siguen gobernados por PERFILES.modulos como
-// siempre: la planilla no los cubre y no corresponde cambiarles nada.
+// Los módulos que NO figuran en la matriz (agrupados como "OTROS" en
+// modulosEfectivos) siguen sin plantilla de perfil — nivel de base
+// PERFILES.modulos como siempre — pero SÍ admiten override individual por
+// usuario (fix 31/08: "Pedido de personal" no se podía activar para Jimena
+// porque el override se ignoraba para todo módulo fuera de la planilla).
 
 import { DB, PERFILES, MENU } from '@shared/state.js';
 import { MODULOS_ACCESOS } from './catalogo.js';
@@ -79,12 +81,16 @@ export function overridesUsuario(usuarioId) {
  * @param {string|null} [usuarioId]  id (uuid) del usuario para overrides
  */
 export function nivelAcceso(moduloKey, perfil, usuarioId = null) {
+  // El override individual manda siempre, esté o no el módulo en la
+  // planilla — si no, un módulo "Otros" (fuera de MODULOS_ACCESOS) nunca
+  // podría tener acceso puntual por usuario (bug: ver "Pedido de personal"
+  // agrupado en Otros, 31/08).
+  const o = overridesUsuario(usuarioId).get(moduloKey);
+  if (o !== undefined) return o;
   if (!enMatriz(moduloKey)) {
     const def = PERFILES[perfil];
     return def && def.modulos.includes(moduloKey) ? 2 : 0;
   }
-  const o = overridesUsuario(usuarioId).get(moduloKey);
-  if (o !== undefined) return o;
   const p = plantillaPerfil(perfil).get(moduloKey);
   if (p !== undefined) return p;
   const def = PERFILES[perfil];

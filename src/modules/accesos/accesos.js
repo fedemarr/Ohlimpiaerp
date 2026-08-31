@@ -277,7 +277,9 @@ export function renderGrillaUsuario() {
 window.accCiclarUsuario = async function (moduloKey) {
   const u = _usuarioSeleccionado();
   if (!u || !u.id) { toast('Elegí un usuario con cuenta real'); return; }
-  if (!enMatriz(moduloKey)) return;
+  // Módulos "Otros" (fuera de la planilla) también admiten override
+  // individual — no tienen plantilla de perfil, así que abajo "plant"
+  // sale undefined y el ciclado se guarda siempre como override explícito.
 
   const efectivo = nivelAcceso(moduloKey, u.perfil, u.id);
   const plant = plantillaPerfil(u.perfil).get(moduloKey);
