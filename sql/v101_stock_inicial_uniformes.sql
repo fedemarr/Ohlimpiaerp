@@ -73,7 +73,7 @@ begin
   -- Crea las filas de stock_uniformes que todavía no existen, en 0
   -- (el ajuste de abajo las deja en el valor del CSV).
   insert into stock_uniformes (id_local, prenda, talle, cantidad)
-  select lpad((extract(epoch from clock_timestamp())::bigint * 1000 + row_number() over ())::text, 9, '0'),
+  select right((extract(epoch from clock_timestamp())::bigint * 1000 + row_number() over ())::text, 9),
          c.prenda, c.talle, 0
   from _stock_inicial_csv c
   where not exists (
@@ -93,7 +93,7 @@ begin
   where s.id = d.id and d.delta <> 0;
 
   insert into stock_uniformes_movimientos (id_local, tipo, prenda, talle, cantidad, motivo, ref_tipo, ref_id_local, registrado_por)
-  select lpad((extract(epoch from clock_timestamp())::bigint * 1000 + row_number() over ())::text, 9, '0'),
+  select right((extract(epoch from clock_timestamp())::bigint * 1000 + row_number() over ())::text, 9),
          'ajuste', d.prenda, d.talle, d.delta,
          'Stock inicial — inventario físico Logística 14/08/2026' ||
            case when d.prenda = 'Polar' then ' (sin stock informado por Logística — Polar)' else '' end,
