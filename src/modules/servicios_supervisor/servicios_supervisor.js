@@ -165,6 +165,29 @@ export function editarServicioSupervisor(id) {
   abrirModal('modal-servicio-supervisor');
 }
 
+// Normaliza un código a solo letras/números en mayúscula, sin puntos ni
+// espacios — para detectar el mismo servicio escrito distinto ("CHANGO.
+// MORENO 1" vs "CHANGO.MORENO"), no para comparar identidad real (eso
+// sigue siendo dato, no código).
+function _normCodigo(s) {
+  return String(s || '').toUpperCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^A-Z0-9]/g, '');
+}
+
+// FIX (ticket "Limpieza y Deduplicación de Servicios", 31/08): la lista
+// puente acumuló códigos que en realidad son el MISMO servicio que un
+// objetivo real, solo escrito distinto (typo, con/sin espacios, alias
+// viejo de antes de formalizarse) — 19 casos encontrados y limpiados en
+// producción. Este aviso evita que se repita: si el código normalizado ya
+// existe como objetivo real, se avisa y pide confirmación explícita antes
+// de guardarlo igual (por si es una coincidencia real, no se bloquea).
+function _advertirSiDuplicaObjetivo(codigo) {
+  const norm = _normCodigo(codigo);
+  if (!norm) return true;
+  const real = (DB.objetivos || []).find(o => !o.anulado && o.estado === 'Operativo' && _normCodigo(o.codigo) === norm && o.codigo !== codigo);
+  if (!real) return true;
+  return confirm(`"${codigo}" parece ser el mismo servicio que el objetivo real "${real.codigo}" (ya cubierto, con otro código). ¿Agregarlo igual?`);
+}
+
 export async function guardarServicioSupervisor() {
   const codigo = cleanText(($('ss-codigo') || {}).value || '').toUpperCase();
   const supervisor = cleanText(($('ss-supervisor') || {}).value || '');
@@ -172,6 +195,7 @@ export async function guardarServicioSupervisor() {
 
   const modal = $('modal-servicio-supervisor');
   const editId = modal && modal.dataset && modal.dataset.editId;
+  if (!editId && !_advertirSiDuplicaObjetivo(codigo)) return;
 
   if (editId) {
     const s = getServicioSupervisorById(editId);
@@ -369,6 +393,17 @@ function renderPreviewImportacionSS() {
       } else if (apariciones.slice(0, -1).some(idx => normalizadas[idx].supervisor !== supervisor)) {
         aviso = 'código repetido con otro supervisor más arriba en el archivo — se usa este (el último)';
       }
+    }
+    // FIX (ticket "Limpieza y Deduplicación de Servicios", 31/08): la
+    // planilla de Ventas trae códigos que en realidad son el mismo
+    // servicio que un objetivo real, solo escritos distinto (typo, con/sin
+    // espacios) — así se acumularon los 19 duplicados que se limpiaron en
+    // producción. No bloqueante (puede ser una coincidencia real), pero se
+    // avisa antes de importar.
+    if (!aviso && codigo) {
+      const normObj = _normCodigo(codigo);
+      const real = (DB.objetivos || []).find(o => !o.anulado && o.estado === 'Operativo' && _normCodigo(o.codigo) === normObj && o.codigo !== codigo);
+      if (real) aviso = 'parece ser el mismo servicio que el objetivo real "' + real.codigo + '" — revisar antes de importar';
     }
 
     const ok = problemas.length === 0 && esUltima;
