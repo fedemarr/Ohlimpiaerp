@@ -2135,8 +2135,16 @@ function renderRespObjetivoTemp(){
 // un dropdown poblado desde Legajos (funcion==='Supervisor', estado
 // Activo), no de un prompt() con una lista de nombres hardcodeada en
 // state.js (DB.supervisores) que podía quedar desactualizada.
+// FIX (ticket "Cambio de supervisor muestra solo Guadalupe Marchetti",
+// 31/08): comparaba l.funcion==='Supervisor' exacto — 8 de los 9
+// supervisores activos reales tienen cargado 'SUPERVISOR' (mayúsculas) en
+// el legajo, así que quedaban afuera del selector. Guadalupe Marchetti
+// era la única con el casing exacto 'Supervisor', por eso parecía un
+// valor hardcodeado — no lo era, es un legajo real que "sobrevivía" solo
+// al filtro roto. Mismo patrón ya corregido en otro lado el 26/08
+// ("vinculación automática") — acá quedó una instancia sin ese fix.
 function legajosSupervisoresActivos(){
-  return (DB.legajos||[]).filter(l=>l.funcion==='Supervisor'&&l.estado==='Activo');
+  return (DB.legajos||[]).filter(l=>String(l.funcion||'').toUpperCase()==='SUPERVISOR'&&l.estado==='Activo');
 }
 let _supObjetivoIdLocal=null;
 function ensureModalSupervisorObjetivo(){
