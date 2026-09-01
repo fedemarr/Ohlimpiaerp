@@ -18,7 +18,7 @@ BEGIN;
 
 -- ========== 1. Períodos ==========
 -- El "mes habilitado" — interruptor general (§4.1 del diseño).
-CREATE TABLE public.pp_periodos (
+CREATE TABLE IF NOT EXISTS public.pp_periodos (
   id            bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
   id_local      text UNIQUE NOT NULL,
 
@@ -32,14 +32,14 @@ CREATE TABLE public.pp_periodos (
   created_at    timestamptz NOT NULL DEFAULT now(),
   updated_at    timestamptz NOT NULL DEFAULT now()
 );
-CREATE UNIQUE INDEX idx_pp_periodos_mes ON public.pp_periodos(mes) WHERE NOT anulado;
+CREATE UNIQUE INDEX IF NOT EXISTS idx_pp_periodos_mes ON public.pp_periodos(mes) WHERE NOT anulado;
 
 -- ========== 2. Catálogo maestro de productos ==========
 -- Una sola vez en todo el sistema (§4.3). El id_local es la identidad
 -- interna estable; codigo_monica es solo la llave para cruzar con el
 -- sistema externo Mónica, frágil y no usada como identidad (el propio
 -- diseño documenta inconsistencias reales: "100006", "1000006", "10000088").
-CREATE TABLE public.pp_productos (
+CREATE TABLE IF NOT EXISTS public.pp_productos (
   id              bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
   id_local        text UNIQUE NOT NULL,
 
@@ -51,14 +51,14 @@ CREATE TABLE public.pp_productos (
   created_at      timestamptz NOT NULL DEFAULT now(),
   updated_at      timestamptz NOT NULL DEFAULT now()
 );
-CREATE INDEX idx_pp_productos_tipo_uso ON public.pp_productos(tipo_uso) WHERE NOT anulado;
+CREATE INDEX IF NOT EXISTS idx_pp_productos_tipo_uso ON public.pp_productos(tipo_uso) WHERE NOT anulado;
 
 -- ========== 3. Precios con vigencia temporal ==========
 -- El costo NO vive en el producto — vive acá con fecha (§4.4, A.6). Un
 -- aumento crea un registro nuevo con vigencia_desde y cierra el anterior
 -- con vigencia_hasta; no pisa el precio con el que ya se calculó un pedido
 -- pasado. Una corrección de error sí modifica el registro existente.
-CREATE TABLE public.pp_precios (
+CREATE TABLE IF NOT EXISTS public.pp_precios (
   id                bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
   id_local          text UNIQUE NOT NULL,
 
@@ -71,14 +71,14 @@ CREATE TABLE public.pp_precios (
   created_at        timestamptz NOT NULL DEFAULT now(),
   updated_at        timestamptz NOT NULL DEFAULT now()
 );
-CREATE INDEX idx_pp_precios_producto ON public.pp_precios(producto_id_local) WHERE NOT anulado;
+CREATE INDEX IF NOT EXISTS idx_pp_precios_producto ON public.pp_precios(producto_id_local) WHERE NOT anulado;
 
 -- ========== 4. Pedido (planilla de un servicio en un mes) ==========
 -- facturacion_neta y porcentaje_tope quedan CONGELADOS al abrir el pedido
 -- (§4.2) — una corrección futura en Comercial no debe recalcular el tope
 -- de un mes ya cerrado (A.6, distinción corrección vs. vigencia aplicada
 -- entre módulos).
-CREATE TABLE public.pp_pedidos (
+CREATE TABLE IF NOT EXISTS public.pp_pedidos (
   id                bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
   id_local          text UNIQUE NOT NULL,
 
@@ -106,8 +106,8 @@ CREATE TABLE public.pp_pedidos (
   created_at        timestamptz NOT NULL DEFAULT now(),
   updated_at        timestamptz NOT NULL DEFAULT now()
 );
-CREATE UNIQUE INDEX idx_pp_pedidos_periodo_serv ON public.pp_pedidos(periodo_id_local, servicio_codigo) WHERE NOT anulado;
-CREATE INDEX idx_pp_pedidos_estado ON public.pp_pedidos(estado) WHERE NOT anulado;
+CREATE UNIQUE INDEX IF NOT EXISTS idx_pp_pedidos_periodo_serv ON public.pp_pedidos(periodo_id_local, servicio_codigo) WHERE NOT anulado;
+CREATE INDEX IF NOT EXISTS idx_pp_pedidos_estado ON public.pp_pedidos(estado) WHERE NOT anulado;
 
 -- ========== 5. Ítems del pedido ==========
 -- cant_solicitada (supervisor) y cant_autorizada (auditor) son dos campos
@@ -116,7 +116,7 @@ CREATE INDEX idx_pp_pedidos_estado ON public.pp_pedidos(estado) WHERE NOT anulad
 -- cuando se prenda la notificación al supervisor (fuera de alcance v1).
 -- costo_congelado se copia del precio vigente al cerrar el pedido — el
 -- total nunca se guarda (§4.6), se calcula sumando cantidad × costo acá.
-CREATE TABLE public.pp_items (
+CREATE TABLE IF NOT EXISTS public.pp_items (
   id                  bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
   id_local            text UNIQUE NOT NULL,
 
@@ -135,8 +135,8 @@ CREATE TABLE public.pp_items (
   created_at          timestamptz NOT NULL DEFAULT now(),
   updated_at          timestamptz NOT NULL DEFAULT now()
 );
-CREATE UNIQUE INDEX idx_pp_items_pedido_prod ON public.pp_items(pedido_id_local, producto_id_local) WHERE NOT anulado;
-CREATE INDEX idx_pp_items_pedido ON public.pp_items(pedido_id_local) WHERE NOT anulado;
+CREATE UNIQUE INDEX IF NOT EXISTS idx_pp_items_pedido_prod ON public.pp_items(pedido_id_local, producto_id_local) WHERE NOT anulado;
+CREATE INDEX IF NOT EXISTS idx_pp_items_pedido ON public.pp_items(pedido_id_local) WHERE NOT anulado;
 
 -- ========== RLS ==========
 -- Mismo criterio que el resto del sistema (FOR ALL TO authenticated) — el
@@ -149,10 +149,15 @@ ALTER TABLE public.pp_precios ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.pp_pedidos ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.pp_items ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY pp_periodos_all  ON public.pp_periodos  FOR ALL TO authenticated USING (true) WITH CHECK (true);
+DROP POLICY IF EXISTS pp_periodos_all ON public.pp_periodos;
+CREATE POLICY pp_periodos_all ON public.pp_periodos  FOR ALL TO authenticated USING (true) WITH CHECK (true);
+DROP POLICY IF EXISTS pp_productos_all ON public.pp_productos;
 CREATE POLICY pp_productos_all ON public.pp_productos FOR ALL TO authenticated USING (true) WITH CHECK (true);
-CREATE POLICY pp_precios_all   ON public.pp_precios   FOR ALL TO authenticated USING (true) WITH CHECK (true);
-CREATE POLICY pp_pedidos_all   ON public.pp_pedidos   FOR ALL TO authenticated USING (true) WITH CHECK (true);
-CREATE POLICY pp_items_all     ON public.pp_items     FOR ALL TO authenticated USING (true) WITH CHECK (true);
+DROP POLICY IF EXISTS pp_precios_all ON public.pp_precios;
+CREATE POLICY pp_precios_all ON public.pp_precios   FOR ALL TO authenticated USING (true) WITH CHECK (true);
+DROP POLICY IF EXISTS pp_pedidos_all ON public.pp_pedidos;
+CREATE POLICY pp_pedidos_all ON public.pp_pedidos   FOR ALL TO authenticated USING (true) WITH CHECK (true);
+DROP POLICY IF EXISTS pp_items_all ON public.pp_items;
+CREATE POLICY pp_items_all ON public.pp_items     FOR ALL TO authenticated USING (true) WITH CHECK (true);
 
 COMMIT;

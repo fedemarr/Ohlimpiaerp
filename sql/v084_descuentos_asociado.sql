@@ -8,7 +8,7 @@
 BEGIN;
 
 -- ========== Conceptos parametrizables ==========
-CREATE TABLE public.conceptos_descuento (
+CREATE TABLE IF NOT EXISTS public.conceptos_descuento (
   id                     bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
   id_local               text UNIQUE NOT NULL,
 
@@ -22,7 +22,7 @@ CREATE TABLE public.conceptos_descuento (
 );
 
 -- ========== Descuentos por asociado ==========
-CREATE TABLE public.descuentos (
+CREATE TABLE IF NOT EXISTS public.descuentos (
   id                     bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
   id_local               text UNIQUE NOT NULL,
 
@@ -41,14 +41,16 @@ CREATE TABLE public.descuentos (
   created_at             timestamptz NOT NULL DEFAULT now(),
   updated_at             timestamptz NOT NULL DEFAULT now()
 );
-CREATE INDEX idx_desc_legajo ON public.descuentos(legajo_id_local) WHERE NOT anulado;
-CREATE INDEX idx_desc_estado ON public.descuentos(estado) WHERE NOT anulado;
+CREATE INDEX IF NOT EXISTS idx_desc_legajo ON public.descuentos(legajo_id_local) WHERE NOT anulado;
+CREATE INDEX IF NOT EXISTS idx_desc_estado ON public.descuentos(estado) WHERE NOT anulado;
 
 -- ========== RLS ==========
 ALTER TABLE public.conceptos_descuento ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.descuentos ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS conceptos_descuento_all ON public.conceptos_descuento;
 CREATE POLICY conceptos_descuento_all ON public.conceptos_descuento FOR ALL TO authenticated USING (true) WITH CHECK (true);
+DROP POLICY IF EXISTS descuentos_all ON public.descuentos;
 CREATE POLICY descuentos_all ON public.descuentos FOR ALL TO authenticated USING (true) WITH CHECK (true);
 
 COMMIT;

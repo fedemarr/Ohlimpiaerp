@@ -22,7 +22,7 @@
 BEGIN;
 
 -- ========== Vigencias del % de supervisión ==========
-CREATE TABLE public.supervision_vigencias (
+CREATE TABLE IF NOT EXISTS public.supervision_vigencias (
   id                bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
   id_local          text UNIQUE NOT NULL,
 
@@ -40,8 +40,8 @@ CREATE TABLE public.supervision_vigencias (
   created_at        timestamptz NOT NULL DEFAULT now(),
   updated_at        timestamptz NOT NULL DEFAULT now()
 );
-CREATE INDEX idx_sv_alcance ON public.supervision_vigencias(alcance) WHERE NOT anulado;
-CREATE INDEX idx_sv_abierta ON public.supervision_vigencias(alcance) WHERE NOT anulado AND vigente_hasta IS NULL;
+CREATE INDEX IF NOT EXISTS idx_sv_alcance ON public.supervision_vigencias(alcance) WHERE NOT anulado;
+CREATE INDEX IF NOT EXISTS idx_sv_abierta ON public.supervision_vigencias(alcance) WHERE NOT anulado AND vigente_hasta IS NULL;
 
 -- ========== El % vive en las entidades de Comercial ==========
 ALTER TABLE public.clientes  ADD COLUMN IF NOT EXISTS pct_supervision numeric(5,2);
@@ -55,6 +55,7 @@ ALTER TABLE public.liq_admin_periodos ADD COLUMN IF NOT EXISTS ajuste_fecha text
 
 -- ========== RLS ==========
 ALTER TABLE public.supervision_vigencias ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS supervision_vigencias_all ON public.supervision_vigencias;
 CREATE POLICY supervision_vigencias_all ON public.supervision_vigencias FOR ALL TO authenticated USING (true) WITH CHECK (true);
 
 COMMIT;

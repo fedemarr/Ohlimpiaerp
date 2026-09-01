@@ -12,7 +12,7 @@
 
 BEGIN;
 
-CREATE TABLE public.branding_config (
+CREATE TABLE IF NOT EXISTS public.branding_config (
   id                     bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
   logo_url               text,     -- data: URL (base64) o URL pública — lo que haya
   updated_at             timestamptz NOT NULL DEFAULT now()
@@ -27,8 +27,10 @@ ALTER TABLE public.branding_config ENABLE ROW LEVEL SECURITY;
 -- pero sin loguearse contra el Auth de esta empresa (son proyectos de
 -- Supabase separados) — y la lectura tiene que ser anónima igual, porque
 -- el logo se pinta en el Inicio antes de loguearse.
+DROP POLICY IF EXISTS "Lectura pública" ON public.branding_config;
 CREATE POLICY "Lectura pública" ON public.branding_config
   FOR SELECT TO anon, authenticated USING (true);
+DROP POLICY IF EXISTS "Escritura pública" ON public.branding_config;
 CREATE POLICY "Escritura pública" ON public.branding_config
   FOR ALL TO anon, authenticated USING (true) WITH CHECK (true);
 

@@ -22,7 +22,7 @@
 
 BEGIN;
 
-CREATE TABLE public.sugerencia_adjuntos (
+CREATE TABLE IF NOT EXISTS public.sugerencia_adjuntos (
   id                     bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
   id_local               text UNIQUE NOT NULL,
   sugerencia_id_local    text NOT NULL,     -- id_local de la sugerencia/ticket
@@ -40,12 +40,13 @@ CREATE TABLE public.sugerencia_adjuntos (
   updated_at             timestamptz NOT NULL DEFAULT now()
 );
 
-CREATE INDEX idx_suga_sugerencia ON public.sugerencia_adjuntos(sugerencia_id_local) WHERE NOT borrado;
+CREATE INDEX IF NOT EXISTS idx_suga_sugerencia ON public.sugerencia_adjuntos(sugerencia_id_local) WHERE NOT borrado;
 
 -- ============================================================
 -- RLS — mismo patrón que v036/v032/v033/v034/v035
 -- ============================================================
 ALTER TABLE public.sugerencia_adjuntos ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Solo usuarios autenticados" ON public.sugerencia_adjuntos;
 CREATE POLICY "Solo usuarios autenticados" ON public.sugerencia_adjuntos
   FOR ALL TO authenticated USING (true) WITH CHECK (true);
 

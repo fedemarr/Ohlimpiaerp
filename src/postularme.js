@@ -18,6 +18,17 @@ import './styles/postularme.css';
 import { LOCALIDADES_BA, BARRIOS_CABA } from '@shared/state.js';
 import { $, toTitleCase, cleanText, validarCampos } from '@shared/helpers.js';
 import { toast } from '@shared/ui.js';
+import { EMPRESA_NOMBRE } from '@shared/branding.js';
+
+// Multi-empresa (mismo mecanismo que aplicarBranding() en branding.js,
+// esta página vive fuera de la SPA principal así que no lo reutiliza
+// directo): sin VITE_EMPRESA_NOMBRE configurada (Ohlimpia) queda igual
+// que siempre.
+if (EMPRESA_NOMBRE !== 'Ohlimpia') {
+  document.title = document.title.replace('Ohlimpia', EMPRESA_NOMBRE);
+  const marca = $('pm-marca');
+  if (marca) marca.textContent = EMPRESA_NOMBRE;
+}
 
 // ========== PROVINCIA / LOCALIDAD ==========
 

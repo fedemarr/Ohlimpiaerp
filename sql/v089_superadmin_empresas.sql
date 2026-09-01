@@ -18,7 +18,7 @@
 
 BEGIN;
 
-CREATE TABLE public.empresas_cliente (
+CREATE TABLE IF NOT EXISTS public.empresas_cliente (
   id                     bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
   id_local               text UNIQUE NOT NULL,
 
@@ -37,9 +37,10 @@ CREATE TABLE public.empresas_cliente (
   created_at             timestamptz NOT NULL DEFAULT now(),
   updated_at             timestamptz NOT NULL DEFAULT now()
 );
-CREATE INDEX idx_empresas_cliente_estado ON public.empresas_cliente(estado) WHERE NOT anulado;
+CREATE INDEX IF NOT EXISTS idx_empresas_cliente_estado ON public.empresas_cliente(estado) WHERE NOT anulado;
 
 ALTER TABLE public.empresas_cliente ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS empresas_cliente_all ON public.empresas_cliente;
 CREATE POLICY empresas_cliente_all ON public.empresas_cliente FOR ALL TO authenticated USING (true) WITH CHECK (true);
 
 COMMIT;
