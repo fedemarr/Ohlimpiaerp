@@ -45,18 +45,61 @@ export function getSupervisorDeCodigo(codigo) {
   return s ? s.supervisor : '';
 }
 
+// Supervisores de un objetivo: multi-supervisor (v081, co-supervisión) si
+// tiene, si no el principal solo. Duplicada a propósito (no importada de
+// supervision.js, que no la exporta, ni de legacy.js, que se carga como
+// import() dinámico) — mismo criterio "sin dependencias circulares" que ya
+// usa el proyecto (registerAuthCallbacks/registerNavCallbacks, recargos.js).
+function supervisoresDelObjetivo(o) {
+  return (o.supervisoresAsignados && o.supervisoresAsignados.length) ? o.supervisoresAsignados : (o.supervisorAsignado ? [o.supervisorAsignado] : []);
+}
+
 // Dirección inversa: códigos de servicio de un supervisor. Unión de los
 // objetivos Operativos con ese supervisor + la lista puente. Usado por el
 // pedido de personal para filtrar el datalist de servicios por supervisor.
+//
+// FIX (ticket "Discrepancia de Servicios asignados a Supervisores", 31/08):
+// antes solo miraba o.supervisorAsignado (el principal) — un objetivo
+// donde el supervisor buscado es CO-supervisor (o.supervisoresAsignados,
+// no el principal) no entraba nunca acá, aunque sí aparecía en Servicios
+// (que usa supervisoresDelObjetivo() completo). Ahora chequea la lista
+// entera, igual que Servicios.
 export function serviciosDeSupervisor(supervisor) {
   if (!supervisor) return [];
   const deObjetivos = (DB.objetivos || [])
-    .filter(o => o.estado === 'Operativo' && !o.anulado && esMismoSupervisor(o.supervisorAsignado, supervisor))
+    .filter(o => o.estado === 'Operativo' && !o.anulado && supervisoresDelObjetivo(o).some(s => esMismoSupervisor(s, supervisor)))
     .map(o => o.codigo);
   const dePuente = (DB.serviciosSupervisor || [])
     .filter(s => esMismoSupervisor(s.supervisor, supervisor))
     .map(s => s.codigo);
   return [...new Set([...deObjetivos, ...dePuente])];
+}
+
+// Lista de nombres de supervisor para poblar selects (ej. "Supervisor que
+// solicita" en Pedido de Personal). Unión de la lista estática DB.supervisores
+// (mantenida a mano, puede tener gente sin servicios asignados todavía) +
+// los nombres REALES que aparecen en objetivos/puente (los que
+// serviciosDeSupervisor() efectivamente sabe resolver).
+//
+// FIX raíz del mismo ticket: DB.supervisores es un array hardcodeado en
+// state.js que se desincroniza en silencio del dato real — encontrado en
+// vivo con "Lorena Unzain" (hardcodeado) vs "Lorena Uzabain" (el nombre
+// real cargado en objetivos.supervisor_asignado en sus 8 servicios): el
+// select de Pedidos solo ofrecía "Lorena Unzain", así que
+// serviciosDeSupervisor() nunca podía matchear sus servicios reales — el
+// desplegable ofrecía un nombre que la base no tenía. Servicios (Comercial)
+// no tiene este problema porque su filtro sale de los valores reales de la
+// columna Supervisor(es), no de esta lista a mano. Unimos ambas fuentes en
+// vez de reemplazar DB.supervisores, para no perder a nadie que ya esté
+// cargado a mano pero todavía sin servicio asignado.
+export function nombresSupervisoresReales() {
+  const deObjetivos = (DB.objetivos || [])
+    .filter(o => o.estado === 'Operativo' && !o.anulado)
+    .flatMap(supervisoresDelObjetivo);
+  const dePuente = (DB.serviciosSupervisor || []).map(s => s.supervisor);
+  return [...new Set([...(DB.supervisores || []), ...deObjetivos, ...dePuente])]
+    .filter(Boolean)
+    .sort((a, b) => a.localeCompare(b, 'es'));
 }
 
 // ========== RENDER ==========

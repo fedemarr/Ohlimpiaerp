@@ -9,7 +9,7 @@ import { supaSync, supaDel, supaInit } from '@shared/supabase.js';
 import { crearNotificacion } from '@shared/notificaciones.js';
 import { obtenerValorHoraVigente, getCategoriaById } from './modules/categorias/consultas.js';
 import { pctEfectivoObjetivo, pctEfectivoCliente, pctGeneralVigente, esEditorSupervision, esMismoSupervisor, adicionalSupervisionDe, detalleAdicionalSupervision } from './modules/supervision/supervision.js';
-import { serviciosDeSupervisor } from './modules/servicios_supervisor/servicios_supervisor.js';
+import { serviciosDeSupervisor, nombresSupervisoresReales } from './modules/servicios_supervisor/servicios_supervisor.js';
 import { listarAdjuntos, obtenerUrlFirmada, subirAdjunto, borrarAdjunto, MAX_SIZE as ADJ_MAX_SIZE } from '@shared/adjuntos.js';
 // v098 — Tab "Acceso y perfiles" de Configuración (matriz + usuarios + alta).
 import { renderTabAccesosPerfiles } from '@modules/accesos/index.js';
@@ -41,7 +41,15 @@ export function poblarSelects(){
   fillSelect('c-medio',DB.medios);fillSelect('c-zona',DB.zonas);fillSelect('c-rrhh',nicksRRHH);
   fillSelect('c-dispo-horaria',DB.disponibilidadesHorarias);
   fillDL('dl-loc',DB.localidades);fillDL('dl-loc2',DB.localidades);
-  fillSelect('p-supervisor',DB.supervisores,['— Seleccionar —']);fillSelect('p-zona',DB.zonas);fillSelect('p-puesto',DB.categorias);
+  // FIX (ticket "Discrepancia de Servicios asignados a Supervisores", 31/08):
+  // DB.supervisores es hardcodeado a mano en state.js y se desincroniza en
+  // silencio del nombre real cargado en objetivos (ej. "Lorena Unzain" acá
+  // vs "Lorena Uzabain" en los objetivos reales) — serviciosDeSupervisor()
+  // nunca podía matchear porque el select ofrecía un nombre que la base no
+  // tenía. nombresSupervisoresReales() une la lista a mano con los nombres
+  // que realmente aparecen en objetivos/puente, misma fuente que usa
+  // serviciosDeSupervisor() para filtrar.
+  fillSelect('p-supervisor',nombresSupervisoresReales(),['— Seleccionar —']);fillSelect('p-zona',DB.zonas);fillSelect('p-puesto',DB.categorias);
   fillDL('dl-serv',obtenerServiciosActivos());fillDL('dl-serv2',obtenerServiciosActivos());fillDL('dl-serv3',obtenerServiciosActivos());
   fillSelect('ps-zona',DB.zonas);fillSelect('ps-rrhh',nicksRRHH);
   fillSelect('alta-zona',DB.zonas);fillSelect('alta-funcion',DB.categorias,['— Seleccionar —']);fillSelect('alta-categoria',DB.categorias,['— Seleccionar —']);

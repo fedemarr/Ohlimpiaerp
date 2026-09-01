@@ -1,7 +1,7 @@
 export {
   renderServiciosSupervisor, filtrarServiciosSupervisor,
   abrirNuevoServicioSupervisor, editarServicioSupervisor, guardarServicioSupervisor, eliminarServicioSupervisor,
-  sincronizarServiciosSupervisor, getSupervisorDeCodigo, serviciosDeSupervisor,
+  sincronizarServiciosSupervisor, getSupervisorDeCodigo, serviciosDeSupervisor, nombresSupervisoresReales,
   exportarServiciosSupervisorCSV,
   abrirImportadorServiciosSupervisor, seleccionarArchivoImportacionSS, confirmarImportacionServiciosSupervisor,
 } from './servicios_supervisor.js';
