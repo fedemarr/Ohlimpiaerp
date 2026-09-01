@@ -1,7 +1,7 @@
 // Módulo Supervisores — Entry point
 
 export {
-  renderSupervisores, toggleActivoSupervisor,
+  renderSupervisores, toggleActivoSupervisor, eliminarSupervisor,
   agregarSupervisorAlCatalogo, poblarSelectNuevoSupervisor,
 } from './supervisores.js';
 
@@ -21,9 +21,10 @@ export const supervisoresScreenConfig = {
 // ========== WINDOW BINDINGS ==========
 
 import {
-  toggleActivoSupervisor, agregarSupervisorAlCatalogo,
+  toggleActivoSupervisor, eliminarSupervisor, agregarSupervisorAlCatalogo,
 } from './supervisores.js';
 
 window.renderSupervisores = renderSupervisores;
 window.toggleActivoSupervisor = toggleActivoSupervisor;
+window.eliminarSupervisor = eliminarSupervisor;
 window.agregarSupervisorAlCatalogo = agregarSupervisorAlCatalogo;
