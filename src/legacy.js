@@ -3205,13 +3205,18 @@ function _normTexto(s){return String(s||'').toLowerCase().normalize('NFD').repla
 // Filtra el datalist por coincidencia PARCIAL (no solo por dónde empieza,
 // que es lo único que hacía el <select> nativo) y resuelve el cliente
 // elegido al id oculto que guardarReclamo() necesita.
+// Sin espacios ADEMÁS al filtrar (no al resolver la coincidencia exacta):
+// caso real encontrado (ticket "Faltan clientes") — el cliente está
+// cargado como "Smart Fit" (con espacio) y se buscaba "Smartfit" (sin
+// espacio); un includes() común no los hace matchear.
 function onBuscarClienteReclamo(){
   const input=$('rec-cliente-buscar');const hidden=$('rec-cliente');
   if(!input||!hidden)return;
   const q=_normTexto(input.value);
+  const qSinEspacios=q.replace(/\s+/g,'');
   const dl=$('dl-rec-cliente');
   if(dl) dl.innerHTML=(DB.clientes||[])
-    .filter(c=>!q||_normTexto(c.nombre).includes(q))
+    .filter(c=>{if(!q)return true;const n=_normTexto(c.nombre);return n.includes(q)||n.replace(/\s+/g,'').includes(qSinEspacios);})
     .sort((a,b)=>a.nombre.localeCompare(b.nombre,'es'))
     .map(c=>`<option value="${c.nombre}">`).join('');
   // Coincidencia exacta (normalizada) → ya se puede guardar. Si todavía
