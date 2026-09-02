@@ -142,6 +142,7 @@ export const _SM = {
   preciosUniformes: 'precios_uniformes',
   descuentosUniformePendientes: 'descuentos_uniforme_pendientes',
   devolucionesPorBaja: 'devoluciones_por_baja',
+  uniformesConfig: 'uniformes_config',
   stockUniformes: 'stock_uniformes',
   stockUniformesMovimientos: 'stock_uniformes_movimientos',
   comprasUniformes: 'compras_uniformes',
@@ -346,6 +347,7 @@ export function _toSnake(obj) {
     // Uniformes v2 (v032)
     supervisorAsignado: 'supervisor_asignado', solicitadoPor: 'solicitado_por',
     conDescuento: 'con_descuento', autorizadoPorRrhh: 'autorizado_por_rrhh',
+    puntoRetiro: 'punto_retiro',
     fechaAutorizacion: 'fecha_autorizacion',
     fechaRecibidoLogistica: 'fecha_recibido_logistica', logisticaRecibePor: 'logistica_recibe_por',
     fechaEnviadoPorLogistica: 'fecha_enviado_por_logistica', logisticaEnviaPor: 'logistica_envia_por',
@@ -803,6 +805,7 @@ export function _toCamel(obj) {
     supervisor_asignado: 'supervisorAsignado', solicitado_por: 'solicitadoPor',
     con_descuento: 'conDescuento', autorizado_por_rrhh: 'autorizadoPorRrhh',
     fecha_autorizacion: 'fechaAutorizacion',
+    punto_retiro: 'puntoRetiro',
     fecha_recibido_logistica: 'fechaRecibidoLogistica', logistica_recibe_por: 'logisticaRecibePor',
     fecha_enviado_por_logistica: 'fechaEnviadoPorLogistica', logistica_envia_por: 'logisticaEnviaPor',
     fecha_recibido_por_rrhh: 'fechaRecibidoPorRrhh', rrhh_recibe_por: 'rrhhRecibePor',

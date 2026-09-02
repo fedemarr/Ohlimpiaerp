@@ -1,11 +1,20 @@
-// Uniformes v2 — las 15 transiciones de estado con doble handshake
-// (DISENO_uniformes.md §11). Mismo esqueleto que descansos/aprobacion.js:
-// guard de estado al inicio -> mutar campos -> supaSync -> registrar
-// evento -> notificar a cada destinatario -> toast.
+// Uniformes v2 — transiciones de estado (DISENO_uniformes.md §11). Mismo
+// esqueleto que descansos/aprobacion.js: guard de estado al inicio -> mutar
+// campos -> supaSync -> registrar evento -> notificar a cada destinatario
+// -> toast.
 //
-// RRHH/Logística/Supervisor pueden ser varias personas reales (a
-// diferencia de Vacaciones/Descansos, donde el gerente es unipersonal
-// mockeado) — se notifica a todos los que resuelva nombresPorPerfil().
+// FIX (ticket "Mejoras del módulo de uniformes", mockup solicitud_uniformes
+// 5, 02/09): se sacó RRHH del circuito operativo (confirmado por el
+// solicitante — "la política ya validó sola, va directo a Logística"). El
+// pedido ya no pasa por autorización RRHH ni por su doble handshake con
+// Logística — Logística prepara y avisa directo al Supervisor. Logística
+// también pasa a recibir la devolución de constancia+viejo y cerrar el
+// pedido (antes lo hacía RRHH — con RRHH afuera del traspaso, tiene más
+// sentido que cierre quien maneja el depósito físico).
+//
+// Logística/Supervisor pueden ser varias personas reales (a diferencia de
+// Vacaciones/Descansos, donde el gerente es unipersonal mockeado) — se
+// notifica a todos los que resuelva nombresPorPerfil().
 
 import { DB, currentUser } from '@shared/state.js';
 import { supaSync } from '@shared/supabase.js';
@@ -60,48 +69,18 @@ export async function elevarPedido(idLocal) {
   const p = getPedidoById(idLocal);
   if (!p || p.estado !== 'Borrador') { toast('⚠️ Este pedido ya no está en Borrador'); return; }
   if (!prendasDelPedido(p.id).length) { toast('⚠️ Agregá al menos una prenda antes de elevar'); return; }
-  p.estado = 'Pendiente autorización RRHH';
+  p.estado = 'Enviado, esperando preparación de Logística';
   await supaSync('pedidosUniformes', p);
   await registrarEvento(p, 'Borrador', p.estado);
-  await notificarPerfil('RRHH', p, 'uniforme_solicitado', `👕 Nuevo pedido de uniforme para ${p.nombreOperario}, esperando autorización.`);
-  toast('📤 Pedido elevado — esperando autorización de RRHH');
+  await notificarPerfil('Logística', p, 'uniforme_solicitado', `👕 Nuevo pedido de uniforme para ${p.nombreOperario} — a preparar (retiro: ${p.puntoRetiro || 'Recepción'}).`);
+  toast('📤 Pedido enviado — directo a la bandeja de Logística');
 }
 
-// ========== 2 -> 3 ==========
-
-export async function autorizarPedido(idLocal) {
-  const p = getPedidoById(idLocal);
-  if (!p || p.estado !== 'Pendiente autorización RRHH') { toast('⚠️ Este pedido ya no está pendiente de autorización'); return; }
-  p.estado = 'Autorizado por RRHH, esperando envío a Logística';
-  p.autorizadoPorRrhh = currentUser?.nombre || '';
-  p.fechaAutorizacion = new Date().toISOString();
-  await supaSync('pedidosUniformes', p);
-  await registrarEvento(p, 'Pendiente autorización RRHH', p.estado);
-  await notificarPerfil('Logística', p, 'uniforme_autorizado', `👕 Pedido de uniforme autorizado para ${p.nombreOperario} — a preparar.`);
-  await notificarPersona(p.solicitadoPor, p, 'uniforme_autorizado', `✅ Tu pedido de uniforme para ${p.nombreOperario} fue autorizado.`);
-  toast('✅ Autorizado — pasa a Logística');
-}
-
-// ========== 2 -> 12 ==========
-
-export async function rechazarPedido(idLocal, motivo) {
-  const p = getPedidoById(idLocal);
-  if (!p || p.estado !== 'Pendiente autorización RRHH') { toast('⚠️ Este pedido ya no está pendiente de autorización'); return; }
-  if (!motivo || !motivo.trim()) { toast('⚠️ El motivo de rechazo es obligatorio'); return; }
-  const estadoDesde = p.estado;
-  p.estado = 'Rechazado por RRHH';
-  p.motivoRechazo = motivo.trim();
-  await supaSync('pedidosUniformes', p);
-  await registrarEvento(p, estadoDesde, p.estado, motivo.trim());
-  await notificarPersona(p.solicitadoPor, p, 'uniforme_rechazado', `❌ El pedido de uniforme para ${p.nombreOperario} fue rechazado: ${motivo.trim()}`);
-  toast('❌ Rechazado');
-}
-
-// ========== 1/2 -> 13 ==========
+// ========== 1/2 -> cancelado ==========
 
 export async function cancelarPedido(idLocal, motivo) {
   const p = getPedidoById(idLocal);
-  if (!p || !['Borrador', 'Pendiente autorización RRHH'].includes(p.estado)) { toast('⚠️ Este pedido ya no se puede cancelar'); return; }
+  if (!p || !['Borrador', 'Enviado, esperando preparación de Logística'].includes(p.estado)) { toast('⚠️ Este pedido ya no se puede cancelar'); return; }
   const estadoDesde = p.estado;
   p.estado = 'Cancelado por Solicitante';
   p.motivoCancelacion = (motivo || '').trim();
@@ -112,11 +91,11 @@ export async function cancelarPedido(idLocal, motivo) {
   toast('🗑 Pedido cancelado');
 }
 
-// ========== 3 -> 4 ==========
+// ========== 2 -> 3 ==========
 
 export async function logisticaRecibe(idLocal) {
   const p = getPedidoById(idLocal);
-  if (!p || p.estado !== 'Autorizado por RRHH, esperando envío a Logística') { toast('⚠️ Este pedido ya no está esperando a Logística'); return; }
+  if (!p || p.estado !== 'Enviado, esperando preparación de Logística') { toast('⚠️ Este pedido ya no está esperando a Logística'); return; }
   const estadoDesde = p.estado;
   p.estado = 'En preparación por Logística';
   p.fechaRecibidoLogistica = new Date().toISOString();
@@ -130,75 +109,44 @@ export async function logisticaRecibe(idLocal) {
   toast('📥 Marcado como recibido — armando el pedido');
 }
 
-// ========== 4 -> 5 ==========
+// ========== 3 -> 4 ==========
 
-export async function logisticaEnvia(idLocal) {
+export async function logisticaMarcaListo(idLocal) {
   const p = getPedidoById(idLocal);
   if (!p || p.estado !== 'En preparación por Logística') { toast('⚠️ Este pedido ya no está en preparación'); return; }
   const estadoDesde = p.estado;
-  p.estado = 'Enviado por Logística, esperando confirmación RRHH';
+  p.estado = 'Listo para retiro';
   p.fechaEnviadoPorLogistica = new Date().toISOString();
   p.logisticaEnviaPor = currentUser?.nombre || '';
   p.alertaHandshakeEnviada = false;
   await supaSync('pedidosUniformes', p);
   await registrarEvento(p, estadoDesde, p.estado);
-  await notificarPerfil('RRHH', p, 'uniforme_enviado_a_rrhh', `👕 Logística envió el pedido de ${p.nombreOperario} — confirmar recepción.`);
-  toast('📤 Marcado como enviado a RRHH');
+  await notificarPersona(p.supervisorAsignado, p, 'uniforme_listo_retiro', `👕 El pedido de uniforme de ${p.nombreOperario} está listo para retirar en ${p.puntoRetiro || 'Recepción'}.`);
+  toast('✅ Marcado como listo para retiro — se avisó al Supervisor');
 }
 
-// ========== 5 -> 6 ==========
-
-export async function rrhhConfirmaRecepcionLogistica(idLocal) {
-  const p = getPedidoById(idLocal);
-  if (!p || p.estado !== 'Enviado por Logística, esperando confirmación RRHH') { toast('⚠️ Este pedido ya no está esperando confirmación'); return; }
-  const estadoDesde = p.estado;
-  p.estado = 'Recibido por RRHH, listo para retirar Supervisor';
-  p.fechaRecibidoPorRrhh = new Date().toISOString();
-  p.rrhhRecibePor = currentUser?.nombre || '';
-  await supaSync('pedidosUniformes', p);
-  await registrarEvento(p, estadoDesde, p.estado);
-  await notificarPerfil('Logística', p, 'uniforme_confirmado_rrhh', `✅ RRHH confirmó la recepción del pedido de ${p.nombreOperario}.`);
-  toast('✅ Recepción confirmada — listo para que lo retire el Supervisor');
-}
-
-// ========== 6 -> 7 ==========
-
-export async function rrhhMarcaRetiroSupervisor(idLocal) {
-  const p = getPedidoById(idLocal);
-  if (!p || p.estado !== 'Recibido por RRHH, listo para retirar Supervisor') { toast('⚠️ Este pedido ya no está listo para retiro'); return; }
-  const estadoDesde = p.estado;
-  p.estado = 'Retirado por Supervisor, esperando confirmación Supervisor';
-  p.fechaRetiradoSupervisor = new Date().toISOString();
-  p.rrhhEntregaASupervisorPor = currentUser?.nombre || '';
-  p.alertaHandshakeEnviada = false;
-  await supaSync('pedidosUniformes', p);
-  await registrarEvento(p, estadoDesde, p.estado);
-  await notificarPersona(p.supervisorAsignado, p, 'uniforme_retirado_supervisor', `👕 El pedido de uniforme de ${p.nombreOperario} está listo — pasá a confirmar que lo tenés.`);
-  toast('🚚 Marcado como retirado por el Supervisor');
-}
-
-// ========== 7 -> 8 ==========
+// ========== 4 -> 5 ==========
 
 export async function supervisorConfirmaRetiro(idLocal) {
   const p = getPedidoById(idLocal);
-  if (!p || p.estado !== 'Retirado por Supervisor, esperando confirmación Supervisor') { toast('⚠️ Este pedido ya no está esperando tu confirmación'); return; }
+  if (!p || p.estado !== 'Listo para retiro') { toast('⚠️ Este pedido ya no está listo para retiro'); return; }
   const estadoDesde = p.estado;
-  p.estado = 'Confirmado por Supervisor, en tránsito a operario';
+  p.estado = 'Retirado por Supervisor, en tránsito a operario';
   p.fechaConfirmadoPorSupervisor = new Date().toISOString();
   p.supervisorConfirmaPor = currentUser?.nombre || '';
   await supaSync('pedidosUniformes', p);
   await registrarEvento(p, estadoDesde, p.estado);
-  await notificarPerfil('RRHH', p, 'uniforme_confirmado_supervisor', `✅ El Supervisor confirmó que tiene el pedido de ${p.nombreOperario}.`);
-  toast('✅ Confirmado — entregalo al operario con firma');
+  await notificarPerfil('Logística', p, 'uniforme_confirmado_supervisor', `✅ El Supervisor retiró el pedido de ${p.nombreOperario}.`);
+  toast('✅ Retiro confirmado — entregalo al operario con firma');
 }
 
-// ========== 8 -> 9 (transición crítica) ==========
+// ========== 5 -> 6 (transición crítica) ==========
 
 // legajo: objeto de DB.legajos del operario (para actualizar talles_uniforme).
 // adjunto: registro devuelto por subirAdjunto() (con .id bigint real).
 export async function supervisorEntregaConFirma(idLocal, legajo, adjunto) {
   const p = getPedidoById(idLocal);
-  if (!p || p.estado !== 'Confirmado por Supervisor, en tránsito a operario') { toast('⚠️ Este pedido ya no está listo para entregar'); return false; }
+  if (!p || p.estado !== 'Retirado por Supervisor, en tránsito a operario') { toast('⚠️ Este pedido ya no está listo para entregar'); return false; }
   if (!adjunto?.id) { toast('⚠️ Falta adjuntar la foto de la constancia firmada'); return false; }
 
   const prendas = prendasDelPedido(p.id);
@@ -241,12 +189,12 @@ export async function supervisorEntregaConFirma(idLocal, legajo, adjunto) {
   }
 
   await notificarPersona(p.solicitadoPor, p, 'uniforme_entregado', `👕 Se entregó el uniforme a ${p.nombreOperario}. Quedan 15 días para devolver constancia + uniforme viejo.`);
-  await notificarPerfil('RRHH', p, 'uniforme_entregado', `👕 Se entregó el uniforme a ${p.nombreOperario} (con firma).`);
+  await notificarPerfil('Logística', p, 'uniforme_entregado', `👕 Se entregó el uniforme a ${p.nombreOperario} (con firma).`);
   toast('✅ Entrega confirmada — contás con 15 días para devolver constancia y uniforme viejo');
   return true;
 }
 
-// ========== 9 -> 10 ==========
+// ========== 6 -> 7 ==========
 
 // La constancia policial (robo) se adjunta al PEDIDO cuando se crea
 // (motivo = 'Robo con denuncia', ver uniformes.js) — acá no hace falta,
@@ -255,22 +203,24 @@ export async function supervisorDevuelveConstanciaYViejo(idLocal) {
   const p = getPedidoById(idLocal);
   if (!p || p.estado !== 'Entregado al operario con firma, esperando constancia + viejo') { toast('⚠️ Este pedido no está esperando la devolución'); return; }
   const estadoDesde = p.estado;
-  p.estado = 'Constancia + viejo entregados por Supervisor, esperando confirmación RRHH';
+  p.estado = 'Constancia + viejo entregados, esperando cierre de Logística';
   p.fechaDevolucionSupervisor = new Date().toISOString();
   p.supervisorDevuelvePor = currentUser?.nombre || '';
   p.alertaHandshakeEnviada = false;
   await supaSync('pedidosUniformes', p);
   await registrarEvento(p, estadoDesde, p.estado);
-  await notificarPerfil('RRHH', p, 'uniforme_devolucion_a_rrhh', `👕 El Supervisor devolvió constancia + uniforme viejo de ${p.nombreOperario} — confirmar cierre.`);
-  toast('📄 Devolución registrada — esperando confirmación de RRHH');
+  await notificarPerfil('Logística', p, 'uniforme_devolucion_a_logistica', `👕 El Supervisor devolvió constancia + uniforme viejo de ${p.nombreOperario} — confirmar cierre.`);
+  toast('📄 Devolución registrada — esperando el cierre de Logística');
 }
 
-// ========== 10 -> 11 (con rama a faltante) ==========
+// ========== 7 -> 8 (con rama a faltante) ==========
 
 // prendasFaltantes: array de strings (prendas que no se devolvieron), o null/[] si vino todo completo.
-export async function rrhhConfirmaCierre(idLocal, prendasFaltantes) {
+// FIX: antes cerraba RRHH — con RRHH afuera del circuito, cierra Logística
+// (recibe físicamente la devolución en el depósito).
+export async function logisticaConfirmaCierre(idLocal, prendasFaltantes) {
   const p = getPedidoById(idLocal);
-  if (!p || p.estado !== 'Constancia + viejo entregados por Supervisor, esperando confirmación RRHH') { toast('⚠️ Este pedido no está esperando el cierre'); return; }
+  if (!p || p.estado !== 'Constancia + viejo entregados, esperando cierre de Logística') { toast('⚠️ Este pedido no está esperando el cierre'); return; }
   const estadoDesde = p.estado;
   const faltante = Array.isArray(prendasFaltantes) && prendasFaltantes.length > 0;
   p.estado = 'Cerrado';
@@ -290,18 +240,18 @@ export async function rrhhConfirmaCierre(idLocal, prendasFaltantes) {
   toast(faltante ? '✅ Cerrado — se generó un descuento por prenda faltante' : '✅ Pedido cerrado');
 }
 
-// ========== 14 -> 10 (reactivar desde vencido, caso §17.1) ==========
+// ========== Vencido -> 7 (reactivar, caso §17.1) ==========
 
 export async function reactivarDesdeVencido(idLocal) {
   const p = getPedidoById(idLocal);
   if (!p || p.estado !== 'Vencido') { toast('⚠️ Este pedido no está vencido'); return; }
   const estadoDesde = p.estado;
-  p.estado = 'Constancia + viejo entregados por Supervisor, esperando confirmación RRHH';
+  p.estado = 'Constancia + viejo entregados, esperando cierre de Logística';
   p.fechaDevolucionSupervisor = new Date().toISOString();
   p.supervisorDevuelvePor = currentUser?.nombre || '';
   p.alertaHandshakeEnviada = false;
   await supaSync('pedidosUniformes', p);
   await registrarEvento(p, estadoDesde, p.estado, 'Devolución tardía, reactivado antes de aplicar descuento');
-  await notificarPerfil('RRHH', p, 'uniforme_devolucion_a_rrhh', `👕 Devolución tardía de ${p.nombreOperario} — confirmar cierre.`);
-  toast('↩️ Reactivado — esperando confirmación de RRHH');
+  await notificarPerfil('Logística', p, 'uniforme_devolucion_a_logistica', `👕 Devolución tardía de ${p.nombreOperario} — confirmar cierre.`);
+  toast('↩️ Reactivado — esperando el cierre de Logística');
 }

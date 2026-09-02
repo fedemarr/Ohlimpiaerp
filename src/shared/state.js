@@ -19,6 +19,9 @@ export const DB = {
   // con % de comisión propio por supervisor, seed-only por ahora (mismo
   // estado que los catálogos de arriba).
   supervisoresConfig: [],
+  // Config genérica del módulo Uniformes (sql/v112) — clave/valor, mismo
+  // patrón que pedidosConfig/stockConfig. Arranca con cuotas_descuento=4.
+  uniformesConfig: [],
   // Supervisión de servicios (sql/v086) — trazabilidad del % de supervisión
   // por servicio (cascada GENERAL → CLIENTE → SERVICIO). Cada % es una
   // vigencia {nivel, alcance, pct, vigenteDesde, vigenteHasta, usuario,

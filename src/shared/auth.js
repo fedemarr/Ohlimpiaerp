@@ -99,7 +99,16 @@ export async function iniciarSesion(usr) {
   $('sidebar-rol').textContent = usr.funcion ? `${usr.funcion} — ${usr.perfil}` : usr.perfil;
   _callbacks.construirMenu();
   _callbacks.poblarSelects();
-  _callbacks.navTo(usr.perfil === 'DEVELOPER' ? 'dev_inicio' : usr.perfil === 'Superadmin' ? 'empresas' : 'inicio');
+  // Link permanente de "Uniformes" (mockup solicitud_uniformes 5, tab
+  // "Link de pedido"): #uniformes-pedido en la URL manda directo al
+  // módulo con el modal de Nuevo pedido ya abierto, en vez de a Inicio —
+  // reemplaza el Google Form, el que entra se identifica con su usuario
+  // y ve solo lo suyo (armado por operariosParaSolicitante() en politica.js).
+  const esLinkPedidoUniforme = location.hash === '#uniformes-pedido';
+  _callbacks.navTo(esLinkPedidoUniforme ? 'uniformes' : (usr.perfil === 'DEVELOPER' ? 'dev_inicio' : usr.perfil === 'Superadmin' ? 'empresas' : 'inicio'));
+  if (esLinkPedidoUniforme) {
+    setTimeout(() => { try { window.abrirNuevaEntregaUniforme?.(); } catch (e) { console.warn('No se pudo abrir el modal de pedido desde el link:', e.message); } }, 350);
+  }
   setTimeout(() => {
     activarOrdenamiento();
     _callbacks.poblarFiltrosColumnas();

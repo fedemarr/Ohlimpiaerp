@@ -12,30 +12,28 @@ import { subirAdjunto } from '@shared/adjuntos.js';
 import { esRRHHoAdmin, esLogistica, esSupervisor } from './permisos.js';
 import {
   PRENDAS, TALLES_POR_PRENDA, MOTIVOS, ORIGENES, ESTADOS_UNIFORMES,
-  ESTADOS_FINALES, conDescuentoSegunMotivo, esTemporadaCamperaPolar, talleSugerido,
+  ESTADOS_FINALES, PUNTOS_RETIRO, conDescuentoSegunMotivo, esTemporadaCamperaPolar, talleSugerido,
+  cuotasDescuento,
 } from './catalogos.js';
 import {
   getPedidoById, prendasDelPedido, idLocalTrunc,
-  elevarPedido, autorizarPedido, rechazarPedido, cancelarPedido,
-  logisticaRecibe, logisticaEnvia, rrhhConfirmaRecepcionLogistica, rrhhMarcaRetiroSupervisor,
+  elevarPedido, cancelarPedido,
+  logisticaRecibe, logisticaMarcaListo,
   supervisorConfirmaRetiro, supervisorEntregaConFirma, supervisorDevuelveConstanciaYViejo,
-  rrhhConfirmaCierre, reactivarDesdeVencido,
+  logisticaConfirmaCierre, reactivarDesdeVencido,
 } from './flujo.js';
 import { aplicarDescuentoIncumplimiento } from './descuentos.js';
+import { operariosParaSolicitante, hintPoliticaPrenda, sugerirMotivo } from './politica.js';
 
 const ESTADO_BADGE = {
   'Borrador': 'badge-gris',
-  'Pendiente autorización RRHH': 'badge-acento',
-  'Autorizado por RRHH, esperando envío a Logística': 'badge-acento',
+  'Enviado, esperando preparación de Logística': 'badge-acento',
   'En preparación por Logística': 'badge-acento',
-  'Enviado por Logística, esperando confirmación RRHH': 'badge-acento',
-  'Recibido por RRHH, listo para retirar Supervisor': 'badge-acento',
-  'Retirado por Supervisor, esperando confirmación Supervisor': 'badge-acento',
-  'Confirmado por Supervisor, en tránsito a operario': 'badge-acento',
+  'Listo para retiro': 'badge-azul',
+  'Retirado por Supervisor, en tránsito a operario': 'badge-acento',
   'Entregado al operario con firma, esperando constancia + viejo': 'badge-acento',
-  'Constancia + viejo entregados por Supervisor, esperando confirmación RRHH': 'badge-acento',
+  'Constancia + viejo entregados, esperando cierre de Logística': 'badge-acento',
   'Cerrado': 'badge-verde',
-  'Rechazado por RRHH': 'badge-rojo',
   'Cancelado por Solicitante': 'badge-gris',
   'Vencido': 'badge-rojo',
   'Descuento aplicado por incumplimiento': 'badge-rojo',
@@ -76,6 +74,7 @@ function filaPedido(p, { acciones = [] } = {}) {
     <td>${p.motivo}</td>
     <td style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${resumenPrendas(p.id).replace(/"/g, '&quot;')}">${resumenPrendas(p.id)}</td>
     <td>${p.conDescuento ? '<span class="badge badge-rojo">Con descuento</span>' : '<span class="badge badge-verde">Sin descuento</span>'}</td>
+    <td><span class="badge badge-azul">📍 ${p.puntoRetiro || 'Recepción'}</span></td>
     <td>${(p.fechaSolicitud || '').slice(0, 10)}</td>
     <td>${diasEnEstadoActual(p)}</td>
     <td><span class="badge ${ESTADO_BADGE[p.estado] || 'badge-gris'}">${p.estado}</span></td>
@@ -83,31 +82,28 @@ function filaPedido(p, { acciones = [] } = {}) {
   </tr>`;
 }
 
+// FIX (mockup solicitud_uniformes 5, 02/09): RRHH ya no participa del
+// circuito operativo — Logística pasa a preparar/marcar listo (sin pasar
+// por RRHH en el medio) y a recibir/cerrar la devolución de constancia +
+// uniforme viejo (antes lo hacía RRHH).
 function accionesParaPedido(p) {
   const nombre = currentUser?.nombre;
   const acciones = [];
   const esMio = p.solicitadoPor === nombre;
 
-  if (esMio && p.estado === 'Borrador') {
-    acciones.push(btn('✏️ Editar', `abrirEditarPedidoUniforme('${p.id}')`));
-    acciones.push(btn('📤 Elevar', `elevarPedidoUniformePorId('${p.id}')`, '#1b4fa8'));
+  if (esMio && ['Borrador', 'Enviado, esperando preparación de Logística'].includes(p.estado)) {
+    if (p.estado === 'Borrador') acciones.push(btn('✏️ Editar', `abrirEditarPedidoUniforme('${p.id}')`));
+    if (p.estado === 'Borrador') acciones.push(btn('📤 Elevar', `elevarPedidoUniformePorId('${p.id}')`, '#1b4fa8'));
     acciones.push(btn('🗑 Cancelar', `abrirCancelarPedidoUniforme('${p.id}')`));
   }
-  if (esMio && p.estado === 'Pendiente autorización RRHH') {
-    acciones.push(btn('🗑 Cancelar', `abrirCancelarPedidoUniforme('${p.id}')`));
-  }
-  if (esRRHHoAdmin()) {
-    if (p.estado === 'Pendiente autorización RRHH') {
-      acciones.push(btn('✅ Autorizar', `autorizarPedidoUniformePorId('${p.id}')`, '#16a34a'));
-      acciones.push(btn('❌ Rechazar', `abrirRechazoPedidoUniforme('${p.id}')`, '#dc2626'));
+  if (esLogistica()) {
+    if (p.estado === 'Enviado, esperando preparación de Logística') {
+      acciones.push(btn('📥 Iniciar preparación', `logisticaRecibePorId('${p.id}')`, '#1b4fa8'));
     }
-    if (p.estado === 'Enviado por Logística, esperando confirmación RRHH') {
-      acciones.push(btn('✅ Confirmar recepción', `rrhhConfirmaRecepcionPorId('${p.id}')`, '#16a34a'));
+    if (p.estado === 'En preparación por Logística') {
+      acciones.push(btn('✅ Marcar listo para retiro', `logisticaMarcaListoPorId('${p.id}')`, '#1b4fa8'));
     }
-    if (p.estado === 'Recibido por RRHH, listo para retirar Supervisor') {
-      acciones.push(btn('🚚 Retiró el Supervisor', `rrhhMarcaRetiroPorId('${p.id}')`, '#1b4fa8'));
-    }
-    if (p.estado === 'Constancia + viejo entregados por Supervisor, esperando confirmación RRHH') {
+    if (p.estado === 'Constancia + viejo entregados, esperando cierre de Logística') {
       acciones.push(btn('✅ Confirmar cierre', `abrirConfirmarCierrePedido('${p.id}')`, '#16a34a'));
     }
     if (p.estado === 'Vencido') {
@@ -115,19 +111,11 @@ function accionesParaPedido(p) {
       acciones.push(btn('↩️ Devolución tardía', `reactivarDesdeVencidoPorId('${p.id}')`));
     }
   }
-  if (esLogistica()) {
-    if (p.estado === 'Autorizado por RRHH, esperando envío a Logística') {
-      acciones.push(btn('📥 Marcar recibido', `logisticaRecibePorId('${p.id}')`, '#1b4fa8'));
-    }
-    if (p.estado === 'En preparación por Logística') {
-      acciones.push(btn('📤 Marcar enviado', `logisticaEnviaPorId('${p.id}')`, '#1b4fa8'));
-    }
-  }
   if (esSupervisor() && p.supervisorAsignado === nombre) {
-    if (p.estado === 'Retirado por Supervisor, esperando confirmación Supervisor') {
-      acciones.push(btn('✅ Confirmar que lo tengo', `supervisorConfirmaRetiroPorId('${p.id}')`, '#16a34a'));
+    if (p.estado === 'Listo para retiro') {
+      acciones.push(btn('🚚 Marcar retirado', `supervisorConfirmaRetiroPorId('${p.id}')`, '#16a34a'));
     }
-    if (p.estado === 'Confirmado por Supervisor, en tránsito a operario') {
+    if (p.estado === 'Retirado por Supervisor, en tránsito a operario') {
       acciones.push(btn('👕 Entregar con firma', `abrirEntregaConFirma('${p.id}')`, '#1b4fa8'));
     }
     if (p.estado === 'Entregado al operario con firma, esperando constancia + viejo') {
@@ -146,23 +134,27 @@ export function renderPendientesUniformes() {
   const nombre = currentUser?.nombre;
   const NO_FINALES = (DB.pedidosUniformes || []).filter(p => !p.anulado && !ESTADOS_FINALES.includes(p.estado));
   let bandeja = NO_FINALES.filter(p => p.solicitadoPor === nombre);
-  if (esRRHHoAdmin()) bandeja.push(...NO_FINALES);
-  if (esLogistica()) bandeja.push(...NO_FINALES.filter(p => ['Autorizado por RRHH, esperando envío a Logística', 'En preparación por Logística'].includes(p.estado)));
+  // Mockup: "Logística y RRHH ven todo" — RRHH sin acciones (ver
+  // accionesParaPedido, RRHH quedó afuera del circuito) pero con
+  // visibilidad completa igual, para seguimiento.
+  if (esRRHHoAdmin() || esLogistica()) bandeja.push(...NO_FINALES);
   if (esSupervisor()) bandeja.push(...NO_FINALES.filter(p => p.supervisorAsignado === nombre));
   bandeja = [...new Map(bandeja.map(p => [p.id, p])).values()];
 
   const q = ($('uni-pend-buscar') || {}).value?.toLowerCase() || '';
   const fServicio = ($('uni-pend-servicio') || {}).value || '';
   const fEstado = ($('uni-pend-estado') || {}).value || '';
+  const fRetiro = ($('uni-pend-retiro') || {}).value || '';
   if (q) bandeja = bandeja.filter(p => p.nombreOperario.toLowerCase().includes(q));
   if (fServicio) bandeja = bandeja.filter(p => p.servicio === fServicio);
   if (fEstado) bandeja = bandeja.filter(p => p.estado === fEstado);
+  if (fRetiro) bandeja = bandeja.filter(p => (p.puntoRetiro || 'Recepción') === fRetiro);
   bandeja.sort((a, b) => new Date(a.fechaSolicitud) - new Date(b.fechaSolicitud));
 
   const tbody = $('tbody-uni-pendientes');
   if (!tbody) return;
   tbody.innerHTML = bandeja.length === 0
-    ? '<tr><td colspan="10" style="text-align:center;padding:32px;opacity:.5;">No hay pedidos pendientes</td></tr>'
+    ? '<tr><td colspan="11" style="text-align:center;padding:32px;opacity:.5;">No hay pedidos pendientes</td></tr>'
     : bandeja.map(p => filaPedido(p, { acciones: accionesParaPedido(p) })).join('');
 }
 
@@ -172,6 +164,20 @@ export function poblarSelectsUniformesTab() {
   fS('uni-hist-servicio', window.obtenerServiciosActivos ? window.obtenerServiciosActivos() : (DB.servicios || []));
   fS('uni-pend-estado', ESTADOS_UNIFORMES);
   fS('uni-hist-estado', ESTADOS_UNIFORMES);
+  fS('uni-pend-retiro', PUNTOS_RETIRO);
+  const linkPed = $('uni-link-pedido');
+  if (linkPed) linkPed.value = `${location.origin}${location.pathname}#uniformes-pedido`;
+}
+
+// Tab "Link de pedido" (mockup §5): reemplaza el Google Form — el link es
+// fijo, abre la misma ventana de "Nuevo pedido" vía el hash-routing de
+// auth.js (#uniformes-pedido -> navTo('uniformes') + abrirNuevaEntregaUniforme()).
+export function copiarLinkUniformes(mensaje) {
+  const link = $('uni-link-pedido')?.value || '';
+  const texto = mensaje ? `Hola! Para pedir uniformes de tu equipo entrá acá: ${link} — te logueás con tu usuario y cargás el pedido.` : link;
+  try { navigator.clipboard.writeText(texto); } catch (e) { /* clipboard no disponible, igual mostramos el link */ }
+  const el = $('uni-link-copiado-msg');
+  if (el) el.innerHTML = `<span class="badge badge-verde">COPIADO ✔</span> <span style="color:var(--texto-suave);font-size:12px;">${mensaje ? 'mensaje listo para pegar en WhatsApp' : 'link copiado'}</span>`;
 }
 
 // ========== TAB 2 — TODOS LOS PEDIDOS ==========
@@ -193,7 +199,7 @@ export function renderTodosUniformes() {
   const tbody = $('tbody-uni-todos');
   if (!tbody) return;
   tbody.innerHTML = lista.length === 0
-    ? '<tr><td colspan="10" style="text-align:center;padding:32px;opacity:.5;">Sin pedidos</td></tr>'
+    ? '<tr><td colspan="11" style="text-align:center;padding:32px;opacity:.5;">Sin pedidos</td></tr>'
     : lista.map(p => filaPedido(p, { acciones: [btn('👁', `abrirDetallePedidoUniforme('${p.id}')`)] })).join('');
 }
 
@@ -211,10 +217,16 @@ function ensureModalPedido() {
     <div class="modal" style="max-width:760px;">
       <div class="modal-header"><h3 id="up2-titulo">👕 Nuevo pedido de uniforme</h3><button class="btn-close" onclick="cerrarModal('modal-uni-pedido')">×</button></div>
       <div class="modal-body">
-        <div class="form-section">Origen del pedido</div>
-        <div class="form-group"><label>Origen *</label>
-          <select id="up2-origen">${ORIGENES.map(o => `<option>${o}</option>`).join('')}</select>
+        <div class="form-section">Origen y punto de retiro</div>
+        <div class="form-grid form-grid-2">
+          <div class="form-group"><label>Origen *</label>
+            <select id="up2-origen">${ORIGENES.map(o => `<option>${o}</option>`).join('')}</select>
+          </div>
+          <div class="form-group"><label>Punto de retiro 📍 *</label>
+            <select id="up2-retiro">${PUNTOS_RETIRO.map(r => `<option>${r}</option>`).join('')}</select>
+          </div>
         </div>
+        <p style="font-size:11.5px;color:var(--texto-suave);margin:-4px 0 10px;">El punto de retiro viaja con el pedido — Logística ve de una qué entrega desde Maure y qué desde Recepción.</p>
 
         <div class="form-section">Operario</div>
         <div class="form-group"><label>Operario *</label>
@@ -234,6 +246,7 @@ function ensureModalPedido() {
           <label>Constancia policial (foto, opcional)</label>
           <input type="file" id="up2-adjunto-policial" accept="application/pdf,image/jpeg,image/png">
         </div>
+        <div id="up2-hints-politica" style="display:flex;flex-direction:column;gap:4px;margin-bottom:8px;"></div>
         <div id="up2-avisos" style="display:flex;flex-direction:column;gap:6px;margin-bottom:8px;"></div>
 
         <div class="form-section">Prendas</div>
@@ -246,14 +259,10 @@ function ensureModalPedido() {
       <div class="modal-footer">
         <button class="btn btn-secondary" onclick="cerrarModal('modal-uni-pedido')">Cancelar</button>
         <button class="btn btn-secondary" onclick="guardarBorradorPedidoUniforme()">💾 Guardar borrador</button>
-        <button class="btn btn-primary" onclick="elevarPedidoDesdeModalUniforme()">📤 Elevar para autorización</button>
+        <button class="btn btn-primary" onclick="elevarPedidoDesdeModalUniforme()">📤 Enviar a Logística</button>
       </div>
     </div>`;
   document.body.appendChild(m);
-}
-
-function operariosDisponibles() {
-  return (DB.legajos || []).filter(l => l.estado === 'Activo');
 }
 
 function renderFilasPrendas() {
@@ -290,10 +299,14 @@ function pintarInfoOperario(legajo) {
 
 export function seleccionarOperarioPedidoUniforme() {
   const legajo = legajoPorMatch($('up2-operario').value);
-  if (!legajo) { $('up2-info-operario').innerHTML = ''; return; }
+  if (!legajo) { $('up2-info-operario').innerHTML = ''; $('up2-hints-politica').innerHTML = ''; return; }
   pintarInfoOperario(legajo);
   // Pre-cargar talles sugeridos en las prendas ya agregadas.
   _prendasModal.forEach(pr => { pr.talle = talleSugerido(legajo, pr.prenda) || pr.talle; });
+  // Motor de política (mockup): sugiere el motivo según el historial real
+  // de entregas — el supervisor puede igual elegir otro a mano.
+  const sugerido = sugerirMotivo(legajo.nro, _prendasModal);
+  if (sugerido && $('up2-motivo')) $('up2-motivo').value = sugerido;
   renderFilasPrendas();
   recalcularPedidoUniforme();
 }
@@ -302,9 +315,22 @@ export function recalcularPedidoUniforme() {
   const motivo = $('up2-motivo').value;
   const conDescuento = conDescuentoSegunMotivo(motivo);
   $('up2-badge-descuento').innerHTML = conDescuento
-    ? '<span class="badge badge-rojo">Con descuento (4 cuotas)</span>'
+    ? `<span class="badge badge-rojo">Con descuento (${cuotasDescuento()} cuotas)</span>`
     : '<span class="badge badge-verde">Sin descuento</span>';
   $('up2-grupo-policial').style.display = motivo === 'Robo con denuncia' ? 'block' : 'none';
+
+  // Chips de política por prenda (mockup §2: "✔ DISPONIBLE — última
+  // muda...", "Campera: Ya entregada... → CON DESCUENTO") — informativo,
+  // no cambia el cargo (eso lo decide el motivo elegido arriba).
+  const legajo = legajoPorMatch($('up2-operario')?.value);
+  const hintsEl = $('up2-hints-politica');
+  if (hintsEl) {
+    hintsEl.innerHTML = !legajo ? '' : _prendasModal.map(pr => {
+      const h = hintPoliticaPrenda(legajo.nro, pr.prenda);
+      if (!h) return '';
+      return `<div style="padding:6px 10px;border-radius:6px;font-size:12px;border:1px solid ${h.ok ? '#a9dcbc' : '#eccd93'};background:${h.ok ? '#f0faf3' : '#fff6ea'};color:${h.ok ? '#156a3a' : '#8a5a04'};"><b>${pr.prenda}:</b> ${h.texto}</div>`;
+    }).join('');
+  }
 
   const avisos = [];
   if (!esTemporadaCamperaPolar() && motivo !== 'Camperas-Polar-Calzado inicial' && _prendasModal.some(pr => ['Campera', 'Polar'].includes(pr.prenda))) {
@@ -324,8 +350,9 @@ export function abrirNuevaEntregaUniforme() {
   $('up2-origen').value = 'Supervisor';
   $('up2-operario').value = '';
   $('up2-info-operario').innerHTML = '';
-  $('dl-up2-operario').innerHTML = operariosDisponibles().map(l => `<option value="${l.nombre} (N°${l.nro})">`).join('');
+  $('dl-up2-operario').innerHTML = operariosParaSolicitante().map(l => `<option value="${l.nombre} (N°${l.nro})">`).join('');
   $('up2-motivo').value = MOTIVOS[0];
+  if ($('up2-retiro')) $('up2-retiro').value = PUNTOS_RETIRO[0];
   $('up2-obs').value = '';
   renderFilasPrendas();
   recalcularPedidoUniforme();
@@ -341,10 +368,11 @@ export function abrirEditarPedidoUniforme(idLocal) {
   $('up2-titulo').textContent = '👕 Editar pedido de uniforme';
   $('up2-origen').value = p.origen;
   $('up2-operario').value = `${p.nombreOperario} (N°${p.nroSocio})`;
-  $('dl-up2-operario').innerHTML = operariosDisponibles().map(l => `<option value="${l.nombre} (N°${l.nro})">`).join('');
+  $('dl-up2-operario').innerHTML = operariosParaSolicitante().map(l => `<option value="${l.nombre} (N°${l.nro})">`).join('');
   const legajo = (DB.legajos || []).find(l => String(l.nro) === String(p.legajoIdLocal));
   if (legajo) pintarInfoOperario(legajo);
   $('up2-motivo').value = p.motivo;
+  if ($('up2-retiro')) $('up2-retiro').value = p.puntoRetiro || PUNTOS_RETIRO[0];
   $('up2-obs').value = p.observaciones || '';
   renderFilasPrendas();
   recalcularPedidoUniforme();
@@ -368,6 +396,7 @@ async function armarObjetoPedido(legajo, estado) {
     servicio: legajo.servicio || '',
     supervisorAsignado: legajo.supervisor || '',
     origen: $('up2-origen').value,
+    puntoRetiro: $('up2-retiro')?.value || PUNTOS_RETIRO[0],
     solicitadoPor: currentUser?.nombre || '',
     fechaSolicitud: _pedidoEditandoId ? undefined : new Date().toISOString(),
     motivo,
@@ -455,18 +484,8 @@ export function abrirCancelarPedidoUniforme(idLocal) {
 
 // ========== ACCIONES DE FILA (wrappers sobre flujo.js) ==========
 
-export function autorizarPedidoUniformePorId(idLocal) { autorizarPedido(idLocal).then(renderPendientesUniformes); }
-
-export function abrirRechazoPedidoUniforme(idLocal) {
-  abrirModalInput({ titulo: 'Rechazar pedido', etiqueta: 'Motivo del rechazo (obligatorio)' }, (motivo) => {
-    rechazarPedido(idLocal, motivo).then(renderPendientesUniformes);
-  });
-}
-
 export function logisticaRecibePorId(idLocal) { logisticaRecibe(idLocal).then(renderPendientesUniformes); }
-export function logisticaEnviaPorId(idLocal) { logisticaEnvia(idLocal).then(renderPendientesUniformes); }
-export function rrhhConfirmaRecepcionPorId(idLocal) { rrhhConfirmaRecepcionLogistica(idLocal).then(renderPendientesUniformes); }
-export function rrhhMarcaRetiroPorId(idLocal) { rrhhMarcaRetiroSupervisor(idLocal).then(renderPendientesUniformes); }
+export function logisticaMarcaListoPorId(idLocal) { logisticaMarcaListo(idLocal).then(renderPendientesUniformes); }
 export function supervisorConfirmaRetiroPorId(idLocal) { supervisorConfirmaRetiro(idLocal).then(renderPendientesUniformes); }
 export function reactivarDesdeVencidoPorId(idLocal) { reactivarDesdeVencido(idLocal).then(renderPendientesUniformes); }
 
@@ -562,7 +581,7 @@ export function abrirConfirmarCierrePedido(idLocal) {
 
 export function confirmarCierrePedidoUniforme() {
   const faltantes = Array.from(document.querySelectorAll('.uc-check')).filter(c => c.checked).map(c => c.dataset.prenda);
-  rrhhConfirmaCierre(_pedidoCerrandoId, faltantes).then(() => { cerrarModal('modal-uni-cierre'); renderPendientesUniformes(); });
+  logisticaConfirmaCierre(_pedidoCerrandoId, faltantes).then(() => { cerrarModal('modal-uni-cierre'); renderPendientesUniformes(); });
 }
 
 // ---- Descuento por incumplimiento (14 -> 15) ----

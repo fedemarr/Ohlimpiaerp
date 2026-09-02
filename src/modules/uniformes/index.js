@@ -4,13 +4,13 @@ import { $ } from '@shared/helpers.js';
 
 export {
   renderPendientesUniformes, filtrarPendientesUniformes, poblarSelectsUniformesTab,
-  renderTodosUniformes, filtrarTodosUniformes,
+  renderTodosUniformes, filtrarTodosUniformes, copiarLinkUniformes,
   abrirNuevaEntregaUniforme, abrirEditarPedidoUniforme,
   seleccionarOperarioPedidoUniforme, recalcularPedidoUniforme,
   agregarPrendaPedidoUniforme, cambiarPrendaModal, cambiarTalleModal, cambiarCantidadModal, quitarPrendaModal,
   guardarBorradorPedidoUniforme, elevarPedidoDesdeModalUniforme, elevarPedidoUniformePorId,
-  abrirCancelarPedidoUniforme, autorizarPedidoUniformePorId, abrirRechazoPedidoUniforme,
-  logisticaRecibePorId, logisticaEnviaPorId, rrhhConfirmaRecepcionPorId, rrhhMarcaRetiroPorId,
+  abrirCancelarPedidoUniforme,
+  logisticaRecibePorId, logisticaMarcaListoPorId,
   supervisorConfirmaRetiroPorId, reactivarDesdeVencidoPorId, confirmarDevolucionConstanciaYViejo,
   abrirEntregaConFirma, confirmarEntregaConFirma,
   abrirConfirmarCierrePedido, confirmarCierrePedidoUniforme,
@@ -52,6 +52,8 @@ export {
 // ========== TABS ==========
 
 import { renderPendientesUniformes, poblarSelectsUniformesTab, renderTodosUniformes } from './uniformes.js';
+// "Link de pedido" es una tab estática (no tiene datos que refrescar al
+// cambiar de tab) — no entra en RENDER_POR_TAB.
 import { renderDescuentosUniformes } from './descuentos.js';
 import { renderDevolucionesBaja } from './devoluciones.js';
 import { chequearAlertas24hs, chequear15Dias } from './vencimientos.js';
@@ -102,13 +104,13 @@ export const uniformesScreenConfig = {
 // ========== WINDOW BINDINGS ==========
 
 import {
-  filtrarPendientesUniformes, filtrarTodosUniformes,
+  filtrarPendientesUniformes, filtrarTodosUniformes, copiarLinkUniformes,
   abrirNuevaEntregaUniforme, abrirEditarPedidoUniforme,
   seleccionarOperarioPedidoUniforme, recalcularPedidoUniforme,
   agregarPrendaPedidoUniforme, cambiarPrendaModal, cambiarTalleModal, cambiarCantidadModal, quitarPrendaModal,
   guardarBorradorPedidoUniforme, elevarPedidoDesdeModalUniforme, elevarPedidoUniformePorId,
-  abrirCancelarPedidoUniforme, autorizarPedidoUniformePorId, abrirRechazoPedidoUniforme,
-  logisticaRecibePorId, logisticaEnviaPorId, rrhhConfirmaRecepcionPorId, rrhhMarcaRetiroPorId,
+  abrirCancelarPedidoUniforme,
+  logisticaRecibePorId, logisticaMarcaListoPorId,
   supervisorConfirmaRetiroPorId, reactivarDesdeVencidoPorId, confirmarDevolucionConstanciaYViejo,
   abrirEntregaConFirma, confirmarEntregaConFirma,
   abrirConfirmarCierrePedido, confirmarCierrePedidoUniforme,
@@ -146,6 +148,7 @@ registrarTabStockExtra('precios', renderPreciosUniformesGrid);
 window.cambiarTabUniformes = cambiarTabUniformes;
 window.filtrarPendientesUniformes = filtrarPendientesUniformes;
 window.filtrarTodosUniformes = filtrarTodosUniformes;
+window.copiarLinkUniformes = copiarLinkUniformes;
 window.abrirNuevaEntregaUniforme = abrirNuevaEntregaUniforme;
 window.abrirEditarPedidoUniforme = abrirEditarPedidoUniforme;
 window.seleccionarOperarioPedidoUniforme = seleccionarOperarioPedidoUniforme;
@@ -159,12 +162,8 @@ window.guardarBorradorPedidoUniforme = guardarBorradorPedidoUniforme;
 window.elevarPedidoDesdeModalUniforme = elevarPedidoDesdeModalUniforme;
 window.elevarPedidoUniformePorId = elevarPedidoUniformePorId;
 window.abrirCancelarPedidoUniforme = abrirCancelarPedidoUniforme;
-window.autorizarPedidoUniformePorId = autorizarPedidoUniformePorId;
-window.abrirRechazoPedidoUniforme = abrirRechazoPedidoUniforme;
 window.logisticaRecibePorId = logisticaRecibePorId;
-window.logisticaEnviaPorId = logisticaEnviaPorId;
-window.rrhhConfirmaRecepcionPorId = rrhhConfirmaRecepcionPorId;
-window.rrhhMarcaRetiroPorId = rrhhMarcaRetiroPorId;
+window.logisticaMarcaListoPorId = logisticaMarcaListoPorId;
 window.supervisorConfirmaRetiroPorId = supervisorConfirmaRetiroPorId;
 window.reactivarDesdeVencidoPorId = reactivarDesdeVencidoPorId;
 window.confirmarDevolucionConstanciaYViejo = confirmarDevolucionConstanciaYViejo;

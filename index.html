@@ -4480,6 +4480,7 @@
     <button class="tab-btn" data-uni-tab="todos" onclick="cambiarTabUniformes('todos',this)">📚 Todos los pedidos</button>
     <button class="tab-btn" data-uni-tab="descuentos" onclick="cambiarTabUniformes('descuentos',this)">💸 Descuentos aplicados</button>
     <button class="tab-btn" data-uni-tab="devoluciones" onclick="cambiarTabUniformes('devoluciones',this)">↩️ Devoluciones por baja</button>
+    <button class="tab-btn" data-uni-tab="link" onclick="cambiarTabUniformes('link',this)">🔗 Link de pedido</button>
   </div>
 
   <!-- TAB PENDIENTES -->
@@ -4491,6 +4492,7 @@
           <input type="text" placeholder="🔍 Buscar operario..." id="uni-pend-buscar" oninput="filtrarPendientesUniformes()">
           <select id="uni-pend-servicio" onchange="filtrarPendientesUniformes()"><option value="">Todos los servicios</option></select>
           <select id="uni-pend-estado" onchange="filtrarPendientesUniformes()"><option value="">Todos los estados</option></select>
+          <select id="uni-pend-retiro" onchange="filtrarPendientesUniformes()"><option value="">Retiro: todos</option></select>
           <button class="btn btn-secondary btn-sm" onclick="abrirGestionPrecios()">💲 Gestionar precios</button>
           <button class="btn btn-secondary btn-sm" onclick="abrirGenerarOrdenManual()">+ Orden de devolución manual</button>
         </div>
@@ -4498,7 +4500,7 @@
       <div class="tabla-wrap"><table>
         <thead><tr>
           <th>Operario</th><th>Servicio</th><th>Supervisor</th><th>Motivo</th><th>Prendas</th>
-          <th>Descuento</th><th>Solicitado</th><th>Días</th><th>Estado</th><th></th>
+          <th>Descuento</th><th>Retiro</th><th>Solicitado</th><th>Días</th><th>Estado</th><th></th>
         </tr></thead>
         <tbody id="tbody-uni-pendientes"></tbody>
       </table></div>
@@ -4520,7 +4522,7 @@
       <div class="tabla-wrap"><table>
         <thead><tr>
           <th>Operario</th><th>Servicio</th><th>Supervisor</th><th>Motivo</th><th>Prendas</th>
-          <th>Descuento</th><th>Solicitado</th><th>Días</th><th>Estado</th><th></th>
+          <th>Descuento</th><th>Retiro</th><th>Solicitado</th><th>Días</th><th>Estado</th><th></th>
         </tr></thead>
         <tbody id="tbody-uni-todos"></tbody>
       </table></div>
@@ -4568,6 +4570,20 @@
         </tr></thead>
         <tbody id="tbody-uni-devoluciones"></tbody>
       </table></div>
+    </div>
+  </div>
+
+  <!-- TAB LINK DE PEDIDO -->
+  <div id="uni-tab-link" class="tab-content">
+    <div class="card" style="border-radius:0 var(--radio-lg) var(--radio-lg) var(--radio-lg);max-width:760px;">
+      <div class="card-header"><h3>🔗 Link permanente de pedido de uniformes</h3></div>
+      <p style="font-size:13px;color:var(--texto-suave);margin-bottom:14px;">Reemplaza el Google Form: el link abre la misma ventana de "Nuevo pedido" del módulo. El que entra se identifica con su usuario y ve solo lo suyo (el supervisor, sus asociados a cargo). Es fijo y permanente — no vence ni cambia, se puede mandar las veces que haga falta.</p>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:10px;">
+        <input type="text" id="uni-link-pedido" readonly style="flex:1;min-width:320px;font-family:monospace;background:var(--fondo);">
+        <button class="btn btn-primary btn-sm" onclick="copiarLinkUniformes(false)">📋 Copiar link</button>
+        <button class="btn btn-secondary btn-sm" onclick="copiarLinkUniformes(true)">💬 Copiar mensaje para WhatsApp</button>
+      </div>
+      <div id="uni-link-copiado-msg" style="min-height:20px;"></div>
     </div>
   </div>
 </div>

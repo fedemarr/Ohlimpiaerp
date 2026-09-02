@@ -1,24 +1,34 @@
 // Uniformes v2 — catálogos fijos (DISENO_uniformes.md §4.4).
 
+import { DB } from '@shared/state.js';
+
+// FIX (ticket "Mejoras del módulo de uniformes", mockup solicitud_uniformes
+// 5, 02/09): se saca RRHH del circuito operativo — confirmado por el
+// solicitante ("la política ya validó sola, va directo a Logística"). Antes
+// había 3 idas y vueltas con RRHH en el medio (autorizar el envío a
+// Logística, confirmar que Logística lo recibió, entregarlo al Supervisor);
+// ahora Logística prepara y avisa directo al Supervisor, y también recibe
+// la devolución de constancia+viejo y cierra el pedido (antes lo hacía
+// RRHH — tiene más sentido que quien maneja el depósito físico sea quien
+// cierra, ya que RRHH deja de ser parte del traspaso).
 export const ESTADOS_UNIFORMES = [
   'Borrador',
-  'Pendiente autorización RRHH',
-  'Autorizado por RRHH, esperando envío a Logística',
+  'Enviado, esperando preparación de Logística',
   'En preparación por Logística',
-  'Enviado por Logística, esperando confirmación RRHH',
-  'Recibido por RRHH, listo para retirar Supervisor',
-  'Retirado por Supervisor, esperando confirmación Supervisor',
-  'Confirmado por Supervisor, en tránsito a operario',
+  'Listo para retiro',
+  'Retirado por Supervisor, en tránsito a operario',
   'Entregado al operario con firma, esperando constancia + viejo',
-  'Constancia + viejo entregados por Supervisor, esperando confirmación RRHH',
+  'Constancia + viejo entregados, esperando cierre de Logística',
   'Cerrado',
-  'Rechazado por RRHH',
   'Cancelado por Solicitante',
   'Vencido',
   'Descuento aplicado por incumplimiento',
 ];
 
-export const ESTADOS_FINALES = ['Cerrado', 'Rechazado por RRHH', 'Cancelado por Solicitante', 'Descuento aplicado por incumplimiento'];
+export const ESTADOS_FINALES = ['Cerrado', 'Cancelado por Solicitante', 'Descuento aplicado por incumplimiento'];
+
+// Puntos de retiro (mockup: "el punto de retiro viaja con el pedido").
+export const PUNTOS_RETIRO = ['Recepción', 'Depósito Maure'];
 
 // + Buzo, Gorra (ticket "Uniforme" de Altas, 08/2026): faltaban en el
 // catálogo — el resto de las prendas pedidas (Chomba, Grafa/pantalón,
@@ -73,6 +83,16 @@ export function conDescuentoSegunMotivo(motivo) {
 export function esTemporadaCamperaPolar(fecha = new Date()) {
   const mes = fecha.getMonth() + 1;
   return mes >= 3 && mes <= 9;
+}
+
+// Cuotas de descuento — parametrizable (mockup: "cantidad de cuotas
+// parametrizable en Configuración, hoy 4"). Mismo patrón que
+// pedidosConfig/stockConfig: clave/valor editable directo en la tabla
+// mientras no tenga pantalla propia (uniformes_config, v112).
+export function cuotasDescuento() {
+  const fila = (DB.uniformesConfig || []).find(c => c.clave === 'cuotas_descuento');
+  const n = fila ? parseInt(fila.valor, 10) : NaN;
+  return Number.isFinite(n) && n > 0 ? n : 4;
 }
 
 // Talle propuesto desde el legajo, con fallback a los campos existentes

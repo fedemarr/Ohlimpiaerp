@@ -15,6 +15,7 @@ import { toast } from '@shared/ui.js';
 import { supaSync } from '@shared/supabase.js';
 import { idLocalTrunc, prendasDelPedido, getPedidoById } from './flujo.js';
 import { crearNotificacion } from '@shared/notificaciones.js';
+import { cuotasDescuento } from './catalogos.js';
 
 function sumarMeses(fechaISO, n) {
   const d = new Date(fechaISO);
@@ -22,20 +23,22 @@ function sumarMeses(fechaISO, n) {
   return d.toISOString().slice(0, 10);
 }
 
-// 4 cuotas fijas — llamado desde flujo.js en la transición 8->9.
+// Cuotas parametrizables (⚙ Configuración, hoy 4) — llamado desde flujo.js
+// en la transición de entrega al operario.
 export async function crearDescuentoPendiente(pedido, montoTotal, motivoGeneracion) {
   const hoy = new Date().toISOString().slice(0, 10);
+  const cuotas = cuotasDescuento();
   const d = {
     id: Date.now(),
     pedidoIdLocal: idLocalTrunc(pedido.id),
     legajoIdLocal: pedido.legajoIdLocal,
     montoTotal,
-    cuotasTotales: 4,
+    cuotasTotales: cuotas,
     cuotasCobradas: 0,
-    montoCuota: Math.round((montoTotal / 4) * 100) / 100,
+    montoCuota: Math.round((montoTotal / cuotas) * 100) / 100,
     fechaGenerado: new Date().toISOString(),
     fechaPrimeraCuota: sumarMeses(hoy, 1),
-    fechaUltimaCuota: sumarMeses(hoy, 4),
+    fechaUltimaCuota: sumarMeses(hoy, cuotas),
     estado: 'En curso',
     motivoGeneracion,
   };
@@ -45,7 +48,7 @@ export async function crearDescuentoPendiente(pedido, montoTotal, motivoGeneraci
   return d;
 }
 
-// Cuota única — llamado desde flujo.js (rrhhConfirmaCierre, prenda
+// Cuota única — llamado desde flujo.js (logisticaConfirmaCierre, prenda
 // faltante) y desde devoluciones.js (baja con faltante).
 export async function crearDescuentoPorFaltante(pedido, prendasFaltantes) {
   const prendas = prendasDelPedido(pedido.id);
