@@ -6884,7 +6884,11 @@
           <div class="form-group"><label>Servicio</label><select id="rec-objetivo"></select></div>
         </div>
         <div class="form-grid form-grid-2" id="rec-cliente-wrap">
-          <div class="form-group"><label>Cliente *</label><select id="rec-cliente"></select></div>
+          <div class="form-group"><label>Cliente *</label>
+            <input type="text" id="rec-cliente-buscar" list="dl-rec-cliente" placeholder="Buscar cliente..." autocomplete="off" oninput="onBuscarClienteReclamo()">
+            <datalist id="dl-rec-cliente"></datalist>
+            <input type="hidden" id="rec-cliente">
+          </div>
         </div>
         <div class="form-grid form-grid-3">
           <div class="form-group"><label>Tipo de reclamo *</label><select id="rec-tipo"></select></div>

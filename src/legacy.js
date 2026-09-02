@@ -3196,7 +3196,28 @@ function onChangeOrigenReclamo(){
   // Sin cliente seleccionado cuando es interno (evita guardar un cliente
   // que el usuario ya no ve ni eligió).
   if(esInterno && cli) cli.value='';
+  if(esInterno && $('rec-cliente-buscar')) $('rec-cliente-buscar').value='';
   wrap.querySelector('label').textContent=esInterno?'Cliente':'Cliente *';
+}
+// Normaliza para comparar sin distinguir mayúsculas ni acentos ("Café" ==
+// "cafe") — mismo criterio usado en el resto del proyecto para nombres.
+function _normTexto(s){return String(s||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').trim();}
+// Filtra el datalist por coincidencia PARCIAL (no solo por dónde empieza,
+// que es lo único que hacía el <select> nativo) y resuelve el cliente
+// elegido al id oculto que guardarReclamo() necesita.
+function onBuscarClienteReclamo(){
+  const input=$('rec-cliente-buscar');const hidden=$('rec-cliente');
+  if(!input||!hidden)return;
+  const q=_normTexto(input.value);
+  const dl=$('dl-rec-cliente');
+  if(dl) dl.innerHTML=(DB.clientes||[])
+    .filter(c=>!q||_normTexto(c.nombre).includes(q))
+    .sort((a,b)=>a.nombre.localeCompare(b.nombre,'es'))
+    .map(c=>`<option value="${c.nombre}">`).join('');
+  // Coincidencia exacta (normalizada) → ya se puede guardar. Si todavía
+  // está a mitad de tipear, el id queda vacío y guardarReclamo() lo pide.
+  const match=(DB.clientes||[]).find(c=>_normTexto(c.nombre)===q);
+  hidden.value=match?match.id:'';
 }
 function guardarReclamo(){
   const desc=$('rec-desc')?.value.trim();if(!desc){toast('Ingresá la descripción');return;}
@@ -3552,7 +3573,15 @@ function poblarSelectsComercial(){
   fillDL('dl-obj-comision-persona',(DB.legajos||[]).filter(l=>l.estado==='Activo').map(l=>l.nombre));
   fS('obj-jurisdiccion',Object.keys(DB.jurisdiccionesServicio||{}));
   fSId('obj-cliente',DB.clientes);
-  fSId('rec-cliente',DB.clientes);
+  // FIX (ticket "Faltan clientes", 02/09): el <select> nativo solo saltaba
+  // a la primera opción que empezaba con la letra tipeada (comportamiento
+  // del browser, no un filtro nuestro) — no se podía escribir el nombre
+  // completo. Reemplazado por input + datalist (mismo patrón ya usado en
+  // Reasignaciones/Retenciones/Monotributos) con filtro propio en
+  // onBuscarClienteReclamo() para garantizar substring + sin distinguir
+  // mayúsculas/acentos, en vez de depender del filtrado nativo del
+  // datalist (que varía según el navegador).
+  fillDL('dl-rec-cliente',[...DB.clientes].sort((a,b)=>a.nombre.localeCompare(b.nombre,'es')).map(c=>c.nombre));
   fS('cf-obj-cliente',DB.clientes.map(c=>c.nombre));
   fS('cf-cob-cliente',DB.clientes.map(c=>c.nombre));
   fS('rec-objetivo',DB.objetivos.map(o=>o.codigo));
@@ -13718,6 +13747,7 @@ window.guardarParitaria = guardarParitaria;
 window.guardarPropuestaPrecio = guardarPropuestaPrecio;
 window.guardarReclamo = guardarReclamo;
 window.onChangeOrigenReclamo = onChangeOrigenReclamo;
+window.onBuscarClienteReclamo = onBuscarClienteReclamo;
 window.guardarVacAdmin = guardarVacAdmin;
 window.buscarAsocVac = buscarAsocVac;
 window.seleccionarAsocVac = seleccionarAsocVac;
