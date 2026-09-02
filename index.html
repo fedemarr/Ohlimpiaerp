@@ -6682,7 +6682,7 @@
       <div id="obj-tab-0" class="tab-content active">
         <div class="form-grid gap-12">
           <div class="form-grid form-grid-2">
-            <div class="form-group"><label>Cliente *</label><select id="obj-cliente" onchange="poblarModeloPrecioSegunCliente(parseInt(this.value)||0);heredarFacturacionDeCliente(parseInt(this.value)||0)"></select></div>
+            <div class="form-group"><label>Cliente *</label><select id="obj-cliente" onchange="poblarModeloPrecioSegunCliente(parseInt(this.value)||0);heredarFacturacionDeCliente(parseInt(this.value)||0);if(document.getElementById('obj-usar-dir-fiscal').checked)aplicarDireccionFiscalAObjetivo()"></select></div>
             <div class="form-group"><label>Código del servicio *</label><input type="text" id="obj-codigo" placeholder="Ej: CHANGO.BROWN"></div>
           </div>
           <div class="form-grid form-grid-2">
@@ -6698,6 +6698,10 @@
             </div>
             <div class="form-group"><label>Dirección *</label><input type="text" id="obj-dir" placeholder="Calle y altura"></div>
           </div>
+          <label style="display:flex;align-items:center;gap:6px;font-size:12px;margin:-4px 0 4px;cursor:pointer;">
+            <input type="checkbox" id="obj-usar-dir-fiscal" onchange="toggleUsarDireccionFiscalObjetivo()">
+            Usar la dirección fiscal del cliente (elegí el cliente primero)
+          </label>
           <div class="form-grid form-grid-2">
             <div class="form-group"><label>Jurisdicción *</label><select id="obj-jurisdiccion" onchange="poblarLocalidadesServicio()"><option value="">— Seleccionar —</option></select></div>
             <div class="form-group"><label>Localidad *</label><select id="obj-localidad"><option value="">— Elegí jurisdicción primero —</option></select></div>

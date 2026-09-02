@@ -1218,6 +1218,7 @@ function verCliente(idLocal){
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:16px;">
     <div class="info-grid">
       <div class="info-item"><div class="key">Código interno</div><div class="val" style="font-family:'DM Mono',monospace;">${c.codigo||'—'}</div></div>
+      <div class="info-item"><div class="key">Dirección fiscal</div><div class="val">${c.direccion?`${c.direccion}${c.ciudad?', '+c.ciudad:''}`:'—'}</div></div>
       <div class="info-item"><div class="key">Condición pago</div><div class="val">${c.condPago||'—'}</div></div>
       <div class="info-item"><div class="key">Forma de pago</div><div class="val">${c.formaPago||'—'}</div></div>
       <div class="info-item"><div class="key">Código Tango (ref. externa)</div><div class="val" style="font-family:'DM Mono',monospace;">${c.codigoTango||'—'}</div></div>
@@ -1266,6 +1267,13 @@ function nuevoObjetivoDesde(clienteId){
 let contactosClienteTemp=[];
 window.contactosClienteTemp=contactosClienteTemp;
 let clienteEditIdLocal=null;
+// FIX (ticket "Dirección fiscal", 02/09): cli-ciudad/cli-direccion son la
+// dirección FISCAL del cliente (razón social) — así lo dice ya el label del
+// formulario. NO es la dirección del servicio: esa vive por-objetivo
+// (obj-dir/obj-jurisdiccion/obj-localidad, un cliente puede tener varios
+// servicios en distintas direcciones). Ver v114 (COMMENT ON COLUMN) y el
+// checkbox "Usar la dirección fiscal del cliente" en el alta de servicio,
+// más abajo (toggleUsarDireccionFiscalObjetivo).
 const CLI_CAMPOS_TEXTO=['cli-razon','cli-nombre','cli-tipo','cli-codigo','cli-cuit','cli-iva','cli-arca','cli-cond-pago','cli-forma-pago','cli-codigo-tango','cli-ciudad','cli-direccion','cli-responsable','cli-responsable-contacto','cli-logo','cli-obs','cli-tipo-contrato','cli-fact-por','cli-periodo-fact','cli-productos-fact','cli-req-oc','cli-notas-fact','cli-ib','cli-jur'];
 const CLI_CAMPOS_DOC=['doc-seguros','doc-monotributo','doc-antecedentes','doc-ddjj-iva','doc-pago-iva','doc-remito-servicio','doc-planilla-horas','doc-oc'];
 function abrirModalCliente(idLocal){
@@ -1381,7 +1389,7 @@ function guardarCliente(){
     responsableTipo:$('cli-responsable-tipo')?.value||'Interno',
     responsableContacto:cleanText($('cli-responsable-contacto')?.value||''),
     codigoTango:cleanText($('cli-codigo-tango')?.value||'').toUpperCase(),estado:$('cli-estado')?.value,
-    ciudad:$('cli-ciudad')?.value,direccion:$('cli-direccion')?.value,
+    ciudad:$('cli-ciudad')?.value,direccion:$('cli-direccion')?.value, // dirección FISCAL (ver comentario en CLI_CAMPOS_TEXTO)
     logo:$('cli-logo')?.value,obs:$('cli-obs')?.value,
     ingresosBrutos:$('cli-ib')?.value||'',jurisdiccionIibb:$('cli-jur')?.value||'',
     docReq:{seguros:$('doc-seguros')?.checked,monotributo:$('doc-monotributo')?.checked,antecedentes:$('doc-antecedentes')?.checked,ddjjIva:$('doc-ddjj-iva')?.checked,pagoIva:$('doc-pago-iva')?.checked,remitoServicio:$('doc-remito-servicio')?.checked,planillaHoras:$('doc-planilla-horas')?.checked,oc:$('doc-oc')?.checked},
@@ -1705,6 +1713,46 @@ function heredarFacturacionDeCliente(clienteId){
   if($('obj-periodo-fact')&&cli.periodoFact) $('obj-periodo-fact').value=cli.periodoFact;
   if($('obj-req-oc')&&cli.reqOC) $('obj-req-oc').value=cli.reqOC;
 }
+// FIX (ticket "Dirección fiscal", 02/09): checkbox "Usar la dirección fiscal
+// del cliente" en el alta de servicio — copia dirección/ciudad del cliente
+// (fiscal) a dir/jurisdicción/localidad del OBJETIVO (servicio), agilizando
+// la carga cuando coinciden. cliente.ciudad es texto libre, sin vínculo con
+// DB.jurisdiccionesServicio (esa es geografía de servicios) — se intenta un
+// match por nombre; si no matchea ninguna localidad cargada, se deja
+// jurisdicción/localidad para elegir a mano y se avisa con un toast. Nunca
+// se persiste como flag en la base: es solo una conveniencia de carga, así
+// que siempre arranca destildado (ver abrirModalObjetivo) — no pisa en
+// silencio la dirección de un servicio ya cargado al editar.
+function toggleUsarDireccionFiscalObjetivo(){
+  const chk=$('obj-usar-dir-fiscal');
+  const inpDir=$('obj-dir'),selJur=$('obj-jurisdiccion'),selLoc=$('obj-localidad');
+  const usar=!!chk?.checked;
+  if(inpDir) inpDir.disabled=usar;
+  if(selJur) selJur.disabled=usar;
+  if(selLoc) selLoc.disabled=usar;
+  if(usar) aplicarDireccionFiscalAObjetivo();
+}
+function aplicarDireccionFiscalAObjetivo(){
+  const clienteId=parseInt($('obj-cliente')?.value)||0;
+  const cli=DB.clientes.find(c=>c.id===clienteId);
+  if(!cli){toast('⚠️ Elegí primero el cliente');return;}
+  if(!cli.direccion){toast('⚠️ Este cliente no tiene dirección fiscal cargada');return;}
+  $('obj-dir').value=cli.direccion;
+  const ciudadNorm=(cli.ciudad||'').trim().toLowerCase();
+  let matcheo=false;
+  if(ciudadNorm){
+    for(const[jurisdiccion,localidades]of Object.entries(DB.jurisdiccionesServicio||{})){
+      const loc=(localidades||[]).find(l=>l.toLowerCase()===ciudadNorm);
+      if(loc){
+        $('obj-jurisdiccion').value=jurisdiccion;
+        poblarLocalidadesServicio(loc);
+        matcheo=true;
+        break;
+      }
+    }
+  }
+  if(!matcheo) toast('📍 Dirección copiada — la ciudad fiscal ("'+(cli.ciudad||'—')+'") no matchea ninguna localidad cargada, elegí jurisdicción/localidad a mano');
+}
 function poblarModeloPrecioSegunCliente(clienteId){
   const hint=$('obj-modelo-precio-hint');if(!hint)return;
   const esperados=modelosPrecioEsperados(clienteId);
@@ -1760,6 +1808,13 @@ function abrirModalObjetivo(idLocal){
     poblarLocalidadesServicio();
     poblarModeloPrecioSegunCliente(0);
   }
+  // FIX (ticket "Dirección fiscal", 02/09): el checkbox siempre arranca
+  // destildado (y los campos habilitados) — es solo una conveniencia de
+  // carga, nunca pisa en silencio la dirección de un servicio ya cargado.
+  if($('obj-usar-dir-fiscal')){$('obj-usar-dir-fiscal').checked=false;}
+  if($('obj-dir')) $('obj-dir').disabled=false;
+  if($('obj-jurisdiccion')) $('obj-jurisdiccion').disabled=false;
+  if($('obj-localidad')) $('obj-localidad').disabled=false;
   if($('obj-paga-comision')) $('obj-paga-comision').checked=comisionesObjTemp.length>0;
   if($('obj-com-es-externo')) $('obj-com-es-externo').checked=false;
   if($('obj-com-tipo')) $('obj-com-tipo').value='Continuo';
@@ -13956,6 +14011,8 @@ window.toggleModeloPrecio = toggleModeloPrecio;
 window.recalcularPrecioObjetivo = recalcularPrecioObjetivo;
 window.poblarLocalidadesServicio = poblarLocalidadesServicio;
 window.heredarFacturacionDeCliente = heredarFacturacionDeCliente;
+window.toggleUsarDireccionFiscalObjetivo = toggleUsarDireccionFiscalObjetivo;
+window.aplicarDireccionFiscalAObjetivo = aplicarDireccionFiscalAObjetivo;
 window.agregarPuestoObj = agregarPuestoObj;
 window.renderPuestosObj = renderPuestosObj;
 window.toggleResponsableClienteTipo = toggleResponsableClienteTipo;
