@@ -4726,7 +4726,7 @@
       <div class="tabla-wrap"><table style="width:100%;border-collapse:collapse;font-size:12.5px;">
         <thead><tr style="background:#374151;color:white;">
           <th style="padding:8px 12px;">Cód. Mónica</th><th style="padding:8px 12px;text-align:left;">Producto</th>
-          <th style="padding:8px 12px;">Proveedor</th>
+          <th style="padding:8px 12px;">Marca</th><th style="padding:8px 12px;">Proveedor</th>
           <th style="padding:8px 12px;">Tipo de uso</th><th style="padding:8px 12px;">Costo vigente</th><th style="padding:8px 12px;">Acciones</th>
         </tr></thead>
         <tbody id="tbody-pp-catalogo"></tbody>
@@ -4806,6 +4806,17 @@
         <tbody id="tbody-pp-auditoria-directo"></tbody>
       </table></div>
     </div>
+    <div class="card" style="border-radius:var(--radio-lg);">
+      <div class="card-header"><h3>Resueltos este período</h3></div>
+      <p style="font-size:12px;color:var(--texto-suave);padding:0 20px 10px;">Pedidos que pasaron por la bandeja y ya se aprobaron — tocá la fila para ver el historial completo con el diff de cada paso.</p>
+      <div class="tabla-wrap"><table style="width:100%;border-collapse:collapse;font-size:12.5px;">
+        <thead><tr style="background:#374151;color:white;">
+          <th style="padding:8px 12px;text-align:left;">Servicio</th><th style="padding:8px 12px;">Supervisor</th><th style="padding:8px 12px;text-align:left;">Motivo</th>
+          <th style="padding:8px 12px;text-align:left;">Resolución</th><th style="padding:8px 12px;">Monto</th><th style="padding:8px 12px;">Fecha</th>
+        </tr></thead>
+        <tbody id="tbody-pp-auditoria-resueltos"></tbody>
+      </table></div>
+    </div>
   </div>
 
   <div id="pp-tab-compras" class="tab-content">
@@ -4841,7 +4852,7 @@
         <div class="tabla-wrap"><table style="width:100%;border-collapse:collapse;font-size:12.5px;">
           <thead><tr style="background:#374151;color:white;">
             <th style="padding:8px 12px;text-align:left;">Orden</th><th style="padding:8px 12px;">Proveedor</th><th style="padding:8px 12px;">Líneas</th>
-            <th style="padding:8px 12px;">Total (costo)</th><th style="padding:8px 12px;">Estado</th><th style="padding:8px 12px;">Factura prov.</th>
+            <th style="padding:8px 12px;">Total (costo)</th><th style="padding:8px 12px;">Estado</th><th style="padding:8px 12px;">Factura prov.</th><th style="padding:8px 12px;"></th>
           </tr></thead>
           <tbody id="tbody-pp-compras-ordenes"></tbody>
         </table></div>

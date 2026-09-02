@@ -29,6 +29,7 @@ export const _SM = {
   proveedoresCtaCteMovimientos: 'proveedores_cta_cte_movimientos',
   ppRecargoGeneral: 'pp_recargo_general',
   ppRecargoServicio: 'pp_recargo_servicio',
+  ppPedidoEventos: 'pp_pedido_eventos', // v113 — ronda 02/09, FIX 8
   perfilPersonalAtributos: 'perfil_personal_atributos',
   candidatos: 'candidatos',
   psicos: 'psicos',
@@ -654,6 +655,8 @@ export function _toSnake(obj) {
     armadoPor: 'armado_por', armadoEn: 'armado_en', enRepartoEn: 'en_reparto_en',
     entregadoA: 'entregado_a', fotoPath: 'foto_path', firmaCliente: 'firma_cliente',
     fechaLimiteEntrega: 'fecha_limite_entrega',
+    // v113 — Pedido de productos: correcciones ronda de prueba 02/09
+    motivoRevisionSnapshot: 'motivo_revision_snapshot', tuvoObservacion: 'tuvo_observacion',
   };
   const r = {};
   for (const [k, v] of Object.entries(obj)) {
@@ -1083,6 +1086,8 @@ export function _toCamel(obj) {
     armado_por: 'armadoPor', armado_en: 'armadoEn', en_reparto_en: 'enRepartoEn',
     entregado_a: 'entregadoA', foto_path: 'fotoPath', firma_cliente: 'firmaCliente',
     fecha_limite_entrega: 'fechaLimiteEntrega',
+    // v113 — Pedido de productos: correcciones ronda de prueba 02/09
+    motivo_revision_snapshot: 'motivoRevisionSnapshot', tuvo_observacion: 'tuvoObservacion',
   };
   const r = {};
   for (const [k, v] of Object.entries(obj)) {

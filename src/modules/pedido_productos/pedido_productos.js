@@ -56,6 +56,30 @@ function getPeriodoPP(id) { return (DB.ppPeriodos || []).find(p => _idTrunc(p.id
 function getProveedorPP(id) { return (DB.proveedores || []).find(p => String(p.id) === String(id) && !p.anulado); }
 function itemsDePedido(pedidoId) { return (DB.ppItems || []).filter(i => _idTrunc(i.pedidoIdLocal) === _idTrunc(pedidoId) && !i.anulado); }
 
+// ========== HISTORIAL / RASTRO DE AUDITORÍA POR PEDIDO (FIX 8, ronda
+// 02/09) — mismo patrón que pedido_uniforme_eventos: un registro por
+// transición, con quién/cuándo/qué. Alimenta el modal "Historial" de la
+// bandeja del auditor, para que un pedido aprobado no "se evapore" sin
+// dejar rastro de por dónde pasó.
+async function registrarEventoPP(pedido, estadoDesde, estadoHasta, observaciones = '') {
+  const ev = { id: _id('PPEV'), pedidoIdLocal: _idTrunc(pedido.id), estadoDesde, estadoHasta, ejecutadoPor: currentUser?.nombre || '', ejecutadoEn: new Date().toISOString(), observaciones };
+  if (!DB.ppPedidoEventos) DB.ppPedidoEventos = [];
+  DB.ppPedidoEventos.push(ev);
+  await supaSync('ppPedidoEventos', ev);
+}
+function eventosDePedidoPP(pedidoId) {
+  return (DB.ppPedidoEventos || []).filter(e => _idTrunc(e.pedidoIdLocal) === _idTrunc(pedidoId)).sort((a, b) => new Date(a.ejecutadoEn) - new Date(b.ejecutadoEn));
+}
+// Diff de cantidades que el auditor tocó (ajustarCantidadAuditoriaPP ya
+// deja cantAntesAjuste/cantAutorizada por ítem) — lo usan tanto el evento
+// de "devuelto con propuesta" como el de "aprobado con ajuste".
+function diffAjustesAuditorPP(pedidoId) {
+  return itemsDePedido(pedidoId)
+    .filter(i => i.cantAntesAjuste != null && i.cantAutorizada != null && i.cantAutorizada !== i.cantAntesAjuste)
+    .map(i => `${getProductoPP(i.productoIdLocal)?.descripcion || i.productoIdLocal}: ${i.cantAntesAjuste} → ${i.cantAutorizada}`)
+    .join(' · ');
+}
+
 function precioVigente(productoId, fechaISO = hoyStr()) {
   // FIX 27/08 (ticket "importar CSV no guarda precios"): mismo bug de
   // truncamiento que periodoIdLocal (ver _idTrunc arriba) pero acá con
@@ -347,13 +371,14 @@ export function renderCatalogoPP() {
     .filter(p => !filtroTipo || p.tipoUso === filtroTipo)
     .filter(p => !filtroProv || String(p.proveedorIdLocal || '') === String(filtroProv))
     .sort((a, b) => a.descripcion.localeCompare(b.descripcion));
-  if (!rows.length) { tbody.innerHTML = '<tr><td colspan="6" style="padding:40px;text-align:center;color:var(--texto-muy-suave);">Sin productos en el catálogo.</td></tr>'; return; }
+  if (!rows.length) { tbody.innerHTML = '<tr><td colspan="7" style="padding:40px;text-align:center;color:var(--texto-muy-suave);">Sin productos en el catálogo.</td></tr>'; return; }
   tbody.innerHTML = rows.map(p => {
     const costo = precioVigente(p.id);
     const prov = p.proveedorIdLocal ? getProveedorPP(p.proveedorIdLocal) : null;
     return `<tr>
       <td style="padding:6px 12px;border:1px solid var(--borde);">${p.codigoMonica || '—'}</td>
       <td style="padding:6px 12px;border:1px solid var(--borde);font-weight:500;">${p.descripcion}</td>
+      <td style="padding:6px 8px;border:1px solid var(--borde);color:var(--texto-suave);">${p.marca || '—'}</td>
       <td style="padding:6px 8px;border:1px solid var(--borde);text-align:center;">${prov ? `<span class="badge" style="background:#0ea5e9;color:white;font-size:10.5px;">${prov.nombre}</span>` : '<span style="color:var(--texto-suave);">—</span>'}</td>
       <td style="padding:6px 8px;border:1px solid var(--borde);text-align:center;">${badgeTipoUsoPP(p.tipoUso)}</td>
       <td style="padding:6px 8px;border:1px solid var(--borde);text-align:right;">${costo ? _money(costo) : '<span style="color:var(--rojo);">sin precio</span>'}</td>
@@ -375,7 +400,7 @@ function _poblarSelectProveedorPP() {
 export function abrirNuevoProductoPP() {
   _ppProductoEditandoId = null;
   ensureModalProductoPP(); _poblarSelectProveedorPP();
-  $('pp-prod-descripcion').value = ''; $('pp-prod-codigo').value = ''; $('pp-prod-tipo-uso').value = 'normal'; $('pp-prod-costo-inicial').value = ''; $('pp-prod-proveedor').value = '';
+  $('pp-prod-descripcion').value = ''; $('pp-prod-codigo').value = ''; $('pp-prod-marca').value = ''; $('pp-prod-tipo-uso').value = 'normal'; $('pp-prod-costo-inicial').value = ''; $('pp-prod-proveedor').value = '';
   $('pp-prod-modal-titulo').textContent = 'Nuevo producto';
   abrirModal('modal-pp-producto');
 }
@@ -383,7 +408,7 @@ export function abrirEditarProductoPP(id) {
   const p = getProductoPP(id); if (!p) return;
   _ppProductoEditandoId = id;
   ensureModalProductoPP(); _poblarSelectProveedorPP();
-  $('pp-prod-descripcion').value = p.descripcion; $('pp-prod-codigo').value = p.codigoMonica || ''; $('pp-prod-tipo-uso').value = p.tipoUso || 'normal';
+  $('pp-prod-descripcion').value = p.descripcion; $('pp-prod-codigo').value = p.codigoMonica || ''; $('pp-prod-marca').value = p.marca || ''; $('pp-prod-tipo-uso').value = p.tipoUso || 'normal';
   $('pp-prod-proveedor').value = p.proveedorIdLocal || '';
   $('pp-prod-costo-inicial').value = '';
   $('pp-prod-modal-titulo').textContent = 'Editar producto';
@@ -401,6 +426,9 @@ function ensureModalProductoPP() {
         <input type="text" id="pp-prod-descripcion" style="width:100%;padding:7px 10px;border:1px solid var(--borde-fuerte);border-radius:var(--radio);margin:4px 0 10px;">
         <label style="font-size:12px;font-weight:600;">Código Mónica (opcional)</label>
         <input type="text" id="pp-prod-codigo" style="width:100%;padding:7px 10px;border:1px solid var(--borde-fuerte);border-radius:var(--radio);margin:4px 0 10px;">
+        <label style="font-size:12px;font-weight:600;">Marca (opcional — ej. 3M, Diversey)</label>
+        <input type="text" id="pp-prod-marca" style="width:100%;padding:7px 10px;border:1px solid var(--borde-fuerte);border-radius:var(--radio);margin:4px 0 10px;">
+        <p style="font-size:11px;color:var(--texto-suave);margin:-6px 0 10px;">La marca es un dato del producto — el <b>proveedor</b> de abajo es quién realmente lo vende (pueden ser distintos: ej. proveedor NUMASA vende productos de marca 3M o Diversey).</p>
         <label style="font-size:12px;font-weight:600;">Tipo de uso</label>
         <select id="pp-prod-tipo-uso" style="width:100%;padding:7px 10px;border:1px solid var(--borde-fuerte);border-radius:var(--radio);margin:4px 0 10px;">
           <option value="normal">Normal</option>
@@ -426,15 +454,16 @@ export function guardarProductoPP() {
   const descripcion = ($('pp-prod-descripcion').value || '').trim();
   if (!descripcion) { toast('⚠️ Falta la descripción'); return; }
   const codigoMonica = ($('pp-prod-codigo').value || '').trim();
+  const marca = ($('pp-prod-marca').value || '').trim();
   const tipoUso = $('pp-prod-tipo-uso').value;
   const proveedorIdLocal = $('pp-prod-proveedor').value || null;
   const costoInicial = parseFloat($('pp-prod-costo-inicial').value) || 0;
   let prod;
   if (_ppProductoEditandoId) {
     prod = getProductoPP(_ppProductoEditandoId); if (!prod) return;
-    prod.descripcion = descripcion; prod.codigoMonica = codigoMonica; prod.tipoUso = tipoUso; prod.proveedorIdLocal = proveedorIdLocal;
+    prod.descripcion = descripcion; prod.codigoMonica = codigoMonica; prod.marca = marca; prod.tipoUso = tipoUso; prod.proveedorIdLocal = proveedorIdLocal;
   } else {
-    prod = { id: _id('PPP'), descripcion, codigoMonica, tipoUso, proveedorIdLocal, anulado: false };
+    prod = { id: _id('PPP'), descripcion, codigoMonica, marca, tipoUso, proveedorIdLocal, anulado: false };
     if (!DB.ppProductos) DB.ppProductos = [];
     DB.ppProductos.push(prod);
   }
@@ -987,15 +1016,23 @@ export async function confirmarPedidoPP(pedidoId, { silencioso = false, motivoNo
   // en adelante el total del pedido no se mueve aunque cambie el precio.
   for (const i of items) { i.costoCongelado = precioVigente(i.productoIdLocal); await supaSync('ppItems', i); }
 
+  const estadoDesde = pedido.estado;
   const veniaObservado = pedido.estado === 'observado';
   pedido.confirmadoPor = currentUser?.nombre || (silencioso ? 'Sistema (cierre automático)' : '');
   pedido.confirmadoEn = new Date().toISOString();
   const motivos = motivosRevisionPP(pedido);
   pedido.estado = (motivos.length || veniaObservado) ? 'confirmado_revision' : 'confirmado';
+  // FIX 8: snapshot del motivo que lo manda a revisión — motivosRevisionPP()
+  // se puede recalcular distinto más adelante (el auditor ajusta
+  // cantidades y ya no daría el mismo motivo), así que "Resueltos" tiene
+  // que mostrar el motivo ORIGINAL, no uno recalculado post-aprobación.
+  if (pedido.estado === 'confirmado_revision') pedido.motivoRevisionSnapshot = motivos.map(m => m.label).join(', ') || 'Re-confirmado tras devolución';
   // Sale del estado OBSERVADO al re-confirmar: limpia la propuesta vieja
   // para que no quede colgada si este pedido se observa de nuevo más adelante.
   pedido.observadoPor = null; pedido.observadoEn = null; pedido.observadoMotivo = null; pedido.observadoComentario = null;
   await supaSync('ppPedidos', pedido);
+  await registrarEventoPP(pedido, estadoDesde, pedido.estado,
+    veniaObservado ? `Supervisor ajusta y re-confirma — ${_money(totalPedidoPP(pedido.id))}` : `Pedido confirmado por el supervisor — ${_money(totalPedidoPP(pedido.id))}${pedido.estado === 'confirmado_revision' ? ' → a la bandeja del auditor (' + pedido.motivoRevisionSnapshot + ')' : ' → directo a Compras'}`);
 
   if (pedido.supervisor) {
     await crearNotificacion({
@@ -1062,7 +1099,6 @@ export function renderAuditoriaPP() {
     }).join('') : '<tr><td colspan="6" style="padding:30px;text-align:center;color:var(--texto-muy-suave);">Nada pendiente de revisión en este período 🎉</td></tr>';
   }
 
-  const directos = todos.filter(p => p.estado !== 'borrador' && !['confirmado_revision', 'observado'].includes(p.estado) && p.estado !== 'confirmado');
   const pasaronDirecto = todos.filter(p => p.estado === 'confirmado');
   const tbodyDirecto = $('tbody-pp-auditoria-directo');
   if (tbodyDirecto) {
@@ -1076,6 +1112,26 @@ export function renderAuditoriaPP() {
         <td style="padding:6px 8px;border:1px solid var(--borde);color:var(--texto-suave);font-size:11.5px;">${p.confirmadoEn ? new Date(p.confirmadoEn).toLocaleString('es-AR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : '—'} · sin intervención del auditor</td>
       </tr>`;
     }).join('') : '<tr><td colspan="5" style="padding:20px;text-align:center;color:var(--texto-muy-suave);">Ninguno todavía</td></tr>';
+  }
+
+  // FIX 8 (ronda 02/09): pedidos que pasaron por la bandeja (excede,
+  // NO PAGAN, con autorización, etc.) y el auditor ya resolvió — antes
+  // desaparecían sin dejar rastro apenas quedaban 'autorizado'.
+  const resueltos = todos.filter(p => ['autorizado', 'en_compra', 'entregado'].includes(p.estado) && p.auditadoEn);
+  const tbodyResueltos = $('tbody-pp-auditoria-resueltos');
+  if (tbodyResueltos) {
+    tbodyResueltos.innerHTML = resueltos.length ? resueltos.sort((a, b) => new Date(b.auditadoEn) - new Date(a.auditadoEn)).map(p => {
+      const obj = (DB.objetivos || []).find(o => o.codigo === p.servicioCodigo);
+      const pagan = esPaganPP(p);
+      return `<tr class="clk" onclick="abrirHistorialPedidoPP('${p.id}')">
+        <td style="padding:6px 12px;border:1px solid var(--borde);font-weight:500;">${obj ? obj.nombre : p.servicioCodigo} ${!pagan ? '<span class="badge" style="background:#6b7280;color:white;font-size:10px;">NO PAGAN</span>' : ''}</td>
+        <td style="padding:6px 8px;border:1px solid var(--borde);">${p.supervisor || '—'}</td>
+        <td style="padding:6px 8px;border:1px solid var(--borde);">${p.motivoRevisionSnapshot || '—'}</td>
+        <td style="padding:6px 8px;border:1px solid var(--borde);"><span class="badge" style="background:#16a34a;color:white;">APROBADO</span> <span style="color:var(--texto-suave);font-size:11px;">${p.tuvoObservacion ? 'tras devolución con propuesta' : 'sin cambios'}</span></td>
+        <td style="padding:6px 8px;border:1px solid var(--borde);text-align:right;">${_money(totalPedidoPP(p.id))}</td>
+        <td style="padding:6px 8px;border:1px solid var(--borde);color:var(--texto-suave);font-size:11.5px;">${p.auditadoEn ? new Date(p.auditadoEn).toLocaleString('es-AR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : '—'}</td>
+      </tr>`;
+    }).join('') : '<tr><td colspan="6" style="padding:20px;text-align:center;color:var(--texto-muy-suave);">Nada resuelto todavía en este período</td></tr>';
   }
 }
 
@@ -1181,15 +1237,21 @@ export function ajustarCantidadAuditoriaPP(itemId, valor) {
 export async function aprobarPedidoPP(pedidoId) {
   const pedido = getPedidoPP(pedidoId); if (!pedido) return;
   if (!['confirmado_revision', 'observado'].includes(pedido.estado)) { toast('⚠️ Este pedido no está pendiente de revisión'); return; }
+  const estadoDesde = pedido.estado;
   const items = itemsDePedido(pedidoId);
   const huboAjuste = items.some(i => i.cantAutorizada != null && i.cantAutorizada !== i.cantSolicitada);
   for (const i of items) { if (i.cantAutorizada == null) { i.cantAutorizada = i.cantSolicitada; await supaSync('ppItems', i); } }
+  // FIX 8: snapshot del motivo (si todavía no se guardó — puede pasar con
+  // pedidos viejos, previos a este fix) antes de que el estado cambie.
+  if (!pedido.motivoRevisionSnapshot) pedido.motivoRevisionSnapshot = motivosRevisionPP(pedido).map(m => m.label).join(', ') || '—';
   pedido.estado = 'autorizado';
   pedido.auditadoPor = currentUser?.nombre || '';
   pedido.auditadoEn = new Date().toISOString();
   pedido.autorizadoPor = currentUser?.nombre || '';
   pedido.autorizadoEn = new Date().toISOString();
   await supaSync('ppPedidos', pedido);
+  const diff = diffAjustesAuditorPP(pedido.id);
+  await registrarEventoPP(pedido, estadoDesde, 'autorizado', `Auditor aprueba${huboAjuste ? ' con ajuste directo' : ''}${diff ? ' — ' + diff : ''} — pasa a Compras`);
   if (pedido.supervisor) {
     await crearNotificacion({
       tipo: 'pp_aprobado', entidadTipo: 'pedido_productos', entidadIdLocal: _idTrunc(pedido.id),
@@ -1214,12 +1276,20 @@ export async function confirmarDevolverConPropuestaPP() {
   const comentario = (($('pp-aud-dev-comentario') || {}).value || '').trim();
   if (!motivo) { toast('⚠️ Elegí el motivo'); return; }
   if (!comentario) { toast('⚠️ El comentario es obligatorio'); return; }
+  const estadoDesde = pedido.estado;
   pedido.estado = 'observado';
   pedido.observadoPor = currentUser?.nombre || '';
   pedido.observadoEn = new Date().toISOString();
   pedido.observadoMotivo = motivo;
   pedido.observadoComentario = comentario;
+  // FIX 8: queda marcado para siempre (no se limpia al re-confirmar, a
+  // diferencia de observadoPor/observadoEn/etc.) — es lo que distingue,
+  // en "Resueltos", un aprobado directo de uno que pasó por devolución.
+  pedido.tuvoObservacion = true;
+  if (!pedido.motivoRevisionSnapshot) pedido.motivoRevisionSnapshot = motivosRevisionPP(pedido).map(m => m.label).join(', ') || motivo;
   await supaSync('ppPedidos', pedido);
+  const diff = diffAjustesAuditorPP(pedido.id);
+  await registrarEventoPP(pedido, estadoDesde, 'observado', `Auditor devuelve con propuesta — ${motivo}: ${comentario}${diff ? ' — diff: ' + diff : ''}`);
   if (pedido.supervisor) {
     await crearNotificacion({
       tipo: 'pp_observado', entidadTipo: 'pedido_productos', entidadIdLocal: _idTrunc(pedido.id),
@@ -1230,6 +1300,42 @@ export async function confirmarDevolverConPropuestaPP() {
   cerrarModal('modal-pp-auditoria');
   renderAuditoriaPP();
   toast(`↩ Pedido de ${pedido.servicioCodigo} devuelto al supervisor`);
+}
+
+// ========== HISTORIAL DEL PEDIDO (FIX 8 — "Resueltos") ==========
+
+export function abrirHistorialPedidoPP(pedidoId) {
+  const pedido = getPedidoPP(pedidoId); if (!pedido) return;
+  ensureModalHistorialPP();
+  const obj = (DB.objetivos || []).find(o => o.codigo === pedido.servicioCodigo);
+  $('pp-hist-titulo').textContent = `Historial — ${obj ? obj.nombre : pedido.servicioCodigo} · ${getPeriodoPP(pedido.periodoIdLocal)?.mes || ''}`;
+  const eventos = eventosDePedidoPP(pedidoId);
+  $('pp-hist-timeline').innerHTML = eventos.length ? eventos.map(e => `
+    <div style="position:relative;margin-bottom:12px;padding-left:18px;border-left:2.5px solid var(--borde);">
+      <div style="position:absolute;left:-6.5px;top:2px;width:10px;height:10px;border-radius:50%;background:#1b2a5e;"></div>
+      <div style="font-size:12.8px;"><b>${LABEL_EVENTO_PP[e.estadoHasta] || e.estadoHasta}</b>${e.observaciones ? ` — ${e.observaciones}` : ''}</div>
+      <div style="font-size:11px;color:var(--texto-suave);">${new Date(e.ejecutadoEn).toLocaleString('es-AR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })} · ${e.ejecutadoPor || '—'}</div>
+    </div>`).join('') : '<p style="font-size:12px;color:var(--texto-suave);">Sin eventos registrados (pedido de antes de este historial).</p>';
+  abrirModal('modal-pp-historial');
+}
+const LABEL_EVENTO_PP = {
+  borrador: 'Borrador', confirmado: 'Confirmado — directo a Compras', confirmado_revision: 'Confirmado — a la bandeja del auditor',
+  observado: 'Auditor devuelve con propuesta', autorizado: 'Auditor aprueba', en_compra: 'En compra', entregado: 'Entregado',
+};
+function ensureModalHistorialPP() {
+  if ($('modal-pp-historial')) return;
+  const m = document.createElement('div');
+  m.className = 'modal-overlay'; m.id = 'modal-pp-historial';
+  m.innerHTML = `
+    <div class="modal" style="max-width:620px;">
+      <div class="modal-header"><h3 id="pp-hist-titulo">Historial</h3><button class="btn-close" onclick="cerrarModal('modal-pp-historial')">×</button></div>
+      <div class="modal-body">
+        <div id="pp-hist-timeline"></div>
+        <p style="font-size:11px;color:var(--texto-suave);margin-top:8px;">Cada paso con usuario, fecha y el diff de cantidades cuando lo hubo.</p>
+      </div>
+      <div class="modal-footer"><button class="btn btn-secondary" onclick="cerrarModal('modal-pp-historial')">Cerrar</button></div>
+    </div>`;
+  document.body.appendChild(m);
 }
 
 // ========== COMPRA Y ENTREGA ==========

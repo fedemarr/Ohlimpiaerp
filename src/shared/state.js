@@ -59,6 +59,7 @@ export const DB = {
   proveedoresCtaCteMovimientos: [],
   ppRecargoGeneral: [],
   ppRecargoServicio: [],
+  ppPedidoEventos: [], // v113 — Pedido de productos: correcciones ronda de prueba 02/09 (FIX 8)
   // v096 — Módulo Máquinas (padrón, tickets, movimientos)
   maquinas: [],
   maquinasMovimientos: [],

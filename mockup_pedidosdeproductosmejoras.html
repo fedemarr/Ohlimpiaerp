@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Compras — circuito corregido (ronda de prueba 02/09)</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;font-family:'Segoe UI',Arial,sans-serif}
+body{background:#f0f2f7;color:#1c2430}
+.top{background:#1b2a5e;color:#fff;padding:14px 26px;display:flex;align-items:center;gap:16px}
+.top h1{font-size:17px;font-weight:600}
+.top .crumb{font-size:12px;opacity:.75}
+.wrap{max-width:1340px;margin:0 auto;padding:18px 22px 60px}
+.subtabs{display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap}
+.stab{padding:8px 18px;border-radius:18px;font-size:13px;font-weight:700;cursor:pointer;background:#eceef3;color:#5a6478}
+.stab:hover{background:#dfe2ec}
+.stab.act{background:#1b2a5e;color:#fff}
+.sub{display:none}.sub.act{display:block}
+.card{background:#fff;border:1px solid #dde1ec;border-radius:10px;padding:16px 18px;margin-bottom:14px;box-shadow:0 1px 3px rgba(20,30,60,.05);overflow-x:auto}
+.card h2{font-size:14.5px;color:#1b2a5e;margin-bottom:10px}
+.banner{border-radius:8px;padding:10px 14px;font-size:12.8px;margin-bottom:14px;display:flex;gap:10px;align-items:flex-start}
+.banner.info{background:#e7f0ff;border:1px solid #b9d2f5;color:#1b3f77}
+.banner.fix{background:#fff6e0;border:1px solid #eed49a;color:#7a5a10}
+.banner.ok{background:#eaf7ee;border:1px solid #a9dcbc;color:#156a3a}
+table{width:100%;border-collapse:collapse;font-size:12.6px}
+th{background:#f4f6fb;color:#3c4560;text-align:left;padding:8px 10px;font-size:11px;text-transform:uppercase;letter-spacing:.3px;border-bottom:2px solid #dde1ec;white-space:nowrap}
+td{padding:8px 10px;border-bottom:1px solid #eceef5;vertical-align:middle}
+tr.clk{cursor:pointer}tr.clk:hover td{background:#f2f6ff}
+.num{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+.chip{display:inline-block;padding:2px 10px;border-radius:11px;font-size:10.8px;font-weight:700;white-space:nowrap}
+.c-gris{background:#eceef3;color:#5a6478}.c-azul{background:#dbe7ff;color:#1b3f9e}.c-verde{background:#d9f2e2;color:#156a3a}
+.c-nara{background:#ffe8d6;color:#a04a08}.c-rojo{background:#fddede;color:#a11c1c}.c-viol{background:#ece0fa;color:#5b2ca0}.c-teal{background:#d5f0f2;color:#0b6470}
+.tag{font-size:10.5px;font-weight:700;padding:2px 8px;border-radius:6px}
+.t-num{background:#d7f0ef;color:#0b6470}
+.t-tha{background:#dbe7ff;color:#2b4d80}
+.mut{color:#7a8296;font-size:11.5px}
+.btn{border:none;border-radius:7px;padding:8px 16px;font-size:12.8px;font-weight:600;cursor:pointer;white-space:nowrap}
+.b-pri{background:#1b2a5e;color:#fff}.b-sec{background:#eceef3;color:#39425a}.b-ok{background:#1d7a43;color:#fff}.b-line{background:#fff;color:#1b2a5e;border:1.5px solid #1b2a5e}
+.fixtag{display:inline-block;background:#e0a010;color:#fff;border-radius:6px;font-size:10px;font-weight:800;padding:2px 8px;vertical-align:middle;margin-left:8px}
+.sug{background:#f0faf3;border:1.5px solid #a9dcbc;border-radius:9px;padding:11px 15px;margin-top:10px;font-size:12.8px}
+.sug b{color:#156a3a}
+.fcard{background:#fff;border:1px solid #dde1ec;border-radius:10px;padding:14px 16px;cursor:pointer;box-shadow:0 1px 3px rgba(20,30,60,.05);margin-bottom:12px}
+.fcard:hover{border-color:#1b2a5e;box-shadow:0 3px 10px rgba(20,30,60,.12)}
+.pipe{display:flex;gap:0;margin:10px 0}
+.pstep{flex:1;text-align:center;font-size:10.5px;font-weight:700;padding:5px 2px;background:#eceef3;color:#8a92a6}
+.pstep.done{background:#d9f2e2;color:#156a3a}
+.pstep.cur{background:#1b2a5e;color:#fff}
+.pstep:first-child{border-radius:6px 0 0 6px}
+.pstep:last-child{border-radius:0 6px 6px 0}
+.modal-bg{display:none;position:fixed;inset:0;background:rgba(15,22,45,.55);z-index:50;align-items:flex-start;justify-content:center;padding:30px 16px;overflow:auto}
+.modal-bg.open{display:flex}
+.modal{background:#fff;border-radius:12px;max-width:920px;width:100%;box-shadow:0 12px 40px rgba(10,18,45,.35)}
+.m-head{padding:16px 22px;border-bottom:1px solid #e3e6ef;display:flex;align-items:center;gap:14px}
+.m-head h3{font-size:15.5px;color:#1b2a5e}
+.m-head .x{margin-left:auto;font-size:20px;cursor:pointer;color:#8a92a6;background:none;border:none}
+.m-body{padding:16px 22px;max-height:66vh;overflow:auto}
+.m-foot{padding:14px 22px;border-top:1px solid #e3e6ef;display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.tl{border-left:2.5px solid #dde1ec;margin-left:8px;padding-left:16px;margin-top:8px}
+.tl .ev{position:relative;margin-bottom:10px;font-size:12.6px}
+.tl .ev:before{content:'';position:absolute;left:-22.5px;top:3px;width:10px;height:10px;border-radius:50%;background:#1b2a5e}
+.tl .ev .f{font-size:11px;color:#7a8296}
+.strike{text-decoration:line-through;color:#a0a7b8}
+</style>
+</head>
+<body>
+<div class="top">
+  <h1>Pedido de productos › Compras — CÓMO QUEDA con las correcciones</h1>
+  <span class="crumb">armado sobre TU prueba real del 02/09 (período 2026-09, Migueletes + Hit Ugarte) · cada corrección marcada con <span class="fixtag" style="margin:0">FIX</span></span>
+</div>
+<div class="wrap">
+
+<div class="subtabs">
+  <span class="stab act" onclick="stab(1,this)">2 · Sugerencias <span style="opacity:.7">(corregido)</span></span>
+  <span class="stab" onclick="stab(2,this)">1 · Consolidado <span style="opacity:.7">(corregido)</span></span>
+  <span class="stab" onclick="stab(3,this)">4 · Órdenes y seguimiento <span style="opacity:.7">(corregido)</span></span>
+  <span class="stab" onclick="stab(4,this)">Bandeja del auditor — resueltos</span>
+</div>
+
+<!-- ============ SUGERENCIAS ============ -->
+<div class="sub act" id="s1">
+  <div class="banner fix">🔧 <span><b>Dos correcciones acá:</b> el AHORRO REAL multiplica por el factor (unidades comunes del pedido, no bultos) <span class="fixtag">FIX 3</span> · y las diferencias menores al <b>umbral de empate ⚙ 2%</b> no generan sugerencia <span class="fixtag">FIX 4</span>.</span></div>
+  <div class="card">
+    <h2>Sugerencias en la compra — 2026-09</h2>
+    <table>
+      <tr><th>Grupo</th><th>Pedido (actual)</th><th class="num">$/unidad común</th><th>Sugerido</th><th class="num">$/unidad común</th><th class="num">Ahorro real</th><th>Decisión</th></tr>
+      <tr>
+        <td><b>Detergente 5L</b></td>
+        <td><span class="tag t-num">NUMASA</span> Detergente x 5lts. <span class="mut">· 10 bidones = 50 L</span></td>
+        <td class="num">$ 2.666,68</td>
+        <td><span class="tag t-tha">THAMES</span> DETERGENTE BIO-DET × 5L</td>
+        <td class="num" style="color:#156a3a"><b>$ 1.468,00</b></td>
+        <td class="num" style="color:#156a3a"><b>$ 59.933,90</b><br><span class="mut">50 L × $1.198,68 <span class="strike">$11.986,78</span></span></td>
+        <td><span class="chip c-verde">✓ ACEPTADA</span><br><span class="mut">línea sustituida en el consolidado ✔</span></td>
+      </tr>
+      <tr>
+        <td><b>Bolsa 60x90 negra</b></td>
+        <td><span class="tag t-num">NUMASA</span> Bolsa 60x90 x50un <span class="mut">· 3 packs = 150 bolsas</span></td>
+        <td class="num">$ 184,89</td>
+        <td><span class="tag t-tha">THAMES</span> BOLSA 60X90 — NEGRA (por unidad)</td>
+        <td class="num" style="color:#156a3a"><b>$ 63,83</b></td>
+        <td class="num" style="color:#156a3a"><b>$ 18.158,61</b><br><span class="mut">150 bolsas × $121,06 <span class="strike">$363,17</span></span></td>
+        <td><span class="chip c-verde">✓ ACEPTADA</span><br><span class="mut">cantidad convertida: 3 packs → <b>150 unidades</b></span></td>
+      </tr>
+      <tr style="background:#fafbfd">
+        <td><b>Papel higiénico 8×300m</b></td>
+        <td><span class="tag t-tha">THAMES</span> PAP HIG GOF 8×300 <span class="mut">· 50 cajas = 400 rollos</span></td>
+        <td class="num">$ 2.043,75</td>
+        <td class="mut"><span class="tag t-num">NUMASA</span> Papel Hig. Premium 8x300m</td>
+        <td class="num mut">$ 2.024,97</td>
+        <td class="num mut">—</td>
+        <td><span class="chip c-gris">EMPATE ±2% ⚙</span><br><span class="mut">diferencia 0,9% &lt; umbral — no sugiere</span></td>
+      </tr>
+    </table>
+    <div class="sug">💡 Ahorro del período con lo aceptado: <b>$ 78.092,51</b> — antes el sistema mostraba $12.349,95 (no multiplicaba por el factor). Este es el número que va al reporte del consejo.</div>
+    <div class="mut" style="margin-top:8px">"Mantener" pide motivo (calidad / mínimo de compra / plazo — parametrizable) y queda registrado. El umbral de empate se ajusta en Configuración ⚙.</div>
+  </div>
+</div>
+
+<!-- ============ CONSOLIDADO ============ -->
+<div class="sub" id="s2">
+  <div class="banner fix">🔧 <span><b>Tres correcciones acá:</b> la línea aceptada se <b>sustituye a la vista</b> — chip, cantidad convertida y <b>mudada al bloque del proveedor del producto nuevo</b> <span class="fixtag">FIX 1</span> · el proveedor se llama <b>NUMASA</b> (Diversey/3M son marcas de sus productos) <span class="fixtag">FIX 6</span> · cada proveedor tiene <b>su propia confirmación</b> — su bloque genera SU orden de compra, sin arrastrar al resto <span class="fixtag">FIX 2b</span> · y al confirmar, el bloque <b>no queda mudo</b>: se convierte en el rastro de la OC generada, con link <span class="fixtag">FIX 2</span>.</span></div>
+
+  <div class="card" id="cardNum">
+    <h2><span class="tag t-num" style="font-size:12px">NUMASA</span> — 5 líneas <span class="mut" style="font-weight:400">· antes figuraba como "DIVERSEY" — la marca va como dato del producto</span></h2>
+    <table>
+      <tr><th>Producto</th><th>Marca</th><th class="num">Costo unit.</th><th class="num">Cantidad</th><th class="num">Importe</th></tr>
+      <tr><td>3M Fibra Normal N° 96 (Rollo 16 x 20mts.) <span class="mut">(3M-FIB-55942)</span></td><td class="mut">3M</td><td class="num">$ 96.889,29</td><td class="num">4</td><td class="num">$ 387.557,16</td></tr>
+      <tr><td>3M paño x 13" (Azul) <span class="mut">(3M-PAD-24875)</span></td><td class="mut">3M</td><td class="num">$ 18.909,50</td><td class="num">2</td><td class="num">$ 37.819,00</td></tr>
+      <tr><td>2180 PLUS 6B BIDON X29KG <span class="mut">(DV-R08402)</span></td><td class="mut">Diversey</td><td class="num">$ 179.090,03</td><td class="num">1</td><td class="num">$ 179.090,03</td></tr>
+      <tr><td>3M Fibra Normal N°96 espesor 9mm <span class="mut">(3M-FIB-38351)</span></td><td class="mut">3M</td><td class="num">$ 811,16</td><td class="num">1</td><td class="num">$ 811,16</td></tr>
+      <tr><td>Lavandina x 5lts. SENASA <span class="mut">(06-031-S)</span></td><td class="mut">—</td><td class="num">$ 11.049,61</td><td class="num">2</td><td class="num">$ 22.099,22</td></tr>
+      <tr style="background:#f7f8fc"><td colspan="4" style="text-align:right"><b>TOTAL NUMASA</b></td><td class="num"><b>$ 627.376,57</b></td></tr>
+    </table>
+    <div style="display:flex;gap:10px;margin-top:12px;flex-wrap:wrap">
+      <button class="btn b-pri" onclick="confirmarProv('Num','NUMASA','OC-2026-001','$ 627.376,57')">✔ Confirmar NUMASA → generar OC-2026-001</button>
+      <button class="btn b-sec">⬇ Exportar (CSV)</button>
+      <span class="mut" style="align-self:center">Confirma SOLO este proveedor — Thames puede esperar o cotejarse aparte.</span>
+    </div>
+  </div>
+
+  <div class="card" id="cardTha">
+    <h2><span class="tag t-tha" style="font-size:12px">THAMES</span> — 3 líneas <span class="mut" style="font-weight:400">· 2 llegaron acá por sustitución — se mudaron del bloque Numasa</span></h2>
+    <table>
+      <tr><th>Producto</th><th>Marca</th><th class="num">Costo unit.</th><th class="num">Cantidad</th><th class="num">Importe</th></tr>
+      <tr style="background:#f3fbf6"><td>DETERGENTE THAMES BIO-DET × 5L <span class="mut">(QUITDT313095L00)</span><br><span class="chip c-nara">SUSTITUIDO POR EQUIVALENTE</span> <span class="mut">antes: Detergente Numasa 08-012 × 10 — vinculado al pedido original de Migueletes</span></td><td class="mut">Thames</td><td class="num">$ 7.340,00</td><td class="num">10</td><td class="num">$ 73.400,00</td></tr>
+      <tr style="background:#f3fbf6"><td>BOLSA 60X90 — NEGRA <span class="mut">(BOLRES222060403)</span><br><span class="chip c-nara">SUSTITUIDO POR EQUIVALENTE</span> <span class="mut">antes: 3 packs ×50 Numasa → <b>cantidad convertida a 150 unidades</b> (3 × 50 ÷ 1)</span></td><td class="mut">Thames</td><td class="num">$ 63,83</td><td class="num"><b>150</b></td><td class="num">$ 9.574,50</td></tr>
+      <tr><td>PAP HIG ALTO MT BLANCO EXTRA GOF 8×300 <span class="mut">(PAPHIG367013001) · quedó como estaba (EMPATE)</span></td><td class="mut">Thames</td><td class="num">$ 16.350,00</td><td class="num">50</td><td class="num">$ 817.500,00</td></tr>
+      <tr style="background:#f7f8fc"><td colspan="4" style="text-align:right"><b>TOTAL THAMES</b></td><td class="num"><b>$ 900.474,50</b></td></tr>
+    </table>
+    <div style="display:flex;gap:10px;margin-top:12px;flex-wrap:wrap">
+      <button class="btn b-pri" onclick="confirmarProv('Tha','THAMES','OC-2026-002','$ 900.474,50')">✔ Confirmar THAMES → generar OC-2026-002</button>
+      <button class="btn b-sec">⬇ Exportar (CSV)</button>
+      <span class="mut" style="align-self:center">El export funciona también ANTES de confirmar — para revisar el archivo tranquilo.</span>
+    </div>
+  </div>
+  <div class="mut" style="margin:-4px 0 12px 4px">También existe <b>"✔ Confirmar TODO el período"</b> para generar todas las órdenes de una — cada una queda igual como OC separada por proveedor.</div>
+
+
+</div>
+
+<!-- ============ ORDENES ============ -->
+<div class="sub" id="s3">
+  <div class="banner fix">🔧 <span><b>Dos correcciones acá:</b> la orden se <b>abre</b> (tocá la ficha) para ver sus líneas <span class="fixtag">FIX 7</span> y se <b>exporta con el formato del archivo de compra actual</b> — es lo que se le manda al proveedor. Y desde acá se carga la <b>recepción</b> (completa o parcial con backorder), que dispara el armado en ENTREGAS.</span></div>
+
+  <div class="fcard" onclick="mOpen('mOC')">
+    <div style="display:flex;align-items:center;gap:10px"><b>OC-2026-001</b> <span class="tag t-num">NUMASA</span><span style="margin-left:auto" class="chip c-azul">CONFIRMADA</span></div>
+    <div class="pipe">
+      <div class="pstep cur">CONFIRMADA</div><div class="pstep">ENVIADA</div><div class="pstep">RECIBIDA PARCIAL</div><div class="pstep">RECIBIDA COMPLETA</div><div class="pstep">→ ARMADO</div>
+    </div>
+    <div style="font-size:12.5px">5 líneas · $ 627.376,57 · confirmada 02/09/2026 · <span class="mut">👆 tocá para abrir el detalle</span></div>
+  </div>
+  <div class="fcard" onclick="mOpen('mOC2')">
+    <div style="display:flex;align-items:center;gap:10px"><b>OC-2026-002</b> <span class="tag t-tha">THAMES</span><span style="margin-left:auto" class="chip c-azul">CONFIRMADA</span></div>
+    <div class="pipe">
+      <div class="pstep cur">CONFIRMADA</div><div class="pstep">ENVIADA</div><div class="pstep">RECIBIDA PARCIAL</div><div class="pstep">RECIBIDA COMPLETA</div><div class="pstep">→ ARMADO</div>
+    </div>
+    <div style="font-size:12.5px">3 líneas · $ 900.474,50 · confirmada 02/09/2026 · <span class="mut">2 líneas sustituidas guardan el producto original del supervisor</span></div>
+  </div>
+  <div class="card">
+    <h2>Órdenes del período</h2>
+    <table>
+      <tr><th>Orden</th><th>Proveedor</th><th class="num">Líneas</th><th class="num">Total (costo)</th><th>Estado</th><th>Factura prov.</th><th></th></tr>
+      <tr class="clk" onclick="mOpen('mOC')"><td><b>OC-2026-001</b></td><td><span class="tag t-num">NUMASA</span></td><td class="num">5</td><td class="num">$ 627.376,57</td><td><span class="chip c-azul">CONFIRMADA</span></td><td class="mut">esperando recepción</td><td><button class="btn b-sec" style="padding:4px 10px" onclick="event.stopPropagation()">⬇ Exportar</button></td></tr>
+      <tr class="clk" onclick="mOpen('mOC2')"><td><b>OC-2026-002</b></td><td><span class="tag t-tha">THAMES</span></td><td class="num">3</td><td class="num">$ 900.474,50</td><td><span class="chip c-azul">CONFIRMADA</span></td><td class="mut">esperando recepción</td><td><button class="btn b-sec" style="padding:4px 10px" onclick="event.stopPropagation()">⬇ Exportar</button></td></tr>
+    </table>
+  </div>
+</div>
+
+<!-- ============ BANDEJA RESUELTOS ============ -->
+<div class="sub" id="s4">
+  <div class="banner fix">🔧 <span><b>El rastro del auditor</b> <span class="fixtag">FIX 8</span>: cuando aprueba, el caso no se evapora — baja a <b>Resueltos este período</b>, el pedido guarda su historial con el diff, y todo queda además en el registro de auditoría del módulo.</span></div>
+  <div class="card">
+    <h2>Pendientes de revisión — 2026-09</h2>
+    <div class="mut" style="padding:14px 0">Nada pendiente de revisión en este período 🎉</div>
+  </div>
+  <div class="card">
+    <h2>Resueltos este período</h2>
+    <table>
+      <tr><th>Servicio</th><th>Supervisor</th><th>Motivo</th><th>Resolución</th><th>Detalle</th><th>Fecha</th></tr>
+      <tr class="clk" onclick="mOpen('mHist')"><td><b>HIT.UGARTE.2110</b> <span class="chip c-gris">NO PAGAN</span></td><td class="mut">supervisor de prueba</td><td><span class="chip c-rojo">EXCEDE PRESUPUESTO</span></td><td><span class="chip c-verde">APROBADO</span> <span class="mut">tras devolución con propuesta</span></td><td class="mut">$ 231.406,77 → <b>$ 179.901,19</b> (62,2% del presupuesto) · 👆 historial completo</td><td class="mut">02/09 11:40</td></tr>
+      <tr><td><b>MIGUELETES.2423</b> <span class="chip c-gris">NO PAGAN</span></td><td class="mut">supervisor de prueba</td><td><span class="chip c-gris">NO FACTURA PRODUCTOS</span></td><td><span class="chip c-verde">APROBADO</span> <span class="mut">sin cambios</span></td><td class="mut">$ 231.597,58 (59,0%)</td><td class="mut">02/09 11:32</td></tr>
+    </table>
+    <div class="mut" style="margin-top:8px">Cada resolución queda también en el <b>registro de auditoría</b> del módulo (usuario, fecha, acción) — y de esta tabla salen los indicadores del mes del auditor (pendiente de diseñar con los Excel de Marcelo).</div>
+  </div>
+</div>
+
+</div><!-- /wrap -->
+
+<!-- ===== MODAL: detalle OC ===== -->
+<div class="modal-bg" id="mOC">
+  <div class="modal">
+    <div class="m-head"><h3>OC-2026-001 — NUMASA · 2026-09</h3><span class="chip c-azul">CONFIRMADA</span><button class="x" onclick="mClose('mOC')">✕</button></div>
+    <div class="m-body">
+      <table>
+        <tr><th>Cód.</th><th>Producto</th><th>Marca</th><th class="num">Costo unit.</th><th class="num">Cantidad</th><th class="num">Importe</th><th>Obs. de línea</th></tr>
+        <tr><td class="mut">3M-FIB-55942</td><td>3M Fibra Normal N° 96 (Rollo 16 x 20mts.)</td><td class="mut">3M</td><td class="num">$ 96.889,29</td><td class="num">4</td><td class="num">$ 387.557,16</td><td></td></tr>
+        <tr><td class="mut">3M-PAD-24875</td><td>3M paño x 13" (Azul)</td><td class="mut">3M</td><td class="num">$ 18.909,50</td><td class="num">2</td><td class="num">$ 37.819,00</td><td></td></tr>
+        <tr><td class="mut">DV-R08402</td><td>2180 PLUS 6B BIDON X29KG</td><td class="mut">Diversey</td><td class="num">$ 179.090,03</td><td class="num">1</td><td class="num">$ 179.090,03</td><td></td></tr>
+        <tr><td class="mut">3M-FIB-38351</td><td>3M Fibra Normal N°96 espesor 9mm</td><td class="mut">3M</td><td class="num">$ 811,16</td><td class="num">1</td><td class="num">$ 811,16</td><td></td></tr>
+        <tr><td class="mut">06-031-S</td><td>Lavandina x 5lts. SENASA</td><td class="mut">—</td><td class="num">$ 11.049,61</td><td class="num">2</td><td class="num">$ 22.099,22</td><td></td></tr>
+        <tr style="background:#f7f8fc"><td colspan="5" style="text-align:right"><b>TOTAL</b></td><td class="num"><b>$ 627.376,57</b></td><td></td></tr>
+      </table>
+      <div class="mut" style="margin-top:8px">Generada desde el consolidado 02/09/2026 por logistica.richard · las cantidades vienen de los pedidos aprobados de Migueletes y Hit Ugarte.</div>
+    </div>
+    <div class="m-foot">
+      <button class="btn b-pri">⬇ Exportar (formato archivo de compra actual)</button>
+      <button class="btn b-sec">Marcar ENVIADA al proveedor</button>
+      <button class="btn b-ok">📦 Registrar recepción</button>
+      <button class="btn b-sec">Registrar factura del proveedor</button>
+      <span class="mut" style="margin-left:auto">La recepción admite parcial con backorder por línea → habilita el armado en ENTREGAS.</span>
+    </div>
+  </div>
+</div>
+
+<!-- ===== MODAL: detalle OC Thames ===== -->
+<div class="modal-bg" id="mOC2">
+  <div class="modal">
+    <div class="m-head"><h3>OC-2026-002 — THAMES · 2026-09</h3><span class="chip c-azul">CONFIRMADA</span><button class="x" onclick="mClose('mOC2')">✕</button></div>
+    <div class="m-body">
+      <table>
+        <tr><th>Cód.</th><th>Producto</th><th class="num">Costo unit.</th><th class="num">Cantidad</th><th class="num">Importe</th><th>Origen</th></tr>
+        <tr><td class="mut">QUITDT313095L00</td><td>DETERGENTE THAMES BIO-DET × 5L</td><td class="num">$ 7.340,00</td><td class="num">10</td><td class="num">$ 73.400,00</td><td><span class="chip c-nara">SUSTITUIDO</span> <span class="mut">antes Detergente Numasa 08-012</span></td></tr>
+        <tr><td class="mut">BOLRES222060403</td><td>BOLSA 60X90 — NEGRA (por unidad)</td><td class="num">$ 63,83</td><td class="num"><b>150</b></td><td class="num">$ 9.574,50</td><td><span class="chip c-nara">SUSTITUIDO</span> <span class="mut">3 packs ×50 → 150 un.</span></td></tr>
+        <tr><td class="mut">PAPHIG367013001</td><td>PAP HIG ALTO MT BLANCO EXTRA GOF 8×300</td><td class="num">$ 16.350,00</td><td class="num">50</td><td class="num">$ 817.500,00</td><td class="mut">pedido original</td></tr>
+        <tr style="background:#f7f8fc"><td colspan="4" style="text-align:right"><b>TOTAL</b></td><td class="num"><b>$ 900.474,50</b></td><td></td></tr>
+      </table>
+      <div class="mut" style="margin-top:8px">Las líneas sustituidas conservan el vínculo al producto que pidió el supervisor — "repetir mes anterior" le carga lo que realmente recibió.</div>
+    </div>
+    <div class="m-foot">
+      <button class="btn b-pri">⬇ Exportar (formato archivo de compra actual)</button>
+      <button class="btn b-sec">Marcar ENVIADA al proveedor</button>
+      <button class="btn b-ok">📦 Registrar recepción</button>
+      <span class="mut" style="margin-left:auto">Todo con usuario y fecha, al registro de auditoría.</span>
+    </div>
+  </div>
+</div>
+
+<!-- ===== MODAL: historial del pedido (auditor) ===== -->
+<div class="modal-bg" id="mHist">
+  <div class="modal" style="max-width:680px">
+    <div class="m-head"><h3>Historial — pedido HIT.UGARTE.2110 · 2026-09</h3><span class="chip c-verde">APROBADO</span><button class="x" onclick="mClose('mHist')">✕</button></div>
+    <div class="m-body">
+      <div class="tl">
+        <div class="ev"><b>Pedido confirmado por el supervisor</b> — $ 231.406,77 · <span class="chip c-rojo" style="font-size:9.5px">EXCEDE PRESUPUESTO</span> → a la bandeja del auditor<div class="f">02/09 10:05 · supervisor</div></div>
+        <div class="ev"><b>Auditor devuelve con propuesta</b> — diff: 3M Fibra N°96 rollo <b>4 → 2</b> · Detergente <b>10 → 6</b> · motivo: "excede presupuesto, cantidades sobre el promedio del servicio"<div class="f">02/09 10:40 · auditor.marcelo</div></div>
+        <div class="ev"><b>Supervisor ajusta y re-confirma</b> — acepta fibra 2, deja detergente en 8 · $ 179.901,19 (62,2% del presupuesto)<div class="f">02/09 11:20 · supervisor</div></div>
+        <div class="ev"><b>Auditor APRUEBA</b> — pasa a Compras · notificación al supervisor<div class="f">02/09 11:40 · auditor.marcelo</div></div>
+      </div>
+      <div class="mut" style="margin-top:8px">Cada paso con usuario, fecha y el diff de cantidades. Esto mismo alimenta los indicadores del mes (pedidos revisados, recortes, montos original → final).</div>
+    </div>
+    <div class="m-foot"><button class="btn b-sec" onclick="mClose('mHist')">Cerrar</button></div>
+  </div>
+</div>
+
+<script>
+function stab(i,el){ document.querySelectorAll('.stab').forEach(t=>t.classList.remove('act')); el.classList.add('act');
+  document.querySelectorAll('.sub').forEach(p=>p.classList.remove('act')); document.getElementById('s'+i).classList.add('act'); }
+function stabGo(i){ const el=document.querySelectorAll('.stab')[i-1]; stab(i,el); }
+function confirmarProv(k, nom, oc, tot){
+  const card = document.getElementById('card'+k);
+  card.style.borderLeft='5px solid #1d7a43'; card.style.background='#f3fbf6';
+  card.innerHTML = `<h2>✔ ${nom} — orden generada · 02/09/2026</h2>
+    <div style="font-size:13px">Este bloque se convirtió en <button class="btn b-line" style="padding:4px 12px" onclick="stabGo(3)">${oc} · ${nom} · ${tot}</button></div>
+    <div class="mut" style="margin-top:8px">Nada desaparece: el bloque del proveedor deja su rastro con link a 4 · Órdenes y seguimiento. Los próximos pedidos aprobados de ${nom} abren un bloque nuevo.</div>`;
+}
+function mOpen(id){ document.getElementById(id).classList.add('open'); }
+function mClose(id){ document.getElementById(id).classList.remove('open'); }
+</script>
+</body>
+</html>

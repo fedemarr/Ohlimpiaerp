@@ -8,6 +8,7 @@ export {
   renderMisPedidosPP, abrirCargaPedidoPP, filtrarCargaPedidoPP, guardarItemPedidoPP,
   repetirPedidoMesAnteriorPP, guardarBorradorPedidoPP, confirmarPedidoPP, aceptarPropuestaAuditorPP,
   renderAuditoriaPP, abrirAuditoriaPedidoPP, ajustarCantidadAuditoriaPP, aprobarPedidoPP, confirmarDevolverConPropuestaPP,
+  abrirHistorialPedidoPP,
   marcarEnCompraPP, marcarEntregadoPP, subTabComprasPP,
 } from './pedido_productos.js';
 
@@ -17,10 +18,10 @@ export {
 } from './importarListado.js';
 
 export {
-  renderConsolidadoPP, exportarConsolidadoPP, generarOrdenesCompraPP,
+  renderConsolidadoPP, exportarConsolidadoPP, generarOrdenesCompraPP, confirmarProveedorPP,
   renderSugerenciasPP, aceptarSugerenciaPP, mantenerSugerenciaPP, deshacerDecisionSugerenciaPP,
   renderSimulacionPP,
-  renderOrdenesPP, abrirDetalleOrdenPP, enviarOrdenPP, guardarRecepcionOrdenPP,
+  renderOrdenesPP, abrirDetalleOrdenPP, enviarOrdenPP, guardarRecepcionOrdenPP, exportarOrdenPP,
   abrirFacturaOrdenPP, confirmarFacturaOrdenPP,
   renderComparadorPreciosPP, abrirNuevoGrupoEquivalenciaPP, buscarProductoParaGrupoPP,
   agregarProductoAGrupoPP, quitarProductoDeGrupoPP, cambiarFactorGrupoPP, guardarGrupoEquivalenciaPP,
@@ -60,6 +61,7 @@ import {
   renderMisPedidosPP, abrirCargaPedidoPP, filtrarCargaPedidoPP, guardarItemPedidoPP,
   repetirPedidoMesAnteriorPP, guardarBorradorPedidoPP, confirmarPedidoPP, aceptarPropuestaAuditorPP,
   renderAuditoriaPP, abrirAuditoriaPedidoPP, ajustarCantidadAuditoriaPP, aprobarPedidoPP, confirmarDevolverConPropuestaPP,
+  abrirHistorialPedidoPP,
   marcarEnCompraPP, marcarEntregadoPP, subTabComprasPP,
 } from './pedido_productos.js';
 
@@ -69,10 +71,10 @@ import {
 } from './importarListado.js';
 
 import {
-  renderConsolidadoPP, exportarConsolidadoPP, generarOrdenesCompraPP,
+  renderConsolidadoPP, exportarConsolidadoPP, generarOrdenesCompraPP, confirmarProveedorPP,
   renderSugerenciasPP, aceptarSugerenciaPP, mantenerSugerenciaPP, deshacerDecisionSugerenciaPP,
   renderSimulacionPP,
-  renderOrdenesPP, abrirDetalleOrdenPP, enviarOrdenPP, guardarRecepcionOrdenPP,
+  renderOrdenesPP, abrirDetalleOrdenPP, enviarOrdenPP, guardarRecepcionOrdenPP, exportarOrdenPP,
   abrirFacturaOrdenPP, confirmarFacturaOrdenPP,
   renderComparadorPreciosPP, abrirNuevoGrupoEquivalenciaPP, buscarProductoParaGrupoPP,
   agregarProductoAGrupoPP, quitarProductoDeGrupoPP, cambiarFactorGrupoPP, guardarGrupoEquivalenciaPP,
@@ -115,6 +117,7 @@ window.abrirAuditoriaPedidoPP = abrirAuditoriaPedidoPP;
 window.ajustarCantidadAuditoriaPP = ajustarCantidadAuditoriaPP;
 window.aprobarPedidoPP = aprobarPedidoPP;
 window.confirmarDevolverConPropuestaPP = confirmarDevolverConPropuestaPP;
+window.abrirHistorialPedidoPP = abrirHistorialPedidoPP;
 window.marcarEnCompraPP = marcarEnCompraPP;
 window.marcarEntregadoPP = marcarEntregadoPP;
 window.subTabComprasPP = subTabComprasPP;
@@ -126,6 +129,7 @@ window.confirmarImportarListadoPP = confirmarImportarListadoPP;
 window.renderConsolidadoPP = renderConsolidadoPP;
 window.exportarConsolidadoPP = exportarConsolidadoPP;
 window.generarOrdenesCompraPP = generarOrdenesCompraPP;
+window.confirmarProveedorPP = confirmarProveedorPP;
 window.renderSugerenciasPP = renderSugerenciasPP;
 window.aceptarSugerenciaPP = aceptarSugerenciaPP;
 window.mantenerSugerenciaPP = mantenerSugerenciaPP;
@@ -135,6 +139,7 @@ window.renderOrdenesPP = renderOrdenesPP;
 window.abrirDetalleOrdenPP = abrirDetalleOrdenPP;
 window.enviarOrdenPP = enviarOrdenPP;
 window.guardarRecepcionOrdenPP = guardarRecepcionOrdenPP;
+window.exportarOrdenPP = exportarOrdenPP;
 window.abrirFacturaOrdenPP = abrirFacturaOrdenPP;
 window.confirmarFacturaOrdenPP = confirmarFacturaOrdenPP;
 window.renderComparadorPreciosPP = renderComparadorPreciosPP;
