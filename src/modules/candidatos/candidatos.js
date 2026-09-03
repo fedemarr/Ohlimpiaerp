@@ -1274,12 +1274,44 @@ export async function confirmarRechazoCandidato() {
 
 export async function pasarAPsicoPorId(id) {
   const c = getCandById(id); if (!c) return;
-  // Match por DNI, no por candidatoId — mismo criterio ya establecido en
-  // este proyecto para conciliar entre etapas (ver CLAUDE.md, "Conciliación
-  // entre etapas por candidatoId truncado"): candidatoId puede truncarse
-  // o no según el alta y deja de matchear tras un reload; el DNI es el
-  // dato estable entre etapas.
-  if ((DB.psicos || []).find(p => p.dni && p.dni === c.dni)) { toast('⚠️ Ya está en Psicotécnico'); return; }
+  // FIX (reporte en vivo, 03/09): "no anda mandar candidatos a Psico" —
+  // encontrado con datos reales de producción, dos casos distintos que el
+  // guard viejo (bloqueaba por CUALQUIER psico con el mismo DNI, sin
+  // mirar candidatoId ni estado) confundía entre sí:
+  //
+  // CASO A — desincronización tras fallo parcial (real: DNI 29356745,
+  // Zully Martinez): el psico se había creado bien en un intento
+  // anterior, pero el supaSync('candidatos',...) de ESE MISMO intento
+  // falló (ver comentario más abajo, "no se revierte para no perder ese
+  // trabajo") — candidato.estado quedó pegado en 'Aprobado' para
+  // siempre, mostrando el botón Psico de nuevo, que SIEMPRE se topaba
+  // con el guard viejo sin poder avanzar ni avisar qué pasaba en
+  // realidad. Achicado: si el psico existente es del MISMO candidatoId,
+  // no es un duplicado — es el mismo trámite ya en curso — se repara el
+  // estado del candidato en vez de bloquear en silencio.
+  const miCandidatoId = idLocalCand(c.id);
+  const psicoPropio = (DB.psicos || []).find(p => p.candidatoId && p.candidatoId === miCandidatoId);
+  if (psicoPropio) {
+    const estadoAnterior = c.estado;
+    c.estado = 'Psicotecnico';
+    c.fechaTransicion = new Date().toISOString();
+    const okSync = await supaSync('candidatos', c);
+    if (!okSync) { c.estado = estadoAnterior; toast(mensajeErrorGuardado('⚠️ No se pudo sincronizar el estado — reintentá o avisá a sistemas')); return; }
+    renderCandidatos();
+    toast('🧠 Ya tenía un registro de Psicotécnico (estado: ' + psicoPropio.estado + ') — se sincronizó, buscalo en esa pantalla');
+    return;
+  }
+  // CASO B — reingreso con DNI histórico (real: DNI 43829120, Nicole
+  // Cocha): match por DNI sigue siendo necesario para conciliar entre
+  // etapas (ver CLAUDE.md, "Conciliación entre etapas por candidatoId
+  // truncado" — candidatoId puede truncarse o no según el alta), pero
+  // solo bloquea si el psico de OTRO candidatoId está VIVO (En proceso o
+  // Aprobado — mismo criterio "vivo" que preocupacionales/documentación,
+  // ver aprobarPreocup/_crearAltaDesdeDocum). Un DNI que ya pasó por acá
+  // hace tiempo y quedó Rechazado, o cerrado como histórico ("Ingreso",
+  // del importador), no puede bloquear para siempre un reingreso real.
+  const psicoVivoOtroDni = (DB.psicos || []).find(p => p.dni && p.dni === c.dni && (p.estado === 'En proceso' || p.estado === 'Aprobado'));
+  if (psicoVivoOtroDni) { toast('⚠️ Ya hay un psicotécnico en curso con este DNI'); return; }
   const p = {
     id: Date.now(), candidatoId: idLocalCand(c.id), nombre: (c.apellido ? c.apellido + ' ' : '') + c.nombre, dni: c.dni, zona: c.zona, localidad: c.localidad || '', partido: c.partido || '', tel: c.tel, rrhh: (DB.personalRrhh || []).find(p => p.id === c.rrhhId)?.nombre || '',
     psicotecnico: 'Pendiente', prelaboral: 'Pendiente', antecedentes: 'No requerido', libretaSanitaria: 'No requerido',
