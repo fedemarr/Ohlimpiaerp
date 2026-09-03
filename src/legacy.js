@@ -1267,6 +1267,13 @@ function nuevoObjetivoDesde(clienteId){
 let contactosClienteTemp=[];
 window.contactosClienteTemp=contactosClienteTemp;
 let clienteEditIdLocal=null;
+// FIX (ticket "Código de cliente manual", 03/09): guarda el código con el
+// que se ABRIÓ el modal, para poder avisar en guardarCliente() si el
+// usuario lo cambió en un cliente ya existente (riesgo real: el importador
+// comercial matchea clientes por código — ver comercial_importador.js —
+// así que cambiarlo puede hacer que una carga masiva vieja no reconozca
+// al cliente y cree uno duplicado en vez de actualizarlo).
+let _cliCodigoOriginal=null;
 // FIX (ticket "Dirección fiscal", 02/09): cli-ciudad/cli-direccion son la
 // dirección FISCAL del cliente (razón social) — así lo dice ya el label del
 // formulario. NO es la dirección del servicio: esa vive por-objetivo
@@ -1294,7 +1301,8 @@ function abrirModalCliente(idLocal){
     if($('cli-responsable-tipo')) $('cli-responsable-tipo').value=c.responsableTipo||'Interno';
     if($('cli-responsable-contacto')) $('cli-responsable-contacto').value=c.responsableContacto||'';
     toggleResponsableClienteTipo();
-    if($('cli-codigo')) $('cli-codigo').value=c.codigo||'—';
+    if($('cli-codigo')) $('cli-codigo').value=c.codigo||'';
+    _cliCodigoOriginal=c.codigo||'';
     $('cli-codigo-tango').value=c.codigoTango||'';
     if($('cli-estado')) $('cli-estado').value=c.estado||'Activo';
     $('cli-ciudad').value=c.ciudad||'';$('cli-direccion').value=c.direccion||'';
@@ -1322,6 +1330,7 @@ function abrirModalCliente(idLocal){
     CLI_CAMPOS_DOC.forEach(id=>{const el=$(id);if(el)el.checked=false;});
     if($('cli-estado')) $('cli-estado').value='Activo';
     if($('cli-responsable-tipo')) $('cli-responsable-tipo').value='Interno';
+    _cliCodigoOriginal=null;
     toggleResponsableClienteTipo();
   }
   renderContactosClienteTemp();
@@ -1365,6 +1374,13 @@ function generarCodigoCliente(){
   const max=nums.length?Math.max(...nums):0;
   return 'CLI-'+String(max+1).padStart(4,'0');
 }
+// FIX (ticket "Código de cliente manual", 03/09): botón "🔄 Autogenerar"
+// del formulario — mismo generador secuencial de siempre, ahora opcional
+// en vez de forzoso. guardarCliente() lo usa además como fallback si el
+// campo queda vacío al guardar.
+function autogenerarCodigoCliente(){
+  if($('cli-codigo')) $('cli-codigo').value=generarCodigoCliente();
+}
 function toggleResponsableClienteTipo(){
   const externo=$('cli-responsable-tipo')?.value==='Externo';
   const row=$('cli-responsable-contacto-row');
@@ -1380,6 +1396,31 @@ function guardarCliente(){
   const razon=toTitleCase(cleanText($('cli-razon')?.value||''));
   if(!razon){toast('Ingresá la razón social');return;}
   const existente=clienteEditIdLocal?getClienteByIdLocal(clienteEditIdLocal):null;
+
+  // FIX (ticket "Código de cliente manual", 03/09): antes se ignoraba
+  // lo tipeado y siempre se autogeneraba. Ahora es libre (sin formato
+  // exigido — puede o no empezar con "CLI-"): si lo dejan vacío, se
+  // autogenera igual que siempre (fallback, cero fricción para quien no
+  // quiere pensar en el código).
+  let codigo=cleanText($('cli-codigo')?.value||'').trim();
+  if(!codigo) codigo=generarCodigoCliente();
+
+  // Unicidad (case-insensitive: "cli-0001" y "CLI-0001" son el mismo
+  // código) — la base todavía no tiene un UNIQUE real en clientes.codigo
+  // (ver v115), así que sin esto un código repetido pasaría en silencio.
+  const duplicado=(DB.clientes||[]).some(c=>c.codigo&&c.codigo.trim().toLowerCase()===codigo.toLowerCase()&&(!existente||c.id!==existente.id));
+  if(duplicado){toast('⚠️ Ya existe un cliente con el código "'+codigo+'" — elegí otro');return;}
+
+  // Aviso de riesgo si se cambia el código de un cliente YA EXISTENTE: el
+  // importador comercial (carga masiva desde Excel, comercial_importador.js)
+  // matchea clientes existentes por código — si se cambia acá y después se
+  // corre un import que todavía referencia el código viejo, no reconoce al
+  // cliente y puede crear uno duplicado en vez de actualizarlo.
+  if(existente&&_cliCodigoOriginal&&codigo!==_cliCodigoOriginal){
+    const ok=confirm('Vas a cambiar el código de "'+_cliCodigoOriginal+'" a "'+codigo+'".\n\n⚠️ El importador comercial (carga masiva desde Excel) reconoce a los clientes por su código. Si más adelante corrés un import que todavía usa el código viejo, puede crear un cliente duplicado en vez de actualizar este.\n\n¿Confirmás el cambio?');
+    if(!ok) return;
+  }
+
   const datos={
     razon,nombre:toTitleCase(cleanText($('cli-nombre')?.value||''))||razon,
     tipo:$('cli-tipo')?.value,cuit:$('cli-cuit')?.value,
@@ -1388,6 +1429,7 @@ function guardarCliente(){
     responsable:cleanText($('cli-responsable')?.value||''),
     responsableTipo:$('cli-responsable-tipo')?.value||'Interno',
     responsableContacto:cleanText($('cli-responsable-contacto')?.value||''),
+    codigo,
     codigoTango:cleanText($('cli-codigo-tango')?.value||'').toUpperCase(),estado:$('cli-estado')?.value,
     ciudad:$('cli-ciudad')?.value,direccion:$('cli-direccion')?.value, // dirección FISCAL (ver comentario en CLI_CAMPOS_TEXTO)
     logo:$('cli-logo')?.value,obs:$('cli-obs')?.value,
@@ -1404,7 +1446,7 @@ function guardarCliente(){
     Object.assign(existente,datos);
     cliente=existente;
   } else {
-    cliente={id:Date.now(),codigo:generarCodigoCliente(),...datos};
+    cliente={id:Date.now(),...datos};
     DB.clientes.push(cliente);
   }
   cerrarModal('modal-cliente');renderClientes();poblarSelectsComercial();
@@ -13790,6 +13832,7 @@ window.getVigenciaActual = getVigenciaActual;
 window.guardarArt42 = guardarArt42;
 window.guardarCategoriaSind = guardarCategoriaSind;
 window.guardarCliente = guardarCliente;
+window.autogenerarCodigoCliente = autogenerarCodigoCliente;
 window.guardarConceptoLiq = guardarConceptoLiq;
 window.guardarDescuentoLiq = guardarDescuentoLiq;
 window.guardarEvaluacion = guardarEvaluacion;

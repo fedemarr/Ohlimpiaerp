@@ -6569,7 +6569,13 @@
             <div class="form-group"><label>Nombre comercial</label><input type="text" id="cli-nombre" onblur="applyTitleCase('cli-nombre')"></div>
           </div>
           <div class="form-grid form-grid-3">
-            <div class="form-group"><label>Código interno</label><input type="text" id="cli-codigo" readonly style="background:var(--fondo);" placeholder="Se genera al guardar"></div>
+            <div class="form-group"><label>Código interno</label>
+              <div style="display:flex;gap:6px;">
+                <input type="text" id="cli-codigo" placeholder="Ej: CLI-0001 (vacío = se autogenera)" style="flex:1;">
+                <button type="button" class="btn btn-secondary btn-sm" onclick="autogenerarCodigoCliente()" title="Generar el próximo código secuencial">🔄</button>
+              </div>
+              <span class="form-hint">Libre, sin formato obligatorio — solo tiene que ser único. Cambiarlo en un cliente ya creado puede afectar la carga masiva desde Excel si el archivo todavía usa el código anterior.</span>
+            </div>
             <div class="form-group"><label>Tipo de cliente</label>
               <select id="cli-tipo"><option value="">— Seleccionar —</option></select>
             </div>
