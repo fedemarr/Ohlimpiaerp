@@ -2813,6 +2813,16 @@
 
   <!-- TAB: IMPORTAR TANGO -->
   <div id="cob-tab-importar" class="tab-content">
+    <!-- Clientes sin Código Tango (ticket "Código de cliente", 03/09): el
+         matcheo del import de Tango depende de este campo — antes solo se
+         veía como aviso reactivo al correr un import. -->
+    <div class="card" style="margin-bottom:18px;">
+      <div class="card-header"><h3>⚠️ Clientes sin Código Tango <span id="cli-sin-cod-tango-cont" class="chip" style="font-size:11px;">0</span></h3></div>
+      <div class="card-body">
+        <p style="font-size:12px;color:var(--texto-suave);margin-bottom:10px;">Sin este código, las facturas/cobros de estos clientes NO se importan al correr "Importar Estado de cuenta de Tango" — se completa desde la ficha del cliente (pestaña general) o en bloque desde el importador comercial de Ventas si el Excel trae la columna.</p>
+        <div id="cli-sin-cod-tango"></div>
+      </div>
+    </div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:18px;">
 
       <!-- Importar Estado de cuenta de Tango -->

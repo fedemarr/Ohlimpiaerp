@@ -1421,6 +1421,21 @@ function guardarCliente(){
     if(!ok) return;
   }
 
+  // FIX (ticket "Código de cliente", 03/09): unicidad del Código Tango —
+  // vacío se permite (todavía no está cargado en la mayoría de los
+  // clientes), pero si se carga, no puede repetirse: dos clientes con el
+  // mismo Código Tango harían que el import de Tango matchee siempre al
+  // primero que encuentre y deje al otro sin sus facturas.
+  const codigoTango=cleanText($('cli-codigo-tango')?.value||'').toUpperCase();
+  if(codigoTango){
+    // Comparación normalizada con el mismo criterio que usa el import de
+    // Tango (_normCodClienteTango, 6 dígitos) — así "46" y "000046" se
+    // detectan como el mismo código aunque se hayan tipeado distinto.
+    const codigoTangoNorm=_normCodClienteTango(codigoTango);
+    const dupTango=(DB.clientes||[]).some(c=>c.codigoTango&&_normCodClienteTango(c.codigoTango)===codigoTangoNorm&&(!existente||c.id!==existente.id));
+    if(dupTango){toast('⚠️ Ya existe otro cliente con el Código Tango "'+codigoTango+'" — revisalo, el import de Tango no podría distinguirlos');return;}
+  }
+
   const datos={
     razon,nombre:toTitleCase(cleanText($('cli-nombre')?.value||''))||razon,
     tipo:$('cli-tipo')?.value,cuit:$('cli-cuit')?.value,
@@ -1430,7 +1445,7 @@ function guardarCliente(){
     responsableTipo:$('cli-responsable-tipo')?.value||'Interno',
     responsableContacto:cleanText($('cli-responsable-contacto')?.value||''),
     codigo,
-    codigoTango:cleanText($('cli-codigo-tango')?.value||'').toUpperCase(),estado:$('cli-estado')?.value,
+    codigoTango,estado:$('cli-estado')?.value,
     ciudad:$('cli-ciudad')?.value,direccion:$('cli-direccion')?.value, // dirección FISCAL (ver comentario en CLI_CAMPOS_TEXTO)
     logo:$('cli-logo')?.value,obs:$('cli-obs')?.value,
     ingresosBrutos:$('cli-ib')?.value||'',jurisdiccionIibb:$('cli-jur')?.value||'',
@@ -3745,7 +3760,7 @@ function tabCobros(tab,btn){
   $('cob-tab-'+tab).classList.add('active');
   if(btn) btn.classList.add('active');
   if(tab==='cobrados') renderCobrados();
-  if(tab==='importar') renderHistorialImportaciones();
+  if(tab==='importar'){ renderHistorialImportaciones(); renderClientesSinCodigoTango(); }
 }
 
 // C.5 (Delta Cobros/Tango v2) — vista principal: saldo por cliente, para
@@ -4608,6 +4623,26 @@ function confirmarImportacionEstadoCuentaTango(){
   toast(`✓ Estado de cuenta de Tango importado: ${analisis.facturasNuevas.length} facturas nuevas, ${analisis.facturasActualizadas.length} actualizadas, ${diffCobros.nuevos.length} recibos nuevos${confirmadasPendientesTango?`, ${confirmadasPendientesTango} confirmaron una gestión pendiente`:''}${alertasNoConfirmadas?`, ⚠️ ${alertasNoConfirmadas} sin confirmar`:''}`,8000);
 }
 
+// FIX (ticket "Código de cliente", 03/09): el matcheo de facturas
+// importadas de Tango depende 100% de clientes.codigoTango, pero hasta
+// ahora la única forma de enterarse de qué cliente le faltaba era
+// correr un import y leer el aviso "sinMatchear" (reactivo, después del
+// hecho). Este reporte lo deja visible de entrada, antes de importar
+// nada, con acceso directo a la ficha para completarlo.
+function renderClientesSinCodigoTango(){
+  const el=$('cli-sin-cod-tango');if(!el)return;
+  const faltantes=(DB.clientes||[]).filter(c=>!c.anulado&&c.estado!=='Inactivo'&&!(c.codigoTango&&c.codigoTango.trim()));
+  const cont=$('cli-sin-cod-tango-cont');
+  if(cont) cont.textContent=faltantes.length;
+  if(!faltantes.length){el.innerHTML='<p class="text-muted" style="font-size:12px;">✓ Todos los clientes activos tienen Código Tango cargado.</p>';return;}
+  el.innerHTML=`<div style="display:flex;flex-direction:column;gap:4px;max-height:220px;overflow-y:auto;">
+    ${faltantes.sort((a,b)=>a.nombre.localeCompare(b.nombre)).map(c=>`
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:5px 10px;background:var(--fondo);border-radius:var(--radio);border:1px solid var(--borde);">
+        <span style="font-size:12px;">${c.nombre} <span style="color:var(--texto-suave);font-family:'DM Mono',monospace;font-size:10.5px;">(${c.codigo||'—'})</span></span>
+        <button class="btn btn-xs btn-secondary" onclick="abrirModalCliente('${idLocalTrunc(c.id)}')">✏️ Cargar</button>
+      </div>`).join('')}
+  </div>`;
+}
 function renderHistorialImportaciones(){
   const el=$('historial-importaciones');if(!el)return;
   const hist=DB.historialImportaciones||[];
@@ -13949,6 +13984,7 @@ window.renderGrillaIndividual = renderGrillaIndividual;
 window.renderGrillasLiq = renderGrillasLiq;
 window.renderHistorialAuth = renderHistorialAuth;
 window.renderHistorialImportaciones = renderHistorialImportaciones;
+window.renderClientesSinCodigoTango = renderClientesSinCodigoTango;
 window.renderHistorialMono = renderHistorialMono;
 window.renderHistorialPrecios = renderHistorialPrecios;
 window.renderInicio = renderInicio;

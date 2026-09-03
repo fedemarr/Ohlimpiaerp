@@ -174,6 +174,14 @@ function construirClientesYObjetivos() {
       factPor: col(primera, /AGRUPACI/i) || '',
       productosEnFactura: col(primera, /PRODUCTOS PAGAN/i) || '',
       codigo: token,
+      // Ticket "Código de cliente" (03/09) — carga masiva del Código Tango
+      // (COD_CLI, lo que necesita "Importar Estado de cuenta de Tango" en
+      // Gestión de cobros para matchear al cliente). Regex ancha a
+      // propósito (no se conoce el nombre exacto de la columna en el
+      // Excel de Ventas) — si no matchea nada acá, el resumen de la
+      // importación lo va a mostrar en 0 y hay que ajustar el regex con
+      // el nombre real de la columna.
+      codigoTango: col(primera, /TANGO/i) || '',
       tipo: col(primera, /^TIPO DE CLIENTE$/i) || '',
       ciudad: municipios.size === 1 ? [...municipios][0] : '',
       obs: obsPartes.join(' | '),
@@ -319,6 +327,7 @@ export async function confirmarImportacionComercial() {
   const resEl = $('imp-com-resumen');
   const total = clientes.length + objetivos.length;
   let hecho = 0;
+  let cliCodigoTangoCompletado = 0;
   const fallos = [];
 
   const clientesExistentes = new Map((DB.clientes || []).map(c => [c.codigo, c]));
@@ -327,6 +336,11 @@ export async function confirmarImportacionComercial() {
     if (btn) btn.textContent = 'Importando ' + hecho + ' / ' + total + '…';
     const existente = clientesExistentes.get(c.codigo);
     let registro;
+    // Nunca PISA un Código Tango ya cargado a mano con uno vacío del
+    // archivo (mismo criterio "|| existente.X" que el resto de los
+    // campos) — pero si el existente no lo tenía y el archivo sí, lo
+    // completa. Se cuenta aparte para el resumen (ver más abajo).
+    if (c.codigoTango && !(existente && existente.codigoTango)) cliCodigoTangoCompletado++;
     if (existente) {
       // Update: sólo campos que vienen de la planilla — no toca lo que
       // Comercial haya cargado a mano (docReq, contactos, responsable, etc.)
@@ -339,6 +353,7 @@ export async function confirmarImportacionComercial() {
         productosEnFactura: c.productosEnFactura || existente.productosEnFactura,
         tipo: c.tipo || existente.tipo,
         ciudad: c.ciudad || existente.ciudad,
+        codigoTango: existente.codigoTango || c.codigoTango,
       });
       registro = existente;
     } else {
@@ -346,7 +361,7 @@ export async function confirmarImportacionComercial() {
         id: Date.now() + hecho, codigo: c.codigo, nombre: c.nombre, razon: c.razon, cuit: c.cuit,
         direccion: c.direccion, mail: c.mail, estado: 'Activo', condPago: c.condPago, factPor: c.factPor,
         productosEnFactura: c.productosEnFactura, tipo: c.tipo, ciudad: c.ciudad, obs: c.obs,
-        docReq: {}, contactos: [],
+        codigoTango: c.codigoTango, docReq: {}, contactos: [],
       };
     }
     const ok = await supaSync('clientes', registro);
@@ -393,14 +408,19 @@ export async function confirmarImportacionComercial() {
   if (window.renderClientes) window.renderClientes();
   if (window.renderObjetivos) window.renderObjetivos();
   if (window.poblarSelectsComercial) window.poblarSelectsComercial();
+  // Ticket "Código de cliente" (03/09) — si el archivo trae Código Tango,
+  // refresca el reporte de "Clientes sin código Tango" (Gestión de
+  // cobros → Importar) para que se vea de una que bajó el faltante.
+  if (window.renderClientesSinCodigoTango) window.renderClientesSinCodigoTango();
 
   _ciImportando = false;
+  const tangoTxt = cliCodigoTangoCompletado ? (' — ' + cliCodigoTangoCompletado + ' cliente(s) completaron su Código Tango.') : '';
   if (fallos.length) {
     toast('⚠️ Import terminado con ' + fallos.length + ' error(es)');
     if (resEl) resEl.innerHTML = (total - fallos.length) + ' guardado(s) correctamente.<br><span style="color:#dc2626;">' + fallos.length + ' con error:</span><br>' + fallos.map(x => '• ' + x).join('<br>');
     if (btn) { btn.disabled = false; btn.textContent = '✅ Confirmar importación'; }
   } else {
-    toast('✅ Importación comercial completa: ' + clientes.length + ' cliente(s), ' + objetivos.length + ' objetivo(s)');
+    toast('✅ Importación comercial completa: ' + clientes.length + ' cliente(s), ' + objetivos.length + ' objetivo(s)' + tangoTxt, tangoTxt ? 6000 : undefined);
     abrirImportadorComercial();
   }
 }
