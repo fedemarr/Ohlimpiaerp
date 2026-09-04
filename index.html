@@ -6666,7 +6666,20 @@
           </div>
           <div class="form-grid form-grid-2">
             <div class="form-group"><label>Productos en factura</label>
-              <select id="cli-productos-fact"><option>Incluidos en el servicio</option><option>Factura separada</option><option>Línea aparte en la misma factura</option></select>
+              <!-- FIX (ticket "Lista de supervisores con sus servicios", 04/09):
+                   estas 3 opciones no coincidían con los 2 valores literales
+                   ('SE FACTURA' / 'NO SE FACTURA') que lee Pedido de productos
+                   (esPaganPP() en pedido_productos.js, margen.js, entregas.js,
+                   recargos.js) — al abrir la ficha de un cliente cuyo valor real
+                   era uno de esos dos, el <select> no encontraba ninguna opción
+                   igual y quedaba en "" (selectedIndex -1); si se guardaba la
+                   ficha por cualquier otro motivo, ESE vacío pisaba el valor
+                   correcto en la base. Encontrado en vivo con "Hit Cowork". -->
+              <select id="cli-productos-fact">
+                <option value="">— Sin definir —</option>
+                <option value="SE FACTURA">✅ SE FACTURA (PAGAN)</option>
+                <option value="NO SE FACTURA">❌ NO SE FACTURA (NO PAGAN)</option>
+              </select>
             </div>
             <div class="form-group"><label>Requiere OC para facturar</label>
               <select id="cli-req-oc"><option>No</option><option>Sí — siempre</option><option>Sí — solo primera vez</option></select>
