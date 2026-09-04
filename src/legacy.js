@@ -10397,6 +10397,26 @@ function _chequearAlertaMipymeAnual(){
   el.style.display='block';
   el.innerHTML=`<div class="alerta alerta-warn" style="font-size:12.5px;">📅 El certificado MiPyME de la cooperativa vence el 30/04 — ARCA lo renueva solo si la cooperativa está al día. Revisá antes de esa fecha${pendientes?`: hoy hay <strong>${pendientes} asociado(s) activo(s)</strong> con MiPyME no tramitado (columna "Monotributo" en Legajos).`:'.'}</div>`;
 }
+const CONDICION_LABEL = {comun:'Común', asociado_cooperativa:'Asoc. cooperativa', jubilado:'Jubilado', no_aportante:'No aportante'};
+const CONDICION_CHIP_BG = {comun:'#f3f4f6', asociado_cooperativa:'#ede0fa', jubilado:'#d5f0f2', no_aportante:'#fef3c7'};
+const CONDICION_CHIP_FG = {comun:'#374151', asociado_cooperativa:'#5b2ca0', jubilado:'#0b6470', no_aportante:'#92400e'};
+function condicionChip(condicion){
+  const c=condicion||'comun';
+  return `<span class="chip" style="font-size:10px;background:${CONDICION_CHIP_BG[c]||'#f3f4f6'};color:${CONDICION_CHIP_FG[c]||'#374151'};">${CONDICION_LABEL[c]||c}</span>`;
+}
+// Texto del hover de "Cuota mensual" — desglose 20/21/24/IIBB (ticket
+// "cuota por componentes"). Si es una vigencia vieja o CUR manual, avisa
+// que no aplica el desglose nuevo en vez de mostrar ceros engañosos.
+function desgloseCuotaTexto(persona, vigencia){
+  if(persona.curManual && persona.cur>0) return 'Cuota manual — no se recalcula por componentes';
+  const tabla=getTablaVigente(vigencia);
+  const row=tabla.find(r=>r.cat===persona.categoria);
+  if(!row || row.impuestoIntegrado===undefined) return 'Vigencia sin desglose por componentes';
+  const c=calcularCuotaComponentes(persona, getVigenciaActualOrg());
+  const fmt=v=>'$'+(Number(v)||0).toLocaleString('es-AR',{minimumFractionDigits:2,maximumFractionDigits:2});
+  return `20 imp. integrado ${fmt(c.imp)} · 21 SIPA ${fmt(c.sipa)} · 24 obra social ${fmt(c.os)}${persona.adherentesCantidad?' (titular + '+persona.adherentesCantidad+' adh.)':''} · IIBB ${persona.iibbAporta?c.organismoIibb+' '+fmt(c.iibb):'no aporta'}`;
+}
+
 function renderMonotributos(){
   _chequearAlertaMipymeAnual();
   // Poblar selector de año
@@ -10466,7 +10486,7 @@ function renderMonotributos(){
 
   const tbody = $('tbody-mono'); if(!tbody)return;
   if(!rows.length){
-    tbody.innerHTML=`<tr><td colspan="11" style="padding:40px;text-align:center;color:var(--texto-muy-suave);">Sin monotributistas registrados. Usá "+ Nuevo registro".</td></tr>`;
+    tbody.innerHTML=`<tr><td colspan="12" style="padding:40px;text-align:center;color:var(--texto-muy-suave);">Sin monotributistas registrados. Usá "+ Nuevo registro".</td></tr>`;
     return;
   }
 
@@ -10514,8 +10534,9 @@ function renderMonotributos(){
           :`<span style="background:#1e40af;color:white;font-weight:800;border-radius:6px;padding:3px 10px;font-size:13px;">${r.categoria||'—'}</span>
             <button style="background:none;border:none;cursor:pointer;font-size:10px;color:var(--azul);display:block;margin:2px auto 0;" onclick="verHistorialCat('${r.id}')" title="Ver historial">📋 historial</button>`}
       </td>
+      <td style="padding:6px 8px;border:1px solid var(--borde);text-align:center;">${esAutonomo?'—':condicionChip(r.condicion)}</td>
       <td style="padding:6px 8px;border:1px solid var(--borde);text-align:right;font-size:11px;">${esAutonomo?'—':'$'+limite.toLocaleString('es-AR')}</td>
-      <td style="padding:6px 8px;border:1px solid var(--borde);text-align:right;font-weight:600;color:#7c3aed;">${esAutonomo?'—':'$'+cur.toLocaleString('es-AR')}</td>
+      <td style="padding:6px 8px;border:1px solid var(--borde);text-align:right;font-weight:600;color:#7c3aed;" title="${esAutonomo?'':desgloseCuotaTexto(r,vigencia)}">${esAutonomo?'—':'$'+cur.toLocaleString('es-AR')}</td>
       <td style="padding:6px 8px;border:1px solid var(--borde);text-align:right;color:var(--azul);">${netoUltimo>0?'$'+netoUltimo.toLocaleString('es-AR'):'—'}</td>
       <td style="padding:6px 8px;border:1px solid var(--borde);text-align:right;min-width:120px;">
         ${esAutonomo?'<span class="sm">— (autónomo)</span>':`
@@ -10557,21 +10578,99 @@ function getLimiteCategoria(cat, vigencia){
 }
 
 function getCURPersona(persona, vigencia){
-  // Si tiene CUR manual, usar ese
-  if(persona.cur > 0) return persona.cur;
-  // Si no, calcular desde la tabla según zona y obra social
+  // Override explícito: alguien cargó un valor a mano y lo marcó como tal
+  // (ej. la credencial real difiere en centavos de la fórmula). Ver
+  // MONOTRIBUTO_para_Fede.md — el resto SIEMPRE se calcula, nunca se tipea.
+  if(persona.curManual && persona.cur > 0) return persona.cur;
   const tabla = getTablaVigente(vigencia);
   const row = tabla.find(r=>r.cat===persona.categoria);
+  // Vigencias nuevas (2026-08 en adelante): fórmula por componentes —
+  // impuesto integrado + SIPA + obra social×(1+adherentes) + IIBB unificado,
+  // según Condición y Zona (ver calcularCuotaComponentes).
+  if(row && row.cur!==undefined && row.impuestoIntegrado!==undefined){
+    return calcularCuotaComponentes(persona, vigencia).total;
+  }
   if(!row) return 0;
-  // Vigencias nuevas (2026-08): campo cur directo, sin distinción de zona
-  if(row.cur!==undefined && row.impuestoIntegrado!==undefined) return row.cur||0;
-  // Vigencias viejas (2024-01): distinguir por zona y obra social
+  // Vigencias viejas (2024-01): distinguir por zona y "con familia" (booleano
+  // legacy, reemplazado por adherentesCantidad>0 en las vigencias nuevas).
   const esCapital = persona.zona === 'capital';
   const conFamilia = !!persona.obraSocial;
   if(esCapital && conFamilia)  return row.curCapitalConFamilia||0;
   if(esCapital && !conFamilia) return row.curCapital||0;
   if(!esCapital && conFamilia) return row.curConFamilia||0;
   return row.curBase||0;
+}
+
+// ══════════════════════════════════════════════════════════
+// FÓRMULA POR COMPONENTES (ticket "Monotributo — cuota por componentes",
+// Lautaro 04/09, MONOTRIBUTO_para_Fede.md) — validada contra 399
+// credenciales F.1520 reales, reproduce el total al centavo en los 399
+// casos.
+//
+// CUOTA = impuesto integrado (20) + SIPA (21) + obra social (24)×(1+adh)
+//       + IIBB unificado (ARBA si Zona=Provincia / AGIP si Zona=Capital,
+//         solo si iibbAporta)
+//
+// Condición (persona.condicion):
+//   'comun'                → paga los 3 componentes ARCA normales
+//   'asociado_cooperativa' → NO paga el 20 · SIPA = valor especial ARCA
+//                             (fila categoria='ASOC_COOPERATIVA') · EXCLUSIVO
+//                             de categoría A
+//   'jubilado'              → SIPA = valor especial ARCA (fila
+//                             categoria='JUBILADO') · NO paga el 24 (PAMI)
+//   'no_aportante'          → solo paga el 20 (aporta jubilación/obra
+//                             social por otro lado — caso "Peretti")
+//
+// Fuente de los componentes: DB.monoTablasOrg (tabla mono_tablas, v117),
+// NO el DB.monoTablas viejo (ese sigue siendo solo para
+// getLimiteCategoria/getTablaVigente — límite anual y detección del
+// formato de vigencia, sin tocar).
+// ══════════════════════════════════════════════════════════
+
+// Última fila de un organismo+categoría con vigencia_desde <= la pedida
+// (formato 'YYYY-MM-DD' o 'YYYY-MM', ambos comparan bien como string).
+function getFilaMonoOrg(organismo, categoria, vigenciaDesde){
+  const filas = (DB.monoTablasOrg||[])
+    .filter(t=>t.organismo===organismo && t.categoria===categoria && t.vigenciaDesde<=vigenciaDesde)
+    .sort((a,b)=>b.vigenciaDesde.localeCompare(a.vigenciaDesde));
+  return filas[0]||null;
+}
+
+// Última vigencia de ARCA cargada en mono_tablas — separado de
+// getVigenciaActual() (que sigue leyendo el DB.monoTablas viejo) porque
+// son dos fuentes de datos distintas hasta terminar de migrar todo.
+function getVigenciaActualOrg(){
+  const hoy = new Date().toISOString().slice(0,10);
+  const vigencias = [...new Set((DB.monoTablasOrg||[]).filter(t=>t.organismo==='ARCA').map(t=>t.vigenciaDesde))].sort();
+  return vigencias.filter(v=>v<=hoy).pop() || vigencias[vigencias.length-1] || null;
+}
+
+function calcularCuotaComponentes(persona, vigencia){
+  const vig = vigencia || getVigenciaActualOrg();
+  const cond = persona.condicion || 'comun';
+  const arca = vig ? getFilaMonoOrg('ARCA', persona.categoria, vig) : null;
+  if(!arca) return {imp:0, sipa:0, os:0, iibb:0, total:0, organismoIibb:null};
+
+  const imp = (cond==='asociado_cooperativa') ? 0 : (arca.impuestoIntegrado||0);
+
+  let sipa;
+  if(cond==='jubilado') sipa = getFilaMonoOrg('ARCA','JUBILADO',vig)?.sipa || 0;
+  else if(cond==='asociado_cooperativa') sipa = getFilaMonoOrg('ARCA','ASOC_COOPERATIVA',vig)?.sipa || 0;
+  else if(cond==='no_aportante') sipa = 0;
+  else sipa = arca.sipa || 0;
+
+  const os = (cond==='jubilado' || cond==='no_aportante')
+    ? 0
+    : Math.round((arca.obraSocial||0) * (1 + (persona.adherentesCantidad||0)) * 100) / 100;
+
+  let iibb = 0, organismoIibb = null;
+  if(persona.iibbAporta){
+    organismoIibb = persona.zona==='capital' ? 'AGIP' : 'ARBA';
+    iibb = getFilaMonoOrg(organismoIibb, persona.categoria, vig)?.cuota || 0;
+  }
+
+  const total = Math.round((imp+sipa+os+iibb)*100)/100;
+  return {imp, sipa, os, iibb, total, organismoIibb};
 }
 
 function getNetoUltimoMes(nombre){
@@ -10679,13 +10778,15 @@ function calcularCURSugerido(persona, cat, vigencia){
   const tabla = getTablaVigente(vigencia);
   const row = tabla.find(r=>r.cat===cat);
   if(!row) return 0;
+  // Vigencias nuevas (2026-08 en adelante): misma fórmula por componentes
+  // que getCURPersona, con la categoría SUGERIDA en vez de la actual —
+  // respeta Condición/Zona/Adherentes/IIBB de la persona.
+  if(row.cur!==undefined && row.impuestoIntegrado!==undefined){
+    return calcularCuotaComponentes({...persona, categoria:cat}, getVigenciaActualOrg()).total;
+  }
   const esCapital = persona.zona === 'capital';
   const conFamilia = !!persona.obraSocial;
-  // Jubilado: exento de SIPA y/o OS según lo declarado
-  if(persona.jubilado){
-    // Solo paga impuesto integrado
-    return row.impuestoIntegrado || Math.round((row.curBase||0) * 0.15); // aprox 15% de la cuota
-  }
+  if(persona.jubilado) return row.impuestoIntegrado || Math.round((row.curBase||0) * 0.15);
   if(esCapital && conFamilia)  return row.curCapitalConFamilia||0;
   if(esCapital && !conFamilia) return row.curCapital||0;
   if(!esCapital && conFamilia) return row.curConFamilia||0;
@@ -11723,10 +11824,70 @@ function renderTablasCategorias(){
               `}
               <td style="padding:6px 8px;border:1px solid var(--borde);text-align:center;font-weight:700;color:${cantEnPadron>0?'#374151':'var(--texto-suave)'};">${cantEnPadron}</td>
             </tr>`;}).join('')}
+            ${esNuevoFormato?filasSipaEspecial():''}
           </tbody>
         </table>
       </div>
     </div>`;
+  renderTablasIIBB();
+}
+
+// Filas especiales de SIPA (JUBILADO / ASOC. COOPERATIVA) — reemplazan el
+// 21 completo, sin impuesto integrado ni obra social. Vienen de
+// DB.monoTablasOrg (mono_tablas, v117), no del DB.monoTablas viejo — ver
+// nota en la cabecera de calcularCuotaComponentes.
+function filasSipaEspecial(){
+  const vig = getVigenciaActualOrg();
+  if(!vig) return '';
+  const jub = getFilaMonoOrg('ARCA','JUBILADO',vig);
+  const coop = getFilaMonoOrg('ARCA','ASOC_COOPERATIVA',vig);
+  const filas = [
+    jub  && {label:'JUBILADO',         nota:'reemplaza el 21 · sin obra social (PAMI)',                     bg:'#d5f0f2', fg:'#0b6470', sipa:jub.sipa,  n:(DB.monotributos||[]).filter(m=>m.condicion==='jubilado').length},
+    coop && {label:'ASOC. COOPERATIVA',nota:'reemplaza el 21 · sin imp. integrado · solo cat. A',           bg:'#ede0fa', fg:'#5b2ca0', sipa:coop.sipa, n:(DB.monotributos||[]).filter(m=>m.condicion==='asociado_cooperativa').length},
+  ].filter(Boolean);
+  if(!filas.length) return '';
+  return filas.map(f=>`<tr style="background:#f7f8fc;">
+    <td style="padding:6px 12px;border:1px solid var(--borde);text-align:center;"><span class="chip" style="font-size:10px;background:${f.bg};color:${f.fg};">${f.label}</span></td>
+    <td colspan="2" style="padding:6px 8px;border:1px solid var(--borde);color:var(--texto-suave);font-size:11px;">${f.nota}</td>
+    <td style="padding:6px 8px;border:1px solid var(--borde);text-align:right;font-weight:700;color:#7c3aed;">$${(f.sipa||0).toLocaleString('es-AR')}</td>
+    <td style="padding:6px 8px;border:1px solid var(--borde);text-align:right;color:var(--texto-suave);">—</td>
+    <td style="padding:6px 8px;border:1px solid var(--borde);text-align:center;font-weight:700;">${f.n}</td>
+  </tr>`).join('');
+}
+
+// ── IIBB unificado: ARBA / AGIP (ticket "cuota por componentes") ──
+let _monoIibbTab = 'ARBA';
+function tabMonoIibb(organismo){ _monoIibbTab = organismo; renderTablasIIBB(); }
+function renderTablasIIBB(){
+  const el = $('mono-tabla-iibb-body'); if(!el) return;
+  const vig = getVigenciaActualOrg();
+  const btnArba=$('btn-mono-iibb-arba'), btnAgip=$('btn-mono-iibb-agip');
+  if(btnArba) btnArba.className = 'btn btn-sm '+(_monoIibbTab==='ARBA'?'btn-primary':'btn-secondary');
+  if(btnAgip) btnAgip.className = 'btn btn-sm '+(_monoIibbTab==='AGIP'?'btn-primary':'btn-secondary');
+  if(!vig){ el.innerHTML='<div style="padding:20px;color:var(--texto-muy-suave);">Sin tabla cargada todavía.</div>'; return; }
+  const filas = (DB.monoTablasOrg||[]).filter(t=>t.organismo===_monoIibbTab && t.vigenciaDesde===vig).sort((a,b)=>a.categoria.localeCompare(b.categoria));
+  if(!filas.length){ el.innerHTML='<div style="padding:20px;color:var(--texto-muy-suave);">Sin tabla '+_monoIibbTab+' para la vigencia '+vig+'.</div>'; return; }
+  const totalMono=(DB.monotributos||[]).filter(r=>r.estado!=='Baja');
+  el.innerHTML = `<div class="tabla-wrap" style="overflow-x:auto;">
+    <table style="border-collapse:collapse;width:100%;font-size:12px;">
+      <thead><tr style="background:#374151;color:white;">
+        <th style="padding:8px 12px;border:1px solid #6b7280;text-align:center;">Cat.</th>
+        <th style="padding:8px;border:1px solid #6b7280;text-align:right;">Cuota mensual de ingresos brutos</th>
+        <th style="padding:8px;border:1px solid #6b7280;">Vigencia desde</th>
+        <th style="padding:8px;border:1px solid #6b7280;text-align:center;">Asociados que aportan</th>
+      </tr></thead>
+      <tbody>${filas.map(f=>{
+        const nEnPadron = totalMono.filter(m=>m.categoria===f.categoria && m.iibbAporta && (m.zona==='capital'?'AGIP':'ARBA')===_monoIibbTab).length;
+        return `<tr>
+          <td style="padding:6px 12px;border:1px solid var(--borde);text-align:center;"><span style="background:#1e40af;color:white;font-weight:800;border-radius:6px;padding:2px 8px;">${f.categoria}</span></td>
+          <td style="padding:6px 8px;border:1px solid var(--borde);text-align:right;font-weight:700;color:#7c3aed;">$${(f.cuota||0).toLocaleString('es-AR')}</td>
+          <td style="padding:6px 8px;border:1px solid var(--borde);color:var(--texto-suave);">${(f.vigenciaDesde||'').split('-').reverse().join('/')}</td>
+          <td style="padding:6px 8px;border:1px solid var(--borde);text-align:center;font-weight:700;color:${nEnPadron>0?'#374151':'var(--texto-suave)'};">${nEnPadron}</td>
+        </tr>`;
+      }).join('')}</tbody>
+    </table>
+  </div>
+  <div class="form-hint" style="margin-top:8px;">${_monoIibbTab==='ARBA'?'Fuente: ARBA "Montos a partir de Agosto 2026", columna "Locaciones y/o prestaciones de servicios".':'Fuente: AGIP "Tabla vigente desde el 01/08/2026" — mensual desde 01/2026.'} Se toma cuando la Zona coincide y el asociado tiene tildado "aporta IIBB" en la ficha.</div>`;
 }
 
 // ── Recategorizar ──
@@ -11747,7 +11908,7 @@ Nuevo límite: $${(getLimiteCategoria(catSugerida,v)||0).toLocaleString('es-AR')
   r.categoria=catSugerida;
   r.cur=0; // Reset CUR para que se recalcule según nueva categoría
   supaSync('monotributos', r);
-  toast('✅ Recategorizado a '+catSugerida+'. Actualizá el CUR manualmente desde ARCA.');
+  toast('✅ Recategorizado a '+catSugerida+' — la cuota se recalcula sola por componentes.');
   renderMonotributos();
 }
 
@@ -11814,16 +11975,63 @@ function abrirModalNuevoMonotributo(id=null){
   if($('mono-categoria'))   $('mono-categoria').value=r.categoria||'';
   if($('mono-fechaAlta'))   $('mono-fechaAlta').value=r.fechaAlta||new Date().toISOString().slice(0,10);
   if($('mono-zona'))        $('mono-zona').value=r.zona||'provincia';
-  if($('mono-obraSocial'))  $('mono-obraSocial').value=r.obraSocial?'true':'false';
+  if($('mono-condicion'))   $('mono-condicion').value=r.condicion||'comun';
+  if($('mono-iibb-aporta')) $('mono-iibb-aporta').checked=!!r.iibbAporta;
   if($('mono-cur'))         $('mono-cur').value=r.cur||0;
   if($('mono-adherentes-cant')) $('mono-adherentes-cant').value=r.adherentesCantidad||0;
-  if($('mono-adherentes-monto')) $('mono-adherentes-monto').value=r.adherentesMonto||0;
   if($('mono-estado'))      $('mono-estado').value=r.estado||'Al día';
   if($('mono-obs'))         $('mono-obs').value=r.obs||'';
   const dl=$('dl-mono-nombre');
   if(dl) dl.innerHTML=(DB.legajos||[]).filter(l=>l.estado==='Activo').map(l=>`<option value="${l.nombre}">${l.nombre} — ${l.nro}</option>`).join('');
+  recalcMonoFicha();
   abrirModal('modal-monotributo');
 }
+
+// "Asociado a cooperativa" solo existe con categoría A — si el registro
+// venía con esa condición y se recategoriza fuera de A, avisa y vuelve a
+// "Común" automático (queda en el historial de categorías, no en uno
+// aparte: no hay un historial de condición todavía).
+function onChangeCategoriaMonoFicha(){
+  const cat=$('mono-categoria')?.value;
+  const optCoop=$('opt-mono-coop'); const cond=$('mono-condicion'); const aviso=$('mono-condicion-aviso');
+  if(!optCoop||!cond) return;
+  optCoop.hidden=cat!=='A'; optCoop.disabled=optCoop.hidden;
+  if(optCoop.hidden && cond.value==='asociado_cooperativa'){
+    cond.value='comun';
+    if(aviso){ aviso.style.display='block'; aviso.textContent='⚠ Al pasar a categoría '+cat+' pierde "Asociado a cooperativa" → vuelve a Común (paga el impuesto integrado).'; }
+  } else if(aviso) aviso.style.display='none';
+}
+
+// Recalcula y pinta la cuota calculada en vivo (ver calcularCuotaComponentes).
+// No exige ninguna vigencia cargada en mono_tablas — si todavía no hay datos
+// (DB.monoTablasOrg vacío), simplemente muestra "—" en vez de romper.
+function recalcMonoFicha(){
+  onChangeCategoriaMonoFicha();
+  const cat=$('mono-categoria')?.value;
+  const set=(id,v)=>{ const el=$(id); if(el) el.textContent=v; };
+  const organismoEl=$('mono-iibb-organismo');
+  if(organismoEl) organismoEl.textContent='— '+($('mono-zona')?.value==='capital'?'AGIP (Capital)':'ARBA (Provincia)');
+  if(!cat){ ['mc-imp','mc-sipa','mc-os','mc-iibb','mc-total'].forEach(id=>set(id,'—')); return; }
+  const persona={
+    categoria:cat,
+    condicion:$('mono-condicion')?.value||'comun',
+    zona:$('mono-zona')?.value||'provincia',
+    adherentesCantidad:parseInt($('mono-adherentes-cant')?.value)||0,
+    iibbAporta:!!$('mono-iibb-aporta')?.checked,
+  };
+  const c=calcularCuotaComponentes(persona);
+  const fmt=v=>'$ '+(Number(v)||0).toLocaleString('es-AR',{minimumFractionDigits:2,maximumFractionDigits:2});
+  if(!c.total && !getVigenciaActualOrg()){
+    // Sin ninguna vigencia cargada en mono_tablas todavía
+    set('mc-total','Sin tabla cargada — ver "Tablas de categorías"');
+    ['mc-imp','mc-sipa','mc-os','mc-iibb'].forEach(id=>set(id,'—'));
+    return;
+  }
+  set('mc-imp', fmt(c.imp)); set('mc-sipa', fmt(c.sipa)); set('mc-os', fmt(c.os));
+  set('mc-iibb', persona.iibbAporta ? fmt(c.iibb)+' ('+c.organismoIibb+')' : '— no aporta');
+  set('mc-total', fmt(c.total));
+}
+window.recalcMonoFicha = recalcMonoFicha;
 function editarMonotributo(id){abrirModalNuevoMonotributo(id);}
 function eliminarMonotributo(id){
   const r=getMonoById(id); if(!r) return;
@@ -11843,17 +12051,24 @@ function guardarMonotributo(){
     categoria:$('mono-categoria')?.value,
     fechaAlta:$('mono-fechaAlta')?.value,
     zona:$('mono-zona')?.value||'provincia',
-    obraSocial:$('mono-obraSocial')?.value==='true',
-    jubilado:$('mono-jubilado')?.value==='true',
-    // CUR: 0 = se calcula solo por tabla (getCURPersona), >0 = pisa el
-    // cálculo — esto ya funcionaba así de antes (Tema 2 §2, "CUR manual
-    // queda como excepción"), no hizo falta un flag nuevo.
-    cur:parseFloat($('mono-cur')?.value)||0,
-    // Tema 2 §2 ADHERENTES: reemplaza el concepto viejo "obraSocial" como
-    // única fuente — ahora cantidad + monto total manual por persona,
-    // casos heterogéneos (puede haber 1 adherente con monto $0).
+    // Condición (04/09, reemplaza "Con familia"/"Jubilado sí-no" del form
+    // viejo): define qué componentes de la fórmula paga — ver
+    // calcularCuotaComponentes(). jubilado/obraSocial (booleanos viejos)
+    // se conservan sin tocar por compat de vigencias 2024-01 (getCURPersona).
+    condicion:$('mono-condicion')?.value||'comun',
+    jubilado:$('mono-condicion')?.value==='jubilado',
+    // IIBB unificado (04/09): tilde "aporta" de la ficha — la jurisdicción
+    // (ARBA/AGIP) la define la Zona, no se elige acá.
+    iibbAporta:!!$('mono-iibb-aporta')?.checked,
+    // CUR: ya NO se tipea desde la ficha (04/09) — el campo queda oculto y
+    // solo se preserva si el registro ya tenía un valor manual cargado
+    // (curManual=true, override explícito — ver getCURPersona). Para todo
+    // lo demás la cuota SIEMPRE se recalcula por componentes al vuelo.
+    cur:existing?.curManual?(existing.cur||0):0,
+    curManual:!!existing?.curManual,
+    // Adherentes — cantidad: el monto de obra social lo calcula el sistema
+    // (arca.obraSocial × (1+cantidad)), ya no se tipea un monto total aparte.
     adherentesCantidad:parseInt($('mono-adherentes-cant')?.value)||0,
-    adherentesMonto:parseFloat($('mono-adherentes-monto')?.value)||0,
     estado:$('mono-estado')?.value||'Al día',
     obs:$('mono-obs')?.value.trim(),
     historialCategorias:existing?.historialCategorias||[],
@@ -14024,6 +14239,8 @@ window.renderSMVM = renderSMVM;
 window.renderStatsCRM = renderStatsCRM;
 window.renderStatsReclamos = renderStatsReclamos;
 window.renderTablasCategorias = renderTablasCategorias;
+window.tabMonoIibb = tabMonoIibb;
+window.renderTablasIIBB = renderTablasIIBB;
 window.renderVacAdmin = renderVacAdmin;
 window.renderVacOp = renderVacOp;
 window.renderVacaciones = renderVacaciones;

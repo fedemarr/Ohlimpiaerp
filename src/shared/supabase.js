@@ -67,7 +67,14 @@ export const _SM = {
   itemsLogisticaServicio: 'items_logistica_servicio',
   monoCambios: 'mono_cambios',
   monoPagosMes: 'mono_pagos_mes',
-  monoTablas: 'mono_tablas',
+  // v117: renombrado de monoTablas → monoTablasOrg. El DB.monoTablas viejo
+  // (objeto {vigencia: [fila ARCA]}, hardcodeado en legacy.js) sigue en uso
+  // por getTablaVigente/getCURPersona/etc. — si esta clave se llamara
+  // 'monoTablas', supaInit() lo pisaría con el ARRAY plano de mono_tablas
+  // (fila por categoría+organismo+vigencia) y rompería ese objeto sin avisar
+  // (Object.keys(array) da índices, no vigencias). monoTablasOrg convive con
+  // el viejo hasta migrar toda esa lógica a la fórmula por componentes.
+  monoTablasOrg: 'mono_tablas',
   monoCasosImport: 'mono_casos_import',
   supervisoresConfig: 'supervisores_config',
   supervisionVigencias: 'supervision_vigencias',

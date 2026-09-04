@@ -3457,7 +3457,7 @@
         <div class="form-grid form-grid-2">
           <div class="form-group"><label>CUIT</label><input type="text" id="mono-cuit" placeholder="20-XXXXXXXX-X"></div>
           <div class="form-group"><label>Categoría *</label>
-            <select id="mono-categoria">
+            <select id="mono-categoria" onchange="recalcMonoFicha()">
               <option value="">Seleccionar...</option>
               <option>A</option><option>B</option><option>C</option><option>D</option><option>E</option>
               <option>F</option><option>G</option><option>H</option><option>I</option><option>J</option><option>K</option>
@@ -3466,29 +3466,55 @@
         </div>
         <div class="form-grid form-grid-2">
           <div class="form-group"><label>Fecha de alta</label><input type="date" id="mono-fechaAlta"></div>
-          <div class="form-group"><label>Zona</label>
-            <select id="mono-zona"><option value="provincia">Provincia</option><option value="capital">Capital</option></select>
+          <div class="form-group"><label>Zona <span class="form-hint">(define ARBA/AGIP)</span></label>
+            <select id="mono-zona" onchange="recalcMonoFicha()"><option value="provincia">Provincia</option><option value="capital">Capital</option></select>
           </div>
         </div>
+        <!-- Condición (ticket "cuota por componentes", 04/09): reemplaza
+             "Con familia (obra social)" + "Jubilado" — define qué componentes
+             paga (ver MONOTRIBUTO_para_Fede.md §2). "Asociado a cooperativa"
+             solo existe con categoría A (recalcMonoFicha la oculta/deshabilita
+             para el resto y avisa si se recategoriza fuera de A). -->
         <div class="form-grid form-grid-2">
-          <div class="form-group"><label>Con familia (obra social)</label>
-            <select id="mono-obraSocial"><option value="false">No</option><option value="true">Sí</option></select>
+          <div class="form-group"><label>Condición *</label>
+            <select id="mono-condicion" onchange="recalcMonoFicha()">
+              <option value="comun">Común — paga integrado + SIPA + obra social</option>
+              <option value="asociado_cooperativa" id="opt-mono-coop">Asociado a cooperativa — no paga el integrado</option>
+              <option value="jubilado">Jubilado (Ley 24241) — no paga obra social (PAMI)</option>
+              <option value="no_aportante">No aportante al régimen — solo paga el integrado</option>
+            </select>
+            <div class="form-hint" id="mono-condicion-aviso" style="display:none;color:var(--rojo);"></div>
           </div>
-          <div class="form-group"><label>Jubilado</label>
-            <select id="mono-jubilado"><option value="false">No</option><option value="true">Sí</option></select>
+          <div class="form-group"><label>IIBB unificado</label>
+            <div style="display:flex;align-items:center;gap:8px;padding-top:6px;">
+              <label style="display:flex;align-items:center;gap:5px;font-weight:normal;white-space:nowrap;">
+                <input type="checkbox" id="mono-iibb-aporta" onchange="recalcMonoFicha()"> aporta
+              </label>
+              <span class="form-hint" id="mono-iibb-organismo">— (definido por la Zona)</span>
+            </div>
           </div>
         </div>
-        <div class="form-grid form-grid-2">
-          <div class="form-group"><label>Adherentes — cantidad</label><input type="number" id="mono-adherentes-cant" min="0" placeholder="0"></div>
-          <div class="form-group"><label>Adherentes — monto total $</label><input type="number" id="mono-adherentes-monto" min="0" placeholder="0"></div>
+        <div class="form-group"><label>Adherentes — cantidad <span class="form-hint">(el monto de obra social lo calcula el sistema)</span></label>
+          <input type="number" id="mono-adherentes-cant" min="0" placeholder="0" oninput="recalcMonoFicha()">
         </div>
-        <div class="form-grid form-grid-2">
-          <div class="form-group"><label>CUR manual (opcional)</label><input type="number" id="mono-cur" placeholder="0 = calcular por tabla"></div>
-          <div class="form-group"><label>Estado</label>
-            <select id="mono-estado"><option>Al día</option><option>Fuera de categoría</option><option>Baja</option></select>
-          </div>
+        <div class="form-group"><label>Estado</label>
+          <select id="mono-estado"><option>Al día</option><option>Fuera de categoría</option><option>Baja</option></select>
         </div>
         <div class="form-group"><label>Observaciones</label><textarea id="mono-obs" rows="2"></textarea></div>
+
+        <!-- Cuota calculada en vivo — nada de esto se tipea (ticket 04/09):
+             cambiá categoría/condición/zona/adherentes/IIBB y se rearma solo. -->
+        <div class="form-group" style="background:var(--fondo);border-radius:var(--radio);padding:12px 14px;">
+          <div style="font-size:12px;font-weight:700;color:var(--texto);margin-bottom:6px;">CUOTA MENSUAL CALCULADA</div>
+          <div id="mono-calc-box" style="font-size:12.5px;">
+            <div style="display:flex;justify-content:space-between;padding:3px 0;"><span class="form-hint">20 · Impuesto integrado</span><span id="mc-imp">—</span></div>
+            <div style="display:flex;justify-content:space-between;padding:3px 0;"><span class="form-hint">21 · SIPA</span><span id="mc-sipa">—</span></div>
+            <div style="display:flex;justify-content:space-between;padding:3px 0;"><span class="form-hint">24 · Obra social</span><span id="mc-os">—</span></div>
+            <div style="display:flex;justify-content:space-between;padding:3px 0;"><span class="form-hint">IIBB unificado</span><span id="mc-iibb">—</span></div>
+            <div style="display:flex;justify-content:space-between;padding-top:6px;margin-top:4px;border-top:1px dashed var(--borde);font-weight:700;"><span>TOTAL</span><span id="mc-total">—</span></div>
+          </div>
+        </div>
+        <input type="hidden" id="mono-cur">
       </div>
     </div>
     <div class="modal-footer">
@@ -4358,8 +4384,9 @@
           <th style="padding:8px;border:1px solid #6b7280;">Puesto</th>
           <th style="padding:8px;border:1px solid #6b7280;">Zona</th>
           <th style="padding:8px;border:1px solid #6b7280;text-align:center;">Categoría</th>
+          <th style="padding:8px;border:1px solid #6b7280;text-align:center;">Condición</th>
           <th style="padding:8px;border:1px solid #6b7280;text-align:right;">Límite anual</th>
-          <th style="padding:8px;border:1px solid #6b7280;text-align:right;">CUR mensual</th>
+          <th style="padding:8px;border:1px solid #6b7280;text-align:right;" title="20 impuesto integrado + 21 SIPA + 24 obra social×(1+adherentes) + IIBB unificado">Cuota mensual</th>
           <th style="padding:8px;border:1px solid #6b7280;text-align:right;">Neto último mes</th>
           <th style="padding:8px;border:1px solid #6b7280;text-align:right;">Proyección anual</th>
           <th style="padding:8px;border:1px solid #6b7280;text-align:center;">Estado</th>
@@ -4392,6 +4419,20 @@
         </div>
       </div>
       <div id="mono-tabla-body"></div>
+    </div>
+
+    <!-- IIBB unificado ARBA/AGIP (ticket "cuota por componentes", 04/09) —
+         ver MONOTRIBUTO_para_Fede.md §3. mono_tablas (v117) ya trae la
+         vigencia 2026-08 de ambos organismos. -->
+    <div class="card">
+      <div class="card-header">
+        <h3>🏛️ IIBB unificado — ARBA / AGIP</h3>
+        <div style="display:flex;gap:8px;">
+          <button id="btn-mono-iibb-arba" class="btn btn-sm btn-primary" onclick="tabMonoIibb('ARBA')">ARBA — Provincia</button>
+          <button id="btn-mono-iibb-agip" class="btn btn-sm btn-secondary" onclick="tabMonoIibb('AGIP')">AGIP — Capital</button>
+        </div>
+      </div>
+      <div id="mono-tabla-iibb-body"></div>
     </div>
   </div>
 
