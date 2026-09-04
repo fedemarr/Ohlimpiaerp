@@ -1202,7 +1202,19 @@ export function enviarMensajeWhatsApp() {
   enviarWhatsApp(tel, msg);
 }
 
-const MOTIVOS_RECHAZO = ['No cubre perfil', 'Falta de disponibilidad', 'No asistió', 'Perfil laboral', 'Otro'];
+// FIX (ticket "candidato rechazó la propuesta", 04/09): el circuito de
+// "❌ Rechazar" solo tenía motivos donde el rechazo es NUESTRO (no cubre
+// perfil, etc.) — no había forma de registrar que el candidato rechazó LA
+// PROPUESTA sin forzar "Otro" con texto libre, ensuciando el estado
+// 'Rechazado' con casos que en realidad son 'Baja' (ver TIPOS_MOTIVO_BAJA
+// más abajo, que ya tenía "Rechazó propuesta" desde el ticket "Histórico
+// 2" — existía el circuito correcto, pero escondido detrás del botón
+// "📁 Baja", que un usuario buscando "rechazar" nunca iba a probar).
+// Esta opción vive en el mismo <select> que las demás (para que aparezca
+// donde el usuario efectivamente mira) pero al elegirse deriva a ese
+// mismo circuito de Baja en vez de a 'Rechazado' — ver confirmarRechazoCandidato().
+const MOTIVO_CANDIDATO_RECHAZA = 'El candidato rechazó la propuesta';
+const MOTIVOS_RECHAZO = [MOTIVO_CANDIDATO_RECHAZA, 'No cubre perfil', 'Falta de disponibilidad', 'No asistió', 'Perfil laboral', 'Otro'];
 
 export function rechazarCandidatoPorId(id) {
   const c = getCandById(id);
@@ -1245,7 +1257,10 @@ export function onChangeMotivoRechCand() {
   const sel = $('rech-cand-motivo');
   const row = $('rech-cand-detalle-row');
   if (!sel || !row) return;
-  row.style.display = sel.value === 'Otro' ? 'block' : 'none';
+  // Detalle libre: obligatorio para "Otro" (es el motivo en sí), opcional
+  // como aclaración extra para "el candidato rechazó" (ver
+  // confirmarRechazoCandidato) — se muestra en ambos casos.
+  row.style.display = (sel.value === 'Otro' || sel.value === MOTIVO_CANDIDATO_RECHAZA) ? 'block' : 'none';
 }
 
 export async function confirmarRechazoCandidato() {
@@ -1254,6 +1269,29 @@ export async function confirmarRechazoCandidato() {
   if (!c) { toast('⚠️ Candidato no encontrado'); return; }
   const motivoSelect = $('rech-cand-motivo').value;
   const detalle = cleanText(($('rech-cand-detalle') || {}).value || '');
+
+  if (motivoSelect === MOTIVO_CANDIDATO_RECHAZA) {
+    // No es que NOSOTROS lo rechacemos — es 'Baja' con tipoMotivoBaja
+    // "Rechazó propuesta" (mismo circuito que abrirBajaCandidatoPorId),
+    // para no ensuciar 'Rechazado' con casos que son al revés.
+    const snapshot = { estado: c.estado, motivoRechazo: c.motivoRechazo, tipoMotivoBaja: c.tipoMotivoBaja, fechaBaja: c.fechaBaja };
+    c.estado = 'Baja';
+    c.tipoMotivoBaja = 'Rechazó propuesta';
+    c.fechaBaja = hoyStr();
+    c.motivoRechazo = detalle;
+    c.fechaTransicion = new Date().toISOString();
+    const ok = await supaSync('candidatos', c);
+    if (!ok) {
+      Object.assign(c, snapshot);
+      toast(mensajeErrorGuardado('⚠️ No se pudo guardar en el servidor — reintentá o avisá a sistemas'));
+      return;
+    }
+    cerrarModal('modal-rechazar-cand');
+    renderCandidatos();
+    toast('📁 Registrado: el candidato rechazó la propuesta');
+    return;
+  }
+
   const motivo = motivoSelect === 'Otro' ? detalle : motivoSelect;
   if (!motivo) { toast('⚠️ Indicá el motivo del rechazo'); return; }
 
