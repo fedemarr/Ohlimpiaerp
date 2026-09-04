@@ -286,6 +286,9 @@ export function _toSnake(obj) {
     metodoPago: 'metodo_pago', pagadoPor: 'pagado_por', pagadoEn: 'pagado_en',
     mipymeEstado: 'mipyme_estado', cuitEstado: 'cuit_estado',
     cuitFechaVerificacion: 'cuit_fecha_verificacion', claveFiscalFechaActualizacion: 'clave_fiscal_fecha_actualizacion',
+    // v117 — Monotributo: tabla de categorías por organismo (mono_tablas)
+    topeIngresosAnual: 'tope_ingresos_anual', impuestoIntegrado: 'impuesto_integrado',
+    iibbAporta: 'iibb_aporta',
     // v081 — Módulo Supervisores + multi-supervisor
     pctComision: 'pct_comision', supervisoresAsignados: 'supervisores_asignados',
     // v086 — Supervisión de servicios (% por servicio, vigencias, ajuste)
@@ -748,6 +751,9 @@ export function _toCamel(obj) {
     metodo_pago: 'metodoPago', pagado_por: 'pagadoPor', pagado_en: 'pagadoEn',
     mipyme_estado: 'mipymeEstado', cuit_estado: 'cuitEstado',
     cuit_fecha_verificacion: 'cuitFechaVerificacion', clave_fiscal_fecha_actualizacion: 'claveFiscalFechaActualizacion',
+    // v117 — Monotributo: tabla de categorías por organismo (mono_tablas)
+    tope_ingresos_anual: 'topeIngresosAnual', impuesto_integrado: 'impuestoIntegrado',
+    iibb_aporta: 'iibbAporta',
     pct_comision: 'pctComision', supervisores_asignados: 'supervisoresAsignados',
     // v086 — Supervisión de servicios (% por servicio, vigencias, ajuste)
     pct_supervision: 'pctSupervision', alcance_nombre: 'alcanceNombre',
