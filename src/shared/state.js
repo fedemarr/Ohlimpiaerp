@@ -499,7 +499,7 @@ export const LOCALIDADES_BA = [
   'Almirante Brown', 'Avellaneda', 'Berazategui', 'Berisso', 'Brandsen', 'Campana', 'Cañuelas',
   'Ensenada', 'Escobar', 'Esteban Echeverría', 'Exaltación de la Cruz', 'Ezeiza', 'Florencio Varela',
   'General Las Heras', 'General Rodríguez', 'General San Martín', 'Hurlingham', 'Ituzaingó',
-  'José C. Paz', 'La Matanza', 'La Plata', 'Lanús', 'Lomas de Zamora', 'Luján', 'Marcos Paz',
+  'José C. Paz', 'Junín', 'La Matanza', 'La Plata', 'Lanús', 'Lomas de Zamora', 'Luján', 'Marcos Paz',
   'Malvinas Argentinas', 'Mercedes', 'Merlo', 'Moreno', 'Morón', 'Pilar', 'Presidente Perón',
   'Quilmes', 'San Fernando', 'San Isidro', 'San Miguel', 'San Vicente', 'Tigre',
   'Tres de Febrero', 'Vicente López', 'Zárate',
@@ -533,6 +533,13 @@ export const PARTIDOS_LOCALIDADES = {
   'Hurlingham': ['Hurlingham', 'William Morris', 'Villa Tesei'],
   'Ituzaingó': ['Ituzaingó', 'Villa Udaondo'],
   'José C. Paz': ['José C. Paz'],
+  // Junín (ticket "Agregar una localidad", 05/09): a diferencia del resto
+  // de esta lista, NO es un partido del conurbano/AMBA — está a ~250km de
+  // CABA. Se agrega igual, a pedido explícito, confirmando que hoy no
+  // existe un vínculo real Zona↔Localidad (ver onChangeZonaCand() en
+  // candidatos.js): va a aparecer en el desplegable de Localidad sin
+  // importar qué Zona se elija, igual que las otras 41.
+  'Junín': ['Junín'],
   'La Matanza': ['San Justo', 'Ramos Mejía', 'Lomas del Mirador', 'La Tablada', 'Villa Madero', 'Tapiales', 'Aldo Bonzi', 'Ciudad Evita', 'González Catán', 'Gregorio de Laferrere', 'Isidro Casanova', 'Virrey del Pino', '20 de Junio', 'Villa Luzuriaga'],
   'Lanús': ['Lanús Este', 'Lanús Oeste', 'Remedios de Escalada', 'Monte Chingolo', 'Valentín Alsina'],
   'La Plata': ['La Plata', 'Los Hornos', 'City Bell', 'Villa Elisa', 'Tolosa', 'Melchor Romero', 'Gonnet', 'Ringuelet'],
