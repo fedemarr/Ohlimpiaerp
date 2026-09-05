@@ -11002,12 +11002,19 @@ function abrirMesMonoPagos(){
   const existentes=new Set((DB.monoPagosMes||[]).filter(p=>p.periodo===mes).map(p=>p.nombre));
   let agregados=0;
   (DB.monotributos||[]).filter(r=>r.estado!=='Baja'&&nombresQueTrabajaron.has(r.nombre)&&!existentes.has(r.nombre)).forEach(r=>{
-    const cur=getCURPersona(r,vigencia);
-    const adh=r.adherentesMonto||0;
+    // Desglose completo congelado (ticket "cuota por componentes", punto 3):
+    // 20/21/24/IIBB por separado, no solo el total — así el export y una
+    // auditoría posterior ven de qué se compone cada cuota de ESTE mes,
+    // sin importar qué categoría/condición/tabla tenga la persona después.
+    const c = r.curManual && r.cur>0
+      ? {imp:r.cur, sipa:0, os:0, iibb:0, total:r.cur} // cuota manual: todo el monto va a "imp" para no inventarle un desglose que no tiene
+      : calcularCuotaComponentes(r, getVigenciaActualOrg());
     const pago={
       id:Date.now()+Math.floor(Math.random()*1000),
       periodo:mes, nroSocio:r.nroSocio||null, nombre:r.nombre,
-      curCongelado:cur, adherentesMontoCongelado:adh, total:cur+adh,
+      impIntegradoCongelado:c.imp, sipaCongelado:c.sipa, obraSocialCongelado:c.os, iibbCongelado:c.iibb,
+      condicionCongelada:r.condicion||'comun', categoriaCongelada:r.categoria,
+      curCongelado:c.total, adherentesMontoCongelado:0, total:c.total,
       pagado:false, metodoPago:null, pagadoPor:null, pagadoEn:null,
     };
     if(!DB.monoPagosMes) DB.monoPagosMes=[];
@@ -11024,16 +11031,24 @@ function renderMonoPagos(){
   const tbody=$('tbody-mono-pagos'); if(!tbody) return;
   const rows=(DB.monoPagosMes||[]).filter(p=>p.periodo===mes).sort((a,b)=>a.nombre.localeCompare(b.nombre));
   if(!rows.length){
-    tbody.innerHTML=`<tr><td colspan="7" style="padding:40px;text-align:center;color:var(--texto-muy-suave);">Sin lista armada para ${mes}. Usá "📥 Armar lista del mes".</td></tr>`;
+    tbody.innerHTML=`<tr><td colspan="9" style="padding:40px;text-align:center;color:var(--texto-muy-suave);">Sin lista armada para ${mes}. Usá "📥 Armar lista del mes".</td></tr>`;
     return;
   }
   const metodos=['Transferencia','Cheque','Efectivo','Débito automático','Otro'];
-  tbody.innerHTML=rows.map(p=>`<tr style="background:${p.pagado?'#f0fdf4':'white'};">
-    <td style="padding:6px 14px;border:1px solid var(--borde);font-weight:500;">${p.nombre}</td>
+  tbody.innerHTML=rows.map(p=>{
+    // Meses armados antes de v118 no tienen desglose fino — solo curCongelado
+    // (el total de esa época). Se muestra igual, sin inventar un desglose que
+    // esa fila no tiene.
+    const tieneDesglose = p.impIntegradoCongelado!=null || p.sipaCongelado!=null || p.obraSocialCongelado!=null || p.iibbCongelado!=null;
+    const celda = v => tieneDesglose ? '$'+(v||0).toLocaleString('es-AR') : '<span class="form-hint">—</span>';
+    return `<tr style="background:${p.pagado?'#f0fdf4':'white'};">
+    <td style="padding:6px 14px;border:1px solid var(--borde);font-weight:500;">${p.nombre}${p.categoriaCongelada?` <span class="form-hint">(${p.categoriaCongelada}${p.condicionCongelada&&p.condicionCongelada!=='comun'?' · '+(CONDICION_LABEL[p.condicionCongelada]||p.condicionCongelada):''})</span>`:''}</td>
     <td style="padding:6px 8px;border:1px solid var(--borde);font-size:11px;">${p.nroSocio||'—'}</td>
-    <td style="padding:6px 8px;border:1px solid var(--borde);text-align:right;">$${(p.curCongelado||0).toLocaleString('es-AR')}</td>
-    <td style="padding:6px 8px;border:1px solid var(--borde);text-align:right;">${p.adherentesMontoCongelado?'$'+p.adherentesMontoCongelado.toLocaleString('es-AR'):'—'}</td>
-    <td style="padding:6px 8px;border:1px solid var(--borde);text-align:right;font-weight:700;color:#7c3aed;">$${(p.total||0).toLocaleString('es-AR')}</td>
+    <td style="padding:6px 8px;border:1px solid var(--borde);text-align:right;">${celda(p.impIntegradoCongelado)}</td>
+    <td style="padding:6px 8px;border:1px solid var(--borde);text-align:right;">${celda(p.sipaCongelado)}</td>
+    <td style="padding:6px 8px;border:1px solid var(--borde);text-align:right;">${celda(p.obraSocialCongelado)}</td>
+    <td style="padding:6px 8px;border:1px solid var(--borde);text-align:right;">${celda(p.iibbCongelado)}</td>
+    <td style="padding:6px 8px;border:1px solid var(--borde);text-align:right;font-weight:700;color:#7c3aed;">$${(p.total||p.curCongelado||0).toLocaleString('es-AR')}</td>
     <td style="padding:4px 6px;border:1px solid var(--borde);text-align:center;">
       ${p.pagado
         ? `<span style="font-size:11px;">${p.metodoPago||'—'}</span>`
@@ -11047,7 +11062,8 @@ function renderMonoPagos(){
         ? `<div><span class="badge badge-verde" style="font-size:10px;">✓ Pagado</span><div style="font-size:9px;color:var(--texto-suave);margin-top:2px;">${p.pagadoPor||'—'} · ${p.pagadoEn?new Date(p.pagadoEn).toLocaleDateString('es-AR'):''}</div></div>`
         : `<button class="btn btn-xs" style="background:#dcfce7;color:#065f46;border:1px solid #9fdaba;" onclick="tildarPagoMono('${p.id}')">Tildar pagado</button>`}
     </td>
-  </tr>`).join('');
+  </tr>`;
+  }).join('');
 }
 // Método de pago elegido en el <select> antes de tildar — vive en memoria
 // de sesión nomás, se consume al tildar (no hace falta persistir el
@@ -11073,11 +11089,13 @@ function exportarMonoPagosCSV(){
   const mes=_mesMonoPagosSel();
   const rows=(DB.monoPagosMes||[]).filter(p=>p.periodo===mes);
   if(!rows.length){ toast('⚠️ No hay lista armada para este período'); return; }
-  const header=['Nombre','N° Socio','CUR','Adherentes','Total','Método de pago','Pagado','Pagado por','Fecha de pago'];
+  const header=['Nombre','N° Socio','Categoría','Condición','20 Imp. integrado','21 SIPA','24 Obra social','IIBB','Total','Método de pago','Pagado','Pagado por','Fecha de pago'];
   const lineas=[header.join(',')];
   rows.forEach(p=>{
     lineas.push([
-      `"${p.nombre}"`, p.nroSocio||'', p.curCongelado||0, p.adherentesMontoCongelado||0, p.total||0,
+      `"${p.nombre}"`, p.nroSocio||'', p.categoriaCongelada||'', p.condicionCongelada||'',
+      p.impIntegradoCongelado??'', p.sipaCongelado??'', p.obraSocialCongelado??'', p.iibbCongelado??'',
+      p.total||p.curCongelado||0,
       p.metodoPago||'', p.pagado?'Sí':'No', p.pagadoPor||'', p.pagadoEn?new Date(p.pagadoEn).toLocaleDateString('es-AR'):'',
     ].join(','));
   });
@@ -11898,14 +11916,31 @@ function recategorizarModal(id){
   const proy=getProyeccionAnual(r.nombre,anio);
   const tabla=getTablaVigente(v);
   const catSugerida=tabla.find(row=>row.limiteAnual>=proy)?.cat||'K';
-  if(!confirm(`¿Recategorizar a ${r.nombre} de categoría ${r.categoria} a ${catSugerida}?
+
+  // Si pierde "Asociado a cooperativa" (exclusiva de cat. A) al recategorizar
+  // fuera de A, vuelve a Común automático — mismo criterio que la ficha
+  // (onChangeCategoriaMonoFicha). Se avisa en el impacto antes de confirmar.
+  const pierdeCoop = r.condicion==='asociado_cooperativa' && catSugerida!=='A';
+  const condicionNueva = pierdeCoop ? 'comun' : (r.condicion||'comun');
+  const cuotaActual = calcularCuotaComponentes(r, getVigenciaActualOrg()).total;
+  const cuotaNueva = calcularCuotaComponentes({...r, categoria:catSugerida, condicion:condicionNueva}, getVigenciaActualOrg()).total;
+
+  const impacto = `¿Recategorizar a ${r.nombre} de categoría ${r.categoria} a ${catSugerida}?
 
 Proyección anual: $${proy.toLocaleString('es-AR')}
-Nuevo límite: $${(getLimiteCategoria(catSugerida,v)||0).toLocaleString('es-AR')}`)) return;
+Nuevo límite: $${(getLimiteCategoria(catSugerida,v)||0).toLocaleString('es-AR')}
+Cuota mensual: $${cuotaActual.toLocaleString('es-AR')} → $${cuotaNueva.toLocaleString('es-AR')}
+${pierdeCoop ? '⚠ Pierde "Asociado a cooperativa" (solo existe en cat. A) → vuelve a Común, paga el impuesto integrado.\n' : ''}
+Los meses de Pago mensual ya armados quedan congelados con la categoría vieja.`;
+  if(!confirm(impacto)) return;
+
+  const motivo = prompt('Motivo de la recategorización (opcional, queda en el historial):', 'Recategorización ARCA (proyección supera el tope)') || '';
+
   // Guardar historial
   if(!r.historialCategorias) r.historialCategorias=[];
-  r.historialCategorias.push({cat:r.categoria, desde:r.fechaAlta||'—', hasta:new Date().toLocaleDateString('es-AR')});
+  r.historialCategorias.push({cat:r.categoria, desde:r.fechaAlta||'—', hasta:new Date().toLocaleDateString('es-AR'), motivo});
   r.categoria=catSugerida;
+  r.condicion=condicionNueva;
   r.cur=0; // Reset CUR para que se recalcule según nueva categoría
   supaSync('monotributos', r);
   toast('✅ Recategorizado a '+catSugerida+' — la cuota se recalcula sola por componentes.');
