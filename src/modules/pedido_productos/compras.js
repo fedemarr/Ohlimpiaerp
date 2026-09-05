@@ -17,7 +17,8 @@
 import { DB, currentUser } from '@shared/state.js';
 import { $ } from '@shared/helpers.js';
 import { toast, abrirModal, cerrarModal } from '@shared/ui.js';
-import { supaSync } from '@shared/supabase.js';
+import { supaSync, SUPA } from '@shared/supabase.js';
+import { badgeProveedorPP } from './colorProveedor.js';
 
 function _id(prefijo) { return prefijo + '-' + Date.now() + '-' + Math.floor(Math.random() * 10000); }
 const _idTrunc = (v) => String(v || '').slice(-9);
@@ -53,10 +54,20 @@ function itemsConsolidablesPP(periodoId) {
 // "ya consolidado" usen SIEMPRE la misma resolución — antes cada uno
 // tenía su propia copia y la orden terminaba armándose con la línea
 // sustituta adentro del proveedor VIEJO en vez del nuevo.
-function productoFinalDelItemPP(it) {
+//
+// FIX 2 (ticket "Colores/badges de proveedores", 05/09): la decisión
+// vive en pp_sugerencias_decisiones (v119), scopeada por período — antes
+// era un Map en memoria del módulo, sin período, que se perdía apenas se
+// recargaba la pestaña (bug real: "aprobar una sugerencia no impacta en
+// la orden" si pasaba cualquier cosa entre aceptarla y generar la orden).
+function _decisionPP(periodoId, productoIdTrunc) {
+  return (DB.ppSugerenciasDecisiones || []).find(d =>
+    _idTrunc(d.periodoIdLocal) === _idTrunc(periodoId) && _idTrunc(d.productoIdLocal) === productoIdTrunc);
+}
+function productoFinalDelItemPP(it, periodoId) {
   const original = getProductoPP(it.productoIdLocal);
   if (!original) return null;
-  const dec = _decisionesSugerenciasPP.get(_idTrunc(original.id));
+  const dec = _decisionPP(periodoId, _idTrunc(original.id));
   if (dec?.aceptada) {
     const sustituto = getProductoPP(dec.sustitutoIdLocal);
     if (sustituto) return { prod: sustituto, sustituidoDe: original, mantenidoMotivo: null };
@@ -72,7 +83,7 @@ export function consolidadoPorProveedorPP(periodoId) {
   const items = itemsConsolidablesPP(periodoId);
   const porProveedor = new Map();
   for (const it of items) {
-    const info = productoFinalDelItemPP(it); if (!info) continue;
+    const info = productoFinalDelItemPP(it, periodoId); if (!info) continue;
     const { prod, sustituidoDe, mantenidoMotivo } = info;
     if (!prod.proveedorIdLocal) continue;   // sin proveedor asignado: no se puede armar una orden — queda afuera (ver aviso en el render)
     const provId = String(prod.proveedorIdLocal);
@@ -205,8 +216,8 @@ export function exportarConsolidadoPP(provId) {
 // ver consolidadoCrudoPorProveedorPP) contra pp_grupos_equivalencia: si
 // el producto pertenece a un grupo y OTRO miembro (de otro proveedor)
 // sale más barato por unidad común, se sugiere el cambio — nunca se
-// aplica solo. "Mantener" pide motivo (queda en _decisionesSugerenciasPP,
-// se usa al generar las órdenes).
+// aplica solo. "Mantener" pide motivo (queda en pp_sugerencias_decisiones,
+// v119, scopeado por período — se usa al generar las órdenes).
 //
 // FIX 4 (ronda 02/09): diferencias menores al umbral de empate NO
 // generan sugerencia de cambio — se muestran igual, como fila
@@ -263,13 +274,12 @@ export function sugerenciasEquivalentesPP(periodoId) {
   return sugerencias;
 }
 
-const _decisionesSugerenciasPP = new Map(); // productoIdLocal(actual) -> {aceptada, motivo}
 export function renderSugerenciasPP() {
   const cont = $('pp-compras-sugerencias'); if (!cont) return;
   const periodoId = ($('pp-compra-periodo-sel') || {}).value;
   const sugerencias = periodoId ? sugerenciasEquivalentesPP(periodoId) : [];
   if (!sugerencias.length) { cont.innerHTML = '<p style="padding:20px;color:var(--texto-muy-suave);">Sin sugerencias — ninguna línea consolidada tiene un equivalente más barato cargado (o no hay grupos de equivalencia armados todavía, ver 🔍 Comparador de precios).</p>'; return; }
-  const ahorroDelPeriodo = sugerencias.filter(s => !s.empate && _decisionesSugerenciasPP.get(_idTrunc(s.actual.id))?.aceptada).reduce((a, s) => a + s.ahorroReal, 0);
+  const ahorroDelPeriodo = sugerencias.filter(s => !s.empate && _decisionPP(periodoId, _idTrunc(s.actual.id))?.aceptada).reduce((a, s) => a + s.ahorroReal, 0);
   cont.innerHTML = `<div class="tabla-wrap"><table style="width:100%;border-collapse:collapse;font-size:12.5px;">
     <thead><tr style="background:#374151;color:white;">
       <th style="padding:6px 10px;text-align:left;">Grupo</th><th style="padding:6px 8px;text-align:left;">Pedido (actual)</th>
@@ -278,13 +288,20 @@ export function renderSugerenciasPP() {
     </tr></thead>
     <tbody>${sugerencias.map(s => {
       const key = _idTrunc(s.actual.id);
-      const dec = _decisionesSugerenciasPP.get(key);
+      const dec = _decisionPP(periodoId, key);
+      // Ticket "Colores/badges de proveedores" (05/09): antes esta tabla no
+      // mostraba a qué proveedor pertenece cada producto — el cambio de
+      // proveedor que implica aceptar una sugerencia (actual y sugerido
+      // suelen ser de proveedores distintos, es todo el sentido de la
+      // sugerencia) pasaba desapercibido hasta ver la orden generada.
+      const provActual = getProveedorPP(s.actual.proveedorIdLocal);
+      const provSugerido = getProveedorPP(s.sugerido.proveedorIdLocal);
       if (s.empate) {
         return `<tr style="background:#fafbfd;">
           <td style="padding:5px 10px;border-bottom:1px solid var(--borde);">${s.grupo.nombre}</td>
-          <td style="padding:5px 8px;border-bottom:1px solid var(--borde);">${s.actual.descripcion}</td>
+          <td style="padding:5px 8px;border-bottom:1px solid var(--borde);">${badgeProveedorPP(provActual)} ${s.actual.descripcion}</td>
           <td style="padding:5px 8px;border-bottom:1px solid var(--borde);text-align:right;">${_money(s.actual$u)}</td>
-          <td style="padding:5px 8px;border-bottom:1px solid var(--borde);color:var(--texto-suave);">${s.sugerido.descripcion}</td>
+          <td style="padding:5px 8px;border-bottom:1px solid var(--borde);color:var(--texto-suave);">${badgeProveedorPP(provSugerido)} ${s.sugerido.descripcion}</td>
           <td style="padding:5px 8px;border-bottom:1px solid var(--borde);text-align:right;color:var(--texto-suave);">${_money(s.sugerido$u)}</td>
           <td style="padding:5px 8px;border-bottom:1px solid var(--borde);text-align:right;color:var(--texto-suave);">—</td>
           <td style="padding:5px 8px;border-bottom:1px solid var(--borde);white-space:nowrap;">
@@ -295,32 +312,56 @@ export function renderSugerenciasPP() {
       }
       return `<tr>
         <td style="padding:5px 10px;border-bottom:1px solid var(--borde);">${s.grupo.nombre}</td>
-        <td style="padding:5px 8px;border-bottom:1px solid var(--borde);">${s.actual.descripcion} <span style="color:var(--texto-suave);font-size:10.5px;">· ${s.cantidad} ${s.factorActual !== 1 ? `= ${s.unidadesComunes} ${s.grupo.unidadComun}` : ''}</span></td>
+        <td style="padding:5px 8px;border-bottom:1px solid var(--borde);">${badgeProveedorPP(provActual)} ${s.actual.descripcion} <span style="color:var(--texto-suave);font-size:10.5px;">· ${s.cantidad} ${s.factorActual !== 1 ? `= ${s.unidadesComunes} ${s.grupo.unidadComun}` : ''}</span></td>
         <td style="padding:5px 8px;border-bottom:1px solid var(--borde);text-align:right;">${_money(s.actual$u)}</td>
-        <td style="padding:5px 8px;border-bottom:1px solid var(--borde);color:var(--verde);font-weight:600;">${s.sugerido.descripcion}</td>
+        <td style="padding:5px 8px;border-bottom:1px solid var(--borde);color:var(--verde);font-weight:600;">${badgeProveedorPP(provSugerido)} ${s.sugerido.descripcion}</td>
         <td style="padding:5px 8px;border-bottom:1px solid var(--borde);text-align:right;color:var(--verde);">${_money(s.sugerido$u)}</td>
         <td style="padding:5px 8px;border-bottom:1px solid var(--borde);text-align:right;">${_money(s.ahorroReal)}</td>
         <td style="padding:5px 8px;border-bottom:1px solid var(--borde);white-space:nowrap;">
-          ${dec ? `<span style="font-size:11px;color:${dec.aceptada ? 'var(--verde)' : 'var(--texto-suave)'};">${dec.aceptada ? '✓ Aceptada' : '✓ Mantener: ' + dec.motivo}</span> <button class="btn btn-xs btn-secondary" onclick="deshacerDecisionSugerenciaPP('${key}')">↺</button>`
-            : `<button class="btn btn-xs" style="background:var(--verde);color:white;" onclick="aceptarSugerenciaPP('${key}','${_idTrunc(s.sugerido.id)}')">Aceptar</button> <button class="btn btn-xs btn-secondary" onclick="mantenerSugerenciaPP('${key}')">Mantener</button>`}
+          ${dec ? `<span style="font-size:11px;color:${dec.aceptada ? 'var(--verde)' : 'var(--texto-suave)'};">${dec.aceptada ? '✓ Aceptada' : '✓ Mantener: ' + dec.motivo}</span> <button class="btn btn-xs btn-secondary" onclick="deshacerDecisionSugerenciaPP('${periodoId}','${key}')">↺</button>`
+            : `<button class="btn btn-xs" style="background:var(--verde);color:white;" onclick="aceptarSugerenciaPP('${periodoId}','${key}','${_idTrunc(s.sugerido.id)}')">Aceptar</button> <button class="btn btn-xs btn-secondary" onclick="mantenerSugerenciaPP('${periodoId}','${key}')">Mantener</button>`}
         </td>
       </tr>`;
     }).join('')}</tbody>
   </table></div>
   <div class="sug" style="margin-top:10px;padding:11px 15px;background:var(--verde-suave,#f0faf3);border:1.5px solid #a9dcbc;border-radius:9px;font-size:12.5px;">💡 Ahorro del período con lo aceptado: <b>${_money(ahorroDelPeriodo)}</b>.</div>`;
 }
-export function aceptarSugerenciaPP(actualProductoIdTrunc, sugeridoProductoIdTrunc) {
-  _decisionesSugerenciasPP.set(actualProductoIdTrunc, { aceptada: true, sustitutoIdLocal: sugeridoProductoIdTrunc });
-  renderSugerenciasPP();
+// Upsert directo por (periodo_id_local, producto_id_local) — no supaSync
+// genérico: esa clave compuesta es la que evita que dos períodos con el
+// mismo par de productos se pisen, y supaSync solo sabe upsertear por
+// id_local (mismo criterio que usuario_accesos en accesos.js).
+async function _guardarDecisionPP(periodoId, productoIdTrunc, cambios) {
+  const fila = {
+    periodo_id_local: _idTrunc(periodoId), producto_id_local: productoIdTrunc,
+    decidido_por: currentUser?.nombre || '', decidido_en: new Date().toISOString(),
+    ...cambios,
+  };
+  const { error } = await SUPA.from('pp_sugerencias_decisiones')
+    .upsert(fila, { onConflict: 'periodo_id_local,producto_id_local' });
+  if (error) { toast('⚠️ No se pudo guardar la decisión: ' + error.message + ' — reintentá'); return false; }
+  if (!DB.ppSugerenciasDecisiones) DB.ppSugerenciasDecisiones = [];
+  const idx = DB.ppSugerenciasDecisiones.findIndex(d =>
+    _idTrunc(d.periodoIdLocal) === _idTrunc(periodoId) && _idTrunc(d.productoIdLocal) === productoIdTrunc);
+  const local = { periodoIdLocal: _idTrunc(periodoId), productoIdLocal: productoIdTrunc, aceptada: cambios.aceptada, sustitutoIdLocal: cambios.sustituto_id_local || null, motivo: cambios.motivo || null, decididoPor: fila.decidido_por, decididoEn: fila.decidido_en };
+  if (idx >= 0) DB.ppSugerenciasDecisiones[idx] = local; else DB.ppSugerenciasDecisiones.push(local);
+  return true;
 }
-export function mantenerSugerenciaPP(actualProductoIdTrunc) {
+export async function aceptarSugerenciaPP(periodoId, actualProductoIdTrunc, sugeridoProductoIdTrunc) {
+  const ok = await _guardarDecisionPP(periodoId, actualProductoIdTrunc, { aceptada: true, sustituto_id_local: sugeridoProductoIdTrunc, motivo: null });
+  if (ok) renderSugerenciasPP();
+}
+export async function mantenerSugerenciaPP(periodoId, actualProductoIdTrunc) {
   const motivo = prompt('Motivo para mantener el producto actual (obligatorio):');
   if (!motivo) { toast('⚠️ El motivo es obligatorio para mantener'); return; }
-  _decisionesSugerenciasPP.set(actualProductoIdTrunc, { aceptada: false, motivo });
-  renderSugerenciasPP();
+  const ok = await _guardarDecisionPP(periodoId, actualProductoIdTrunc, { aceptada: false, motivo, sustituto_id_local: null });
+  if (ok) renderSugerenciasPP();
 }
-export function deshacerDecisionSugerenciaPP(actualProductoIdTrunc) {
-  _decisionesSugerenciasPP.delete(actualProductoIdTrunc);
+export async function deshacerDecisionSugerenciaPP(periodoId, actualProductoIdTrunc) {
+  const { error } = await SUPA.from('pp_sugerencias_decisiones')
+    .delete().match({ periodo_id_local: _idTrunc(periodoId), producto_id_local: actualProductoIdTrunc });
+  if (error) { toast('⚠️ No se pudo deshacer: ' + error.message + ' — reintentá'); return; }
+  DB.ppSugerenciasDecisiones = (DB.ppSugerenciasDecisiones || []).filter(d =>
+    !(_idTrunc(d.periodoIdLocal) === _idTrunc(periodoId) && _idTrunc(d.productoIdLocal) === actualProductoIdTrunc));
   renderSugerenciasPP();
 }
 
@@ -337,7 +378,7 @@ export function renderSimulacionPP() {
   // posible (no se sugieren).
   const sugerencias = sugerenciasEquivalentesPP(periodoId).filter(s => !s.empate);
   const ahorroPosible = sugerencias.reduce((s, sug) => s + sug.ahorroReal, 0);
-  const ahorroTomado = sugerencias.filter(s => _decisionesSugerenciasPP.get(_idTrunc(s.actual.id))?.aceptada)
+  const ahorroTomado = sugerencias.filter(s => _decisionPP(periodoId, _idTrunc(s.actual.id))?.aceptada)
     .reduce((s, sug) => s + sug.ahorroReal, 0);
   cont.innerHTML = `
     <div class="stats-grid" style="grid-template-columns:repeat(3,1fr);">
@@ -383,7 +424,7 @@ async function _generarOrdenParaProveedorPP(periodoId, provId, g) {
   // el que figuraba en el pedido original) — no vuelven a aparecer en
   // una consolidación futura del mismo período.
   for (const it of itemsConsolidablesPP(periodoId)) {
-    const info = productoFinalDelItemPP(it);
+    const info = productoFinalDelItemPP(it, periodoId);
     if (info && String(info.prod.proveedorIdLocal) === provId) {
       it.ordenCompraIdLocal = _idTrunc(orden.id);
       await supaSync('ppItems', it);
@@ -420,7 +461,12 @@ export async function generarOrdenesCompraPP() {
     await _generarOrdenParaProveedorPP(periodoId, provId, g);
     creadas++;
   }
-  _decisionesSugerenciasPP.clear();
+  // FIX (ticket "Colores/badges de proveedores", 05/09): ya NO se borran
+  // las decisiones acá — antes _decisionesSugerenciasPP.clear() (Map en
+  // memoria, sin período) borraba TODAS las decisiones de TODOS los
+  // períodos con solo confirmar uno. Las de este período quedan igual en
+  // pp_sugerencias_decisiones (historial, sin efecto — los ítems ya
+  // consolidados no vuelven a aparecer en itemsConsolidablesPP).
   renderConsolidadoPP(); renderSugerenciasPP();
   toast(`✓ ${creadas} orden(es) de compra generada(s)`);
 }

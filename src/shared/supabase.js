@@ -30,6 +30,7 @@ export const _SM = {
   ppRecargoGeneral: 'pp_recargo_general',
   ppRecargoServicio: 'pp_recargo_servicio',
   ppPedidoEventos: 'pp_pedido_eventos', // v113 — ronda 02/09, FIX 8
+  ppSugerenciasDecisiones: 'pp_sugerencias_decisiones', // v119 — persistir aceptar/mantener sugerencia de equivalente
   perfilPersonalAtributos: 'perfil_personal_atributos',
   candidatos: 'candidatos',
   psicos: 'psicos',
@@ -570,6 +571,8 @@ export function _toSnake(obj) {
     codigoMonica: 'codigo_monica', tipoUso: 'tipo_uso',
     productoIdLocal: 'producto_id_local', costoUnit: 'costo_unit',
     periodoIdLocal: 'periodo_id_local', servicioCodigo: 'servicio_codigo',
+    // v119 — pp_sugerencias_decisiones (persistir aceptar/mantener sugerencia)
+    sustitutoIdLocal: 'sustituto_id_local', decididoPor: 'decidido_por', decididoEn: 'decidido_en',
     facturacionNeta: 'facturacion_neta', porcentajeTope: 'porcentaje_tope',
     auditadoPor: 'auditado_por', auditadoEn: 'auditado_en',
     autorizadoPor: 'autorizado_por', autorizadoEn: 'autorizado_en',
@@ -1012,6 +1015,7 @@ export function _toCamel(obj) {
     codigo_monica: 'codigoMonica', tipo_uso: 'tipoUso',
     producto_id_local: 'productoIdLocal', costo_unit: 'costoUnit',
     periodo_id_local: 'periodoIdLocal', servicio_codigo: 'servicioCodigo',
+    sustituto_id_local: 'sustitutoIdLocal', decidido_por: 'decididoPor', decidido_en: 'decididoEn',
     facturacion_neta: 'facturacionNeta', porcentaje_tope: 'porcentajeTope',
     auditado_por: 'auditadoPor', auditado_en: 'auditadoEn',
     autorizado_por: 'autorizadoPor', autorizado_en: 'autorizadoEn',

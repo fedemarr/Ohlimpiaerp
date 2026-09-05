@@ -18,6 +18,7 @@ import { supaSync } from '@shared/supabase.js';
 import { getSupervisorDeCodigo, serviciosDeSupervisor } from '@modules/servicios_supervisor/servicios_supervisor.js';
 import { crearNotificacion } from '@shared/notificaciones.js';
 import { renderConsolidadoPP, renderSugerenciasPP, renderSimulacionPP, renderOrdenesPP, renderComparadorPreciosPP } from './compras.js';
+import { badgeProveedorPP } from './colorProveedor.js';
 import { renderEntregasPP } from './entregas.js';
 import { renderRecargosPP } from './recargos.js';
 import { renderMargenPP } from './margen.js';
@@ -379,7 +380,7 @@ export function renderCatalogoPP() {
       <td style="padding:6px 12px;border:1px solid var(--borde);">${p.codigoMonica || '—'}</td>
       <td style="padding:6px 12px;border:1px solid var(--borde);font-weight:500;">${p.descripcion}</td>
       <td style="padding:6px 8px;border:1px solid var(--borde);color:var(--texto-suave);">${p.marca || '—'}</td>
-      <td style="padding:6px 8px;border:1px solid var(--borde);text-align:center;">${prov ? `<span class="badge" style="background:#0ea5e9;color:white;font-size:10.5px;">${prov.nombre}</span>` : '<span style="color:var(--texto-suave);">—</span>'}</td>
+      <td style="padding:6px 8px;border:1px solid var(--borde);text-align:center;">${prov ? badgeProveedorPP(prov) : '<span style="color:var(--texto-suave);">—</span>'}</td>
       <td style="padding:6px 8px;border:1px solid var(--borde);text-align:center;">${badgeTipoUsoPP(p.tipoUso)}</td>
       <td style="padding:6px 8px;border:1px solid var(--borde);text-align:right;">${costo ? _money(costo) : '<span style="color:var(--rojo);">sin precio</span>'}</td>
       <td style="padding:6px 8px;border:1px solid var(--borde);text-align:center;white-space:nowrap;">
