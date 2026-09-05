@@ -9,7 +9,14 @@
 // la única puerta de escritura para gente sin sesión — toda la validación
 // vive acá server-side, nada queda librado al JS del navegador.
 
-const SUPABASE_URL = 'https://caeqsieiuunqvicfpudu.supabase.co';
+// Multi-empresa (05/09/2026, ticket "supabaseKey is required en Clean Paz"): esta URL
+// estaba hardcodeada a Ohlimpia en las 10 funciones serverless de api/ —
+// cualquier deploy de otra empresa (mismo código, otro proyecto Vercel)
+// terminaba escribiendo en la base de OHLIMPIA en vez de la propia. El
+// frontend ya resuelve esto con VITE_SUPABASE_URL (ver src/shared/supabase.js);
+// Vercel expone las env vars VITE_* también server-side, así que alcanza con
+// leerla acá — el fallback deja el deploy de Ohlimpia sin cambios.
+const SUPABASE_URL = process.env.VITE_SUPABASE_URL || 'https://caeqsieiuunqvicfpudu.supabase.co';
 
 const GENEROS_VALIDOS = ['Masculino', 'Femenino', 'Otro'];
 
