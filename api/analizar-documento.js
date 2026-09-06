@@ -146,61 +146,151 @@ export default async function handler(req, res) {
       return;
     }
     const base64Data = fileBuffer.toString('base64');
-    const contentBlock = mediaType === 'application/pdf'
-      ? { type: 'document', source: { type: 'base64', media_type: mediaType, data: base64Data } }
-      : { type: 'image', source: { type: 'base64', media_type: mediaType, data: base64Data } };
 
-    const { default: Anthropic } = await import('@anthropic-ai/sdk');
-    const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
-
-    // El servicio de IA devuelve 529 (overloaded) o 429 (rate limit) de vez
-    // en cuando — son transitorios, no un error real del documento. Un
-    // reintento con una pequeña espera resuelve la mayoría sin que el
-    // usuario tenga que volver a apretar el botón.
-    const esTransitorio = e => e?.status === 529 || e?.status === 429;
-    let message;
-    for (let intento = 0; ; intento++) {
-      try {
-        message = await anthropic.messages.create({
-          model: 'claude-opus-4-8',
-          max_tokens: 1024,
-          output_config: { format: { type: 'json_schema', schema: SCHEMAS[tipo] } },
-          messages: [{
-            role: 'user',
-            content: [
-              contentBlock,
-              { type: 'text', text: PROMPTS[tipo] },
-            ],
-          }],
-        });
-        break;
-      } catch (e) {
-        if (esTransitorio(e) && intento === 0) {
-          await new Promise(r => setTimeout(r, 1500));
-          continue;
-        }
-        throw e;
-      }
+    // Multi-proveedor (06/09/2026, ticket "Gemini para Clean Paz"): Ohlimpia
+    // usa Claude (Anthropic); Clean Paz no tenía una clave de Anthropic
+    // utilizable y usa Gemini en su lugar. El proveedor se elige solo según
+    // qué clave está configurada en el proyecto de Vercel — no hace falta
+    // una variable aparte, y una empresa nueva puede usar cualquiera de las
+    // dos sin tocar código. Si el día de mañana una empresa necesita las
+    // DOS a la vez, ahí sí hace falta una variable explícita de preferencia.
+    let resultado;
+    if (process.env.ANTHROPIC_API_KEY) {
+      resultado = await analizarConClaude(mediaType, base64Data, tipo);
+    } else if (process.env.GEMINI_API_KEY) {
+      resultado = await analizarConGemini(mediaType, base64Data, tipo);
+    } else {
+      res.status(500).json({ error: 'No hay ningún proveedor de IA configurado (falta ANTHROPIC_API_KEY o GEMINI_API_KEY en Vercel)' });
+      return;
     }
 
-    if (message.stop_reason === 'refusal') {
+    if (resultado.rechazado) {
       res.status(422).json({ error: 'El análisis fue rechazado por los filtros de seguridad del modelo' });
       return;
     }
-
-    const textBlock = message.content.find(b => b.type === 'text');
-    if (!textBlock) {
+    if (resultado.sinTexto) {
       res.status(502).json({ error: 'El modelo no devolvió un resultado' });
       return;
     }
-
-    const resultado = JSON.parse(textBlock.text);
-    res.status(200).json(resultado);
+    res.status(200).json(resultado.datos);
   } catch (e) {
     console.error('analizar-documento error:', e);
-    const mensaje = (e?.status === 529 || e?.status === 429)
+    const mensaje = e?.transitorio
       ? 'El servicio de IA está saturado en este momento. Esperá unos segundos y volvé a intentar.'
       : (e.message || 'Error interno al analizar el documento');
-    res.status(e?.status === 529 || e?.status === 429 ? 503 : 500).json({ error: mensaje });
+    res.status(e?.transitorio ? 503 : 500).json({ error: mensaje });
   }
+}
+
+// ── Claude (Anthropic) — proveedor de Ohlimpia ──
+async function analizarConClaude(mediaType, base64Data, tipo) {
+  const contentBlock = mediaType === 'application/pdf'
+    ? { type: 'document', source: { type: 'base64', media_type: mediaType, data: base64Data } }
+    : { type: 'image', source: { type: 'base64', media_type: mediaType, data: base64Data } };
+
+  const { default: Anthropic } = await import('@anthropic-ai/sdk');
+  const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+
+  // El servicio de IA devuelve 529 (overloaded) o 429 (rate limit) de vez
+  // en cuando — son transitorios, no un error real del documento. Un
+  // reintento con una pequeña espera resuelve la mayoría sin que el
+  // usuario tenga que volver a apretar el botón.
+  const esTransitorio = e => e?.status === 529 || e?.status === 429;
+  let message;
+  for (let intento = 0; ; intento++) {
+    try {
+      message = await anthropic.messages.create({
+        model: 'claude-opus-4-8',
+        max_tokens: 1024,
+        output_config: { format: { type: 'json_schema', schema: SCHEMAS[tipo] } },
+        messages: [{
+          role: 'user',
+          content: [
+            contentBlock,
+            { type: 'text', text: PROMPTS[tipo] },
+          ],
+        }],
+      });
+      break;
+    } catch (e) {
+      if (esTransitorio(e) && intento === 0) {
+        await new Promise(r => setTimeout(r, 1500));
+        continue;
+      }
+      if (esTransitorio(e)) e.transitorio = true;
+      throw e;
+    }
+  }
+
+  if (message.stop_reason === 'refusal') return { rechazado: true };
+  const textBlock = message.content.find(b => b.type === 'text');
+  if (!textBlock) return { sinTexto: true };
+  return { datos: JSON.parse(textBlock.text) };
+}
+
+// Convierte el JSON Schema (minúsculas, estilo Anthropic) a la variante que
+// espera Gemini (type en MAYÚSCULAS, sin additionalProperties — Gemini no
+// lo soporta y lo ignora si viene, pero mejor no mandarlo).
+function _schemaParaGemini(schema) {
+  if (Array.isArray(schema)) return schema.map(_schemaParaGemini);
+  if (schema && typeof schema === 'object') {
+    const out = {};
+    for (const [k, v] of Object.entries(schema)) {
+      if (k === 'additionalProperties') continue;
+      out[k] = k === 'type' && typeof v === 'string' ? v.toUpperCase() : _schemaParaGemini(v);
+    }
+    return out;
+  }
+  return schema;
+}
+
+// ── Gemini (Google) — proveedor de Clean Paz ──
+// Modelo elegido a mano (05/09/2026), probado en vivo contra la API real:
+// gemini-3.5-flash/3.6-flash/3.1-flash-lite/flash-latest dieron 503 "high
+// demand" en varias pruebas seguidas, justo con salida estructurada
+// (responseSchema) — parece ser saturación real de Google en los modelos
+// más nuevos en este momento, no algo puntual de un modelo. gemini-3.8-flash
+// respondió bien en la primera tanda de pruebas. Si esto vuelve a fallar
+// seguido, listar modelos vigentes con GET /v1beta/models (los nombres de
+// Gemini rotan seguido) y probar cuál responde antes de asumir uno fijo.
+const GEMINI_MODEL = 'gemini-3.8-flash';
+async function analizarConGemini(mediaType, base64Data, tipo) {
+  const schemaGemini = _schemaParaGemini(SCHEMAS[tipo]);
+  const body = {
+    contents: [{
+      role: 'user',
+      parts: [
+        { inlineData: { mimeType: mediaType, data: base64Data } },
+        { text: PROMPTS[tipo] },
+      ],
+    }],
+    generationConfig: {
+      responseMimeType: 'application/json',
+      responseSchema: schemaGemini,
+      maxOutputTokens: 2048,
+    },
+  };
+
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${process.env.GEMINI_API_KEY}`;
+  // 2 reintentos, no 1 — en las pruebas en vivo (05/09) Gemini devolvió 503
+  // "high demand" varias veces seguidas en los modelos nuevos, más seguido
+  // que lo que se vio con Claude (que solo necesitaba un reintento).
+  const MAX_INTENTOS = 3;
+  let resp, data;
+  for (let intento = 0; ; intento++) {
+    resp = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+    data = await resp.json();
+    if (resp.ok) break;
+    const esTransitorio = resp.status === 503 || resp.status === 429;
+    if (esTransitorio && intento < MAX_INTENTOS - 1) { await new Promise(r => setTimeout(r, 1500 * (intento + 1))); continue; }
+    const err = new Error(data?.error?.message || 'Error del servicio de IA');
+    if (esTransitorio) err.transitorio = true;
+    throw err;
+  }
+
+  const candidato = data.candidates?.[0];
+  if (candidato?.finishReason === 'SAFETY' || candidato?.finishReason === 'PROHIBITED_CONTENT') return { rechazado: true };
+  const textPart = candidato?.content?.parts?.find(p => typeof p.text === 'string');
+  if (!textPart) return { sinTexto: true };
+  return { datos: JSON.parse(textPart.text) };
 }
