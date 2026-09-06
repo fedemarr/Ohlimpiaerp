@@ -19,7 +19,9 @@
 // leerla acá — el fallback deja el deploy de Ohlimpia sin cambios.
 const SUPABASE_URL = process.env.VITE_SUPABASE_URL || 'https://caeqsieiuunqvicfpudu.supabase.co';
 // Misma anon/publishable key pública que crear-usuario.js — ver comentario
-// ahí sobre por qué se hardcodea el fallback.
+// ahí sobre por qué se hardcodea el fallback (y el fix multi-empresa del
+// 05/09 leyendo VITE_SUPABASE_ANON_KEY en vez de una variable que nunca se
+// configuró en ningún proyecto de Vercel).
 const SUPABASE_ANON_KEY_FALLBACK = 'sb_publishable__SBdO6cSQXYfgR16FrztwA_Cf9sNosd';
 
 function limpiar(v) {
@@ -48,7 +50,7 @@ export default async function handler(req, res) {
     const { createClient } = await import('@supabase/supabase-js');
 
     // Cliente 1 — con el token del llamador, para verificar identidad.
-    const supaUser = createClient(SUPABASE_URL, process.env.SUPABASE_ANON_KEY || SUPABASE_ANON_KEY_FALLBACK, {
+    const supaUser = createClient(SUPABASE_URL, process.env.VITE_SUPABASE_ANON_KEY || SUPABASE_ANON_KEY_FALLBACK, {
       global: { headers: { Authorization: 'Bearer ' + token } },
       auth: { persistSession: false, autoRefreshToken: false },
     });

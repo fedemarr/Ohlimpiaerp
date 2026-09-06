@@ -26,6 +26,13 @@ const SUPABASE_URL = process.env.VITE_SUPABASE_URL || 'https://caeqsieiuunqvicfp
 // cliente del navegador (src/shared/supabase.js) — es pública por diseño
 // (por eso el prefijo "publishable"), no un secreto; se hardcodea el mismo
 // fallback acá para no depender de que alguien la vuelva a cargar a mano.
+//
+// Multi-empresa (05/09/2026, ticket "Sesión inválida en Clean Paz"): ese fix
+// leía process.env.SUPABASE_ANON_KEY, una variable que NUNCA se configuró en
+// Vercel para ninguna empresa (siempre caía al fallback de Ohlimpia) —
+// auth.getUser(token) terminaba validando el token de sesión de CUALQUIER
+// empresa contra el proyecto de Ohlimpia. La variable real que sí está
+// configurada por proyecto es VITE_SUPABASE_ANON_KEY (ver src/shared/supabase.js).
 const SUPABASE_ANON_KEY_FALLBACK = 'sb_publishable__SBdO6cSQXYfgR16FrztwA_Cf9sNosd';
 
 const PERFILES_VALIDOS = [
@@ -75,7 +82,7 @@ export default async function handler(req, res) {
     const { createClient } = await import('@supabase/supabase-js');
 
     // Cliente 1 — con el token del llamador, para verificar identidad.
-    const supaUser = createClient(SUPABASE_URL, process.env.SUPABASE_ANON_KEY || SUPABASE_ANON_KEY_FALLBACK, {
+    const supaUser = createClient(SUPABASE_URL, process.env.VITE_SUPABASE_ANON_KEY || SUPABASE_ANON_KEY_FALLBACK, {
       global: { headers: { Authorization: 'Bearer ' + token } },
       auth: { persistSession: false, autoRefreshToken: false },
     });

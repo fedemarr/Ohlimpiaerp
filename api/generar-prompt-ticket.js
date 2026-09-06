@@ -15,7 +15,12 @@
 // Vercel expone las env vars VITE_* también server-side, así que alcanza con
 // leerla acá — el fallback deja el deploy de Ohlimpia sin cambios.
 const SUPABASE_URL = process.env.VITE_SUPABASE_URL || 'https://caeqsieiuunqvicfpudu.supabase.co';
-const SUPABASE_ANON_KEY = 'sb_publishable__SBdO6cSQXYfgR16FrztwA_Cf9sNosd';
+// Multi-empresa (05/09/2026, mismo ticket que la URL de arriba): esta clave
+// también estaba hardcodeada a Ohlimpia — auth.getUser(token) validaba el
+// token de sesión de CUALQUIER empresa contra el proyecto de Ohlimpia, y
+// fallaba con "Sesión inválida" para cualquier otra empresa (el JWT lo firma
+// cada proyecto de Supabase con su propio secreto).
+const SUPABASE_ANON_KEY = process.env.VITE_SUPABASE_ANON_KEY || 'sb_publishable__SBdO6cSQXYfgR16FrztwA_Cf9sNosd';
 
 const SCHEMA = {
   type: 'object',
