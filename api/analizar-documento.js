@@ -245,15 +245,25 @@ function _schemaParaGemini(schema) {
 }
 
 // ── Gemini (Google) — proveedor de Clean Paz ──
-// Modelo elegido a mano (05/09/2026), probado en vivo contra la API real:
-// gemini-3.5-flash/3.6-flash/3.1-flash-lite/flash-latest dieron 503 "high
-// demand" en varias pruebas seguidas, justo con salida estructurada
-// (responseSchema) — parece ser saturación real de Google en los modelos
-// más nuevos en este momento, no algo puntual de un modelo. gemini-3.8-flash
-// respondió bien en la primera tanda de pruebas. Si esto vuelve a fallar
-// seguido, listar modelos vigentes con GET /v1beta/models (los nombres de
-// Gemini rotan seguido) y probar cuál responde antes de asumir uno fijo.
-const GEMINI_MODEL = 'gemini-3.8-flash';
+// Lista de modelos, no uno solo (06/09/2026): en pruebas en vivo contra la
+// API real, el 503 "high demand" resultó ser por MODELO, no un apagón
+// general — en la misma tanda, mientras gemini-3.5-flash/3.6-flash/
+// 3.1-flash-lite/flash-latest daban 503, gemini-3.7-flash y 3.8-flash
+// respondían bien; media hora después 3.8-flash SOLO también dio 503 un
+// par de veces seguidas con el mismo schema que acababa de andar para
+// "apto-medico". Reintentar el mismo modelo 3 veces no alcanza si esa
+// franja está saturada — se prueba el siguiente de la lista antes de
+// rendirse. Si esto sigue dando problemas, listar modelos vigentes con
+// GET /v1beta/models (los nombres de Gemini rotan seguido).
+const GEMINI_MODELOS = ['gemini-3.8-flash', 'gemini-3.7-flash', 'gemini-3.1-flash-lite'];
+
+async function _llamarGemini(modelo, body) {
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelo}:generateContent?key=${process.env.GEMINI_API_KEY}`;
+  const resp = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+  const data = await resp.json();
+  return { ok: resp.ok, status: resp.status, data };
+}
+
 async function analizarConGemini(mediaType, base64Data, tipo) {
   const schemaGemini = _schemaParaGemini(SCHEMAS[tipo]);
   const body = {
@@ -271,20 +281,27 @@ async function analizarConGemini(mediaType, base64Data, tipo) {
     },
   };
 
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${process.env.GEMINI_API_KEY}`;
-  // 2 reintentos, no 1 — en las pruebas en vivo (05/09) Gemini devolvió 503
-  // "high demand" varias veces seguidas en los modelos nuevos, más seguido
-  // que lo que se vio con Claude (que solo necesitaba un reintento).
-  const MAX_INTENTOS = 3;
-  let resp, data;
-  for (let intento = 0; ; intento++) {
-    resp = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
-    data = await resp.json();
-    if (resp.ok) break;
-    const esTransitorio = resp.status === 503 || resp.status === 429;
-    if (esTransitorio && intento < MAX_INTENTOS - 1) { await new Promise(r => setTimeout(r, 1500 * (intento + 1))); continue; }
-    const err = new Error(data?.error?.message || 'Error del servicio de IA');
-    if (esTransitorio) err.transitorio = true;
+  let data, ultimoErrorTransitorio = false;
+  busquedaModelo:
+  for (const modelo of GEMINI_MODELOS) {
+    for (let intento = 0; intento < 2; intento++) {
+      const r = await _llamarGemini(modelo, body);
+      if (r.ok) { data = r.data; break busquedaModelo; }
+      const esTransitorio = r.status === 503 || r.status === 429;
+      ultimoErrorTransitorio = esTransitorio;
+      if (esTransitorio) {
+        if (intento === 0) { await new Promise(res => setTimeout(res, 1200)); continue; }
+        break; // este modelo no respondió — probar el siguiente de la lista
+      }
+      // Error NO transitorio (400, schema inválido, etc.) — no tiene sentido
+      // probar otro modelo, el problema es del pedido, no del modelo.
+      const err = new Error(r.data?.error?.message || 'Error del servicio de IA');
+      throw err;
+    }
+  }
+  if (!data) {
+    const err = new Error('Todos los modelos de IA están saturados en este momento');
+    err.transitorio = ultimoErrorTransitorio;
     throw err;
   }
 
