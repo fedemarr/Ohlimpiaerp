@@ -65,10 +65,11 @@ export default async function handler(req, res) {
       auth: { persistSession: false, autoRefreshToken: false },
     });
 
-    // Autorización: solo Administrador total resetea contraseñas ajenas.
+    // Autorización: Administrador total y DEVELOPER (06/09/2026, mismo
+    // criterio que crear-usuario.js — ver comentario ahí).
     const { data: caller } = await supa.from('usuarios')
       .select('perfil').eq('id', sesion.user.id).maybeSingle();
-    if (!caller || caller.perfil !== 'Administrador total') {
+    if (!caller || !['Administrador total', 'DEVELOPER'].includes(caller.perfil)) {
       res.status(403).json({ error: 'Solo Administrador total puede resetear contraseñas' });
       return;
     }

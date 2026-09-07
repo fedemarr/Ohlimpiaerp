@@ -97,10 +97,16 @@ export default async function handler(req, res) {
       auth: { persistSession: false, autoRefreshToken: false },
     });
 
-    // Autorización: solo Administrador total da de alta usuarios.
+    // Autorización: Administrador total da de alta usuarios — y DEVELOPER
+    // también (06/09/2026, ticket "no me deja crear usuarios en Ohlimpia"):
+    // es el perfil real de Fede (dueño/desarrollador del sistema, con su
+    // propio panel de Empresas/Tickets que Administrador total NO tiene —
+    // ver PERFILES.DEVELOPER en state.js), no un perfil de RRHH cualquiera
+    // al que convenga bajarle el nivel. Mismo criterio que las políticas de
+    // usuario_accesos/perfil_accesos/usuarios (ver sql/v120).
     const { data: caller } = await supa.from('usuarios')
       .select('perfil').eq('id', sesion.user.id).maybeSingle();
-    if (!caller || caller.perfil !== 'Administrador total') {
+    if (!caller || !['Administrador total', 'DEVELOPER'].includes(caller.perfil)) {
       res.status(403).json({ error: 'Solo Administrador total puede crear usuarios' });
       return;
     }
