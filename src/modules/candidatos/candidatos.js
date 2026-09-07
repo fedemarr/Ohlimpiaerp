@@ -1159,7 +1159,14 @@ function generarMensajeWhatsApp(template, c) {
     return 'Hola ' + nombre + ', te contactamos de Ohlimpia. ¿Podrías confirmarnos tu disponibilidad para una entrevista presencial? ¿Qué día y horario te viene mejor?';
   }
   if (template === 'link') {
-    const link = window.location.origin + '/agendar-entrevista?dni=' + (c.dni || '') + '&nombre=' + encodeURIComponent(nombre);
+    // &responsable=<vos> (ticket "calendario de entrevistas", 07/09): el
+    // link ahora ofrece la disponibilidad PERSONAL de quien lo manda, no
+    // una franja horaria genérica — ver disponibilidad_entrevistas y
+    // api/agendar-turno.js. Mismo criterio de identidad que
+    // getResponsables() en calendario.js (nickname o primer nombre).
+    const responsable = currentUser ? (currentUser.nickname || (currentUser.nombre || '').split(' ')[0]) : '';
+    const link = window.location.origin + '/agendar-entrevista?dni=' + (c.dni || '') + '&nombre=' + encodeURIComponent(nombre)
+      + (responsable ? '&responsable=' + encodeURIComponent(responsable) : '');
     return 'Hola ' + nombre + ', quedamos en coordinar una entrevista. Te paso el link para que elijas el día y horario que te quede mejor: ' + link;
   }
   if (template === 'confirmar-cita') {

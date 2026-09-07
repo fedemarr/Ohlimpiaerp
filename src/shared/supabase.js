@@ -38,6 +38,7 @@ export const _SM = {
   documentacionIngreso: 'documentacion_ingreso',
   catAltPendientes: 'cat_alt_pendientes',
   turnos: 'turnos',
+  disponibilidadEntrevistas: 'disponibilidad_entrevistas', // v121 — disponibilidad de entrevistas por responsable
   clientes: 'clientes',
   sanciones: 'sanciones',
   casosLegales: 'casos_legales',
@@ -301,6 +302,9 @@ export function _toSnake(obj) {
     // v117 — Monotributo: tabla de categorías por organismo (mono_tablas)
     topeIngresosAnual: 'tope_ingresos_anual', impuestoIntegrado: 'impuesto_integrado',
     iibbAporta: 'iibb_aporta',
+    // v121 — disponibilidad_entrevistas
+    diasHabilitados: 'dias_habilitados', horaDesde: 'hora_desde', horaHasta: 'hora_hasta',
+    maxPorTurno: 'max_por_turno',
     // v081 — Módulo Supervisores + multi-supervisor
     pctComision: 'pct_comision', supervisoresAsignados: 'supervisores_asignados',
     // v086 — Supervisión de servicios (% por servicio, vigencias, ajuste)
@@ -771,6 +775,9 @@ export function _toCamel(obj) {
     // v117 — Monotributo: tabla de categorías por organismo (mono_tablas)
     tope_ingresos_anual: 'topeIngresosAnual', impuesto_integrado: 'impuestoIntegrado',
     iibb_aporta: 'iibbAporta',
+    // v121 — disponibilidad_entrevistas
+    dias_habilitados: 'diasHabilitados', hora_desde: 'horaDesde', hora_hasta: 'horaHasta',
+    max_por_turno: 'maxPorTurno',
     pct_comision: 'pctComision', supervisores_asignados: 'supervisoresAsignados',
     // v086 — Supervisión de servicios (% por servicio, vigencias, ajuste)
     pct_supervision: 'pctSupervision', alcance_nombre: 'alcanceNombre',

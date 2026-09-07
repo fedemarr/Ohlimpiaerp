@@ -21,6 +21,11 @@ if (EMPRESA_NOMBRE !== 'Ohlimpia') {
 
 const DIAS_NOMBRES = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
 let turnoElegido = null; // { fecha, hora }
+// Quién manda el link (ticket "calendario de entrevistas", 07/09) — define
+// de quién es la disponibilidad que se le ofrece al candidato. Sin este
+// parámetro (links viejos, o el genérico sin identificar), se sigue
+// comportando como antes: el cupo/horario por defecto de la cooperativa.
+let responsable = '';
 
 // ========== INIT ==========
 
@@ -28,6 +33,7 @@ function init() {
   const params = new URLSearchParams(window.location.search);
   const dni = params.get('dni');
   const nombre = params.get('nombre');
+  responsable = params.get('responsable') || '';
 
   if (dni) $('ae-dni').value = dni;
   if (nombre) {
@@ -64,7 +70,7 @@ async function cargarTurnos() {
     const resp = await fetch('/api/agendar-turno', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'disponibilidad', dias: 14 }),
+      body: JSON.stringify({ action: 'disponibilidad', dias: 14, responsable }),
     });
     const data = await resp.json();
     if (!resp.ok) throw new Error(data.error || 'Error al cargar horarios');
@@ -175,6 +181,7 @@ async function confirmarTurno() {
         observaciones: cleanText($('ae-obs').value),
         fecha: turnoElegido.fecha,
         hora: turnoElegido.hora,
+        responsable,
       }),
     });
     const data = await resp.json();

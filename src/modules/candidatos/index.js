@@ -22,7 +22,7 @@ export {
   renderCalendario, cambiarSemana, irHoy,
   actualizarConfigAgente, agendarTurno,
   confirmarCalTurno, eliminarCalTurno, vincularCandidatoTurno,
-  poblarSelectResponsable,
+  poblarSelectResponsable, cambiarResponsableCalendario,
 } from './calendario.js';
 
 export { renderLinkPublico, copiarLinkPostulacion } from './linkPublico.js';
@@ -102,7 +102,7 @@ import {
   cambiarSemana, irHoy,
   actualizarConfigAgente, agendarTurno,
   confirmarCalTurno, eliminarCalTurno, vincularCandidatoTurno,
-  poblarSelectResponsable,
+  poblarSelectResponsable, cambiarResponsableCalendario,
 } from './calendario.js';
 
 import { copiarLinkPostulacion } from './linkPublico.js';
@@ -155,6 +155,7 @@ window.renderCalendario = renderCalendario;
 window.cambiarSemana = cambiarSemana;
 window.irHoy = irHoy;
 window.actualizarConfigAgente = actualizarConfigAgente;
+window.cambiarResponsableCalendario = cambiarResponsableCalendario;
 window.agendarTurno = agendarTurno;
 window.confirmarCalTurno = confirmarCalTurno;
 window.eliminarCalTurno = eliminarCalTurno;

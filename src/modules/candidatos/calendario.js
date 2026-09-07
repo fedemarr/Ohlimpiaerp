@@ -1,18 +1,38 @@
-import { DB } from '@shared/state.js';
+import { DB, currentUser } from '@shared/state.js';
 import { $ } from '@shared/helpers.js';
 import { toast, abrirModal, cerrarModal } from '@shared/ui.js';
 import { supaSync, supaDel, getLastSupaSyncError } from '@shared/supabase.js';
 import { idLocalCand } from './candidatos.js';
 
-// ========== CONFIGURACION ==========
+// ========== CONFIGURACION (disponibilidad por responsable, v121) ==========
+//
+// Ticket "calendario de entrevistas" (07/09): antes era UNA config en
+// memoria del navegador (se perdía en cada reload, y era la misma para
+// cualquiera) — ahora es la disponibilidad PERSONAL de cada responsable,
+// persistida en disponibilidad_entrevistas, elegida con el select
+// "Responsable" del panel. El link de WhatsApp (candidatos.js) manda
+// &responsable=<vos> y api/agendar-turno.js lee ESTA MISMA tabla para
+// mostrarle al candidato SOLO tus horarios — antes esa función tenía su
+// propia copia hardcodeada de los valores por defecto, desconectada de
+// lo que se configurara acá.
 
-const configAgente = {
+const CONFIG_DEFAULT = {
   diasHabilitados: [1, 2, 3, 4, 5],
   horaDesde: '09:00',
   horaHasta: '17:00',
   duracion: 20,
   maxPorTurno: 2,
 };
+
+// Config actualmente mostrada/editada en el panel — la del responsable
+// elegido en el select, o CONFIG_DEFAULT mientras esté en "— Todos —"
+// (de solo lectura, para poder seguir viendo el calendario general).
+let configAgente = { ...CONFIG_DEFAULT };
+let _responsableConfigActual = '';
+
+function _configGuardadaDe(responsable) {
+  return (DB.disponibilidadEntrevistas || []).find(function (d) { return d.responsable === responsable; });
+}
 
 // ========== ESTADO ==========
 
@@ -122,8 +142,13 @@ function errorGuardarTurno(generico) {
 export function cambiarSemana(dir) { semanaOffset += dir; renderCalendario(); }
 export function irHoy() { semanaOffset = 0; renderCalendario(); }
 
-// ========== CONFIG ==========
+// ========== CONFIG (por responsable) ==========
 
+// Se llama al tocar cualquier campo del panel — SOLO actualiza el estado
+// local y re-renderiza. Guardar en la base es un paso aparte
+// (guardarDisponibilidadResponsable), disparado por el mismo evento pero
+// separado para poder mostrar el estado "sin guardar" si hiciera falta a
+// futuro, y porque sin responsable elegido no hay dónde guardarlo.
 export function actualizarConfigAgente() {
   var dias = [];
   var checks = document.querySelectorAll('#dias-habilitados input[type="checkbox"]');
@@ -134,12 +159,70 @@ export function actualizarConfigAgente() {
   configAgente.duracion = parseInt(($('duracion-turno') || { value: '20' }).value) || 20;
   configAgente.maxPorTurno = parseInt(($('max-por-turno') || { value: '2' }).value) || 2;
   renderCalendario();
+  guardarDisponibilidadResponsable();
+}
+
+// Persiste la config actual para el responsable elegido en el select. Sin
+// responsable elegido ("— Todos —") no hay de quién es esta disponibilidad
+// — se avisa una sola vez por cambio y no se guarda nada (el calendario
+// igual se sigue viendo con CONFIG_DEFAULT, de solo lectura).
+async function guardarDisponibilidadResponsable() {
+  if (!_responsableConfigActual) {
+    toast('ℹ️ Elegí un responsable para guardar esta disponibilidad — mientras tanto es solo vista previa.');
+    return;
+  }
+  const existente = _configGuardadaDe(_responsableConfigActual);
+  const registro = existente
+    ? Object.assign(existente, { ...configAgente })
+    : { id: Date.now(), responsable: _responsableConfigActual, ...configAgente };
+  const ok = await supaSync('disponibilidadEntrevistas', registro);
+  if (!ok) {
+    toast('⚠️ No se pudo guardar tu disponibilidad — reintentá o avisá a sistemas');
+    return;
+  }
+  if (!existente) {
+    if (!DB.disponibilidadEntrevistas) DB.disponibilidadEntrevistas = [];
+    DB.disponibilidadEntrevistas.push(registro);
+  }
+}
+
+// Trae la config guardada del responsable elegido (o CONFIG_DEFAULT si no
+// tiene una todavía, o si está en "— Todos —") y la refleja en los campos
+// del panel — se llama al abrir el tab y al cambiar el select.
+function cargarConfigDelResponsableSeleccionado() {
+  const guardada = _responsableConfigActual ? _configGuardadaDe(_responsableConfigActual) : null;
+  const c = guardada
+    ? { diasHabilitados: guardada.diasHabilitados, horaDesde: guardada.horaDesde, horaHasta: guardada.horaHasta, duracion: guardada.duracion, maxPorTurno: guardada.maxPorTurno }
+    : { ...CONFIG_DEFAULT };
+  configAgente = c;
+
+  document.querySelectorAll('#dias-habilitados input[type="checkbox"]').forEach(function (cb) {
+    cb.checked = c.diasHabilitados.includes(parseInt(cb.value));
+  });
+  if ($('hora-desde')) $('hora-desde').value = c.horaDesde;
+  if ($('hora-hasta')) $('hora-hasta').value = c.horaHasta;
+  if ($('duracion-turno')) $('duracion-turno').value = String(c.duracion);
+  if ($('max-por-turno')) $('max-por-turno').value = String(c.maxPorTurno);
+}
+
+// Cambió el select de Responsable — pasa a ver/editar SU disponibilidad.
+export function cambiarResponsableCalendario() {
+  _responsableConfigActual = ($('cal-responsable') || { value: '' }).value;
+  cargarConfigDelResponsableSeleccionado();
+  renderCalendario();
 }
 
 export function poblarSelectResponsable() {
   var sel = $('cal-responsable');
   if (!sel) return;
-  sel.innerHTML = '<option value="">— Todos —</option>' + getResponsables().map(function (n) { return '<option>' + n + '</option>'; }).join('');
+  var responsables = getResponsables();
+  sel.innerHTML = '<option value="">— Todos —</option>' + responsables.map(function (n) { return '<option>' + n + '</option>'; }).join('');
+  // Por defecto, cada uno ve/edita SU PROPIA disponibilidad al entrar —
+  // "la dispo que tengo yo" (ticket 07/09) — no la de todo el equipo.
+  const miNombre = currentUser ? (currentUser.nickname || (currentUser.nombre || '').split(' ')[0]) : '';
+  _responsableConfigActual = responsables.includes(miNombre) ? miNombre : '';
+  sel.value = _responsableConfigActual;
+  cargarConfigDelResponsableSeleccionado();
 }
 
 // ========== RENDER ==========

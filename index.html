@@ -248,9 +248,10 @@
 
           <div>
             <label style="font-size:11px;color:var(--texto-suave);display:block;margin-bottom:4px;">Responsable</label>
-            <select id="cal-responsable" style="width:100%;padding:6px;border:1px solid #cbd5e1;border-radius:6px;font-size:12px;">
+            <select id="cal-responsable" onchange="cambiarResponsableCalendario()" style="width:100%;padding:6px;border:1px solid #cbd5e1;border-radius:6px;font-size:12px;">
               <option value="">— Todos —</option>
             </select>
+            <div class="form-hint" style="margin-top:4px;">Los campos de arriba son la disponibilidad DE ESTA PERSONA — elegí a alguien para ver/editar la suya.</div>
           </div>
         </div>
 

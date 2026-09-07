@@ -66,8 +66,34 @@ export default async function handler(req, res) {
   res.status(400).json({ error: 'Acción no válida' });
 }
 
+// Disponibilidad del responsable (ticket "calendario de entrevistas",
+// 07/09/2026) — antes esta función tenía su propia copia hardcodeada de
+// la config por defecto, desconectada de lo que el responsable configura
+// en el calendario interno (Candidatos → Calendario → panel izquierdo).
+// Ahora lee disponibilidad_entrevistas: con responsable => SU config real
+// (si todavía no configuró nada, cae en CONFIG_DEFAULT); sin responsable
+// (link viejo sin el parámetro, o casos sin identificar) => CONFIG_DEFAULT
+// también, mismo comportamiento de antes.
+async function configDelResponsable(supa, responsable) {
+  if (!responsable) return CONFIG_DEFAULT;
+  const { data } = await supa
+    .from('disponibilidad_entrevistas')
+    .select('dias_habilitados, hora_desde, hora_hasta, duracion, max_por_turno')
+    .eq('responsable', responsable)
+    .maybeSingle();
+  if (!data) return CONFIG_DEFAULT;
+  return {
+    diasHabilitados: data.dias_habilitados || CONFIG_DEFAULT.diasHabilitados,
+    horaDesde: data.hora_desde || CONFIG_DEFAULT.horaDesde,
+    horaHasta: data.hora_hasta || CONFIG_DEFAULT.horaHasta,
+    duracion: data.duracion || CONFIG_DEFAULT.duracion,
+    maxPorTurno: data.max_por_turno || CONFIG_DEFAULT.maxPorTurno,
+  };
+}
+
 async function handleDisponibilidad(req, res, body) {
   const dias = Math.min(parseInt(body.dias) || 14, 30);
+  const responsable = limpiar(body.responsable);
 
   try {
     const { createClient } = await import('@supabase/supabase-js');
@@ -79,19 +105,21 @@ async function handleDisponibilidad(req, res, body) {
     const hasta = new Date(hoy);
     hasta.setDate(hoy.getDate() + dias);
 
-    const { data: turnos, error } = await supa
-      .from('turnos')
-      .select('fecha, hora, estado')
+    // Ocupación: si hay responsable, cuenta SOLO sus turnos — el cupo de
+    // Gabriela no se pisa con el de Matilde en el mismo horario.
+    let q = supa.from('turnos').select('fecha, hora, estado')
       .gte('fecha', hoy.toISOString().split('T')[0])
       .lte('fecha', hasta.toISOString().split('T')[0])
       .neq('estado', 'Cancelado');
+    if (responsable) q = q.eq('responsable', responsable);
+    const { data: turnos, error } = await q;
 
     if (error) {
       res.status(500).json({ error: 'No se pudo leer la agenda' });
       return;
     }
 
-    const config = CONFIG_DEFAULT;
+    const config = await configDelResponsable(supa, responsable);
     const franjas = generarFranjas(config);
     const ocupacion = {};
     (turnos || []).forEach(t => {
@@ -127,6 +155,7 @@ async function handleReservar(req, res, body) {
   const dni = limpiar(body.dni);
   const fecha = limpiar(body.fecha);
   const hora = limpiar(body.hora);
+  const responsable = limpiar(body.responsable);
 
   if (!nombre || !apellido || !dni || !fecha || !hora) {
     res.status(400).json({ error: 'Faltan datos obligatorios (nombre, apellido, dni, fecha, hora)' });
@@ -147,18 +176,18 @@ async function handleReservar(req, res, body) {
       auth: { persistSession: false, autoRefreshToken: false },
     });
 
-    // Verificar cupo
-    const { data: ocupados, error: errOcup } = await supa
-      .from('turnos')
-      .select('id')
-      .eq('fecha', fecha)
-      .eq('hora', hora)
-      .neq('estado', 'Cancelado');
+    // Verificar cupo — del responsable puntual si vino en el link (mismo
+    // criterio que handleDisponibilidad: el cupo es de esa persona, no un
+    // pozo común), si no el cupo genérico de siempre.
+    const configResp = await configDelResponsable(supa, responsable);
+    let qOcup = supa.from('turnos').select('id').eq('fecha', fecha).eq('hora', hora).neq('estado', 'Cancelado');
+    if (responsable) qOcup = qOcup.eq('responsable', responsable);
+    const { data: ocupados, error: errOcup } = await qOcup;
     if (errOcup) {
       res.status(500).json({ error: 'No se pudo verificar el horario' });
       return;
     }
-    if ((ocupados || []).length >= MAX_POR_TURNO) {
+    if ((ocupados || []).length >= (responsable ? configResp.maxPorTurno : MAX_POR_TURNO)) {
       res.status(409).json({ error: 'Ese horario ya se ocupó, elegí otro' });
       return;
     }
@@ -229,7 +258,7 @@ async function handleReservar(req, res, body) {
       fecha,
       hora,
       estado: 'Pendiente',
-      responsable: '',
+      responsable: responsable || '',
       ...(observaciones ? { observacion: observaciones } : {}),
     };
     const { error: errTurno } = await supa.from('turnos').insert(nuevoTurno);
