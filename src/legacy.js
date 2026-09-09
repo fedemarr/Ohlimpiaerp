@@ -11733,9 +11733,19 @@ async function confirmarImportLiquidacion(){
     if(serviciosOmitidosManual.has(codigoServ)) return;
 
     let grilla=(DB.grillasLiq||[]).find(g=>g.periodo===periodo&&g.objCodigo===codigoServ);
-    if(grilla&&!grilla.importadoDeCSV){
-      // Grilla armada a mano en la app (crearGrillaDesdeObj) — no se mezcla
-      // ni se pisa con datos del import, para no perder edición manual.
+    // FIX (09/09, ticket "importación no impacta en el supervisor"): antes
+    // CUALQUIER grilla existente sin importadoDeCSV se consideraba "armada
+    // a mano" y se saltaba — incluso una recién auto-creada por simplemente
+    // EXPANDIR la fila (crearGrillaDesdeObj), sin que nadie hubiera tocado
+    // un solo campo. Eso bloqueaba la importación real para ese servicio en
+    // silencio: quedaba viéndose la estimación de siempre, como si el
+    // import nunca hubiera pasado. Ahora solo se protege una grilla con
+    // origenGrilla==='manual' (alguien escribió una hora de verdad o la
+    // cerró — ver setHoraGrilla/cerrarGrilla). Dato viejo sin el flag (de
+    // antes de este fix) sigue tratándose como manual por las dudas, salvo
+    // que ya tenga importadoDeCSV=true.
+    const esGrillaManual=grilla&&(grilla.origenGrilla==='manual'||(!grilla.origenGrilla&&!grilla.importadoDeCSV));
+    if(esGrillaManual){
       serviciosOmitidosManual.add(codigoServ);
       return;
     }
@@ -11751,17 +11761,19 @@ async function confirmarImportLiquidacion(){
         horasContratadas:null,
         asociados:[], estado:'Abierta', alertaEFT:null,
         totalHorasFacturables:0, totalHorasNoFacturables:0, totalAPagar:0,
-        importadoDeCSV:true,
+        importadoDeCSV:true, origenGrilla:'csv',
       };
       DB.grillasLiq.push(grilla);
       grillasCreadas++;
     } else if(!gruposLimpiados.has(codigoServ)){
-      // Reimportación del mismo servicio/período: se reemplaza por completo
-      // (no se mezcla) para no duplicar entradas si el archivo se vuelve a
+      // Reimportación del mismo servicio/período (o una que estaba en
+      // 'auto', ver esGrillaManual arriba): se reemplaza por completo (no
+      // se mezcla) para no duplicar entradas si el archivo se vuelve a
       // cargar — mismo criterio de "reemplazo, no fusión" que se usó para
       // la carga de servicios/supervisores (ver comentario en DB.servicios,
       // state.js).
       grilla.asociados=[];
+      grilla.importadoDeCSV=true; grilla.origenGrilla='csv';
       gruposLimpiados.add(codigoServ);
       serviciosActualizados.add(codigoServ);
     }
@@ -12674,6 +12686,18 @@ function crearGrillaDesdeObj(objCodigo, mes){
     horasContratadas:calc.totalHoras,
     asociados:asocAsignados, estado:'Abierta', alertaEFT:null,
     totalHorasFacturables:0, totalHorasNoFacturables:0, totalAPagar:0,
+    // origenGrilla (09/09, ticket "importación no impacta en el supervisor"):
+    // esta grilla nace de solo EXPANDIR la fila (toggleGrilla/render), no de
+    // que alguien haya cargado algo — es la estimación (generarHorasPrecargas),
+    // no trabajo real. 'auto' hasta que alguien escriba una hora de verdad
+    // (setHoraGrilla la sube a 'manual'). El importador de CSV usa este flag
+    // para decidir qué NO pisar — antes cualquier grilla existente sin
+    // importadoDeCSV se consideraba "armada a mano" y el import la saltaba
+    // aunque nadie hubiera tocado un solo campo (bug real: un supervisor o
+    // el propio admin abriendo la fila ANTES de importar, sin querer,
+    // bloqueaba la importación real para ese servicio — quedaba viéndose
+    // "lo precargado" para siempre).
+    origenGrilla:'auto',
   };
   DB.grillasLiq.push(nueva);
   _grillasExpandidas.add(objCodigo);
@@ -12696,6 +12720,10 @@ function setHoraGrilla(gId,aIdx,fechaISO,valor){
   const g=DB.grillasLiq.find(x=>x.id===gId);if(!g)return;
   const asoc=g.asociados[aIdx];if(!asoc)return;
   if(!asoc.horas)asoc.horas={};
+  // A partir de acá alguien escribió una hora de verdad — deja de ser una
+  // precarga automática (ver crearGrillaDesdeObj) y el importador de CSV
+  // ya no la va a pisar.
+  g.origenGrilla='manual';
 
   const valStr=(valor||'').toString().trim().toUpperCase();
   const esEspecial=['F','AJ','AI'].includes(valStr);
@@ -12968,7 +12996,12 @@ function agregarAsociadoGrilla(gId){
 
 function cerrarGrilla(gId){
   const g=DB.grillasLiq.find(x=>x.id===gId);if(!g)return;
-  g.estado='Cerrada';renderGrillasLiq();toast('✓ Grilla cerrada');
+  // FIX (09/09): faltaba supaSync — "Cerrada" quedaba solo en memoria de
+  // quien apretó el botón; para cualquier otro usuario (o al recargar) la
+  // grilla volvía a verse "Abierta", como si nunca se hubiera cerrado.
+  g.estado='Cerrada';g.origenGrilla='manual';
+  supaSync('grillasLiq', g);
+  renderGrillasLiq();toast('✓ Grilla cerrada');
 }
 
 function renderArt42(){
