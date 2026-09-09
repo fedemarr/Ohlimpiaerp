@@ -49,7 +49,10 @@ export function poblarSelects(){
   // tenía. nombresSupervisoresReales() une la lista a mano con los nombres
   // que realmente aparecen en objetivos/puente, misma fuente que usa
   // serviciosDeSupervisor() para filtrar.
-  fillSelect('p-supervisor',nombresSupervisoresReales(),['— Seleccionar —']);fillSelect('p-zona',DB.zonas);fillSelect('p-puesto',DB.categorias);
+  // Runner/Franquero (ticket "AGREGAR", 09/09): mismo criterio que ya usa
+  // alta-categoria en altas.js — se suman a mano por fuera de DB.categorias,
+  // sin migración porque pedidos.puesto es texto libre, sin enum/CHECK.
+  fillSelect('p-supervisor',nombresSupervisoresReales(),['— Seleccionar —']);fillSelect('p-zona',DB.zonas);fillSelect('p-puesto',[...DB.categorias,'Runner','Franquero']);
   fillDL('dl-serv',obtenerServiciosActivos());fillDL('dl-serv2',obtenerServiciosActivos());fillDL('dl-serv3',obtenerServiciosActivos());
   fillSelect('ps-zona',DB.zonas);fillSelect('ps-rrhh',nicksRRHH);
   fillSelect('alta-zona',DB.zonas);fillSelect('alta-funcion',DB.categorias,['— Seleccionar —']);fillSelect('alta-categoria',DB.categorias,['— Seleccionar —']);
