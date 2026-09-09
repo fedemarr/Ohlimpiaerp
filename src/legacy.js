@@ -2327,7 +2327,7 @@ function abrirCambiarSupervisor(idLocal){
   _poblarSelectSupervisorObjetivo(o.supervisorAsignado);
   abrirModal('modal-sup-objetivo');
 }
-function confirmarSupervisorObjetivo(){
+async function confirmarSupervisorObjetivo(){
   const o=getObjetivoByIdLocal(_supObjetivoIdLocal);if(!o)return;
   const elegido=$('sup-obj-select')?.value;
   if(!elegido){toast('Elegí un supervisor');return;}
@@ -2337,11 +2337,25 @@ function confirmarSupervisorObjetivo(){
     const abierto=(DB.objetivoSupervisoresHistorial||[]).find(h=>h.objetivoIdLocal===idLocalTrunc(o.id)&&!h.vigenciaHasta&&!h.anulado);
     if(abierto){abierto.vigenciaHasta=hoyStr();supaSync('objetivoSupervisoresHistorial', abierto);}
   }
+  // Snapshot para poder revertir si el guardado real falla (mismo patrón
+  // que guardarObjetivo(), ticket "Alta de servicios y flujo de
+  // Pendientes de Asignación" 09/09): sin esto, un rechazo de Supabase acá
+  // dejaría el servicio VIÉNDOSE como Operativo (mutado en memoria) pero
+  // sin haber migrado realmente de tab — el mismo síntoma silencioso que
+  // el alta, esta vez en el paso de asignar supervisor.
+  const snapshot={...o};
   const estadoDesde=o.estado;
   o.supervisorAsignado=elegido;o.supervisor=o.supervisorAsignado;o.supervisorAsignadoPor=currentUser?.nombre||GERENTE_OPERACIONES;
   o.fechaAsignacionSupervisor=hoyStr();
   if(!esCambio) o.estado='Operativo';
-  supaSync('objetivos', objetivoParaGuardar(o));
+  const ok=await supaSync('objetivos', objetivoParaGuardar(o));
+  if(!ok){
+    Object.assign(o,snapshot);
+    filtrarObjetivos();
+    const err=getLastSupaSyncError();
+    toast('⚠️ No se pudo asignar el supervisor en el servidor'+(err?.message?' ('+err.message+')':'')+' — reintentá');
+    return;
+  }
   const hist={id:Date.now(),objetivoIdLocal:idLocalTrunc(o.id),supervisorNombre:elegido,vigenciaDesde:hoyStr(),vigenciaHasta:null,asignadoPor:currentUser?.nombre||GERENTE_OPERACIONES,motivoCambio:esCambio?'Cambio de supervisor':'Asignación inicial'};
   DB.objetivoSupervisoresHistorial.push(hist);supaSync('objetivoSupervisoresHistorial', hist);
   if(esCambio){
