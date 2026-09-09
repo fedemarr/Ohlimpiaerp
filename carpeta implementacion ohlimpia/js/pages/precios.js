@@ -3722,9 +3722,9 @@ function buildDocDefNota({ cliente, fecha, textoNota, tablaContent, firmante, lo
 }
 
 // ---- Borradores de mail (.eml) ----
-const EMAIL_ASUNTO = "Actualización de precio - Lince Seguridad";
-const EMAIL_CUERPO = "Estimados,\n\nAdjuntamos la nota con la actualización de precios correspondiente.\n\nAnte cualquier consulta, quedamos a su disposición.\n\nSaludos cordiales,\nComercial - Lince Seguridad";
-const EMAIL_FROM = "comercial@linceseguridad.com.ar";
+const EMAIL_ASUNTO = "Actualización de precio - Ohlimpia";
+const EMAIL_CUERPO = "Estimados,\n\nAdjuntamos la nota con la actualización de precios correspondiente.\n\nAnte cualquier consulta, quedamos a su disposición.\n\nSaludos cordiales,\nComercial - Ohlimpia";
+const EMAIL_FROM = "comercial@ohlimpia.coop";
 
 function bytesToB64(bytes) {   // Uint8Array/Buffer -> base64 (por chunks, no revienta con archivos grandes)
   const b = bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes);
