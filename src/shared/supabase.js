@@ -238,7 +238,14 @@ export function _toSnake(obj) {
     estadoPago: 'estado_pago', servicioOrigen: 'servicio_origen',
     servicioDestino: 'servicio_destino', obraSocial: 'obra_social', formaPago: 'forma_pago',
     tipoContrato: 'tipo_contrato',
-    fechaInicio: 'fecha_inicio', ultimoContacto: 'ultimo_contacto',
+    // fechaFin (09/09): faltaba, mismo bug de columna inexistente que v047
+    // ya documentó para otros campos de objetivos — guardarObjetivo() manda
+    // fechaFin SIEMPRE (aunque quede '' si no se carga fecha de fin), sin
+    // mapeo PostgREST rechazaba el insert/update ENTERO con "column fechaFin
+    // does not exist" y, como guardarObjetivo() no chequeaba el resultado de
+    // supaSync(), el alta de servicio fallaba en silencio 100% de las veces
+    // (el toast de éxito se mostraba igual, ver fix en legacy.js).
+    fechaInicio: 'fecha_inicio', fechaFin: 'fecha_fin', ultimoContacto: 'ultimo_contacto',
     candidatoId: 'candidato_id', psicoId: 'psico_id', fechaTurno: 'fecha_turno',
     observacion: 'observacion',
     preocupId: 'preocup_id',
@@ -256,6 +263,16 @@ export function _toSnake(obj) {
     requiereLibreta: 'requiere_libreta', fechaAprobacion: 'fecha_aprobacion',
     motivoRechazo: 'motivo_rechazo', fechaRechazo: 'fecha_rechazo',
     fechaRealizacion: 'fecha_realizacion',
+    // Segunda causa raíz del mismo ticket "Problema al dar de alta un
+    // servicio" (09/09): objetivos.fecha_carga tampoco tenía mapeo — el
+    // alta nueva (guardarObjetivo() y el importador Comercial CSV) manda
+    // fechaCarga siempre, así que aun arreglando fechaFin el insert seguía
+    // rechazado (esta vez por "columna fechaCarga inexistente"). Además
+    // explica por qué el aviso de "lleva 7+ días esperando asignación"
+    // (o.fechaCarga en diasDesde()) nunca disparaba para objetivos ya
+    // recargados desde Supabase: sin mapeo de vuelta en _toCamel, quedaban
+    // con la propiedad snake_case fecha_carga en vez de fechaCarga.
+    fechaCarga: 'fecha_carga',
     obsEntrevista: 'obs_entrevista',
     tipoMotivoBaja: 'tipo_motivo_baja',
     fecNac: 'fec_nac', fechaCita: 'fecha_cita', horaCita: 'hora_cita', fechaTransicion: 'fecha_transicion',
@@ -711,7 +728,7 @@ export function _toCamel(obj) {
     estado_pago: 'estadoPago', servicio_origen: 'servicioOrigen',
     servicio_destino: 'servicioDestino', obra_social: 'obraSocial', forma_pago: 'formaPago',
     tipo_contrato: 'tipoContrato',
-    fecha_inicio: 'fechaInicio', ultimo_contacto: 'ultimoContacto',
+    fecha_inicio: 'fechaInicio', fecha_fin: 'fechaFin', ultimo_contacto: 'ultimoContacto',
     candidato_id: 'candidatoId', psico_id: 'psicoId', fecha_turno: 'fechaTurno',
     observacion: 'observacion',
     preocup_id: 'preocupId',
@@ -728,7 +745,7 @@ export function _toCamel(obj) {
     libreta_sanitaria: 'libretaSanitaria', requiere_antecedentes: 'requiereAntecedentes',
     requiere_libreta: 'requiereLibreta', fecha_aprobacion: 'fechaAprobacion',
     motivo_rechazo: 'motivoRechazo', fecha_rechazo: 'fechaRechazo',
-    fecha_realizacion: 'fechaRealizacion',
+    fecha_realizacion: 'fechaRealizacion', fecha_carga: 'fechaCarga',
     obs_entrevista: 'obsEntrevista',
     tipo_motivo_baja: 'tipoMotivoBaja',
     fec_nac: 'fecNac', fecha_cita: 'fechaCita', hora_cita: 'horaCita', fecha_transicion: 'fechaTransicion',

@@ -5,7 +5,7 @@
 import { DB, PERFILES, MENU, BADGE_MAP, AREAS, LOCALIDADES_BA, currentUser } from '@shared/state.js';
 import { $, initials, avatarEl, badge, formatPeriodo, hoyStr, esFeriado, esFinde, getDiasDelMes, calcularDiasEntre, toTitleCase, cleanText, applyTitleCase, validarCampos, fillSelect, fillDL, fmtDecimal } from '@shared/helpers.js';
 import { toast, abrirModal, cerrarModal, activarOrdenamiento } from '@shared/ui.js';
-import { supaSync, supaDel, supaInit } from '@shared/supabase.js';
+import { supaSync, supaDel, supaInit, getLastSupaSyncError } from '@shared/supabase.js';
 import { crearNotificacion } from '@shared/notificaciones.js';
 import { obtenerValorHoraVigente, getCategoriaById } from './modules/categorias/consultas.js';
 import { pctEfectivoObjetivo, pctEfectivoCliente, pctGeneralVigente, esEditorSupervision, esMismoSupervisor, adicionalSupervisionDe, detalleAdicionalSupervision } from './modules/supervision/supervision.js';
@@ -1893,7 +1893,7 @@ function abrirModalObjetivo(idLocal){
   abrirModal('modal-objetivo');
 }
 // ========== GUARDAR OBJETIVO ==========
-function guardarObjetivo(){
+async function guardarObjetivo(){
   const cod=$('obj-codigo')?.value.trim(), nom=$('obj-nombre')?.value.trim();
   if(!cod||!nom){toast('Completá código y nombre del servicio');return;}
   const existente=objetivoEditIdLocal?getObjetivoByIdLocal(objetivoEditIdLocal):null;
@@ -1967,6 +1967,7 @@ function guardarObjetivo(){
     const tipoContratoCliente=DB.clientes.find(c=>c.id===clienteId)?.tipoContrato;
     if(!confirm(`El cliente tiene contrato "${tipoContratoCliente}" — se esperaba un modelo de precio "${modelosEsperados.join(' o ')}", elegiste "${datos.modeloPrecio}".\n\n¿Confirmás igual?`)) return;
   }
+  const snapshotExistente=existente?{...existente}:null;
   let objetivo;
   if(existente){
     // Comercial no puede reasignar supervisor ni estado desde este modal —
@@ -1986,7 +1987,26 @@ function guardarObjetivo(){
     }
   }
   cerrarModal('modal-objetivo');renderObjetivos();poblarSelectsComercial();
-  supaSync('objetivos', objetivoParaGuardar(objetivo));
+  // FIX (09/09, ticket "Problema al dar de alta un servicio"): antes esto
+  // era fire-and-forget — ni se esperaba ni se chequeaba el resultado, así
+  // que un rechazo de PostgREST (columna inexistente, RLS, NOT NULL) dejaba
+  // el modal cerrado y el toast de "✓ guardado" igual, con el servicio SOLO
+  // en memoria (visible hasta el próximo reload, después desaparecido sin
+  // haber quedado nunca en Supabase). Causa raíz real encontrada: 'fechaFin'
+  // no tenía mapeo camelCase→snake_case (ver supabase.js) y se manda SIEMPRE
+  // (aunque quede ''), así que el insert/update de CUALQUIER alta o edición
+  // de servicio venía siendo rechazado entero — ya arreglado ahí. Este
+  // chequeo queda como red de seguridad para cualquier otra causa futura
+  // (RLS, NOT NULL, etc.) y para no repetir el mismo silencio.
+  const ok=await supaSync('objetivos', objetivoParaGuardar(objetivo));
+  if(!ok){
+    if(existente&&snapshotExistente){Object.assign(existente,snapshotExistente);}
+    else{const idx=DB.objetivos.findIndex(o=>o.id===objetivo.id);if(idx>=0)DB.objetivos.splice(idx,1);}
+    renderObjetivos();poblarSelectsComercial();
+    const err=getLastSupaSyncError();
+    toast('⚠️ No se pudo guardar el servicio en el servidor'+(err?.message?' ('+err.message+')':'')+' — reintentá o avisá a sistemas');
+    return;
+  }
   persistirRelacionadosObjetivo(objetivo);
   toast(existente?'✓ Servicio actualizado':'✓ Servicio guardado');
 }
