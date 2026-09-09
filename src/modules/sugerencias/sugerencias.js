@@ -4,10 +4,11 @@
 // DEVELOPER (tickets, respuesta, tiempo real) vive en
 // src/modules/developer/ — acá solo se escribe/lee `DB.sugerencias`.
 
-import { DB, MENU, currentUser } from '@shared/state.js';
+import { DB, MENU, PERFILES, currentUser } from '@shared/state.js';
 import { $ } from '@shared/helpers.js';
 import { toast, abrirModal, cerrarModal } from '@shared/ui.js';
 import { supaSync, SUPA } from '@shared/supabase.js';
+import { puedeVer } from '@modules/accesos/runtime.js';
 import {
   subirAdjuntoSugerencia,
   listarAdjuntosDeSugerencia,
@@ -28,12 +29,28 @@ const MODULO_GENERAL_LABEL = '🌐 General';
 // el reporte no es de ningún módulo puntual.
 const _labelPorModulo = { [MODULO_GENERAL]: MODULO_GENERAL_LABEL };
 
+// FIX (09/09): antes solo filtraba por !i.disabled, así que CUALQUIER
+// usuario veía TODAS las secciones del menú como "módulo" para reportar,
+// incluida "Desarrollador" (Inicio Dev/Tickets/Proyección/Seguridad) —
+// pantallas que ni siquiera puede abrir. Ahora respeta el mismo criterio
+// de visibilidad real que usa el menú lateral (construirMenu() en nav.js):
+// puedeVer() vía la matriz de accesos, con el mismo caso especial para
+// DEVELOPER (solo ve sus propias 4-5 pantallas, no el resto del ERP).
+function puedeVerModulo(key) {
+  const perfilActual = currentUser?.perfil;
+  if (perfilActual === 'DEVELOPER') {
+    const def = PERFILES.DEVELOPER;
+    return !!(def && def.modulos.includes(key));
+  }
+  return puedeVer(key, perfilActual, currentUser?.id);
+}
+
 function opcionesModuloHTML() {
   const general = `<option value="${MODULO_GENERAL}">${MODULO_GENERAL_LABEL} (no es de un módulo específico)</option>`;
   const grupos = MENU
-    .filter(sec => sec.section && sec.items.some(i => !i.disabled))
+    .filter(sec => sec.section && sec.items.some(i => !i.disabled && puedeVerModulo(i.key)))
     .map(sec => {
-      const opts = sec.items.filter(i => !i.disabled).map(i => {
+      const opts = sec.items.filter(i => !i.disabled && puedeVerModulo(i.key)).map(i => {
         _labelPorModulo[i.key] = `${i.icon} ${i.label}`;
         return `<option value="${i.key}">${i.icon} ${i.label}</option>`;
       }).join('');
