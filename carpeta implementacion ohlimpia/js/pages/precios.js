@@ -4124,18 +4124,34 @@ function bloqueImagenCfg(titulo, key, cfg, prev) {
     + (nom ? `<div class="me-doc-actual">Archivo: ${esc(nom)}</div>` : "")
     + `</div>`;
 }
+// FIX (ticket "Error al persistir firma/logo", 09/09): el botón "Migrar"
+// de abajo es una herramienta ÚNICA y personal de Fede — toma dos .txt con
+// base64 que solo existieron en SU máquina de desarrollo (nunca se
+// publicaron, no son parte del sitio) y los sube a Storage. En el sitio
+// publicado ese fetch siempre da 404 ("no se encontró notas/logo_b64.txt"),
+// así que a cualquier usuario real (ej. Ariel/Jojo, Comercial) que entrara
+// a esta config sin tener logo/firma migrados todavía, se le mostraba un
+// botón condenado a fallar en vez del camino que sí funciona: elegir el
+// PNG en "Subir" y tocar "Guardar" (sube derecho a Storage, sin depender
+// de nada local). Ahora el botón de migración solo se ofrece corriendo en
+// localhost — en cualquier otro lado, el aviso manda directo a "Subir".
 function renderModalConfig(cfg, previews) {
   const box = document.querySelector("[data-role=modal-config-box]");
   const nombre = cfg?.firmante_nombre ?? FIRMANTE.nombre;
   const cargo = cfg?.firmante_cargo ?? FIRMANTE.cargo;
   const faltaMigrar = !cfg?.logo_path || !cfg?.firma_path;
+  const esLocalhost = ["localhost", "127.0.0.1"].includes(location.hostname);
   box.innerHTML = `<div class="me-title">Config de notas</div>`
     + `<label class="me-fila">Firmante: <input type="text" data-role="cfg-nombre" value="${esc(nombre)}" placeholder="ARIEL GOROSITO" /></label>`
     + `<label class="me-fila">Cargo: <input type="text" data-role="cfg-cargo" value="${esc(cargo)}" placeholder="COORD. COMERCIAL" /></label>`
     + `<div class="me-sub" style="margin-top:12px">Membrete (aparece en cada nota):</div>`
     + bloqueImagenCfg("Logo", "logo", cfg, previews?.logo)
     + bloqueImagenCfg("Firma", "firma", cfg, previews?.firma)
-    + (faltaMigrar ? `<div class="me-ayuda">Hay imágenes sin migrar. La migración toma el archivo local actual (el ya corregido/rotado) y lo sube a Storage. <b>Corré esto desde tu PC (localhost)</b>: en el sitio publicado los archivos locales no existen.</div><button data-role="cfg-migrar">Migrar logo y firma actuales a Storage</button>` : "")
+    + (faltaMigrar
+        ? (esLocalhost
+            ? `<div class="me-ayuda">Hay imágenes sin migrar. La migración toma el archivo local actual (el ya corregido/rotado) y lo sube a Storage. <b>Corré esto desde tu PC (localhost)</b>: en el sitio publicado los archivos locales no existen.</div><button data-role="cfg-migrar">Migrar logo y firma actuales a Storage</button>`
+            : `<div class="me-ayuda">Todavía falta cargar el logo y/o la firma. Elegí el archivo PNG en "Subir" (arriba) para cada uno y tocá "Guardar" — no hace falta ningún otro paso.</div>`)
+        : "")
     + `<div class="me-acc" style="margin-top:12px"><button data-role="cfg-guardar">Guardar</button><button data-role="cfg-cerrar">Cerrar</button></div>`
     + `<div class="me-msg" data-role="cfg-msg"></div>`;
 }
