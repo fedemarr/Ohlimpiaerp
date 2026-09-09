@@ -5,7 +5,7 @@
 import { DB, PERFILES, MENU, BADGE_MAP, AREAS, LOCALIDADES_BA, currentUser } from '@shared/state.js';
 import { $, initials, avatarEl, badge, formatPeriodo, hoyStr, esFeriado, esFinde, getDiasDelMes, calcularDiasEntre, toTitleCase, cleanText, applyTitleCase, validarCampos, fillSelect, fillDL, fmtDecimal } from '@shared/helpers.js';
 import { toast, abrirModal, cerrarModal, activarOrdenamiento } from '@shared/ui.js';
-import { supaSync, supaDel, supaInit, getLastSupaSyncError } from '@shared/supabase.js';
+import { supaSync, supaDel, supaInit, getLastSupaSyncError, SUPA, _toCamel } from '@shared/supabase.js';
 import { crearNotificacion } from '@shared/notificaciones.js';
 import { obtenerValorHoraVigente, getCategoriaById } from './modules/categorias/consultas.js';
 import { pctEfectivoObjetivo, pctEfectivoCliente, pctGeneralVigente, esEditorSupervision, esMismoSupervisor, adicionalSupervisionDe, detalleAdicionalSupervision } from './modules/supervision/supervision.js';
@@ -11705,10 +11705,21 @@ function seleccionarArchivoImportLiq(){
   };
   reader.readAsText(file,'UTF-8');
 }
-function confirmarImportLiquidacion(){
+async function confirmarImportLiquidacion(){
   if(!_liqImportFilas||!_liqImportIdx){ toast('⚠️ Elegí un archivo primero'); return; }
   const periodo=$('liq-import-periodo')?.value;
   if(!periodo){ toast('⚠️ Falta el período'); return; }
+  // FIX (09/09): antes chequeaba "¿ya tiene grilla armada a mano?" contra
+  // DB.grillasLiq tal cual estaba en memoria desde que se abrió la
+  // pestaña — si alguien borró grillas de este período directo en
+  // Supabase (otra pestaña/SQL) SIN recargar la app antes de importar,
+  // el navegador seguía viendo las grillas "borradas" (caché vieja) y el
+  // importador las trataba como manuales, salteándolas. Se refresca acá
+  // SOLO el período que se va a importar (no todo DB.grillasLiq, para no
+  // pisar ediciones en memoria de otros meses) justo antes de decidir qué
+  // se pisa y qué no.
+  const { data: freshRows, error: errFresh } = await SUPA.from('grillas_liq').select('*').eq('periodo', periodo);
+  if(!errFresh) DB.grillasLiq=(DB.grillasLiq||[]).filter(g=>g.periodo!==periodo).concat((freshRows||[]).map(_toCamel));
   const idx=_liqImportIdx;
   const [anio]=periodo.split('-');
   let grillasCreadas=0, entradasImportadas=0, sinServicio=0;
