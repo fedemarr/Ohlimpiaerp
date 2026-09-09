@@ -1921,8 +1921,15 @@ async function guardarObjetivo(){
     puestos:[...puestosObjTemp],
     comisiones:$('obj-paga-comision')?.checked?[...comisionesObjTemp]:[],
     modeloPrecio,valor,efts,valorHora,
-    fechaInicio:$('obj-fecha-inicio')?.value?new Date($('obj-fecha-inicio').value).toLocaleDateString('es-AR'):'',
-    fechaFin:$('obj-fecha-fin')?.value?new Date($('obj-fecha-fin').value).toLocaleDateString('es-AR'):'',
+    // FIX (09/09): objetivos.fecha_inicio/fecha_fin son columnas DATE
+    // nativas de Postgres (excepción al resto del proyecto, que guarda
+    // fechas como texto DD/MM/AAAA — ver CLAUDE.md). Un date nativo
+    // rechaza '' con "invalid input syntax for type date" (no es lo mismo
+    // que NULL) — antes esto rompía CUALQUIER guardado con la fecha de fin
+    // vacía (io. objetivos activos que nunca la cargaron) recién al
+    // empezar a chequear supaSync() (fix anterior, mismo ticket).
+    fechaInicio:$('obj-fecha-inicio')?.value?new Date($('obj-fecha-inicio').value).toLocaleDateString('es-AR'):null,
+    fechaFin:$('obj-fecha-fin')?.value?new Date($('obj-fecha-fin').value).toLocaleDateString('es-AR'):null,
     contrato,
     clausulaActualizacion:$('obj-clausula-actualizacion')?.value||'',
     periodoFact:$('obj-periodo-fact')?.value,reqOC:$('obj-req-oc')?.value,
