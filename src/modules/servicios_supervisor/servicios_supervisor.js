@@ -75,6 +75,22 @@ export function serviciosDeSupervisor(supervisor) {
   return [...new Set([...deObjetivos, ...dePuente])];
 }
 
+// Dirección de un servicio (ticket "Automatizar", 09/09) — usada por el
+// pedido de personal para mostrarla sola al elegir el servicio, sin que el
+// supervisor tenga que tipearla. Solo vive en el objetivo comercial real
+// (objetivos.dir/ciudad, mismo dato que ya muestra la ficha de Servicios —
+// ver legacy.js "Dirección: o.dir"); la lista puente servicios_supervisor
+// (v067) no tiene ese campo, así que un código que solo esté ahí no tiene
+// dirección para mostrar. Se calcula al vuelo desde DB.objetivos (ya
+// cargado por supaInit) en vez de guardarla en el pedido, para que nunca
+// quede desactualizada si el objetivo cambia de dirección.
+export function direccionDeServicio(codigo) {
+  if (!codigo) return '';
+  const obj = (DB.objetivos || []).find(o => o.codigo === codigo && !o.anulado);
+  if (!obj) return '';
+  return [obj.dir, obj.ciudad].filter(Boolean).join(', ');
+}
+
 // Lista de nombres de supervisor para poblar selects (ej. "Supervisor que
 // solicita" en Pedido de Personal). Unión de la lista estática DB.supervisores
 // (mantenida a mano, puede tener gente sin servicios asignados todavía) +

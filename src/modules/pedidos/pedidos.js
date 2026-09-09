@@ -4,7 +4,7 @@ import { esMismoSupervisor } from '@modules/supervision/supervision.js';
 import { toast, cerrarModal, abrirModal } from '@shared/ui.js';
 import { supaSync, SUPA } from '@shared/supabase.js';
 import { checklistDiasHtml, formatearHorarioSemanal } from '@shared/horarioDias.js';
-import { getSupervisorDeCodigo, serviciosDeSupervisor } from '@modules/servicios_supervisor/index.js';
+import { getSupervisorDeCodigo, serviciosDeSupervisor, direccionDeServicio } from '@modules/servicios_supervisor/index.js';
 
 // Estado del checklist de días/horario del modal (los onchange inline
 // escriben en scope global, mismo patrón que puestosObjTemp en legacy.js).
@@ -282,6 +282,7 @@ export function verDetallePedido(id) {
     <div class="info-item"><div class="key">N° de pedido</div><div class="val">${numeroPedidoTxt(p)}</div></div>
     <div class="info-item"><div class="key">Estado</div><div class="val">${vencido ? '<span class="badge badge-rojo">VENCIDO ⚠</span>' : badge(p.estado)}</div></div>
     <div class="info-item"><div class="key">Servicio / Cliente</div><div class="val">${p.servicio}</div></div>
+    <div class="info-item"><div class="key">Dirección del servicio</div><div class="val">${direccionDeServicio(p.servicio) || '—'}</div></div>
     <div class="info-item"><div class="key">Supervisor</div><div class="val">${p.supervisor}</div></div>
     <div class="info-item"><div class="key">Zona</div><div class="val">${p.zona || '—'}</div></div>
     <div class="info-item"><div class="key">Puesto</div><div class="val">${p.puesto}</div></div>
@@ -464,7 +465,7 @@ export function resetModalPedido() {
   const sup = $('p-supervisor'); if (sup) sup.value = '';
   const obs = $('p-obs'); if (obs) obs.value = '';
   const zona = $('p-zona'); if (zona) zona.value = '';
-  onChangeSupervisorPedido();   // limpia el <select> de servicio al estado "sin supervisor"
+  onChangeSupervisorPedido();   // limpia el <select> de servicio (y la dirección) al estado "sin supervisor"
   renderPerfilInputs([]);
   renderHorarioPedido(null);
 }
@@ -485,12 +486,14 @@ export function onChangeSupervisorPedido(servicioAConservar) {
   const valorPrevio = servicioAConservar || '';
   if (!sup) {
     servEl.innerHTML = '<option value="">— primero elegí el supervisor —</option>';
+    actualizarDireccionServicioPedido('');
     return;
   }
   const servicios = serviciosDeSupervisor(sup);
   servEl.innerHTML = `<option value="">— elegir entre los ${servicios.length} servicios —</option>`
     + servicios.map(s => `<option>${s}</option>`).join('');
   if (valorPrevio && servicios.includes(valorPrevio)) servEl.value = valorPrevio;
+  actualizarDireccionServicioPedido(servEl.value);
 }
 
 // Al escribir el servicio, autocompleta el supervisor a cargo (misma
@@ -499,9 +502,21 @@ export function onChangeSupervisorPedido(servicioAConservar) {
 export function onChangeServicioPedido() {
   const codigo = ($('p-servicio') || {}).value || '';
   const supEl = $('p-supervisor');
-  if (!supEl || !codigo) return;
-  const sup = getSupervisorDeCodigo(codigo);
-  if (sup) supEl.value = sup;
+  if (supEl && codigo) {
+    const sup = getSupervisorDeCodigo(codigo);
+    if (sup) supEl.value = sup;
+  }
+  actualizarDireccionServicioPedido(codigo);
+}
+
+// Ticket "Automatizar" (09/09): al elegir el servicio (o al precargarlo en
+// edición), muestra sola la dirección del objetivo comercial — sin que el
+// supervisor tenga que cargarla a mano. Sin dirección cargada en el
+// objetivo (o servicio que todavía solo vive en la lista puente
+// servicios_supervisor, sin objetivo real), queda en "—", sin romper nada.
+function actualizarDireccionServicioPedido(codigo) {
+  const el = $('p-servicio-direccion');
+  if (el) el.value = direccionDeServicio(codigo) || '—';
 }
 
 // ========== PERFIL DEL PERSONAL (catálogo parametrizable, v073) ==========
