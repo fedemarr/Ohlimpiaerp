@@ -3,7 +3,7 @@
 // No agregar código nuevo acá.
 
 import { DB, PERFILES, MENU, BADGE_MAP, AREAS, LOCALIDADES_BA, currentUser } from '@shared/state.js';
-import { $, initials, avatarEl, badge, formatPeriodo, hoyStr, esFeriado, esFinde, getDiasDelMes, calcularDiasEntre, toTitleCase, cleanText, applyTitleCase, validarCampos, fillSelect, fillDL } from '@shared/helpers.js';
+import { $, initials, avatarEl, badge, formatPeriodo, hoyStr, esFeriado, esFinde, getDiasDelMes, calcularDiasEntre, toTitleCase, cleanText, applyTitleCase, validarCampos, fillSelect, fillDL, fmtDecimal } from '@shared/helpers.js';
 import { toast, abrirModal, cerrarModal, activarOrdenamiento } from '@shared/ui.js';
 import { supaSync, supaDel, supaInit } from '@shared/supabase.js';
 import { crearNotificacion } from '@shared/notificaciones.js';
@@ -12366,7 +12366,7 @@ function renderGrillasLiq(){
         const bg='';
         return`<td class="liq-celda-dia" style="border:1px solid #6b7280;${bg}color:${h>0?'white':'rgba(255,255,255,.35)'};">${h||''}</td>`;
       }).join('')}
-      <td style="padding:6px 8px;border:1px solid #6b7280;text-align:right;font-weight:700;color:white;">${Math.round(totalHsObj*10)/10}hs</td>
+      <td style="padding:6px 8px;border:1px solid #6b7280;text-align:right;font-weight:700;color:white;">${fmtDecimal(totalHsObj)}hs</td>
       <td style="padding:6px 8px;border:1px solid #6b7280;"></td>
       <td style="padding:6px 8px;border:1px solid #6b7280;text-align:right;font-size:11px;color:rgba(255,255,255,.8);">${totalFactObj}hs</td>
       <td style="padding:6px 8px;border:1px solid #6b7280;text-align:right;font-weight:700;color:#86efac;">$${(totalPagarObj||0).toLocaleString('es-AR')}</td>
@@ -12538,9 +12538,9 @@ function renderGrillasLiq(){
     ${dias.map(dia=>{
       const t=totalesDia[dia.iso]||0;
       const bg='background:#e9ecef;';
-      return`<td style="padding:6px 2px;border:1px solid #6b7280;text-align:center;font-size:11px;${bg}">${t||''}</td>`;
+      return`<td style="padding:6px 2px;border:1px solid #6b7280;text-align:center;font-size:11px;${bg}">${t?fmtDecimal(t):''}</td>`;
     }).join('')}
-    <td style="padding:10px 8px;border:1px solid #6b7280;text-align:right;">${totalGenHs}hs</td>
+    <td style="padding:10px 8px;border:1px solid #6b7280;text-align:right;">${fmtDecimal(totalGenHs)}hs</td>
     <td colspan="3" style="border:1px solid #6b7280;"></td>
     <td style="border:1px solid #6b7280;"></td>
   </tr>`;

@@ -19,6 +19,15 @@ export const toTitleCase = s =>
 
 export const cleanText = s => (s || '').trim();
 
+// Formatea un número con coma decimal (es-AR), redondeado a una cantidad
+// fija de decimales — SOLO para mostrar. No usar sobre el valor que se
+// persiste o se usa para liquidar: mantiene la precisión completa en el
+// dato, solo cambia cómo se ve (ticket "Redondeo total general Planillas
+// de supervisores", 09/09 — totales de horas con decimales largos por
+// repartos de EFT entre días hábiles).
+export const fmtDecimal = (n, decimales = 2) =>
+  Number(n || 0).toLocaleString('es-AR', { minimumFractionDigits: decimales, maximumFractionDigits: decimales });
+
 // ========== CBU (ticket "CBU" 08/2026) ==========
 // CBU argentino: exactamente 22 dígitos numéricos. Se normaliza quitando
 // espacios/guiones/puntos antes de validar (un input o CSV puede venir
