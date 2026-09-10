@@ -6996,11 +6996,17 @@ function solicitarCatAlt(grillaId, asocIdx, catIdLocal){
 // MODAL AGREGAR ASOCIADO CON CONFIGURACIÓN
 // ═══════════════════════════════════════════════════════════
 let _magPendiente = null; // {grillaId, nombre, categoria, nro}
+let _magPreTipo = '1';    // '1' facturable / '0' no facturable — preselección del modal (punto 2)
 
 function agregarAsocDesdeSearch(grillaId, nombre, categoria, nro){
   const grilla = DB.grillasLiq.find(g=>g.id===grillaId);
   if(!grilla) return;
-  if((grilla.asociados||[]).find(a=>a.nombre===nombre)){toast('Ya está en la grilla');return;}
+  if(!_grillaEditable(grilla)){ toast('La grilla está congelada / el período cerrado — no se pueden agregar filas.'); return; }
+  // Punto 2: NO se bloquea agregar a alguien que ya está — se permiten
+  // varias filas por persona, una por tipo de hora. Si ya tiene una fila
+  // FACTURABLE, el modal arranca en "No facturable" para no repetir.
+  const yaTiene=new Set((grilla.asociados||[]).filter(a=>String(a.nro||a.nombre)===String(nro||nombre)).map(a=>a.tipoHora||'facturable'));
+  _magPreTipo = yaTiene.has('facturable') ? '0' : '1';
   // Limpiar buscador
   const inp = document.getElementById('busq-asoc-'+grillaId);
   const res = document.getElementById('res-asoc-'+grillaId);
@@ -7023,7 +7029,7 @@ function agregarAsocDesdeSearch(grillaId, nombre, categoria, nro){
    'mag-lunes','mag-martes','mag-miercoles','mag-jueves','mag-viernes','mag-sabados','mag-domingos','mag-feriados'].forEach(id=>{
     const el=$(id); if(el) el.checked=true;
   });
-  if($('mag-facturable')) $('mag-facturable').value = '1';
+  if($('mag-facturable')) $('mag-facturable').value = _magPreTipo || '1';
   if($('mag-motivo-block')) $('mag-motivo-block').style.display = 'none';
   if($('mag-motivo')) $('mag-motivo').value = '';
   if($('mag-eft-block')) $('mag-eft-block').style.display = 'block';
@@ -7040,6 +7046,8 @@ function confirmarAgregarAsoc(){
   const {grillaId, nombre, categoria, nro} = _magPendiente;
   const grilla = DB.grillasLiq.find(g=>g.id===grillaId);
   if(!grilla){cerrarModal('modal-agregar-asoc-grilla');return;}
+  if(!_grillaEditable(grilla)){ toast('La grilla está congelada / el período cerrado.'); cerrarModal('modal-agregar-asoc-grilla'); return; }
+  if(!confirmarEdicionFueraDeMes(grilla.periodo)) return;
   const desde     = $('mag-desde')?.value;
   const hasta     = $('mag-hasta')?.value;
   const horas     = parseFloat($('mag-horas')?.value)||8;
@@ -7115,11 +7123,20 @@ function confirmarAgregarAsoc(){
   }
 
   if(!grilla.asociados) grilla.asociados=[];
-  const asocIdx = grilla.asociados.length;
   // Determinar tipoHora según lo que eligió el supervisor
   const tipoHoraAsoc = !facturable
     ? (motivo.toLowerCase().includes('42') ? 'art42' : 'no_facturable')
-    : (dentroEFT ? 'facturable' : 'facturable');
+    : 'facturable';
+
+  // Punto 2: lo ÚNICO que se bloquea es la MISMA persona con el MISMO tipo
+  // de hora en el mismo servicio (eso sí es un error). Varias filas con
+  // tipos distintos están permitidas.
+  const dup=(grilla.asociados||[]).find(a=>String(a.nro||a.nombre)===String(nro||nombre)&&(a.tipoHora||'facturable')===tipoHoraAsoc);
+  if(dup){
+    toast(`⚠️ ${nombre} ya tiene una fila "${tipoHoraAsoc}" en este servicio. Elegí otro tipo de hora o editá la fila que ya está.`);
+    return;
+  }
+  const asocIdx = grilla.asociados.length;
 
   grilla.asociados.push({
     nombre, categoria:categoria||'Operario/a limpieza', nro,
@@ -9194,10 +9211,9 @@ function toggleCongelarLiquidacion(){
     DB.lqsCongelado[mes] = true;
     toast('🔒 Período '+mes+' congelado — no se permiten modificaciones en las grillas.');
   }
-  // Aplicar congelamiento a todas las grillas del período
-  (DB.grillasLiq||[]).filter(g=>g.periodo===mes).forEach(g=>{
-    g.estado = DB.lqsCongelado[mes] ? 'Cerrada' : 'Abierta';
-  });
+  // El cierre de período (Finanzas) ya NO toca grilla.estado — es un nivel
+  // aparte del candado por servicio del supervisor (grilla.congelada).
+  // _grillaEditable() consulta _periodoCerradoLiq() directamente.
   renderLiquidaciones();
   renderGrillasLiq();
 }
@@ -12279,6 +12295,54 @@ function guardarRetencion(){
 
 const _grillasExpandidas = new Set();
 
+// ── Candado por servicio (ticket 11/09, punto 3) ────────────────────
+// grilla.congelada = candado REVERSIBLE del supervisor (protege de toques
+// accidentales). DB.lqsCongelado[mes] = cierre del PERÍODO (Finanzas /
+// módulo Liquidaciones) — SIEMPRE manda: con el período cerrado la grilla
+// no se edita aunque el supervisor la descongele.
+function _periodoCerradoLiq(mes){ return !!(DB.lqsCongelado && DB.lqsCongelado[mes]); }
+function _grillaEditable(g){
+  if(!g) return false;
+  // 'congelada' nueva, o legacy: una grilla con estado 'Cerrada' de antes
+  // de este cambio se trata como congelada (reversible con "Descongelar").
+  const cong = g.congelada || (g.congelada===undefined && g.estado==='Cerrada');
+  return !cong && !_periodoCerradoLiq(g.periodo);
+}
+function _lockAttr(g){ return _grillaEditable(g)?'':'disabled'; }
+
+// Confirmación "una vez por sesión" al modificar un mes que no es el mes
+// en curso (punto 4).
+const _mesesFueraDeCursoConfirmados = new Set();
+function _mesActualISO(){ return new Date().toISOString().slice(0,7); }
+function confirmarEdicionFueraDeMes(mes){
+  if(!mes || mes===_mesActualISO()) return true;
+  if(_mesesFueraDeCursoConfirmados.has(mes)) return true;
+  const [y,m]=mes.split('-');
+  const nombreMes=new Date(parseInt(y),parseInt(m)-1,1).toLocaleDateString('es-AR',{month:'long',year:'numeric'}).toUpperCase();
+  if(confirm(`Estás modificando ${nombreMes} — NO es el mes en curso.\n\n¿Continuar?`)){
+    _mesesFueraDeCursoConfirmados.add(mes);
+    return true;
+  }
+  return false;
+}
+
+function toggleCongelarGrilla(gId){
+  const g=DB.grillasLiq.find(x=>x.id===gId);if(!g)return;
+  if(_periodoCerradoLiq(g.periodo)){ toast('El período está cerrado desde Liquidaciones (Finanzas) — no se puede descongelar acá.'); return; }
+  const quien=currentUser?.nombre||'—', cuando=new Date().toISOString();
+  if(g.congelada || (g.congelada===undefined && g.estado==='Cerrada')){
+    g.congelada=false; g.descongeladaPor=quien; g.descongeladaEn=cuando;
+    if(g.estado==='Cerrada') g.estado='Abierta';
+    toast('🔓 Grilla descongelada — se puede editar de nuevo');
+  } else {
+    g.congelada=true; g.congeladaPor=quien; g.congeladaEn=cuando;
+    toast('🔒 Grilla congelada — queda de solo lectura hasta descongelarla');
+  }
+  g.origenGrilla='manual';
+  supaSync('grillasLiq', g);
+  renderGrillasLiq();
+}
+
 function renderGrillasLiq(){
   const mes=$('liq-mes-sel')?.value||(new Date().toISOString().slice(0,7));
   const buscar=($('liq-buscar-serv')||{value:''}).value.toLowerCase().trim();
@@ -12316,8 +12380,35 @@ function renderGrillasLiq(){
     const misCodigosFil=new Set(serviciosDeSupervisor(supFil));
     objetivosVisibles=objetivosVisibles.filter(o=>misCodigosFil.has(o.codigo)||esMismoSupervisor(o.supervisorAsignado,supFil)||DB.legajos.some(l=>l.servicio===o.codigo&&esMismoSupervisor(l.supervisor,supFil)));
   }
-  if(buscar) objetivosVisibles=objetivosVisibles.filter(o=>o.nombre.toLowerCase().includes(buscar)||o.codigo.toLowerCase().includes(buscar)||(DB.clientes.find(c=>c.id===o.clienteId)?.nombre||'').toLowerCase().includes(buscar));
+  if(buscar) objetivosVisibles=objetivosVisibles.filter(o=>{
+    if(o.nombre.toLowerCase().includes(buscar)||o.codigo.toLowerCase().includes(buscar)||(DB.clientes.find(c=>c.id===o.clienteId)?.nombre||'').toLowerCase().includes(buscar)) return true;
+    // punto 1: el buscador también encuentra por N° de socio o nombre de
+    // un asociado que esté en la grilla del servicio.
+    const g=DB.grillasLiq.find(x=>x.periodo===mes&&x.objCodigo===o.codigo);
+    return !!(g&&(g.asociados||[]).some(a=>String(a.nro||'').includes(buscar)||String(a.nombre||'').toLowerCase().includes(buscar)));
+  });
   if(tipoFil) /* filtrar por tipo de grilla asociada */ 0;
+
+  // ── Punto 4: el mes GRANDE + señal de color si no es el mes en curso ──
+  {
+    const [yy,mm]=mes.split('-');
+    const nombreMesLargo=new Date(parseInt(yy),parseInt(mm)-1,1).toLocaleDateString('es-AR',{month:'long',year:'numeric'}).toUpperCase();
+    const tit=$('liq-mes-titulo'); if(tit) tit.textContent='GRILLAS — '+nombreMesLargo;
+    const banner=$('liq-mes-banner'), aviso=$('liq-mes-aviso');
+    const esActual=mes===_mesActualISO(), esFuturo=mes>_mesActualISO();
+    if(banner&&aviso){
+      if(esActual){
+        banner.style.background='#eef2ff'; banner.style.border='1px solid #c7d2fe';
+        if(tit) tit.style.color='#1e3a8a'; aviso.textContent=''; aviso.style.color='';
+      } else {
+        banner.style.background=esFuturo?'#fef3c7':'#e0f2fe';
+        banner.style.border='2px solid '+(esFuturo?'#d97706':'#0284c7');
+        if(tit) tit.style.color=esFuturo?'#92400e':'#075985';
+        aviso.style.color=esFuturo?'#92400e':'#075985';
+        aviso.textContent=`⚠ Estás viendo ${nombreMesLargo} (${esFuturo?'mes futuro':'mes anterior'}) — NO es el mes en curso`;
+      }
+    }
+  }
 
   const dias=getDiasDelMes(mes);
   const dN=['D','L','M','X','J','V','S'];
@@ -12429,7 +12520,13 @@ function renderGrillasLiq(){
     }
 
     const alertaEFT=grilla?.alertaEFT?`<span class="liq-badge-tipo" style="background:#fef3c7;color:#92400e;">⚠️ EFT</span>`:'';
-    const estadoGrilla=grilla?`<span class="liq-badge-tipo" style="background:${grilla.estado==='Cerrada'?'#d1fae5;color:#065f46':'#dbeafe;color:#1e40af'};">${grilla.estado==='Cerrada'?'✓ Cerrada':'Abierta'}</span>`:'<span class="liq-badge-tipo" style="background:#f3f4f6;color:#6b7280;">Sin grilla</span>';
+    const estadoGrilla=grilla
+      ?(_periodoCerradoLiq(grilla.periodo)
+        ?'<span class="liq-badge-tipo" style="background:#fecaca;color:#7f1d1d;">🔒 Período cerrado</span>'
+        :((grilla.congelada||(grilla.congelada===undefined&&grilla.estado==='Cerrada'))
+          ?'<span class="liq-badge-tipo" style="background:#fed7aa;color:#9a3412;">🔒 Congelada</span>'
+          :'<span class="liq-badge-tipo" style="background:#dbeafe;color:#1e40af;">Abierta</span>'))
+      :'<span class="liq-badge-tipo" style="background:#f3f4f6;color:#6b7280;">Sin grilla</span>';
 
     // FILA RESUMEN DEL SERVICIO (siempre visible)
     html+=`<tr class="liq-row-servicio${expandido?' expandido':''}" onclick="toggleGrilla('${obj.codigo}')" data-obj="${obj.codigo}">
@@ -12483,7 +12580,7 @@ function renderGrillasLiq(){
             const tipoBadge=asoc.esReten?'<span class="liq-badge-tipo liq-badge-reten">Retén</span>':asoc.esEspecial?'<span class="liq-badge-tipo liq-badge-especial">T.Esp.</span>':asoc.esExtra?'<span class="liq-badge-tipo liq-badge-extra">Extra</span>':asoc.esEnfermedad?'<span class="liq-badge-tipo liq-badge-enf">Enf.</span>':'';
             html+=`<tr class="liq-row-asociado ${tipoClass}" data-parent="${obj.codigo}">
               <td style="padding:5px 12px 5px 28px;border:1px solid var(--borde);font-size:12px;position:sticky;left:0;background:inherit;z-index:1;">
-                ${asoc.nombre} ${tipoBadge}
+                <b style="font-family:'DM Mono',monospace;">${asoc.nro||'—'}</b> · ${asoc.nombre} ${tipoBadge}
               </td>
               <td style="padding:4px 8px;border:1px solid var(--borde);font-size:11px;">
                 ${(()=>{
@@ -12506,7 +12603,7 @@ function renderGrillasLiq(){
                     : `<select style="width:100%;font-size:10px;padding:2px 3px;border:1px solid var(--borde-fuerte);border-radius:4px;outline:none;background:white;"
                          onclick="event.stopPropagation()"
                          onchange="event.stopPropagation();solicitarCatAlt('${grilla.id}',${ai},this.value)"
-                         ${grilla.estado==='Cerrada'?'disabled':''}>
+                         ${_lockAttr(grilla)}>
                          <option value="">— Sin alternativa —</option>
                          ${(DB.categoriasBase||[]).filter(c=>c.activa).map(c=>`<option value="${c.id}">${c.nombre}</option>`).join('')}
                        </select>`
@@ -12517,7 +12614,7 @@ function renderGrillasLiq(){
                 <select style="width:100%;font-size:10px;padding:2px 3px;border:1px solid var(--borde-fuerte);border-radius:4px;outline:none;background:white;"
                         onclick="event.stopPropagation()"
                         onchange="event.stopPropagation();setTipoHoraAsoc('${grilla.id}',${ai},this.value)"
-                        ${grilla.estado==='Cerrada'?'disabled':''}>
+                        ${_lockAttr(grilla)}>
                   <option value="facturable"   ${(!asoc.tipoHora||asoc.tipoHora==='facturable')?'selected':''}>✅ Facturable</option>
                   <option value="no_facturable" ${asoc.tipoHora==='no_facturable'?'selected':''}>❌ No facturable</option>
                   <option value="art42"         ${asoc.tipoHora==='art42'?'selected':''}>🏥 Art. 42</option>
@@ -12563,7 +12660,7 @@ function renderGrillasLiq(){
                     placeholder="${esTrab&&dentroRango&&!h?(params.horasPorDia||8):''}"
                     title="Ingresá horas (ej: 8), F=Franco, AJ=Aus.Justificada, AI=Aus.Injustificada"
                     style="width:30px;${colorVal}border:none;background:transparent;text-align:center;font-size:11px;outline:none;padding:1px 0;text-transform:uppercase;"
-                    ${grilla.estado==='Cerrada'?'disabled':''}
+                    ${_lockAttr(grilla)}
                     onclick="event.stopPropagation()"
                     onchange="event.stopPropagation();setHoraGrilla('${grilla.id}',${ai},'${dia.iso}',this.value.trim().toUpperCase())">
                 </td>`;
@@ -12580,7 +12677,16 @@ function renderGrillasLiq(){
           // Fila de totales + buscador para agregar asociados
           html+=`<tr class="liq-row-totales" data-parent="${obj.codigo}">
             <td colspan="5" style="padding:6px 14px 6px 28px;border:1px solid var(--borde);position:sticky;left:0;background:#6b7280;z-index:1;">
-              ${grilla.estado!=='Cerrada'?`<button class="btn btn-xs" style="background:var(--verde-claro);color:var(--verde);border:1px solid #9fdaba;" onclick="event.stopPropagation();cerrarGrilla('${grilla.id}')">✓ Cerrar</button>`:'<span style="font-size:11px;color:white;opacity:.7;">✓ Cerrada</span>'}
+              ${(() => {
+                // Punto 3: candado reversible por servicio, separado del
+                // cierre de período de Finanzas (que siempre manda).
+                if(_periodoCerradoLiq(grilla.periodo))
+                  return '<span style="font-size:11px;color:white;opacity:.85;">🔒 Período cerrado (Finanzas)</span>';
+                const cong = grilla.congelada || (grilla.congelada===undefined && grilla.estado==='Cerrada');
+                const quienCuando = cong && (grilla.congeladaPor||grilla.congeladaEn)
+                  ? `<span style="font-size:9px;color:white;opacity:.7;display:block;margin-top:2px;">${grilla.congeladaPor||''}${grilla.congeladaEn?' · '+new Date(grilla.congeladaEn).toLocaleDateString('es-AR'):''}</span>` : '';
+                return `<button class="btn btn-xs" style="background:${cong?'#fee2e2':'var(--verde-claro)'};color:${cong?'#b91c1c':'var(--verde)'};border:1px solid ${cong?'#fca5a5':'#9fdaba'};" onclick="event.stopPropagation();toggleCongelarGrilla('${grilla.id}')">${cong?'🔓 Descongelar':'🔒 Congelar'}</button>${quienCuando}`;
+              })()}
             </td>
             ${dias.map(dia=>{
               const tot=(grilla.asociados||[]).reduce((s,a)=>s+parseFloat(a.horas?.[dia.iso]||0),0);
@@ -12638,32 +12744,43 @@ function buscarAsocGrilla(grillaId, query){
   if(!q){resEl.style.display='none';resEl.innerHTML='';return;}
   const grilla=DB.grillasLiq.find(g=>g.id===grillaId);
   if(!grilla) return;
-  const yaEnGrilla=new Set((grilla.asociados||[]).map(a=>a.nombre));
+  // Punto 2: una persona puede tener VARIAS filas en el mismo servicio, una
+  // por tipo de hora — el buscador YA NO excluye a los que están en la
+  // grilla. Se muestra qué tipos ya tiene cargados.
+  const TIPO_LABEL={facturable:'Facturable',no_facturable:'No fact.',art42:'Art.42',reten:'Retén'};
+  const tiposPorNro=new Map();
+  (grilla.asociados||[]).forEach(a=>{
+    const k=String(a.nro||a.nombre);
+    if(!tiposPorNro.has(k)) tiposPorNro.set(k,new Set());
+    tiposPorNro.get(k).add(a.tipoHora||'facturable');
+  });
   const resultados=DB.legajos.filter(l=>
     l.estado==='Activo'&&
-    !yaEnGrilla.has(l.nombre)&&
     (l.nombre.toLowerCase().includes(q)||(l.nro&&String(l.nro).includes(q)))
-  ).slice(0,8);
+  ).slice(0,10);
   if(!resultados.length){
     resEl.style.display='block';
     resEl.innerHTML='<div style="padding:8px 12px;font-size:11px;color:var(--texto-suave);">Sin resultados</div>';
     return;
   }
   resEl.style.display='block';
-  // Usar data-attributes para evitar problemas con caracteres especiales en nombres
-  resEl.innerHTML=resultados.map(l=>`
-    <div class="res-asoc-item"
+  resEl.innerHTML=resultados.map(l=>{
+    const tiene=tiposPorNro.get(String(l.nro||l.nombre));
+    const yaChip=tiene&&tiene.size
+      ? ` <span style="background:#fef3c7;color:#92400e;font-size:9.5px;padding:1px 5px;border-radius:8px;">ya: ${[...tiene].map(t=>TIPO_LABEL[t]||t).join(', ')}</span>` : '';
+    return `<div class="res-asoc-item"
          data-grilla="${grillaId}"
          data-nombre="${encodeURIComponent(l.nombre)}"
          data-categoria="${encodeURIComponent(l.categoria||l.funcion||'')}"
          data-nro="${l.nro||''}"
          style="display:flex;align-items:center;justify-content:space-between;padding:7px 12px;border-bottom:1px solid var(--borde);font-size:12px;cursor:pointer;"
-         onmouseover="this.style.background='var(--azul-claro)'" 
+         onmouseover="this.style.background='var(--azul-claro)'"
          onmouseout="this.style.background=''"
          onclick="event.stopPropagation();seleccionarAsocSearch(this)">
-      <span><strong>${l.nombre}</strong> <span style="color:var(--texto-suave);margin-left:6px;">N°${l.nro||'—'}</span></span>
+      <span><strong>${l.nro||'—'}</strong> · ${l.nombre}${yaChip}</span>
       <span style="color:var(--texto-suave);font-size:11px;">${l.categoria||l.funcion||'—'} · ${l.servicio||'Sin servicio'}</span>
-    </div>`).join('');
+    </div>`;
+  }).join('');
 }
 
 // Seleccionar asociado desde el resultado de búsqueda (usa data-attributes)
@@ -12744,6 +12861,9 @@ function quitarAsociadoGrilla(grillaId, asocIdx){
 function renderGrillaIndividual(g){ return ''; } // Mantenida por compatibilidad
 function setHoraGrilla(gId,aIdx,fechaISO,valor){
   const g=DB.grillasLiq.find(x=>x.id===gId);if(!g)return;
+  if(!_grillaEditable(g)){ toast(_periodoCerradoLiq(g.periodo)?'El período está cerrado — no se puede editar.':'La grilla está congelada — descongelala para editar.'); renderGrillasLiq(); return; }
+  // Punto 4: confirmación (1 vez por sesión) si el mes no es el mes en curso.
+  if(!confirmarEdicionFueraDeMes(g.periodo)){ renderGrillasLiq(); return; }
   const asoc=g.asociados[aIdx];if(!asoc)return;
   if(!asoc.horas)asoc.horas={};
   // A partir de acá alguien escribió una hora de verdad — deja de ser una
@@ -14138,6 +14258,7 @@ window.cambiarMesVac = cambiarMesVac;
 window.cargarDatosObjetivoEnPP = cargarDatosObjetivoEnPP;
 window.cargarFeriadosArg = cargarFeriadosArg;
 window.cerrarGrilla = cerrarGrilla;
+window.toggleCongelarGrilla = toggleCongelarGrilla;
 window.cerrarNC = cerrarNC;
 window.cerrarReclamo = cerrarReclamo;
 window.renderReclamosBoard = renderReclamosBoard;
