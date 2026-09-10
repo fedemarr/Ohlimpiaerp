@@ -1,8 +1,13 @@
 // Entregas (ticket "Módulo productos" 31/08, puntos 6b y 11 del
-// checklist). Unidad: el SERVICIO — arranca con lo recibido en Compras
-// (orden de compra), arma con checklist, genera el REMITO, reparte y
-// entrega. Recién al ENTREGADO impacta el costo al servicio y sale del
-// stock central.
+// checklist).
+//
+// RONDA 5 (10/09) — circuito real de Logística: la entrega del mes sale
+// del STOCK EXISTENTE, no espera a ninguna compra. "Listo para armar" ya
+// NO depende de que la OC del período haya llegado — depende de que haya
+// pedido cargado; el stock se chequea por línea (alcanza / falta) pero no
+// bloquea. Al ARMAR se descuenta el stock (salida con el servicio de
+// destino); si no alcanza, armado parcial y el faltante queda en el
+// remito. La compra es un circuito aparte (Compras → Reposición).
 
 import { DB, currentUser } from '@shared/state.js';
 import { $ } from '@shared/helpers.js';
@@ -19,18 +24,24 @@ function getProductoPP(id) { return (DB.ppProductos || []).find(p => _idTrunc(p.
 function itemsDePedido(pedidoId) { return (DB.ppItems || []).filter(i => _idTrunc(i.pedidoIdLocal) === _idTrunc(pedidoId) && !i.anulado); }
 function cantEfectiva(item) { return item.cantAutorizada != null ? item.cantAutorizada : item.cantSolicitada; }
 
-// "Listo para armar": todos los ítems del pedido ya recibieron, en su
-// orden de compra, al menos lo que se pidió. Un pedido puede tener
-// productos de más de un proveedor — necesita que TODAS sus órdenes
-// hayan llegado, no alcanza con una. Simplificación consciente (31/08):
-// si una orden quedó "recibida parcial", los ítems que dependen de la
-// parte NO recibida no se dan por listos — se prefiere no prometerle al
-// servicio algo que todavía no llegó, aunque eso demore el armado de
-// pedidos que solo necesitaban esa línea puntual.
+function _stockNivelProd(idTrunc) {
+  const s = (DB.stockProductos || []).find(x => _idTrunc(x.productoIdLocal) === _idTrunc(idTrunc));
+  return s ? (Number(s.cantidad) || 0) : 0;
+}
+// RONDA 5: "listo para armar" = tiene ítems cargados. Ya no espera a la
+// OC — la entrega sale del stock existente. El stock se muestra por línea
+// (alcanza / falta) pero no bloquea el armado (se puede armar parcial).
 function pedidoListoParaArmar(pedido) {
-  const items = itemsDePedido(pedido.id);
-  if (!items.length) return false;
-  return items.every(i => i.ordenCompraIdLocal && (i.cantidadRecibida || 0) >= cantEfectiva(i));
+  return itemsDePedido(pedido.id).length > 0;
+}
+// ¿El stock cubre TODO el pedido? (para el chip alcanza/falta del listado)
+function stockCubrePedido(pedido) {
+  return itemsDePedido(pedido.id).every(i => _stockNivelProd(_idTrunc(i.productoIdLocal)) >= cantEfectiva(i));
+}
+function itemsFaltantesStock(pedido) {
+  return itemsDePedido(pedido.id)
+    .map(i => ({ i, falta: cantEfectiva(i) - _stockNivelProd(_idTrunc(i.productoIdLocal)) }))
+    .filter(x => x.falta > 0);
 }
 function remitoDePedido(pedidoId) {
   return (DB.ppRemitos || []).filter(r => !r.anulado && _idTrunc(r.pedidoIdLocal) === _idTrunc(pedidoId)).sort((a, b) => String(b.id).localeCompare(String(a.id)))[0] || null;
@@ -51,11 +62,17 @@ export function renderEntregasPP() {
 
   const obj = (codigo) => (DB.objetivos || []).find(o => o.codigo === codigo);
 
-  if (contListos) contListos.innerHTML = listos.length ? listos.map(p => `
-    <div class="card" style="cursor:pointer;" onclick="abrirArmadoPedidoPP('${p.id}')">
-      <b>${obj(p.servicioCodigo)?.nombre || p.servicioCodigo}</b> <span class="text-muted" style="font-size:11.5px;">${itemsDePedido(p.id).length} producto(s) listos</span>
-      <div style="margin-top:6px;"><button class="btn btn-primary btn-sm">Armar →</button></div>
-    </div>`).join('') : '<p style="padding:20px;color:var(--texto-muy-suave);">Ningún pedido con todo lo suyo recibido todavía.</p>';
+  if (contListos) contListos.innerHTML = listos.length ? listos.map(p => {
+    const cubre = stockCubrePedido(p);
+    const falt = itemsFaltantesStock(p);
+    const chip = cubre
+      ? '<span class="badge" style="background:#16a34a;color:white;font-size:10px;">STOCK ALCANZA</span>'
+      : `<span class="badge" style="background:#dc2626;color:white;font-size:10px;">FALTA ${falt.length} ítem(s)</span>`;
+    return `<div class="card" style="cursor:pointer;" onclick="abrirArmadoPedidoPP('${p.id}')">
+      <b>${obj(p.servicioCodigo)?.nombre || p.servicioCodigo}</b> <span class="text-muted" style="font-size:11.5px;">${itemsDePedido(p.id).length} producto(s)</span> ${chip}
+      <div style="margin-top:6px;"><button class="btn btn-primary btn-sm">${cubre ? 'Armar →' : 'Armar parcial →'}</button></div>
+    </div>`;
+  }).join('') : '<p style="padding:20px;color:var(--texto-muy-suave);">No hay pedidos aprobados para armar en este período.</p>';
 
   if (contCurso) contCurso.innerHTML = enCurso.length ? enCurso.map(({ p, remito }) => `
     <div class="card">
@@ -115,12 +132,17 @@ function renderModalArmadoPP() {
   $('pp-armado-titulo').textContent = `Armado — ${obj ? obj.nombre : pedido.servicioCodigo}`;
   $('pp-armado-fecha-limite').value = pedido.fechaLimiteEntrega ? pedido.fechaLimiteEntrega.slice(0, 10) : '';
   const items = itemsDePedido(pedido.id).map(i => ({ ...i, _prod: getProductoPP(i.productoIdLocal) })).filter(i => i._prod);
-  $('pp-armado-checklist').innerHTML = items.map(i => `
-    <label style="display:flex;align-items:center;gap:8px;padding:5px 0;font-size:12.8px;border-bottom:1px solid var(--borde);">
+  $('pp-armado-checklist').innerHTML = items.map(i => {
+    const pedidoCant = cantEfectiva(i);
+    const stock = _stockNivelProd(_idTrunc(i.productoIdLocal));
+    const arma = Math.min(pedidoCant, stock);
+    const falta = pedidoCant - arma;
+    return `<label style="display:flex;align-items:center;gap:8px;padding:5px 0;font-size:12.8px;border-bottom:1px solid var(--borde);">
       <input type="checkbox" class="pp-armado-check" data-item="${i.id}" ${i.armado ? 'checked' : ''} onchange="marcarItemArmadoPP('${pedido.id}','${i.id}',this.checked)">
-      <span style="flex:1;">${i._prod.descripcion}</span>
-      <b>${cantEfectiva(i)}</b>
-    </label>`).join('');
+      <span style="flex:1;">${i._prod.descripcion} <span class="text-muted" style="font-size:10.5px;">stock ${stock}</span></span>
+      <b>${arma}${falta > 0 ? ` <span style="color:var(--rojo);font-weight:700;">(faltan ${falta})</span>` : ''}</b>
+    </label>`;
+  }).join('');
 }
 export async function marcarItemArmadoPP(pedidoId, itemId, checked) {
   const item = (DB.ppItems || []).find(i => String(i.id) === String(itemId)); if (!item) return;
@@ -140,9 +162,26 @@ export async function generarRemitoPP() {
   const fechaLimite = ($('pp-armado-fecha-limite') || {}).value;
   if (fechaLimite) { pedido.fechaLimiteEntrega = fechaLimite; await supaSync('ppPedidos', pedido); }
 
+  // RONDA 5: el armado SALE DEL STOCK. Por línea se arma min(pedido, stock);
+  // si no alcanza, es armado parcial y el faltante queda en el remito
+  // (alimenta la prioridad de la reposición y el rastro). La SALIDA de
+  // stock se registra ACÁ (antes se hacía recién en la entrega final).
+  const lineasArmadas = [];
+  const faltantes = [];
+  for (const i of items) {
+    const prodTrunc = _idTrunc(i.productoIdLocal);
+    const pedidoCant = cantEfectiva(i);
+    const stock = _stockNivelProd(prodTrunc);
+    const arma = Math.max(0, Math.min(pedidoCant, stock));
+    const falta = pedidoCant - arma;
+    if (arma > 0) lineasArmadas.push({ productoIdLocal: prodTrunc, descripcion: getProductoPP(i.productoIdLocal)?.descripcion || '', cantidad: arma });
+    if (falta > 0) faltantes.push({ productoIdLocal: prodTrunc, cantidad: falta });
+  }
+  if (!lineasArmadas.length) { toast('⚠️ No hay stock de ninguno de los productos — no se puede armar nada todavía'); return; }
+
   const remito = {
     id: _id('PPREM'), numero: siguienteNumeroRemitoPP(), pedidoIdLocal: _idTrunc(pedido.id), servicioCodigo: pedido.servicioCodigo,
-    items: items.map(i => ({ productoIdLocal: _idTrunc(i.productoIdLocal), descripcion: getProductoPP(i.productoIdLocal)?.descripcion || '', cantidad: cantEfectiva(i) })),
+    items: lineasArmadas, faltantes,
     estado: 'armado', armadoPor: currentUser?.nombre || '', armadoEn: new Date().toISOString(),
     firmaCliente: false, anulado: false,
   };
@@ -150,9 +189,19 @@ export async function generarRemitoPP() {
   DB.ppRemitos.push(remito);
   await supaSync('ppRemitos', remito);
 
+  const { registrarMovimientoStockProducto } = await import('@modules/uniformes/stock.js');
+  for (const l of lineasArmadas) {
+    await registrarMovimientoStockProducto({
+      tipo: 'salida', productoIdLocal: l.productoIdLocal, cantidad: l.cantidad, costoUnitario: 0,
+      motivo: `Armado ${remito.numero} — ${pedido.servicioCodigo}`, refTipo: 'remito', refIdLocal: _idTrunc(remito.id),
+    });
+  }
+
   cerrarModal('modal-pp-armado');
   renderEntregasPP();
-  toast(`✓ Remito ${remito.numero} generado`);
+  toast(faltantes.length
+    ? `✓ Remito ${remito.numero} — ARMADO PARCIAL (${faltantes.length} faltante(s) → reposición)`
+    : `✓ Remito ${remito.numero} generado — salida de stock registrada`);
 }
 
 export async function marcarEnRepartoPP(remitoId) {
@@ -205,10 +254,9 @@ function ensureModalEntregaPP() {
     </div>`;
   document.body.appendChild(m);
 }
-// Confirma la entrega: sube la foto (si hay), registra la SALIDA del
-// stock central por cada producto del remito (recién ACÁ impacta —
-// mientras estaba armado/en reparto seguía "en depósito"), y cierra el
-// pedido como ENTREGADO.
+// Confirma la entrega: sube la foto (si hay) y cierra el pedido como
+// ENTREGADO. La SALIDA de stock ya se registró al ARMAR (ronda 5) — acá
+// no se vuelve a tocar el stock para no descontar dos veces.
 export async function confirmarEntregaFinalPP() {
   const r = (DB.ppRemitos || []).find(x => _idTrunc(x.id) === _idTrunc(_ppEntregaRemitoId)); if (!r) return;
   const entregadoA = ($('pp-entrega-a') || {}).value.trim();
@@ -232,14 +280,6 @@ export async function confirmarEntregaFinalPP() {
 
   r.entregadoA = entregadoA; r.entregadoEn = new Date().toISOString(); r.fotoPath = fotoPath; r.firmaCliente = firmo; r.estado = 'entregado';
   await supaSync('ppRemitos', r);
-
-  const { registrarMovimientoStockProducto } = await import('@modules/uniformes/stock.js');
-  for (const it of r.items) {
-    await registrarMovimientoStockProducto({
-      tipo: 'salida', productoIdLocal: it.productoIdLocal, cantidad: it.cantidad, costoUnitario: 0,
-      motivo: `Entrega ${r.numero} — ${r.servicioCodigo}`, refTipo: 'remito', refIdLocal: _idTrunc(r.id),
-    });
-  }
 
   const pedido = getPedidoPP(r.pedidoIdLocal);
   if (pedido) { pedido.estado = 'entregado'; pedido.entregadoEn = new Date().toISOString(); await supaSync('ppPedidos', pedido); }
