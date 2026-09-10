@@ -327,7 +327,7 @@ export function tabPP(tab, btn) {
 }
 
 const RENDER_SUBTAB_COMPRAS = {
-  consolidado: renderConsolidadoPP, sugerencias: renderSugerenciasPP, simulacion: renderSimulacionPP,
+  consolidado: renderConsolidadoPP, sugerencias: renderSugerenciasPP,
   reposicion: renderReposicionPP,
   ordenes: renderOrdenesPP, comparador: renderComparadorPreciosPP,
 };

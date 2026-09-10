@@ -289,9 +289,27 @@ export function sugerenciasEquivalentesPP(periodoId) {
   return sugerencias;
 }
 
+// KPIs de la simulación mensual — ronda 5#5: dejan de ser un subtab
+// aparte ("misma información dos veces") y viven arriba de Sugerencias.
+function _renderKpisSimulacionPP(periodoId) {
+  const box = $('pp-compras-sugerencias-kpis'); if (!box) return;
+  if (!periodoId) { box.innerHTML = ''; return; }
+  const porProveedor = consolidadoPorProveedorPP(periodoId);
+  const totalActual = [...porProveedor.values()].reduce((s, g) => s + g.total, 0);
+  const sugs = sugerenciasEquivalentesPP(periodoId).filter(s => !s.empate);
+  const ahorroPosible = sugs.reduce((s, sug) => s + sug.ahorroReal, 0);
+  const ahorroTomado = sugs.filter(s => _decisionPP(periodoId, _idTrunc(s.actual.id))?.aceptada).reduce((s, sug) => s + sug.ahorroReal, 0);
+  box.innerHTML = `
+    <div class="stat-card"><div class="stat-label">Compra como está</div><div class="stat-valor">${_money(totalActual)}</div></div>
+    <div class="stat-card verde"><div class="stat-label">Compra optimizada</div><div class="stat-valor">${_money(totalActual - ahorroPosible)}</div></div>
+    <div class="stat-card acento"><div class="stat-label">Ahorro posible</div><div class="stat-valor">${_money(ahorroPosible)}</div></div>
+    <div class="stat-card"><div class="stat-label">Ahorro tomado</div><div class="stat-valor" style="color:var(--verde);">${_money(ahorroTomado)}</div></div>`;
+}
+
 export function renderSugerenciasPP() {
   const cont = $('pp-compras-sugerencias'); if (!cont) return;
   const periodoId = ($('pp-compra-periodo-sel') || {}).value;
+  _renderKpisSimulacionPP(periodoId);
   const sugerencias = periodoId ? sugerenciasEquivalentesPP(periodoId) : [];
   if (!sugerencias.length) { cont.innerHTML = '<p style="padding:20px;color:var(--texto-muy-suave);">Sin sugerencias — ninguna línea consolidada tiene un equivalente más barato cargado (o no hay grupos de equivalencia armados todavía, ver 🔍 Comparador de precios).</p>'; return; }
   const ahorroDelPeriodo = sugerencias.filter(s => !s.empate && _decisionPP(periodoId, _idTrunc(s.actual.id))?.aceptada).reduce((a, s) => a + s.ahorroReal, 0);
