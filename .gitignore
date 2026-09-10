@@ -16,3 +16,14 @@ seguimiento_desarrollo/
 # Capturas personales sueltas
 screencapture-linkedin-*.png
 .env*
+
+# Archivos de traspaso / handoff de una sola vez (no van al repo)
+*_para_Fede.md
+completar_pedidos_octubre.sql
+fix_candidatos_cleanpaz.sql
+import_padron_monotributo.sql
+_pedidos_personal_admin.sql
+cleanpaz_setup.sql
+fourmaster_setup.sql
+screencapture-*.png
+WhatsApp Image*.jpeg
