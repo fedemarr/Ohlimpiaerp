@@ -91,9 +91,24 @@ export function consolidadoPorProveedorPP(periodoId) {
     const grupo = porProveedor.get(provId);
     const key = _idTrunc(prod.id);
     if (!grupo.lineas.has(key)) grupo.lineas.set(key, { producto: prod, cantidad: 0, costoUnit: precioVigente(prod.id), sustituidoDe, mantenidoMotivo });
-    grupo.lineas.get(key).cantidad += cantEfectiva(it);
+    // URGENTE (ronda 5, punto 1): al aceptar una sugerencia, la cantidad
+    // hay que convertirla a las unidades del producto sugerido, no dejarla
+    // como venía. Mismo cálculo que Sugerencias ya usa para mostrar
+    // "3 = 150 BOLSA" y el ahorro: qty_nueva = qty_pedida × factor_original
+    // ÷ factor_sugerido. Antes se sumaba cantEfectiva(it) tal cual, así que
+    // 3 packs (= 150 bolsas) entraban a la OC como "3 bolsas".
+    const factorConv = sustituidoDe
+      ? (Number(itemGrupoDeProductoPP(sustituidoDe.id)?.factorConversion) || 1) / (Number(itemGrupoDeProductoPP(prod.id)?.factorConversion) || 1)
+      : 1;
+    grupo.lineas.get(key).cantidad += cantEfectiva(it) * factorConv;
   }
   for (const grupo of porProveedor.values()) {
+    for (const l of grupo.lineas.values()) {
+      // Redondeo hacia arriba solo para líneas convertidas (nunca comprar
+      // menos de lo que se necesita); el -1e-9 evita que un 150.0000001
+      // por error de float pase a 151.
+      if (l.sustituidoDe) l.cantidad = Math.ceil(l.cantidad - 1e-9);
+    }
     grupo.total = [...grupo.lineas.values()].reduce((s, l) => s + l.cantidad * l.costoUnit, 0);
   }
   return porProveedor;
