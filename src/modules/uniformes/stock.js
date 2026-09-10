@@ -116,27 +116,32 @@ function getStockProductoRow(productoIdLocal) {
   return (DB.stockProductos || []).find(s => String(s.productoIdLocal) === String(productoIdLocal));
 }
 
-async function ajustarNivelStockProducto(productoIdLocal, cantidadNueva, costoUnitario) {
+// FIX (ronda 5, 10/09): `delta` ahora es CON SIGNO — la salida resta.
+// Antes el llamador mandaba Math.abs(delta) y acá se hacía siempre
+// `cantidadAnterior + cantidadNueva`, así que TODA salida de stock de
+// producto (entregas) SUMABA en vez de restar. Nadie lo había notado
+// porque el circuito de entrega recién ahora descuenta de verdad
+// (ticket ronda 5, punto 2: armado = salida de stock).
+async function ajustarNivelStockProducto(productoIdLocal, delta, costoUnitario) {
   let row = getStockProductoRow(productoIdLocal);
-  const cantidadAnterior = row ? (row.cantidad || 0) : 0;
-  const pppAnterior = row ? (row.costoPpp || 0) : 0;
-  const cantidadTotal = cantidadAnterior + cantidadNueva;
-
   if (!row) {
     row = { id: _id('STKP'), productoIdLocal, cantidad: 0, costoPpp: 0, costoVigente: 0 };
     DB.stockProductos = DB.stockProductos || [];
     DB.stockProductos.push(row);
   }
+  const cantidadAnterior = row.cantidad || 0;
+  const pppAnterior = row.costoPpp || 0;
+  const cantidadTotal = cantidadAnterior + delta;
 
-  // PPP (Costo Promedio Ponderado): recalcula al entrar mercadería
-  if (cantidadTotal > 0 && cantidadNueva > 0) {
+  // PPP (Costo Promedio Ponderado): solo se recalcula al ENTRAR mercadería
+  // (delta > 0). Una salida no cambia el PPP del stock que queda.
+  if (delta > 0 && cantidadTotal > 0) {
     const valorAnterior = cantidadAnterior * pppAnterior;
-    const valorEntrada = cantidadNueva * costoUnitario;
+    const valorEntrada = delta * costoUnitario;
     row.costoPpp = (valorAnterior + valorEntrada) / cantidadTotal;
   }
   row.cantidad = cantidadTotal;
-  // Actualiza costo vigente si se provee uno nuevo
-  if (costoUnitario > 0) row.costoVigente = costoUnitario;
+  if (delta > 0 && costoUnitario > 0) row.costoVigente = costoUnitario;
   await supaSync('stockProductos', row);
   return row;
 }
@@ -148,7 +153,7 @@ async function ajustarNivelStockProducto(productoIdLocal, cantidadNueva, costoUn
 // para los dos sentidos sin duplicar la lógica de PPP/ledger.
 export async function registrarMovimientoStockProducto({ tipo, productoIdLocal, cantidad, costoUnitario, motivo, refTipo, refIdLocal }) {
   const delta = tipo === 'salida' ? -Math.abs(cantidad) : tipo === 'entrada' || tipo === 'refuerzo' ? Math.abs(cantidad) : cantidad;
-  await ajustarNivelStockProducto(productoIdLocal, Math.abs(delta), costoUnitario || 0);
+  await ajustarNivelStockProducto(productoIdLocal, delta, costoUnitario || 0);
   const mov = {
     id: _id('STKPM'),
     tipo, productoIdLocal, cantidad: delta,
