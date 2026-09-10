@@ -26,7 +26,8 @@ export {
   elegirProductoManualReposicionPP, guardarManualReposicionPP, confirmarReposicionProveedorPP,
   renderOrdenesPP, abrirDetalleOrdenPP, enviarOrdenPP, guardarRecepcionOrdenPP, exportarOrdenPP,
   abrirFacturaOrdenPP, confirmarFacturaOrdenPP,
-  renderComparadorPreciosPP, abrirNuevoGrupoEquivalenciaPP, buscarProductoParaGrupoPP,
+  renderComparadorPreciosPP, abrirNuevoGrupoEquivalenciaPP, abrirEditarGrupoEquivalenciaPP,
+  borrarGrupoEquivalenciaPP, buscarProductoParaGrupoPP,
   agregarProductoAGrupoPP, quitarProductoDeGrupoPP, cambiarFactorGrupoPP, guardarGrupoEquivalenciaPP,
 } from './compras.js';
 
@@ -83,7 +84,8 @@ import {
   elegirProductoManualReposicionPP, guardarManualReposicionPP, confirmarReposicionProveedorPP,
   renderOrdenesPP, abrirDetalleOrdenPP, enviarOrdenPP, guardarRecepcionOrdenPP, exportarOrdenPP,
   abrirFacturaOrdenPP, confirmarFacturaOrdenPP,
-  renderComparadorPreciosPP, abrirNuevoGrupoEquivalenciaPP, buscarProductoParaGrupoPP,
+  renderComparadorPreciosPP, abrirNuevoGrupoEquivalenciaPP, abrirEditarGrupoEquivalenciaPP,
+  borrarGrupoEquivalenciaPP, buscarProductoParaGrupoPP,
   agregarProductoAGrupoPP, quitarProductoDeGrupoPP, cambiarFactorGrupoPP, guardarGrupoEquivalenciaPP,
 } from './compras.js';
 
@@ -161,6 +163,8 @@ window.abrirFacturaOrdenPP = abrirFacturaOrdenPP;
 window.confirmarFacturaOrdenPP = confirmarFacturaOrdenPP;
 window.renderComparadorPreciosPP = renderComparadorPreciosPP;
 window.abrirNuevoGrupoEquivalenciaPP = abrirNuevoGrupoEquivalenciaPP;
+window.abrirEditarGrupoEquivalenciaPP = abrirEditarGrupoEquivalenciaPP;
+window.borrarGrupoEquivalenciaPP = borrarGrupoEquivalenciaPP;
 window.buscarProductoParaGrupoPP = buscarProductoParaGrupoPP;
 window.agregarProductoAGrupoPP = agregarProductoAGrupoPP;
 window.quitarProductoDeGrupoPP = quitarProductoDeGrupoPP;

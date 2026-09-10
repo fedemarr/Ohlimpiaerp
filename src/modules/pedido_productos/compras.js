@@ -1055,11 +1055,15 @@ export function renderComparadorPreciosPP() {
     }).filter(Boolean).sort((a, b) => (a.$u ?? Infinity) - (b.$u ?? Infinity));
     const masBarato = filas[0];
     return `<div class="card" style="margin-bottom:12px;">
-      <div class="card-header"><h3>${g.nombre} <span style="font-weight:400;color:var(--texto-suave);font-size:12px;">— unidad: ${g.unidadComun}</span></h3></div>
+      <div class="card-header" style="display:flex;align-items:center;">
+        <h3 style="flex:1;">${g.nombre} <span style="font-weight:400;color:var(--texto-suave);font-size:12px;">— unidad: ${g.unidadComun}</span></h3>
+        <button class="btn btn-xs btn-secondary" onclick="abrirEditarGrupoEquivalenciaPP('${gid}')">✏️ Editar</button>
+        <button class="btn btn-xs btn-secondary" style="margin-left:4px;color:var(--rojo);" onclick="borrarGrupoEquivalenciaPP('${gid}')">🗑</button>
+      </div>
       <div class="tabla-wrap"><table style="width:100%;border-collapse:collapse;font-size:12.5px;">
         <thead><tr style="background:#374151;color:white;"><th style="padding:6px 10px;text-align:left;">Producto</th><th style="padding:6px 8px;text-align:right;">Precio lista</th><th style="padding:6px 8px;text-align:right;">Factor</th><th style="padding:6px 8px;text-align:right;">$/unidad común</th><th style="padding:6px 8px;"></th></tr></thead>
         <tbody>${filas.map(f => `<tr${f === masBarato ? ' style="background:var(--verde-suave,#e8f8ee);"' : ''}>
-          <td style="padding:5px 10px;border-bottom:1px solid var(--borde);">${f.prod.descripcion}</td>
+          <td style="padding:5px 10px;border-bottom:1px solid var(--borde);">${badgeProveedorPP(getProveedorPP(f.prod.proveedorIdLocal))} ${f.prod.descripcion}</td>
           <td style="padding:5px 8px;border-bottom:1px solid var(--borde);text-align:right;">${_money(precioVigente(f.prod.id))}</td>
           <td style="padding:5px 8px;border-bottom:1px solid var(--borde);text-align:right;">×${f.factor}</td>
           <td style="padding:5px 8px;border-bottom:1px solid var(--borde);text-align:right;font-weight:700;">${f.$u != null ? _money(f.$u) : '—'}</td>
@@ -1073,12 +1077,61 @@ export function renderComparadorPreciosPP() {
 
 let _ppGrupoEditandoId = null;
 let _ppGrupoItemsTemp = [];
+
+// Regla ronda 5#4.3: un producto no puede estar en dos grupos a la vez
+// (genera sugerencias dobles sobre la misma línea). Devuelve el grupo
+// que YA contiene ese producto, si hay (ignorando el que se está editando).
+function _grupoConProductoPP(productoIdTrunc, exceptGid) {
+  const item = (DB.ppGruposEquivalenciaItems || []).find(gi =>
+    _idTrunc(gi.productoIdLocal) === _idTrunc(productoIdTrunc)
+    && _idTrunc(gi.grupoIdLocal) !== _idTrunc(exceptGid || ''));
+  if (!item) return null;
+  return (DB.ppGruposEquivalencia || []).find(g => !g.anulado && (_idTrunc(g.idLocal || g.id) === _idTrunc(item.grupoIdLocal)));
+}
+function _grupoSugerenciasAceptadasPP(gid) {
+  const prodsDelGrupo = new Set((DB.ppGruposEquivalenciaItems || [])
+    .filter(gi => _idTrunc(gi.grupoIdLocal) === _idTrunc(gid))
+    .map(gi => _idTrunc(gi.productoIdLocal)));
+  return (DB.ppSugerenciasDecisiones || []).filter(d => d.aceptada
+    && (prodsDelGrupo.has(_idTrunc(d.productoIdLocal)) || prodsDelGrupo.has(_idTrunc(d.sustitutoIdLocal))));
+}
+
 export function abrirNuevoGrupoEquivalenciaPP() {
   _ppGrupoEditandoId = null; _ppGrupoItemsTemp = [];
   ensureModalGrupoPP();
+  $('modal-pp-grupo').querySelector('.modal-header h3').textContent = '+ Nuevo grupo de equivalencia';
   $('pp-grupo-nombre').value = ''; $('pp-grupo-unidad').value = '';
   renderItemsGrupoTemp();
   abrirModal('modal-pp-grupo');
+}
+export function abrirEditarGrupoEquivalenciaPP(gid) {
+  const g = (DB.ppGruposEquivalencia || []).find(x => !x.anulado && _idTrunc(x.idLocal || x.id) === _idTrunc(gid));
+  if (!g) { toast('⚠️ No se encontró el grupo'); return; }
+  _ppGrupoEditandoId = _idTrunc(g.idLocal || g.id);
+  _ppGrupoItemsTemp = (DB.ppGruposEquivalenciaItems || [])
+    .filter(gi => _idTrunc(gi.grupoIdLocal) === _ppGrupoEditandoId)
+    .map(gi => ({ productoIdLocal: _idTrunc(gi.productoIdLocal), factorConversion: Number(gi.factorConversion) || 1 }));
+  ensureModalGrupoPP();
+  $('modal-pp-grupo').querySelector('.modal-header h3').textContent = 'Editar grupo — ' + g.nombre;
+  $('pp-grupo-nombre').value = g.nombre; $('pp-grupo-unidad').value = g.unidadComun || '';
+  renderItemsGrupoTemp();
+  abrirModal('modal-pp-grupo');
+}
+export async function borrarGrupoEquivalenciaPP(gid) {
+  const g = (DB.ppGruposEquivalencia || []).find(x => !x.anulado && _idTrunc(x.idLocal || x.id) === _idTrunc(gid));
+  if (!g) return;
+  const aceptadas = _grupoSugerenciasAceptadasPP(gid);
+  const aviso = aceptadas.length ? `\n\n⚠️ Este grupo tiene ${aceptadas.length} sugerencia(s) aceptada(s) en algún período — al borrarlo, esas líneas dejan de estar sustituidas en la OC.` : '';
+  if (!confirm(`¿Borrar el grupo de equivalencia "${g.nombre}"?${aviso}`)) return;
+  g.anulado = true;
+  await supaSync('ppGruposEquivalencia', g);
+  for (const gi of (DB.ppGruposEquivalenciaItems || []).filter(x => _idTrunc(x.grupoIdLocal) === _idTrunc(gid))) {
+    const { supaDel } = await import('@shared/supabase.js');
+    await supaDel('ppGruposEquivalenciaItems', gi.id);
+  }
+  DB.ppGruposEquivalenciaItems = (DB.ppGruposEquivalenciaItems || []).filter(x => _idTrunc(x.grupoIdLocal) !== _idTrunc(gid));
+  renderComparadorPreciosPP();
+  toast(`🗑 Grupo "${g.nombre}" borrado`);
 }
 function ensureModalGrupoPP() {
   if ($('modal-pp-grupo')) return;
@@ -1111,8 +1164,11 @@ export function buscarProductoParaGrupoPP() {
   const cont = $('pp-grupo-add-resultados'); if (!cont) return;
   if (!q || q.length < 2) { cont.innerHTML = ''; return; }
   const yaAgregados = new Set(_ppGrupoItemsTemp.map(i => i.productoIdLocal));
-  const resultados = (DB.ppProductos || []).filter(p => !p.anulado && !yaAgregados.has(_idTrunc(p.id)) && p.descripcion.toLowerCase().includes(q)).slice(0, 8);
-  cont.innerHTML = resultados.map(p => `<div style="padding:5px 8px;font-size:12px;cursor:pointer;border-bottom:1px solid var(--borde);" onclick="agregarProductoAGrupoPP('${p.id}')">${p.descripcion} <span class="text-muted">(${getProveedorPP(p.proveedorIdLocal)?.nombre || 'sin proveedor'})</span></div>`).join('') || '<p class="text-muted" style="font-size:11px;padding:4px;">Sin resultados</p>';
+  const resultados = (DB.ppProductos || []).filter(p => !p.anulado && !yaAgregados.has(_idTrunc(p.id)) && p.descripcion.toLowerCase().includes(q)).slice(0, 10);
+  cont.innerHTML = resultados.map(p => {
+    const otro = _grupoConProductoPP(_idTrunc(p.id), _ppGrupoEditandoId);   // regla 1 producto = 1 grupo
+    return `<div style="padding:5px 8px;font-size:12px;border-bottom:1px solid var(--borde);${otro ? 'opacity:.5;' : 'cursor:pointer;'}" ${otro ? '' : `onclick="agregarProductoAGrupoPP('${p.id}')"`}>${p.descripcion} <span class="text-muted">(${getProveedorPP(p.proveedorIdLocal)?.nombre || 'sin proveedor'})</span>${otro ? ` <span class="text-muted" style="color:var(--rojo);">— ya está en "${otro.nombre}"</span>` : ''}</div>`;
+  }).join('') || '<p class="text-muted" style="font-size:11px;padding:4px;">Sin resultados</p>';
 }
 export function agregarProductoAGrupoPP(productoId) {
   _ppGrupoItemsTemp.push({ productoIdLocal: _idTrunc(productoId), factorConversion: 1 });
@@ -1144,6 +1200,38 @@ export async function guardarGrupoEquivalenciaPP() {
   if (!nombre) { toast('⚠️ Falta el nombre'); return; }
   if (!unidad) { toast('⚠️ Falta la unidad común'); return; }
   if (_ppGrupoItemsTemp.length < 2) { toast('⚠️ Agregá al menos 2 productos'); return; }
+  // Regla 1 producto = 1 grupo
+  for (const it of _ppGrupoItemsTemp) {
+    const otro = _grupoConProductoPP(it.productoIdLocal, _ppGrupoEditandoId);
+    if (otro) {
+      const p = getProductoPP(it.productoIdLocal);
+      toast(`⚠️ "${p ? p.descripcion : it.productoIdLocal}" ya está en el grupo "${otro.nombre}" — un producto no puede estar en dos grupos`);
+      return;
+    }
+  }
+  const { supaDel } = await import('@shared/supabase.js');
+
+  if (_ppGrupoEditandoId) {
+    const g = (DB.ppGruposEquivalencia || []).find(x => _idTrunc(x.idLocal || x.id) === _idTrunc(_ppGrupoEditandoId));
+    if (!g) { toast('⚠️ No se encontró el grupo'); return; }
+    g.nombre = nombre; g.unidadComun = unidad;
+    await supaSync('ppGruposEquivalencia', g);
+    // reemplaza los miembros por completo
+    for (const gi of (DB.ppGruposEquivalenciaItems || []).filter(x => _idTrunc(x.grupoIdLocal) === _idTrunc(_ppGrupoEditandoId))) {
+      await supaDel('ppGruposEquivalenciaItems', gi.id);
+    }
+    DB.ppGruposEquivalenciaItems = (DB.ppGruposEquivalenciaItems || []).filter(x => _idTrunc(x.grupoIdLocal) !== _idTrunc(_ppGrupoEditandoId));
+    for (const it of _ppGrupoItemsTemp) {
+      const item = { id: _id('PPGEQI'), grupoIdLocal: _ppGrupoEditandoId, productoIdLocal: it.productoIdLocal, factorConversion: it.factorConversion };
+      DB.ppGruposEquivalenciaItems.push(item);
+      await supaSync('ppGruposEquivalenciaItems', item);
+    }
+    cerrarModal('modal-pp-grupo');
+    _ppGrupoEditandoId = null;
+    renderComparadorPreciosPP();
+    toast(`✓ Grupo "${nombre}" actualizado`);
+    return;
+  }
 
   const grupo = { id: _id('PPGEQ'), nombre, unidadComun: unidad, anulado: false };
   if (!DB.ppGruposEquivalencia) DB.ppGruposEquivalencia = [];

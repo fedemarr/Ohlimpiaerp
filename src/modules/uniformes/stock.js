@@ -133,15 +133,20 @@ async function ajustarNivelStockProducto(productoIdLocal, delta, costoUnitario) 
   const pppAnterior = row.costoPpp || 0;
   const cantidadTotal = cantidadAnterior + delta;
 
-  // PPP (Costo Promedio Ponderado): solo se recalcula al ENTRAR mercadería
-  // (delta > 0). Una salida no cambia el PPP del stock que queda.
+  // PPP (Costo Promedio Ponderado):
+  //  · delta > 0  → ENTRADA: pondera la mercadería nueva contra la que había.
+  //  · delta === 0 && costo > 0 → AJUSTE de costo (factura del proveedor):
+  //    corrige el PPP con lo REALMENTE pagado, sin tocar cantidades.
+  //  · delta < 0  → SALIDA: no cambia el PPP del stock que queda.
   if (delta > 0 && cantidadTotal > 0) {
     const valorAnterior = cantidadAnterior * pppAnterior;
     const valorEntrada = delta * costoUnitario;
     row.costoPpp = (valorAnterior + valorEntrada) / cantidadTotal;
+  } else if (delta === 0 && costoUnitario > 0) {
+    row.costoPpp = costoUnitario;
   }
   row.cantidad = cantidadTotal;
-  if (delta > 0 && costoUnitario > 0) row.costoVigente = costoUnitario;
+  if (delta >= 0 && costoUnitario > 0) row.costoVigente = costoUnitario;
   await supaSync('stockProductos', row);
   return row;
 }
