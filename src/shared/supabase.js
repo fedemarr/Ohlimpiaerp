@@ -32,6 +32,7 @@ export const _SM = {
   ppPedidoEventos: 'pp_pedido_eventos', // v113 — ronda 02/09, FIX 8
   ppSugerenciasDecisiones: 'pp_sugerencias_decisiones', // v119 — persistir aceptar/mantener sugerencia de equivalente
   ppReposicionAjustes: 'pp_reposicion_ajustes', // v123 — ronda 5, overrides + líneas manuales de la OC de reposición
+  padronCategoriasAsociado: 'padron_categorias_asociado', // v124 — fuente única de la categoría por asociado (con vigencia por mes)
   perfilPersonalAtributos: 'perfil_personal_atributos',
   candidatos: 'candidatos',
   psicos: 'psicos',
@@ -597,6 +598,8 @@ export function _toSnake(obj) {
     sustitutoIdLocal: 'sustituto_id_local', decididoPor: 'decidido_por', decididoEn: 'decidido_en',
     // v123 — pp_reposicion_ajustes (ronda 5, circuito compra para stock)
     cantidadOverride: 'cantidad_override', esManual: 'es_manual',
+    // v124 — padron_categorias_asociado
+    legajoNro: 'legajo_nro', cargadoEn: 'cargado_en',
     facturacionNeta: 'facturacion_neta', porcentajeTope: 'porcentaje_tope',
     auditadoPor: 'auditado_por', auditadoEn: 'auditado_en',
     autorizadoPor: 'autorizado_por', autorizadoEn: 'autorizado_en',
@@ -1044,6 +1047,7 @@ export function _toCamel(obj) {
     periodo_id_local: 'periodoIdLocal', servicio_codigo: 'servicioCodigo',
     sustituto_id_local: 'sustitutoIdLocal', decidido_por: 'decididoPor', decidido_en: 'decididoEn',
     cantidad_override: 'cantidadOverride', es_manual: 'esManual',
+    legajo_nro: 'legajoNro', cargado_en: 'cargadoEn',
     facturacion_neta: 'facturacionNeta', porcentaje_tope: 'porcentajeTope',
     auditado_por: 'auditadoPor', auditado_en: 'auditadoEn',
     autorizado_por: 'autorizadoPor', autorizado_en: 'autorizadoEn',

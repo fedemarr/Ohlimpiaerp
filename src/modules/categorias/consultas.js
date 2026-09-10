@@ -89,7 +89,52 @@ export function calcularValorEfectivo(categoriaIdLocal, servicioNombre, plusIdLo
   };
 }
 
-export function obtenerCategoriaLegajo(legajoIdLocal) {
+// ========== PADRÓN DE CATEGORÍA POR ASOCIADO (v124) ==========
+//
+// Fuente ÚNICA de la categoría de un operario. Un registro por evento,
+// vigencia SIEMPRE a nivel mes (vigencia_desde = primer día del mes).
+// La categoría de una persona a una fecha = el registro (no anulado) con
+// vigencia_desde más reciente <= esa fecha. Legajos y las grillas de
+// Liquidación de horas leen de acá — ver mockup_categorias_padron_1.html.
+
+// Primer día del mes de una fecha ISO (YYYY-MM-DD) — la vigencia del
+// padrón se compara siempre contra el mes, no el día.
+function _primerDiaDelMes(fechaISO) {
+  return String(fechaISO || '').slice(0, 7) + '-01';
+}
+
+// Registro de padrón vigente para un asociado a una fecha dada.
+// legajoNro: el N° de socio (lo que usa toda la app para referenciar
+// legajos). fechaISO: 'YYYY-MM-DD' — default hoy.
+export function registroPadronVigente(legajoNro, fechaISO) {
+  const ref = _primerDiaDelMes(fechaISO || new Date().toISOString().slice(0, 10));
+  const candidatos = (DB.padronCategoriasAsociado || []).filter(r =>
+    !r.anulado && String(r.legajoNro) === String(legajoNro) && String(r.vigenciaDesde) <= ref);
+  candidatos.sort((a, b) => String(b.vigenciaDesde).localeCompare(String(a.vigenciaDesde)));
+  return candidatos[0] || null;
+}
+
+// Categoría (objeto de categorias_base) vigente para un asociado a una
+// fecha. Devuelve null si el asociado no tiene ningún registro en el
+// padrón todavía (nunca inventa — mismo criterio que obtenerValorHoraVigente).
+export function categoriaVigenteAsociado(legajoNro, fechaISO) {
+  const reg = registroPadronVigente(legajoNro, fechaISO);
+  return reg ? getCategoriaById(reg.categoriaIdLocal) : null;
+}
+
+// Todo el historial de padrón de un asociado, más nuevo primero.
+export function historialPadronAsociado(legajoNro) {
+  return (DB.padronCategoriasAsociado || [])
+    .filter(r => !r.anulado && String(r.legajoNro) === String(legajoNro))
+    .sort((a, b) => String(b.vigenciaDesde).localeCompare(String(a.vigenciaDesde)));
+}
+
+// Compat: obtenerCategoriaLegajo() ahora resuelve desde el padrón (a hoy).
+// Fallback a legajo.categoriaIdLocal para asociados que todavía no
+// tienen registro en el padrón (durante la transición / carga inicial).
+export function obtenerCategoriaLegajo(legajoIdLocal, fechaISO) {
+  const delPadron = categoriaVigenteAsociado(legajoIdLocal, fechaISO);
+  if (delPadron) return delPadron;
   const legajo = (DB.legajos || []).find(l => String(l.nro) === String(legajoIdLocal));
   if (!legajo?.categoriaIdLocal) return null;
   return getCategoriaById(legajo.categoriaIdLocal);

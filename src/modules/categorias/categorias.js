@@ -152,7 +152,25 @@ export async function guardarCategoriaDesdeModal() {
 
 // ========== TAB 4 — HISTORIAL ==========
 
+function _mesTxtHist(fechaISO) {
+  const [y, m] = String(fechaISO || '').split('-');
+  return m ? `${m}/${y}` : (fechaISO || '');
+}
 function filaHistorial(tipo, objeto, v, anterior) {
+  // Ronda "padrón" (v124): las filas de tipo "Asociado" muestran nombres
+  // de categoría, no plata — y la fecha es cuándo se registró el cambio.
+  if (tipo === 'Asociado') {
+    const chipOrigen = { ALTA: 'badge-verde', DIRECTO: 'badge-acento', AUTORIZACION: 'badge-naranja', MASIVO: 'badge-azul' }[v.origen] || 'badge-gris';
+    return `<tr>
+      <td style="font-size:12px;">${(v.cargadoEn || v.vigenciaDesde || '').slice(0, 10)}</td>
+      <td><span class="badge badge-acento">Asociado</span></td>
+      <td style="font-size:12px;">${objeto}</td>
+      <td style="text-align:right;font-size:12px;">${anterior || '—'}</td>
+      <td style="text-align:right;font-weight:600;">${v.categoriaNombre || '—'} <span class="text-muted" style="font-weight:400;font-size:11px;">vig. ${_mesTxtHist(v.vigenciaDesde)}</span></td>
+      <td style="font-size:12px;">${v.cargadoPor || ''}</td>
+      <td style="font-size:12px;max-width:240px;"><span class="badge ${chipOrigen}" style="font-size:10px;">${v.origen || ''}</span> ${v.motivo || ''}</td>
+    </tr>`;
+  }
   return `<tr>
     <td style="font-size:12px;">${(v.vigenciaDesde || '')}</td>
     <td><span class="badge ${tipo === 'Categoría' ? 'badge-azul' : 'badge-acento'}">${tipo}</span></td>
@@ -202,6 +220,28 @@ function construirFilasHistorial() {
     });
   }
 
+  // Padrón de categoría por asociado (v124) — TIPO "Asociado".
+  const porAsociado = new Map();
+  for (const r of (DB.padronCategoriasAsociado || []).filter(r => !r.anulado)) {
+    if (!porAsociado.has(r.legajoNro)) porAsociado.set(r.legajoNro, []);
+    porAsociado.get(r.legajoNro).push(r);
+  }
+  for (const [legajoNro, regs] of porAsociado) {
+    regs.sort((a, b) => String(a.vigenciaDesde).localeCompare(String(b.vigenciaDesde)));
+    const legajo = (DB.legajos || []).find(l => String(l.nro) === String(legajoNro));
+    regs.forEach((r, i) => {
+      const catNueva = getCategoriaById(r.categoriaIdLocal);
+      const catAnt = i > 0 ? getCategoriaById(regs[i - 1].categoriaIdLocal) : null;
+      filas.push({
+        tipo: 'Asociado',
+        objeto: `<b>${legajoNro}</b> · ${legajo ? legajo.nombre : ''}`,
+        v: { ...r, categoriaNombre: catNueva?.nombre || '—' },
+        anterior: catAnt?.nombre || null,
+        fecha: (r.cargadoEn || r.vigenciaDesde || '').slice(0, 10),
+      });
+    });
+  }
+
   return filas.sort((a, b) => (b.fecha || '').localeCompare(a.fecha || ''));
 }
 
@@ -214,7 +254,7 @@ export function renderHistorialCategorias() {
   const tipo = ($('cat-hist-tipo') || {}).value || '';
   const desde = ($('cat-hist-desde') || {}).value || '';
   const hasta = ($('cat-hist-hasta') || {}).value || '';
-  if (q) filas = filas.filter(f => f.objeto.toLowerCase().includes(q) || f.v.cargadaPor.toLowerCase().includes(q));
+  if (q) filas = filas.filter(f => f.objeto.toLowerCase().includes(q) || String(f.v.cargadaPor || f.v.cargadoPor || '').toLowerCase().includes(q));
   if (tipo) filas = filas.filter(f => f.tipo === tipo);
   if (desde) filas = filas.filter(f => (f.fecha || '') >= desde);
   if (hasta) filas = filas.filter(f => (f.fecha || '') <= hasta);

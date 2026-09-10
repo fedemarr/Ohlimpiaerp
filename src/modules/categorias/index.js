@@ -25,18 +25,28 @@ export {
 export {
   getCategoriaById, getPlusById, obtenerValorHoraVigente, obtenerValorPlusVigente,
   calcularValorEfectivo, obtenerCategoriaLegajo,
+  categoriaVigenteAsociado, registroPadronVigente, historialPadronAsociado,
 } from './consultas.js';
+
+export {
+  renderPadronCategorias, filtrarPadronCategorias, escribirRegistroPadron,
+  abrirCambiarCategoriaPadron, guardarCambioCategoriaPadron,
+  abrirImportPadron, seleccionarArchivoImportPadron, confirmarImportPadron,
+  exportarPadronCategorias,
+} from './padron.js';
 
 // ========== TABS ==========
 
 import { renderCatalogoCategorias, renderHistorialCategorias } from './categorias.js';
 import { poblarFiltrosMatrizValores, renderMatrizValores } from './valores.js';
 import { renderPlusAdicionales } from './plus.js';
+import { renderPadronCategorias } from './padron.js';
 
 const RENDER_POR_TAB = {
   catalogo: renderCatalogoCategorias,
   valores: () => { poblarFiltrosMatrizValores(); renderMatrizValores(); },
   plus: renderPlusAdicionales,
+  padron: renderPadronCategorias,
   historial: renderHistorialCategorias,
 };
 
@@ -104,3 +114,18 @@ window.abrirCorregirPlus = abrirCorregirPlus;
 window.abrirNuevaVigenciaPlus = abrirNuevaVigenciaPlus;
 window.guardarVersionPlusDesdeModal = guardarVersionPlusDesdeModal;
 window.abrirHistorialPlus = abrirHistorialPlus;
+
+import {
+  filtrarPadronCategorias,
+  abrirCambiarCategoriaPadron, guardarCambioCategoriaPadron,
+  abrirImportPadron, seleccionarArchivoImportPadron, confirmarImportPadron,
+  exportarPadronCategorias,
+} from './padron.js';
+window.renderPadronCategorias = renderPadronCategorias;
+window.filtrarPadronCategorias = filtrarPadronCategorias;
+window.abrirCambiarCategoriaPadron = abrirCambiarCategoriaPadron;
+window.guardarCambioCategoriaPadron = guardarCambioCategoriaPadron;
+window.abrirImportPadron = abrirImportPadron;
+window.seleccionarArchivoImportPadron = seleccionarArchivoImportPadron;
+window.confirmarImportPadron = confirmarImportPadron;
+window.exportarPadronCategorias = exportarPadronCategorias;
