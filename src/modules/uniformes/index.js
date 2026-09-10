@@ -94,7 +94,7 @@ export const uniformesScreenConfig = {
     render: renderUniformesInicial,
   },
   stock: {
-    title: 'Stock de uniformes',
+    title: 'Stock',
     btn: null,
     fn: null,
     render: () => window.renderStock(),
