@@ -47,56 +47,173 @@ function remitoDePedido(pedidoId) {
   return (DB.ppRemitos || []).filter(r => !r.anulado && _idTrunc(r.pedidoIdLocal) === _idTrunc(pedidoId)).sort((a, b) => String(b.id).localeCompare(String(a.id)))[0] || null;
 }
 
+// RONDA 5 — tabla ÚNICA de servicios del período. Cada fila lleva su
+// estado y el estado avanza con el botón de acción (no hay secciones
+// separadas). Estados: pendiente → armado → en_reparto → entregado.
+function objPP(codigo) { return (DB.objetivos || []).find(o => o.codigo === codigo); }
+function zonaDePedidoPP(p) { return objPP(p.servicioCodigo)?.localidad || 'Sin zona'; }
+function estadoEntregaPP(p) {
+  const r = remitoDePedido(p.id);
+  if (!r) return { est: 'pendiente', remito: null };
+  return { est: r.estado, remito: r };
+}
+function _fmtFecha(d) { return d ? new Date(d).toLocaleDateString('es-AR') : '—'; }
+
+export function filasEntregasPP(periodoId) {
+  const pedidos = (DB.ppPedidos || []).filter(p => !p.anulado && _idTrunc(p.periodoIdLocal) === _idTrunc(periodoId)
+    && ['confirmado', 'autorizado', 'en_compra', 'entregado'].includes(p.estado)
+    && itemsDePedido(p.id).length > 0);
+  return pedidos.map(p => {
+    const { est, remito } = estadoEntregaPP(p);
+    return { p, est, remito, zona: zonaDePedidoPP(p) };
+  });
+}
+
 export function renderEntregasPP() {
   const periodoId = ($('pp-compra-periodo-sel') || {}).value;
-  const contListos = $('pp-entregas-listos'), contCurso = $('pp-entregas-curso'), contHechos = $('pp-entregas-hechos');
+  const tbody = $('tbody-pp-entregas'), kpis = $('pp-entregas-kpis');
   if (!periodoId) {
-    if (contListos) contListos.innerHTML = '<p style="padding:20px;color:var(--texto-muy-suave);">No hay ningún período habilitado todavía.</p>';
+    if (tbody) tbody.innerHTML = '<tr><td colspan="8" style="padding:20px;color:var(--texto-muy-suave);text-align:center;">No hay ningún período habilitado todavía.</td></tr>';
+    if (kpis) kpis.innerHTML = '';
+    renderHojaRecorridoPP();
     return;
   }
-  const pedidos = (DB.ppPedidos || []).filter(p => !p.anulado && _idTrunc(p.periodoIdLocal) === _idTrunc(periodoId) && ['confirmado', 'autorizado', 'en_compra', 'entregado'].includes(p.estado));
+  const filas = filasEntregasPP(periodoId);
 
-  const listos = pedidos.filter(p => !remitoDePedido(p.id) && pedidoListoParaArmar(p));
-  const enCurso = pedidos.map(p => ({ p, remito: remitoDePedido(p.id) })).filter(x => x.remito && ['armado', 'en_reparto'].includes(x.remito.estado));
-  const entregados = pedidos.map(p => ({ p, remito: remitoDePedido(p.id) })).filter(x => x.remito && x.remito.estado === 'entregado').slice(0, 30);
+  if (kpis) {
+    const c = (e) => filas.filter(f => f.est === e).length;
+    kpis.innerHTML = `
+      <div class="stat-card"><div class="stat-label">Pendientes de armado</div><div class="stat-valor">${c('pendiente')}</div></div>
+      <div class="stat-card acento"><div class="stat-label">Armados</div><div class="stat-valor">${c('armado')}</div></div>
+      <div class="stat-card azul"><div class="stat-label">En reparto</div><div class="stat-valor">${c('en_reparto')}</div></div>
+      <div class="stat-card verde"><div class="stat-label">Entregados</div><div class="stat-valor">${c('entregado')}</div></div>`;
+  }
 
-  const obj = (codigo) => (DB.objetivos || []).find(o => o.codigo === codigo);
-
-  if (contListos) contListos.innerHTML = listos.length ? listos.map(p => {
-    const cubre = stockCubrePedido(p);
-    const falt = itemsFaltantesStock(p);
-    const chip = cubre
-      ? '<span class="badge" style="background:#16a34a;color:white;font-size:10px;">STOCK ALCANZA</span>'
-      : `<span class="badge" style="background:#dc2626;color:white;font-size:10px;">FALTA ${falt.length} ítem(s)</span>`;
-    return `<div class="card" style="cursor:pointer;" onclick="abrirArmadoPedidoPP('${p.id}')">
-      <b>${obj(p.servicioCodigo)?.nombre || p.servicioCodigo}</b> <span class="text-muted" style="font-size:11.5px;">${itemsDePedido(p.id).length} producto(s)</span> ${chip}
-      <div style="margin-top:6px;"><button class="btn btn-primary btn-sm">${cubre ? 'Armar →' : 'Armar parcial →'}</button></div>
-    </div>`;
-  }).join('') : '<p style="padding:20px;color:var(--texto-muy-suave);">No hay pedidos aprobados para armar en este período.</p>';
-
-  if (contCurso) contCurso.innerHTML = enCurso.length ? enCurso.map(({ p, remito }) => `
-    <div class="card">
-      <div style="display:flex;align-items:center;gap:10px;">
-        <b>${obj(p.servicioCodigo)?.nombre || p.servicioCodigo}</b>
-        <span class="badge" style="background:${remito.estado === 'armado' ? '#7c3aed' : '#2563eb'};color:white;margin-left:auto;">${remito.estado === 'armado' ? 'ARMADO' : 'EN REPARTO'}</span>
-      </div>
-      <div style="font-size:11.5px;color:var(--texto-suave);margin-top:4px;">${remito.numero} · ${remito.items.length} producto(s)${p.fechaLimiteEntrega ? ` · límite ${new Date(p.fechaLimiteEntrega).toLocaleDateString('es-AR')}` : ''}</div>
-      <div style="margin-top:6px;">
-        ${remito.estado === 'armado' ? `<button class="btn btn-secondary btn-sm" onclick="marcarEnRepartoPP('${remito.id}')">Marcar en reparto</button>` : ''}
-        <button class="btn btn-primary btn-sm" onclick="abrirEntregaFinalPP('${remito.id}')">Registrar entrega</button>
-      </div>
-    </div>`).join('') : '<p style="padding:20px;color:var(--texto-muy-suave);">Nada armado todavía.</p>';
-
-  if (contHechos) contHechos.innerHTML = entregados.length ? `<table style="width:100%;border-collapse:collapse;font-size:12.5px;">
-    <thead><tr style="background:#374151;color:white;"><th style="padding:6px 10px;text-align:left;">Servicio</th><th style="padding:6px 8px;">Remito</th><th style="padding:6px 8px;">Entregado a</th><th style="padding:6px 8px;">Fecha</th></tr></thead>
-    <tbody>${entregados.map(({ p, remito }) => `<tr>
-      <td style="padding:5px 10px;border-bottom:1px solid var(--borde);">${obj(p.servicioCodigo)?.nombre || p.servicioCodigo}</td>
-      <td style="padding:5px 8px;border-bottom:1px solid var(--borde);">${remito.numero}</td>
-      <td style="padding:5px 8px;border-bottom:1px solid var(--borde);">${remito.entregadoA || '—'}</td>
-      <td style="padding:5px 8px;border-bottom:1px solid var(--borde);color:var(--texto-suave);">${remito.entregadoEn ? new Date(remito.entregadoEn).toLocaleDateString('es-AR') : '—'}</td>
-    </tr>`).join('')}</tbody></table>` : '<p style="padding:20px;color:var(--texto-muy-suave);">Sin entregas registradas todavía.</p>';
-
+  // poblar filtro de zona con las localidades presentes
+  const selZona = $('pp-ent-fil-zona');
+  if (selZona) {
+    const zonas = [...new Set(filas.map(f => f.zona))].sort((a, b) => a.localeCompare(b, 'es'));
+    const cur = selZona.value;
+    selZona.innerHTML = '<option value="">Zona: todas</option>' + zonas.map(z => `<option${z === cur ? ' selected' : ''}>${z}</option>`).join('');
+  }
+  _pintarFilasEntregasPP(filas);
   renderHojaRecorridoPP();
+}
+
+export function filtrarEntregasPP() {
+  const periodoId = ($('pp-compra-periodo-sel') || {}).value;
+  if (!periodoId) return;
+  _pintarFilasEntregasPP(filasEntregasPP(periodoId));
+}
+
+const _EST_LABEL = { pendiente: 'PENDIENTE DE ARMADO', armado: 'ARMADO', en_reparto: 'EN REPARTO', entregado: 'ENTREGADO' };
+const _EST_COLOR = { pendiente: '#6b7280', armado: '#7c3aed', en_reparto: '#2563eb', entregado: '#16a34a' };
+
+function _pintarFilasEntregasPP(filas) {
+  const tbody = $('tbody-pp-entregas'); if (!tbody) return;
+  const q = ($('pp-ent-fil-buscar') || { value: '' }).value.trim().toLowerCase();
+  const fEst = ($('pp-ent-fil-estado') || { value: '' }).value;
+  const fZona = ($('pp-ent-fil-zona') || { value: '' }).value;
+  const hoy = new Date(); hoy.setHours(0, 0, 0, 0);
+
+  const vis = filas.filter(f => {
+    const nom = (objPP(f.p.servicioCodigo)?.nombre || f.p.servicioCodigo).toLowerCase();
+    if (q && !nom.includes(q) && !String(f.p.servicioCodigo).toLowerCase().includes(q)) return false;
+    if (fEst && f.est !== fEst) return false;
+    if (fZona && f.zona !== fZona) return false;
+    return true;
+  });
+  if (!vis.length) { tbody.innerHTML = '<tr><td colspan="8" style="padding:18px;color:var(--texto-muy-suave);text-align:center;">Sin servicios para el filtro.</td></tr>'; return; }
+
+  tbody.innerHTML = vis.map(({ p, est, remito, zona }) => {
+    const nom = objPP(p.servicioCodigo)?.nombre || p.servicioCodigo;
+    const nItems = itemsDePedido(p.id).length;
+    // stock
+    let stockCell;
+    if (est === 'pendiente') {
+      const cubre = stockCubrePedido(p); const falt = itemsFaltantesStock(p).length;
+      stockCell = cubre ? '<span class="badge badge-verde" style="font-size:10px;">ALCANZA</span>' : `<span class="badge badge-rojo" style="font-size:10px;">FALTA ${falt}</span>`;
+    } else stockCell = '<span class="badge badge-verde" style="font-size:10px;">✔</span>';
+    // remito
+    const remCell = remito ? `<span style="color:#2563eb;font-weight:600;cursor:pointer;text-decoration:underline;" onclick="imprimirRemitoPP('${remito.id}')">${remito.numero} 🖨</span>` : '<span class="text-muted">—</span>';
+    // límite
+    let limCell = '<span class="text-muted">—</span>';
+    if (p.fechaLimiteEntrega) {
+      const d = new Date(p.fechaLimiteEntrega); d.setHours(0, 0, 0, 0);
+      const vencido = est !== 'entregado' && d < hoy;
+      limCell = `<span style="${vencido ? 'color:var(--rojo);font-weight:700;' : ''}">${_fmtFecha(p.fechaLimiteEntrega)}${vencido ? ' ⚠' : ''}</span>`;
+    }
+    // estado + acción
+    const estCell = est === 'entregado' && remito
+      ? `<span class="badge badge-verde" style="font-size:10px;">ENTREGADO ${_fmtFecha(remito.entregadoEn)} · ${remito.entregadoA || '—'}</span>`
+      : `<span class="badge" style="background:${_EST_COLOR[est]};color:white;font-size:10px;">${_EST_LABEL[est]}</span>`;
+    let accCell;
+    if (est === 'pendiente') {
+      const cubre = stockCubrePedido(p);
+      accCell = `<button class="btn btn-primary btn-xs" onclick="abrirArmadoPedidoPP('${p.id}')">📦 ${cubre ? 'Armar' : 'Armar parcial'}</button>`;
+    } else if (est === 'armado') {
+      accCell = `<button class="btn btn-primary btn-xs" onclick="marcarEnRepartoPP('${remito.id}')">🚚 En reparto</button>`;
+    } else if (est === 'en_reparto') {
+      accCell = `<button class="btn btn-primary btn-xs" style="background:var(--verde);" onclick="abrirEntregaFinalPP('${remito.id}')">✔ Registrar entrega</button>`;
+    } else {
+      accCell = `<span class="text-muted" style="font-size:11px;cursor:pointer;text-decoration:underline;" onclick="imprimirRemitoPP('${remito.id}')">🖨 remito</span>`;
+    }
+    return `<tr>
+      <td style="padding:6px 10px;border-bottom:1px solid var(--borde);font-weight:600;">${nom}</td>
+      <td style="padding:6px 8px;border-bottom:1px solid var(--borde);">${zona}</td>
+      <td style="padding:6px 8px;border-bottom:1px solid var(--borde);text-align:center;">${nItems} ítem(s)</td>
+      <td style="padding:6px 8px;border-bottom:1px solid var(--borde);text-align:center;">${stockCell}</td>
+      <td style="padding:6px 8px;border-bottom:1px solid var(--borde);text-align:center;">${remCell}</td>
+      <td style="padding:6px 8px;border-bottom:1px solid var(--borde);text-align:center;">${limCell}</td>
+      <td style="padding:6px 8px;border-bottom:1px solid var(--borde);">${estCell}</td>
+      <td style="padding:6px 8px;border-bottom:1px solid var(--borde);">${accCell}</td>
+    </tr>`;
+  }).join('');
+}
+
+export function subTabEntregasPP(sub, btn) {
+  document.querySelectorAll('#pp-tab-entregas .stab').forEach(b => b.classList.remove('act'));
+  document.querySelectorAll('#pp-tab-entregas .sub').forEach(s => s.classList.remove('act'));
+  if (btn) btn.classList.add('act');
+  else document.querySelector(`#pp-tab-entregas .stab[data-esub="${sub}"]`)?.classList.add('act');
+  $('pp-entregas-sub-' + sub)?.classList.add('act');
+  if (sub === 'recorrido') renderHojaRecorridoPP();
+}
+
+// ========== REMITO PDF (ventana de impresión — mismo patrón que imprimirLegajo) ==========
+export function imprimirRemitoPP(remitoId) {
+  const r = (DB.ppRemitos || []).find(x => _idTrunc(x.id) === _idTrunc(remitoId)); if (!r) return;
+  const o = objPP(r.servicioCodigo);
+  const zona = o?.localidad || '—';
+  const sup = o?.supervisor || o?.supervisorAsignado || '—';
+  const filas = (r.items || []).map(it => `<tr><td>${it.descripcion || it.productoIdLocal}</td><td style="text-align:right;">${it.cantidad}</td></tr>`).join('');
+  const w = window.open('', '_blank', 'width=760,height=800');
+  w.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Remito ${r.numero}</title>
+  <style>
+    body{font-family:Arial,sans-serif;font-size:13px;padding:32px;max-width:680px;margin:0 auto;color:#1f2430;}
+    .rtop{background:#1b2a5e;color:#fff;padding:14px 18px;display:flex;justify-content:space-between;align-items:flex-start;border-radius:6px 6px 0 0;}
+    .rtop b{font-size:14px;}
+    .rbody{border:1px solid #c9cfdd;border-top:none;padding:16px 18px;border-radius:0 0 6px 6px;}
+    table{width:100%;border-collapse:collapse;margin-top:10px;}
+    th,td{border:1px solid #dfe3ec;padding:6px 9px;font-size:12.5px;}
+    th{background:#f3f5fb;text-align:left;}
+    .firmas{display:grid;grid-template-columns:1fr 1fr;gap:40px;margin-top:52px;text-align:center;font-size:11px;color:#555d75;}
+    .firmas div{border-top:1px solid #8a90a5;padding-top:6px;}
+    .mut{color:#8a90a5;font-size:11px;margin-top:8px;}
+  </style></head><body>
+  <div class="rtop">
+    <div><b>COOPERATIVA DE TRABAJO OHLIMPIA LTDA.</b><br><span style="font-size:11px;opacity:.85;">Logística — Remito de entrega de productos</span></div>
+    <div style="text-align:right;font-size:11.5px;">REMITO <b>${r.numero}</b><br>Fecha: ${_fmtFecha(new Date())}</div>
+  </div>
+  <div class="rbody">
+    <p><b>Servicio:</b> ${r.servicioCodigo}${o ? ' — ' + o.nombre : ''} &nbsp;·&nbsp; <b>Zona:</b> ${zona} &nbsp;·&nbsp; <b>Supervisor:</b> ${sup}</p>
+    <table><tr><th>PRODUCTO</th><th style="text-align:right;">CANTIDAD</th></tr>${filas || '<tr><td colspan="2">Sin productos</td></tr>'}</table>
+    ${(r.faltantes && r.faltantes.length) ? `<p class="mut">Armado parcial — ${r.faltantes.length} producto(s) quedaron pendientes de reposición.</p>` : ''}
+    <p class="mut">Sin precios: el remito acompaña la mercadería. La valorización queda en el sistema.</p>
+    <div class="firmas"><div>Entregó (Logística)<br>firma y aclaración</div><div>Recibió (servicio)<br>firma, aclaración y fecha</div></div>
+  </div>
+  <script>window.onload=()=>window.print();<\/script></body></html>`);
+  w.document.close();
 }
 
 // ========== ARMADO CON CHECKLIST → REMITO ==========
@@ -289,41 +406,94 @@ export async function confirmarEntregaFinalPP() {
   toast(`✓ ${r.numero} entregado a ${entregadoA}`);
 }
 
-// ========== HOJA DE RECORRIDO ==========
+// ========== HOJA DE RECORRIDO (tab propio, ronda 5) ==========
 //
-// Salidas por zona (objetivo.localidad) con fecha límite por servicio —
-// alerta si el límite está cerca o pasó y todavía no se entregó.
+// 2 partes: PLANIFICACIÓN (fecha de reparto por zona → se aplica como
+// límite a todas las salidas de esa zona) y VISTA DEL REPARTIDOR (cada
+// zona con sus salidas, estado y vencimiento, los vencidos arriba).
+// Zona = objetivo.localidad. La fecha vive por servicio en
+// pedido.fechaLimiteEntrega; el input por zona es un aplicar-en-lote.
+
+function _pedidosDelPeriodoParaRecorrido(periodoId) {
+  return (DB.ppPedidos || []).filter(p => !p.anulado && _idTrunc(p.periodoIdLocal) === _idTrunc(periodoId)
+    && ['confirmado', 'autorizado', 'en_compra', 'entregado'].includes(p.estado)
+    && itemsDePedido(p.id).length > 0);
+}
 
 export function renderHojaRecorridoPP() {
-  const cont = $('pp-hoja-recorrido'); if (!cont) return;
+  const contPlan = $('pp-recorrido-planificacion');
+  const contRep = $('pp-recorrido-repartidor');
   const periodoId = ($('pp-compra-periodo-sel') || {}).value;
-  if (!periodoId) { cont.innerHTML = ''; return; }
-  const pedidos = (DB.ppPedidos || []).filter(p => !p.anulado && _idTrunc(p.periodoIdLocal) === _idTrunc(periodoId) && ['confirmado', 'autorizado', 'en_compra'].includes(p.estado));
-  const conRemitoPendiente = pedidos.map(p => ({ p, remito: remitoDePedido(p.id) })).filter(x => x.remito && ['armado', 'en_reparto'].includes(x.remito.estado));
-  if (!conRemitoPendiente.length) { cont.innerHTML = '<p style="padding:16px;color:var(--texto-muy-suave);">Sin salidas pendientes de reparto.</p>'; return; }
+  if (!contPlan && !contRep) return;
+  if (!periodoId) { if (contPlan) contPlan.innerHTML = ''; if (contRep) contRep.innerHTML = ''; return; }
 
-  const hoy = new Date();
+  const filas = _pedidosDelPeriodoParaRecorrido(periodoId).map(p => ({ p, zona: zonaDePedidoPP(p), ...estadoEntregaPP(p) }));
   const porZona = new Map();
-  for (const { p, remito } of conRemitoPendiente) {
-    const obj = (DB.objetivos || []).find(o => o.codigo === p.servicioCodigo);
-    const zona = obj?.localidad || 'Sin zona';
-    if (!porZona.has(zona)) porZona.set(zona, []);
-    let alerta = '';
-    if (p.fechaLimiteEntrega) {
-      const dias = Math.round((new Date(p.fechaLimiteEntrega) - hoy) / 86400000);
-      alerta = dias < 0 ? `<span style="color:var(--rojo);font-weight:700;">⚠ vencido hace ${-dias}d</span>` : dias <= 2 ? `<span style="color:var(--naranja);font-weight:700;">vence en ${dias}d</span>` : `vence en ${dias}d`;
-    }
-    porZona.get(zona).push({ p, remito, obj, alerta });
+  for (const f of filas) {
+    if (!porZona.has(f.zona)) porZona.set(f.zona, []);
+    porZona.get(f.zona).push(f);
   }
-  cont.innerHTML = [...porZona.entries()].map(([zona, filas]) => `
-    <div class="card" style="margin-bottom:12px;">
-      <div class="card-header"><h3>📍 ${zona} <span style="font-weight:400;color:var(--texto-suave);font-size:12px;">— ${filas.length} salida(s)</span></h3></div>
-      <table style="width:100%;border-collapse:collapse;font-size:12.5px;">
-        <tbody>${filas.map(f => `<tr>
-          <td style="padding:5px 10px;border-bottom:1px solid var(--borde);">${f.obj?.nombre || f.p.servicioCodigo}</td>
-          <td style="padding:5px 8px;border-bottom:1px solid var(--borde);"><span class="badge" style="background:${f.remito.estado === 'armado' ? '#7c3aed' : '#2563eb'};color:white;">${f.remito.estado === 'armado' ? 'ARMADO' : 'EN REPARTO'}</span></td>
-          <td style="padding:5px 8px;border-bottom:1px solid var(--borde);font-size:11.5px;">${f.alerta || '<span class="text-muted">sin fecha límite</span>'}</td>
-        </tr>`).join('')}</tbody>
-      </table>
-    </div>`).join('');
+  const zonasOrd = [...porZona.keys()].sort((a, b) => a.localeCompare(b, 'es'));
+
+  // ----- PLANIFICACIÓN -----
+  if (contPlan) {
+    contPlan.innerHTML = zonasOrd.length ? `<table style="width:100%;border-collapse:collapse;font-size:12.5px;">
+      <thead><tr style="background:#374151;color:white;"><th style="padding:7px 10px;text-align:left;">Zona / recorrido</th><th style="padding:7px 8px;text-align:left;">Salidas</th><th style="padding:7px 8px;">Fecha de reparto</th><th style="padding:7px 8px;"></th></tr></thead>
+      <tbody>${zonasOrd.map(z => {
+        const fs = porZona.get(z);
+        const noEntregadas = fs.filter(f => f.est !== 'entregado');
+        const fechas = [...new Set(noEntregadas.map(f => f.p.fechaLimiteEntrega).filter(Boolean).map(d => String(d).slice(0, 10)))];
+        const val = fechas.length === 1 ? fechas[0] : '';
+        return `<tr>
+          <td style="padding:6px 10px;border-bottom:1px solid var(--borde);font-weight:600;">${z}</td>
+          <td style="padding:6px 8px;border-bottom:1px solid var(--borde);font-size:11.5px;">${fs.length} (${fs.slice(0, 3).map(f => objPP(f.p.servicioCodigo)?.nombre || f.p.servicioCodigo).join(' · ')}${fs.length > 3 ? '…' : ''})</td>
+          <td style="padding:6px 8px;border-bottom:1px solid var(--borde);text-align:center;"><input type="date" id="pp-zona-fecha-${_slug(z)}" value="${val}" style="padding:4px 8px;border:1px solid var(--borde-fuerte);border-radius:5px;font-size:12px;"></td>
+          <td style="padding:6px 8px;border-bottom:1px solid var(--borde);"><button class="btn btn-secondary btn-xs" onclick="aplicarFechaZonaPP('${encodeURIComponent(z)}')">Aplicar a la zona</button> <span id="pp-zona-ok-${_slug(z)}" class="text-muted" style="font-size:10.5px;"></span></td>
+        </tr>`;
+      }).join('')}</tbody></table>` : '<p style="padding:14px;color:var(--texto-muy-suave);">Sin servicios en este período.</p>';
+  }
+
+  // ----- VISTA DEL REPARTIDOR -----
+  if (contRep) {
+    const hoy = new Date(); hoy.setHours(0, 0, 0, 0);
+    const bloques = zonasOrd.map(z => {
+      const fs = porZona.get(z).filter(f => f.est !== 'entregado' && f.remito).map(f => {
+        let venc = '<span class="text-muted">sin fecha</span>', ord = 9e9;
+        if (f.p.fechaLimiteEntrega) {
+          const d = new Date(f.p.fechaLimiteEntrega); d.setHours(0, 0, 0, 0);
+          const dias = Math.round((d - hoy) / 86400000); ord = dias;
+          venc = dias < 0 ? `<span style="color:var(--rojo);font-weight:700;">⚠ vencido hace ${-dias}d</span>` : dias <= 2 ? `<span style="color:var(--naranja);font-weight:700;">vence en ${dias}d</span>` : `vence en ${dias}d`;
+        }
+        return { f, venc, ord };
+      }).sort((a, b) => a.ord - b.ord);
+      if (!fs.length) return '';
+      const fecha = fs.find(x => x.f.p.fechaLimiteEntrega)?.f.p.fechaLimiteEntrega;
+      return `<div class="card" style="margin-bottom:10px;">
+        <div style="background:#e8f0fe;padding:6px 12px;font-weight:700;font-size:12.5px;">📍 ${z}${fecha ? ' — reparto ' + _fmtFecha(fecha) : ''} · ${fs.length} salida(s)</div>
+        <table style="width:100%;border-collapse:collapse;font-size:12.5px;"><tbody>${fs.map(({ f, venc }) => `<tr>
+          <td style="padding:5px 12px;border-bottom:1px solid var(--borde);">${objPP(f.p.servicioCodigo)?.nombre || f.p.servicioCodigo}${f.remito ? ` · ${f.remito.numero}` : ''}</td>
+          <td style="padding:5px 8px;border-bottom:1px solid var(--borde);"><span class="badge" style="background:${_EST_COLOR[f.est]};color:white;font-size:10px;">${_EST_LABEL[f.est]}</span></td>
+          <td style="padding:5px 8px;border-bottom:1px solid var(--borde);text-align:right;font-size:11.5px;">${venc}</td>
+        </tr>`).join('')}</tbody></table>
+      </div>`;
+    }).filter(Boolean).join('');
+    contRep.innerHTML = bloques || '<p style="padding:14px;color:var(--texto-muy-suave);">Sin salidas pendientes de reparto.</p>';
+  }
+}
+
+function _slug(s) { return String(s).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, '-'); }
+
+export async function aplicarFechaZonaPP(zonaEnc) {
+  const zona = decodeURIComponent(zonaEnc);
+  const inp = $('pp-zona-fecha-' + _slug(zona));
+  const fecha = inp ? inp.value : '';
+  if (!fecha) { toast('⚠️ Cargá una fecha primero'); return; }
+  const periodoId = ($('pp-compra-periodo-sel') || {}).value;
+  const pedidos = _pedidosDelPeriodoParaRecorrido(periodoId)
+    .filter(p => zonaDePedidoPP(p) === zona && estadoEntregaPP(p).est !== 'entregado');
+  let n = 0;
+  for (const p of pedidos) { p.fechaLimiteEntrega = fecha; await supaSync('ppPedidos', p); n++; }
+  const ok = $('pp-zona-ok-' + _slug(zona)); if (ok) ok.textContent = `✔ aplicado a ${n} salida(s)`;
+  renderEntregasPP();
+  toast(`✓ Fecha de reparto aplicada a ${n} salida(s) de ${zona}`);
 }

@@ -33,6 +33,7 @@ export {
 export {
   renderEntregasPP, abrirArmadoPedidoPP, marcarItemArmadoPP, generarRemitoPP,
   marcarEnRepartoPP, abrirEntregaFinalPP, confirmarEntregaFinalPP,
+  subTabEntregasPP, filtrarEntregasPP, imprimirRemitoPP, aplicarFechaZonaPP,
 } from './entregas.js';
 
 export {
@@ -89,6 +90,7 @@ import {
 import {
   renderEntregasPP, abrirArmadoPedidoPP, marcarItemArmadoPP, generarRemitoPP,
   marcarEnRepartoPP, abrirEntregaFinalPP, confirmarEntregaFinalPP,
+  subTabEntregasPP, filtrarEntregasPP, imprimirRemitoPP, aplicarFechaZonaPP,
 } from './entregas.js';
 
 import {
@@ -166,6 +168,10 @@ window.cambiarFactorGrupoPP = cambiarFactorGrupoPP;
 window.guardarGrupoEquivalenciaPP = guardarGrupoEquivalenciaPP;
 
 window.renderEntregasPP = renderEntregasPP;
+window.subTabEntregasPP = subTabEntregasPP;
+window.filtrarEntregasPP = filtrarEntregasPP;
+window.imprimirRemitoPP = imprimirRemitoPP;
+window.aplicarFechaZonaPP = aplicarFechaZonaPP;
 window.abrirArmadoPedidoPP = abrirArmadoPedidoPP;
 window.marcarItemArmadoPP = marcarItemArmadoPP;
 window.generarRemitoPP = generarRemitoPP;

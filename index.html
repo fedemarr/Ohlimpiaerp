@@ -4929,11 +4929,35 @@
   </div>
 
   <div id="pp-tab-entregas" class="tab-content">
-    <p style="font-size:12px;color:var(--texto-suave);margin-bottom:10px;">Arranca con lo recibido en Compras. Armado con checklist → remito → reparto → entregado.</p>
-    <div class="card"><div class="card-header"><h3>Listos para armar</h3></div><div id="pp-entregas-listos" class="fgrid" style="display:grid;grid-template-columns:1fr 1fr;gap:12px;padding:0 4px;"></div></div>
-    <div class="card"><div class="card-header"><h3>En curso</h3></div><div id="pp-entregas-curso" class="fgrid" style="display:grid;grid-template-columns:1fr 1fr;gap:12px;padding:0 4px;"></div></div>
-    <div class="card"><div class="card-header"><h3>📍 Hoja de recorrido</h3></div><div id="pp-hoja-recorrido"></div></div>
-    <div class="card"><div class="card-header"><h3>Entregados recientes</h3></div><div id="pp-entregas-hechos" style="padding:0 4px;"></div></div>
+    <p style="font-size:12px;color:var(--texto-suave);margin-bottom:10px;">La entrega del período sale del <b>stock existente</b> — no espera a ninguna compra. El estado avanza en la misma fila: PENDIENTE → ARMADO → EN REPARTO → ENTREGADO.</p>
+    <div id="pp-entregas-kpis" class="stats-grid" style="grid-template-columns:repeat(4,1fr);margin-bottom:12px;"></div>
+    <div class="subtabs">
+      <span class="stab act" data-esub="tabla" onclick="subTabEntregasPP('tabla',this)">🚚 Entregas del período</span>
+      <span class="stab" data-esub="recorrido" onclick="subTabEntregasPP('recorrido',this)">📍 Hoja de recorrido</span>
+    </div>
+    <div class="sub act" id="pp-entregas-sub-tabla">
+      <div class="filtros-bar" style="margin-bottom:10px;gap:8px;">
+        <input type="text" id="pp-ent-fil-buscar" placeholder="🔍 Buscar servicio…" style="padding:6px 10px;border:1px solid var(--borde-fuerte);border-radius:6px;font-size:12.5px;" oninput="filtrarEntregasPP()">
+        <select id="pp-ent-fil-estado" style="padding:6px 10px;border:1px solid var(--borde-fuerte);border-radius:6px;font-size:12.5px;" onchange="filtrarEntregasPP()">
+          <option value="">Estado: todos</option><option value="pendiente">Pendiente de armado</option><option value="armado">Armado</option><option value="en_reparto">En reparto</option><option value="entregado">Entregado</option>
+        </select>
+        <select id="pp-ent-fil-zona" style="padding:6px 10px;border:1px solid var(--borde-fuerte);border-radius:6px;font-size:12.5px;" onchange="filtrarEntregasPP()"><option value="">Zona: todas</option></select>
+      </div>
+      <div class="tabla-wrap"><table style="width:100%;border-collapse:collapse;font-size:12.5px;">
+        <thead><tr style="background:#374151;color:white;">
+          <th style="padding:8px 10px;text-align:left;">Servicio</th><th style="padding:8px 8px;text-align:left;">Zona</th><th style="padding:8px 8px;">Productos</th>
+          <th style="padding:8px 8px;">Stock</th><th style="padding:8px 8px;">Remito</th><th style="padding:8px 8px;">Límite</th><th style="padding:8px 8px;">Estado</th><th style="padding:8px 8px;">Acción</th>
+        </tr></thead>
+        <tbody id="tbody-pp-entregas"></tbody>
+      </table></div>
+    </div>
+    <div class="sub" id="pp-entregas-sub-recorrido">
+      <div class="card"><div class="card-header"><h3>📍 Planificación por zona</h3></div>
+        <p style="font-size:12px;color:var(--texto-suave);padding:0 4px 8px;">Cargá la fecha de reparto de cada zona y tocá "Aplicar a la zona": baja como límite a todas las salidas de esa zona (después podés cambiar una puntual desde la tabla de entregas).</p>
+        <div id="pp-recorrido-planificacion" style="padding:0 4px;"></div>
+      </div>
+      <div class="card"><div class="card-header"><h3>🚚 Vista del repartidor</h3></div><div id="pp-recorrido-repartidor" style="padding:0 4px;"></div></div>
+    </div>
   </div>
 
   <div id="pp-tab-recargos" class="tab-content">
