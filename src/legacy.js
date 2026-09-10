@@ -7,7 +7,7 @@ import { $, initials, avatarEl, badge, formatPeriodo, hoyStr, esFeriado, esFinde
 import { toast, abrirModal, cerrarModal, activarOrdenamiento } from '@shared/ui.js';
 import { supaSync, supaDel, supaInit, getLastSupaSyncError, SUPA, _toCamel } from '@shared/supabase.js';
 import { crearNotificacion } from '@shared/notificaciones.js';
-import { obtenerValorHoraVigente, getCategoriaById } from './modules/categorias/consultas.js';
+import { obtenerValorHoraVigente, getCategoriaById, categoriaVigenteAsociado, registroPadronVigente } from './modules/categorias/consultas.js';
 import { pctEfectivoObjetivo, pctEfectivoCliente, pctGeneralVigente, esEditorSupervision, esMismoSupervisor, adicionalSupervisionDe, detalleAdicionalSupervision } from './modules/supervision/supervision.js';
 import { serviciosDeSupervisor, nombresSupervisoresReales } from './modules/servicios_supervisor/servicios_supervisor.js';
 import { listarAdjuntos, obtenerUrlFirmada, subirAdjunto, borrarAdjunto, MAX_SIZE as ADJ_MAX_SIZE } from '@shared/adjuntos.js';
@@ -6443,7 +6443,12 @@ function validarValorHoraAsociado(legajoNro, objCodigo){
 // número (mismo criterio que obtenerValorHoraVigente).
 function valorHoraEfectivoAsoc(asoc,servicioNombre,fechaISO){
   const legajo=(DB.legajos||[]).find(l=>String(l.nro)===String(asoc.nro));
-  const vBase=legajo?.categoriaIdLocal?obtenerValorHoraVigente(legajo.categoriaIdLocal,servicioNombre,fechaISO):null;
+  // v124: la categoría base sale del PADRÓN a la fecha del día liquidado
+  // (fuente única). Fallback a legajo.categoriaIdLocal para asociados que
+  // todavía no tienen registro en el padrón (transición / carga inicial).
+  const regPadron=registroPadronVigente(asoc.nro,fechaISO);
+  const catBaseId=regPadron?regPadron.categoriaIdLocal:(legajo?.categoriaIdLocal||null);
+  const vBase=catBaseId?obtenerValorHoraVigente(catBaseId,servicioNombre,fechaISO):null;
   const vAlt=(asoc.catAltEstado==='Aprobada'&&asoc.catAltIdLocal)?obtenerValorHoraVigente(asoc.catAltIdLocal,servicioNombre,fechaISO):null;
   if(!vBase&&!vAlt) return null;
   if(vBase&&vAlt) return (Number(vBase.valorHora)>=Number(vAlt.valorHora))?vBase:vAlt;
@@ -6725,7 +6730,20 @@ function resolverAuth(pendId, decision){
       // dos tipos, acá NO corresponde borrar la fila del asociado).
       if(decision==='Aprobada'){
         asoc.catAltEstado='Aprobada';
-        toast(`✅ Categoría alternativa "${asoc.catAltNombre}" aprobada — se usa si su valor es mayor al de la categoría de legajo`);
+        // Padrón de categorías (v124): además del override por fila (que se
+        // mantiene), aprobar una autorización escribe un registro REAL en
+        // el padrón — origen AUTORIZACION, con quién pidió y quién aprobó,
+        // vigencia = el mes de la grilla. Fire-and-forget: si falla, la
+        // aprobación no se bloquea.
+        if(asoc.nro && asoc.catAltIdLocal){
+          const vigPadron=(String(grilla.periodo||'').slice(0,7))+'-01';
+          import('./modules/categorias/index.js').then(m=>m.escribirRegistroPadron({
+            legajoNro:asoc.nro, categoriaIdLocal:asoc.catAltIdLocal, vigenciaDesde:vigPadron,
+            origen:'AUTORIZACION', motivo:asoc.catAltNombre?('→ '+asoc.catAltNombre):'',
+            pidio:asoc.catAltPor||pend.solicitadoPor||'', aprobo:pend.resueltoPor||'',
+          })).catch(()=>{});
+        }
+        toast(`✅ Categoría alternativa "${asoc.catAltNombre}" aprobada — se usa si su valor es mayor al de la categoría de legajo y queda registrada en el padrón`);
       } else {
         delete asoc.catAlt;delete asoc.catAltIdLocal;delete asoc.catAltNombre;
         delete asoc.catAltEstado;delete asoc.catAltFecha;delete asoc.catAltPor;
@@ -12468,16 +12486,17 @@ function renderGrillasLiq(){
                 ${asoc.nombre} ${tipoBadge}
               </td>
               <td style="padding:4px 8px;border:1px solid var(--borde);font-size:11px;">
-                <div style="font-weight:500;color:var(--azul);">${asoc.categoria||'—'}</div>
-                ${legajoAsoc?.categoriaIdLocal
-                  ? `<div style="font-size:9px;color:var(--texto-suave);">🔗 ${getCategoriaById(legajoAsoc.categoriaIdLocal)?.nombre||'—'}</div>`
-                  : `<select style="width:100%;font-size:9px;padding:1px 2px;border:1px solid var(--rojo);border-radius:3px;outline:none;background:#fff5f5;margin-top:2px;"
-                       onclick="event.stopPropagation()"
-                       onchange="event.stopPropagation();asignarCategoriaLegajo('${asoc.nro}',this.value)">
-                       <option value="">⚠ Vincular categoría</option>
-                       ${(DB.categoriasBase||[]).filter(c=>c.activa).map(c=>`<option value="${c.id}">${c.nombre}</option>`).join('')}
-                     </select>`
-                }
+                ${(()=>{
+                  // v124: la categoría se llena SOLA desde el padrón (registro
+                  // vigente al mes de la grilla). El "⚠ Vincular categoría"
+                  // desapareció — se cambia en Categorías → Asociados.
+                  const regP=registroPadronVigente(asoc.nro, fechaRepresentativaMes(grilla.periodo));
+                  const catP=regP?getCategoriaById(regP.categoriaIdLocal):null;
+                  if(catP) return `<div style="font-weight:600;color:var(--azul);">${catP.codigo} · ${catP.nombre}</div><div style="font-size:9px;color:var(--texto-suave);">padrón · desde ${String(regP.vigenciaDesde).slice(0,7)}</div>`;
+                  const catL=legajoAsoc?.categoriaIdLocal?getCategoriaById(legajoAsoc.categoriaIdLocal):null;
+                  if(catL) return `<div style="font-weight:500;color:var(--azul);">${catL.nombre}</div><div style="font-size:9px;color:var(--texto-suave);">legajo — falta en el padrón</div>`;
+                  return `<div style="color:var(--rojo);font-weight:600;">⚠ sin categoría</div><div style="font-size:9px;color:var(--texto-suave);">cargala en Categorías → Asociados</div>`;
+                })()}
               </td>
               <td style="padding:2px 4px;border:1px solid var(--borde);font-size:11px;min-width:120px;">
                 ${asoc.catAltEstado==='Pendiente'

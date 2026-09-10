@@ -8,6 +8,7 @@ import { listarAdjuntos, obtenerUrlFirmada, subirAdjunto, borrarAdjunto, MAX_SIZ
 import { calcularEstadoVencimiento } from '../documentacion/documentacion.js';
 import { crearNotificacion } from '@shared/notificaciones.js';
 import { getSupervisorDeCodigo } from '@modules/servicios_supervisor/index.js';
+import { registroPadronVigente, getCategoriaById } from '@modules/categorias/consultas.js';
 
 // Tema 2 del relevamiento (MODULO_MONOTRIBUTO.md §4): "sin archivo:
 // etiqueta roja + notificación a RRHH/Administración" (MiPyME) y mismo
@@ -350,6 +351,14 @@ export function verLegajo(nro) {
     </div></div>
     <div id="leg-tab-1" class="tab-content"><div class="info-grid">
       <div class="info-item"><div class="key">Función</div><div class="val">${l.funcion}</div></div>
+      <div class="info-item"><div class="key">Categoría</div><div class="val">${(() => {
+        // v124: la categoría es SOLO LECTURA acá — su fuente es el padrón
+        // (Categorías → Asociados). Se muestra la vigente a hoy.
+        const reg = registroPadronVigente(l.nro, new Date().toISOString().slice(0, 10));
+        const cat = reg ? getCategoriaById(reg.categoriaIdLocal) : null;
+        if (cat) return `${cat.codigo} · ${cat.nombre} <span style="font-size:10px;color:var(--texto-suave);">(padrón, desde ${String(reg.vigenciaDesde).slice(0, 7)} — se cambia en Categorías → Asociados)</span>`;
+        return `<span style="color:var(--naranja);">Sin categoría en el padrón</span> <span style="font-size:10px;color:var(--texto-suave);">— cargala en Categorías → Asociados</span>`;
+      })()}</div></div>
       <div class="info-item"><div class="key">Servicio actual</div><div class="val" style="font-weight:600;color:var(--azul);">${l.servicio}</div></div>
       <div class="info-item"><div class="key">Supervisor</div><div class="val">${l.supervisor}</div></div>
       <div class="info-item"><div class="key">Ingreso</div><div class="val">${l.ingreso}</div></div>

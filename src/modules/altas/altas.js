@@ -768,7 +768,7 @@ export function recalcularInicioObraSocial() {
 
 // ========== CONFIRMAR ALTA ==========
 
-export function confirmarAlta() {
+export async function confirmarAlta() {
   // Campos obligatorios por tab
   const tabs = [
     { tab: 0, campos: [
@@ -973,6 +973,25 @@ export function confirmarAlta() {
 
   DB.legajos.push(legajo);
   supaSync('legajos', legajo);
+
+  // Padrón de categorías (v124): el ALTA escribe el primer registro del
+  // asociado en el padrón. Se matchea la categoría elegida (texto) contra
+  // el catálogo real (categorias_base) por código o nombre; si no matchea,
+  // se deja sin registro y lo completa el import CSV / el botón "Cambiar"
+  // del tab Asociados. Vigencia = mes de la fecha de ingreso.
+  try {
+    const { escribirRegistroPadron } = await import('@modules/categorias/index.js');
+    const catMatch = (DB.categoriasBase || []).find(c => !c.anulado && (
+      c.codigo?.toUpperCase() === String(categoria || '').trim().toUpperCase() ||
+      c.nombre?.trim().toUpperCase() === String(categoria || '').trim().toUpperCase()
+    ));
+    if (catMatch) {
+      legajo.categoriaIdLocal = String(catMatch.id).slice(-9);
+      supaSync('legajos', legajo);
+      const vig = (fechaIngreso ? String(fechaIngreso).slice(0, 7) : new Date().toISOString().slice(0, 7)) + '-01';
+      await escribirRegistroPadron({ legajoNro: nro, categoriaIdLocal: catMatch.id, vigenciaDesde: vig, origen: 'ALTA', motivo: 'Alta de asociado' });
+    }
+  } catch (e) { /* si el módulo Categorías no está listo, el alta no se bloquea */ }
 
   // Uniformes: al dar de alta con talle de ambo/calzado cargado, se
   // genera sola una entrega "Pendiente" (por entregar) — Gabi no tiene
