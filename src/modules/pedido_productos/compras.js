@@ -380,6 +380,301 @@ export async function deshacerDecisionSugerenciaPP(periodoId, actualProductoIdTr
   renderSugerenciasPP();
 }
 
+// ========== REPOSICIÓN — OC SUGERIDA (subtab, ronda 5 punto 2) ==========
+//
+// La OC ya no "compra el pedido": REPONE EL DEPÓSITO.
+//   compra sugerida = consumo del período + mínimo − stock actual   (si <= 0: NO comprar)
+//     · consumo = consolidado con sustituciones aplicadas y cantidades
+//       convertidas (consolidadoPorProveedorPP — la misma que la OC ya usaba)
+//     · mínimo  = stock_minimos (categoría PRODUCTOS)  ·  stock = stock_productos
+// Editable línea por línea + líneas MANUALES con motivo tipificado.
+// Los overrides y las líneas manuales se guardan en pp_reposicion_ajustes
+// (v123), upsert por (período, producto) — igual criterio que las
+// decisiones de Sugerencias (sobreviven a un reload).
+
+const MOTIVOS_MANUAL_REPO = ['Apertura de servicio', 'Stockeo estratégico', 'Oportunidad de precio', 'Otro'];
+
+function _minimoProductoPP(productoIdTrunc) {
+  const m = (DB.stockMinimos || []).find(x => x.categoria === 'PRODUCTOS' && _idTrunc(x.productoIdLocal) === _idTrunc(productoIdTrunc));
+  return m ? (Number(m.minimo) || 0) : 0;
+}
+function _stockProductoNivelPP(productoIdTrunc) {
+  const s = (DB.stockProductos || []).find(x => _idTrunc(x.productoIdLocal) === _idTrunc(productoIdTrunc));
+  return s ? (Number(s.cantidad) || 0) : 0;
+}
+function _ajusteRepoPP(periodoId, productoIdTrunc) {
+  return (DB.ppReposicionAjustes || []).find(a =>
+    _idTrunc(a.periodoIdLocal) === _idTrunc(periodoId) && _idTrunc(a.productoIdLocal) === _idTrunc(productoIdTrunc));
+}
+
+// Map provId -> { proveedor, lineas: [{producto, consumo, stock, minimo, sugerida,
+//                cantidadFinal, esManual, motivo, referencia, costoUnit}], total }
+export function propuestaReposicionPP(periodoId) {
+  const consolidado = consolidadoPorProveedorPP(periodoId);   // ya trae sustituciones + cantidades convertidas
+  const porProveedor = new Map();
+
+  // 1) líneas CALCULADAS — una por producto del consumo del período
+  for (const [provId, g] of consolidado) {
+    for (const l of g.lineas.values()) {
+      const key = _idTrunc(l.producto.id);
+      const consumo = l.cantidad;
+      const stock = _stockProductoNivelPP(key);
+      const minimo = _minimoProductoPP(key);
+      const sugerida = Math.max(0, consumo + minimo - stock);
+      const aj = _ajusteRepoPP(periodoId, key);
+      const cantidadFinal = (aj && aj.cantidadOverride != null) ? Number(aj.cantidadOverride) : sugerida;
+      if (!porProveedor.has(provId)) porProveedor.set(provId, { proveedor: getProveedorPP(provId), lineas: [], total: 0 });
+      porProveedor.get(provId).lineas.push({
+        producto: l.producto, consumo, stock, minimo, sugerida, cantidadFinal,
+        esManual: false, motivo: null, referencia: null, costoUnit: l.costoUnit,
+      });
+    }
+  }
+
+  // 2) líneas MANUALES — ajustes con es_manual=true (no salen del consumo)
+  for (const aj of (DB.ppReposicionAjustes || [])) {
+    if (_idTrunc(aj.periodoIdLocal) !== _idTrunc(periodoId) || !aj.esManual) continue;
+    const prod = getProductoPP(aj.productoIdLocal);
+    if (!prod || !prod.proveedorIdLocal) continue;
+    const provId = String(prod.proveedorIdLocal);
+    if (!porProveedor.has(provId)) porProveedor.set(provId, { proveedor: getProveedorPP(provId), lineas: [], total: 0 });
+    const g = porProveedor.get(provId);
+    g.lineas = g.lineas.filter(x => _idTrunc(x.producto.id) !== _idTrunc(prod.id));   // el manual gana si coincide
+    g.lineas.push({
+      producto: prod, consumo: 0, stock: _stockProductoNivelPP(_idTrunc(prod.id)), minimo: _minimoProductoPP(_idTrunc(prod.id)),
+      sugerida: 0, cantidadFinal: Number(aj.cantidadOverride) || 0,
+      esManual: true, motivo: aj.motivo || 'Otro', referencia: aj.referencia || '', costoUnit: precioVigente(prod.id),
+    });
+  }
+
+  for (const g of porProveedor.values()) g.total = g.lineas.reduce((s, l) => s + l.cantidadFinal * l.costoUnit, 0);
+  return porProveedor;
+}
+
+async function _guardarAjusteRepoPP(periodoId, productoIdTrunc, campos) {
+  const fila = {
+    periodo_id_local: _idTrunc(periodoId), producto_id_local: _idTrunc(productoIdTrunc),
+    decidido_por: currentUser?.nombre || '', decidido_en: new Date().toISOString(),
+    ...campos,
+  };
+  const { error } = await SUPA.from('pp_reposicion_ajustes')
+    .upsert(fila, { onConflict: 'periodo_id_local,producto_id_local' });
+  if (error) { toast('⚠️ No se pudo guardar el ajuste: ' + error.message + ' — reintentá'); return false; }
+  if (!DB.ppReposicionAjustes) DB.ppReposicionAjustes = [];
+  const idx = DB.ppReposicionAjustes.findIndex(a =>
+    _idTrunc(a.periodoIdLocal) === _idTrunc(periodoId) && _idTrunc(a.productoIdLocal) === _idTrunc(productoIdTrunc));
+  const local = {
+    periodoIdLocal: _idTrunc(periodoId), productoIdLocal: _idTrunc(productoIdTrunc),
+    cantidadOverride: campos.cantidad_override != null ? Number(campos.cantidad_override) : (idx >= 0 ? DB.ppReposicionAjustes[idx].cantidadOverride : null),
+    esManual: campos.es_manual != null ? campos.es_manual : (idx >= 0 ? DB.ppReposicionAjustes[idx].esManual : false),
+    motivo: campos.motivo != null ? campos.motivo : (idx >= 0 ? DB.ppReposicionAjustes[idx].motivo : null),
+    referencia: campos.referencia != null ? campos.referencia : (idx >= 0 ? DB.ppReposicionAjustes[idx].referencia : null),
+    decididoPor: fila.decidido_por, decididoEn: fila.decidido_en,
+  };
+  if (idx >= 0) DB.ppReposicionAjustes[idx] = local; else DB.ppReposicionAjustes.push(local);
+  return true;
+}
+
+export async function editarCantidadReposicionPP(periodoId, productoIdTrunc, valor) {
+  const n = Math.max(0, Math.round(Number(valor) || 0));
+  await _guardarAjusteRepoPP(periodoId, productoIdTrunc, { cantidad_override: n });
+  renderReposicionPP();
+}
+export async function restablecerCantidadReposicionPP(periodoId, productoIdTrunc) {
+  await _guardarAjusteRepoPP(periodoId, productoIdTrunc, { cantidad_override: null });
+  renderReposicionPP();
+}
+export async function quitarManualReposicionPP(periodoId, productoIdTrunc) {
+  const { error } = await SUPA.from('pp_reposicion_ajustes')
+    .delete().match({ periodo_id_local: _idTrunc(periodoId), producto_id_local: _idTrunc(productoIdTrunc) });
+  if (error) { toast('⚠️ No se pudo quitar: ' + error.message); return; }
+  DB.ppReposicionAjustes = (DB.ppReposicionAjustes || []).filter(a =>
+    !(_idTrunc(a.periodoIdLocal) === _idTrunc(periodoId) && _idTrunc(a.productoIdLocal) === _idTrunc(productoIdTrunc)));
+  renderReposicionPP();
+}
+
+export function renderReposicionPP() {
+  const cont = $('pp-compras-reposicion'); if (!cont) return;
+  const periodoId = ($('pp-compra-periodo-sel') || {}).value;
+  if (!periodoId) { cont.innerHTML = '<p style="padding:20px;color:var(--texto-muy-suave);">No hay ningún período habilitado todavía.</p>'; return; }
+  const porProveedor = propuestaReposicionPP(periodoId);
+  const ordenesDelPeriodo = (DB.ppOrdenesCompra || []).filter(o => !o.anulado && _idTrunc(o.periodoIdLocal) === _idTrunc(periodoId));
+
+  let html = ordenesDelPeriodo.map(o => {
+    const prov = getProveedorPP(o.proveedorIdLocal);
+    return `<div class="card" style="margin-bottom:14px;border-left:5px solid #16a34a;background:#f0fdf4;">
+      <h3 style="margin:0 0 6px;">✔ ${prov ? prov.nombre : o.proveedorIdLocal} — OC de reposición generada</h3>
+      <div style="font-size:12.5px;">Se convirtió en <button class="btn btn-xs" style="background:white;border:1px solid var(--borde-fuerte);" onclick="subTabComprasPP('ordenes',null);setTimeout(()=>abrirDetalleOrdenPP('${o.id}'),50);">${o.numero} · ${_money(o.total)}</button></div>
+    </div>`;
+  }).join('');
+
+  if (!porProveedor.size) {
+    html += `<p style="padding:20px;color:var(--texto-muy-suave);">${ordenesDelPeriodo.length ? 'Nada más para reponer en este período.' : 'Sin nada para reponer — no hay consumo del período ni líneas manuales cargadas.'}</p>`;
+  } else {
+    html += [...porProveedor.entries()].map(([provId, g]) => {
+      const filas = g.lineas.map(l => {
+        const noComprar = l.cantidadFinal <= 0 && !l.esManual;
+        const aj = _ajusteRepoPP(periodoId, _idTrunc(l.producto.id));
+        const editada = aj && aj.cantidadOverride != null && !l.esManual;
+        const calc = l.esManual ? '<span class="text-muted">carga manual</span>' : `${l.consumo}+${l.minimo}−${l.stock}${l.cantidadFinal <= 0 ? ' = 0' : ''}`;
+        return `<tr${l.esManual ? ' style="background:#fdf7ec;"' : (noComprar ? ' style="opacity:.55;"' : '')}>
+          <td style="padding:5px 10px;border-bottom:1px solid var(--borde);">${l.producto.descripcion}
+            ${l.esManual ? ` <span class="badge" style="background:#e8590c;color:white;font-size:10px;">MANUAL</span> <span class="text-muted" style="font-size:10.5px;">${l.motivo}${l.referencia ? ' · ' + l.referencia : ''}</span>` : ''}
+            ${editada ? ' <span class="badge" style="background:#2563eb;color:white;font-size:10px;">EDITADA</span>' : ''}</td>
+          <td style="padding:5px 8px;border-bottom:1px solid var(--borde);text-align:right;">${l.esManual ? '—' : l.consumo}</td>
+          <td style="padding:5px 8px;border-bottom:1px solid var(--borde);text-align:right;">${l.stock}</td>
+          <td style="padding:5px 8px;border-bottom:1px solid var(--borde);text-align:right;">${l.esManual ? '—' : l.minimo}</td>
+          <td style="padding:5px 8px;border-bottom:1px solid var(--borde);text-align:right;font-size:11px;color:var(--texto-suave);">${calc}</td>
+          <td style="padding:5px 8px;border-bottom:1px solid var(--borde);text-align:right;">
+            ${noComprar
+              ? '<span class="badge badge-gris">NO COMPRAR</span>'
+              : `<input type="number" min="0" step="1" value="${l.cantidadFinal}" style="width:72px;padding:3px 6px;border:1px solid var(--borde-fuerte);border-radius:4px;text-align:right;" onchange="editarCantidadReposicionPP('${periodoId}','${_idTrunc(l.producto.id)}',this.value)">`}
+            ${editada ? ` <button class="btn btn-xs btn-secondary" title="Volver a la sugerida" onclick="restablecerCantidadReposicionPP('${periodoId}','${_idTrunc(l.producto.id)}')">↺</button>` : ''}
+            ${l.esManual ? ` <button class="btn btn-xs btn-secondary" onclick="quitarManualReposicionPP('${periodoId}','${_idTrunc(l.producto.id)}')">✕</button>` : ''}
+          </td>
+          <td style="padding:5px 8px;border-bottom:1px solid var(--borde);text-align:right;">${l.costoUnit ? _money(l.costoUnit) : '<span style="color:var(--rojo);">sin precio</span>'}</td>
+          <td style="padding:5px 8px;border-bottom:1px solid var(--borde);text-align:right;font-weight:600;">${l.cantidadFinal > 0 ? _money(l.cantidadFinal * l.costoUnit) : '—'}</td>
+        </tr>`;
+      }).join('');
+      return `<div class="card" style="margin-bottom:14px;">
+        <div class="card-header"><h3>${g.proveedor ? g.proveedor.nombre : provId} <span style="font-weight:400;color:var(--texto-suave);font-size:12px;">— reposición</span></h3></div>
+        <div class="tabla-wrap"><table style="width:100%;border-collapse:collapse;font-size:12.5px;">
+          <thead><tr style="background:#374151;color:white;">
+            <th style="padding:6px 10px;text-align:left;">Producto</th><th style="padding:6px 8px;text-align:right;">Consumo</th><th style="padding:6px 8px;text-align:right;">Stock</th>
+            <th style="padding:6px 8px;text-align:right;">Mínimo</th><th style="padding:6px 8px;text-align:right;">Cálculo</th><th style="padding:6px 8px;text-align:right;">Compra</th>
+            <th style="padding:6px 8px;text-align:right;">Costo unit.</th><th style="padding:6px 8px;text-align:right;">Importe</th>
+          </tr></thead>
+          <tbody>${filas}</tbody>
+          <tfoot><tr><td colspan="7" style="padding:6px 10px;text-align:right;font-weight:700;">TOTAL ${g.proveedor ? g.proveedor.nombre : ''} a comprar</td><td style="padding:6px 8px;text-align:right;font-weight:700;">${_money(g.total)}</td></tr></tfoot>
+        </table></div>
+        <div style="display:flex;gap:10px;margin-top:10px;flex-wrap:wrap;">
+          <button class="btn btn-secondary" onclick="abrirAgregarManualReposicionPP('${provId}')">＋ Agregar producto (stockeo / apertura de servicio)</button>
+          <button class="btn btn-primary" onclick="confirmarReposicionProveedorPP('${provId}')">✔ Confirmar ${g.proveedor ? g.proveedor.nombre : provId} → generar OC de reposición</button>
+        </div>
+      </div>`;
+    }).join('')
+      + `<p style="font-size:11.5px;color:var(--texto-suave);margin-top:8px;">La compra repone el depósito: <b>consumo del período + mínimo − stock actual</b>. Las líneas <b>MANUAL</b> llevan motivo tipificado. La columna Compra es editable — el sistema propone, Logística decide. La recepción de la OC suma stock (ya funciona).</p>`;
+  }
+  cont.innerHTML = html;
+}
+
+// ----- línea manual -----
+let _ppRepoManualProvId = null;
+export function abrirAgregarManualReposicionPP(provId) {
+  _ppRepoManualProvId = provId;
+  ensureModalManualRepoPP();
+  $('pp-repo-man-buscar').value = ''; $('pp-repo-man-resultados').innerHTML = '';
+  $('pp-repo-man-producto').value = ''; $('pp-repo-man-producto-nombre').textContent = '';
+  $('pp-repo-man-cantidad').value = '';
+  $('pp-repo-man-motivo').value = MOTIVOS_MANUAL_REPO[0];
+  $('pp-repo-man-ref').value = '';
+  abrirModal('modal-pp-repo-manual');
+}
+function ensureModalManualRepoPP() {
+  if ($('modal-pp-repo-manual')) return;
+  const m = document.createElement('div');
+  m.className = 'modal-overlay'; m.id = 'modal-pp-repo-manual';
+  m.innerHTML = `
+    <div class="modal" style="max-width:520px;">
+      <div class="modal-header"><h3>Agregar producto a la OC de reposición</h3><button class="btn-close" onclick="cerrarModal('modal-pp-repo-manual')">×</button></div>
+      <div class="modal-body">
+        <div class="form-group"><label>Producto del catálogo *</label>
+          <input type="text" id="pp-repo-man-buscar" placeholder="Buscar por descripción…" oninput="buscarProductoManualReposicionPP()">
+          <div id="pp-repo-man-resultados" style="border:1px solid var(--borde);border-radius:4px;margin-top:2px;max-height:160px;overflow:auto;"></div>
+          <input type="hidden" id="pp-repo-man-producto">
+          <div id="pp-repo-man-producto-nombre" style="font-size:12px;color:var(--verde);font-weight:600;margin-top:4px;"></div>
+        </div>
+        <div class="form-group"><label>Cantidad *</label><input type="number" id="pp-repo-man-cantidad" min="1" step="1"></div>
+        <div class="form-group"><label>Motivo *</label><select id="pp-repo-man-motivo">${MOTIVOS_MANUAL_REPO.map(x => `<option>${x}</option>`).join('')}</select></div>
+        <div class="form-group"><label>Referencia (servicio u observación)</label><input type="text" id="pp-repo-man-ref" placeholder="Ej: GYM.RECOLETA (11/2026)"></div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="cerrarModal('modal-pp-repo-manual')">Cancelar</button>
+        <button class="btn btn-primary" onclick="guardarManualReposicionPP()">Agregar a la OC</button>
+      </div>
+    </div>`;
+  document.body.appendChild(m);
+}
+export function buscarProductoManualReposicionPP() {
+  const q = (($('pp-repo-man-buscar') || {}).value || '').toLowerCase();
+  const cont = $('pp-repo-man-resultados'); if (!cont) return;
+  if (!q || q.length < 2) { cont.innerHTML = ''; return; }
+  const soloProv = _ppRepoManualProvId;
+  const res = (DB.ppProductos || []).filter(p => !p.anulado
+    && (!soloProv || String(p.proveedorIdLocal) === String(soloProv))
+    && p.descripcion.toLowerCase().includes(q)).slice(0, 10);
+  cont.innerHTML = res.map(p => `<div style="padding:5px 8px;font-size:12px;cursor:pointer;border-bottom:1px solid var(--borde);" onclick="elegirProductoManualReposicionPP('${p.id}')">${p.descripcion} <span class="text-muted">(${getProveedorPP(p.proveedorIdLocal)?.nombre || 'sin proveedor'})</span></div>`).join('') || '<p class="text-muted" style="font-size:11px;padding:4px;">Sin resultados para este proveedor</p>';
+}
+export function elegirProductoManualReposicionPP(productoId) {
+  const p = getProductoPP(productoId); if (!p) return;
+  $('pp-repo-man-producto').value = _idTrunc(p.id);
+  $('pp-repo-man-producto-nombre').textContent = '✔ ' + p.descripcion;
+  $('pp-repo-man-buscar').value = ''; $('pp-repo-man-resultados').innerHTML = '';
+}
+export async function guardarManualReposicionPP() {
+  const periodoId = ($('pp-compra-periodo-sel') || {}).value;
+  const prodTrunc = ($('pp-repo-man-producto') || {}).value;
+  const cant = Math.max(0, Math.round(Number(($('pp-repo-man-cantidad') || {}).value) || 0));
+  const motivo = ($('pp-repo-man-motivo') || {}).value;
+  const ref = ($('pp-repo-man-ref') || {}).value.trim();
+  if (!prodTrunc) { toast('⚠️ Elegí un producto'); return; }
+  if (!cant) { toast('⚠️ Poné la cantidad'); return; }
+  const ok = await _guardarAjusteRepoPP(periodoId, prodTrunc, { cantidad_override: cant, es_manual: true, motivo, referencia: ref });
+  if (ok) { cerrarModal('modal-pp-repo-manual'); renderReposicionPP(); toast('✓ Producto agregado a la reposición'); }
+}
+
+async function _generarOrdenReposicionParaProveedorPP(periodoId, provId, g) {
+  const lineasOC = g.lineas.filter(l => l.cantidadFinal > 0).map(l => ({
+    productoIdLocal: _idTrunc(l.producto.id), codigoProveedor: l.producto.codigoMonica || '',
+    descripcion: l.producto.descripcion, marca: l.producto.marca || '', costoUnit: l.costoUnit,
+    cantidad: l.cantidadFinal, cantidadRecibida: 0,
+    esManual: !!l.esManual,
+    obsLinea: l.esManual ? `MANUAL — ${l.motivo}${l.referencia ? ' · ' + l.referencia : ''}` : 'Reposición (consumo + mínimo − stock)',
+    sustituidoDeProductoIdLocal: null,
+  }));
+  if (!lineasOC.length) return null;
+  const orden = {
+    id: _id('PPOC'), numero: siguienteNumeroOrdenPP(), periodoIdLocal: _idTrunc(periodoId), proveedorIdLocal: provId,
+    estado: 'confirmada', tipoOrden: 'reposicion', items: lineasOC,
+    total: lineasOC.reduce((s, l) => s + l.cantidad * l.costoUnit, 0),
+    confirmadaPor: currentUser?.nombre || '', confirmadaEn: new Date().toISOString(), anulado: false,
+  };
+  if (!DB.ppOrdenesCompra) DB.ppOrdenesCompra = [];
+  DB.ppOrdenesCompra.push(orden);
+  await supaSync('ppOrdenesCompra', orden);
+
+  // Marca los ítems del consolidado de este proveedor como ya procesados
+  // (no reaparecen en la consolidación de otro período).
+  for (const it of itemsConsolidablesPP(periodoId)) {
+    const info = productoFinalDelItemPP(it, periodoId);
+    if (info && String(info.prod.proveedorIdLocal) === provId) {
+      it.ordenCompraIdLocal = _idTrunc(orden.id);
+      await supaSync('ppItems', it);
+    }
+  }
+  // Limpia los ajustes de reposición de este proveedor (ya consumidos).
+  const delProds = new Set(g.lineas.map(l => _idTrunc(l.producto.id)));
+  for (const aj of [...(DB.ppReposicionAjustes || [])]) {
+    if (_idTrunc(aj.periodoIdLocal) === _idTrunc(periodoId) && delProds.has(_idTrunc(aj.productoIdLocal))) {
+      await SUPA.from('pp_reposicion_ajustes').delete().match({ periodo_id_local: _idTrunc(periodoId), producto_id_local: _idTrunc(aj.productoIdLocal) });
+    }
+  }
+  DB.ppReposicionAjustes = (DB.ppReposicionAjustes || []).filter(aj =>
+    !(_idTrunc(aj.periodoIdLocal) === _idTrunc(periodoId) && delProds.has(_idTrunc(aj.productoIdLocal))));
+  return orden;
+}
+export async function confirmarReposicionProveedorPP(provId) {
+  const periodoId = ($('pp-compra-periodo-sel') || {}).value;
+  if (!periodoId) return;
+  const g = propuestaReposicionPP(periodoId).get(provId);
+  if (!g || !g.lineas.some(l => l.cantidadFinal > 0)) { toast('⚠️ No hay nada con cantidad > 0 para este proveedor'); return; }
+  if (!confirm(`Generar la OC de reposición de ${g.proveedor ? g.proveedor.nombre : provId} (${g.lineas.filter(l => l.cantidadFinal > 0).length} línea(s), ${_money(g.total)})?`)) return;
+  const orden = await _generarOrdenReposicionParaProveedorPP(periodoId, provId, g);
+  renderReposicionPP();
+  if (typeof renderConsolidadoPP === 'function') renderConsolidadoPP();
+  toast(orden ? `✓ OC ${orden.numero} generada` : '⚠️ No se generó la OC');
+}
+
 // ========== SIMULACIÓN MENSUAL (subtab 3) ==========
 
 export function renderSimulacionPP() {

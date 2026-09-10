@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Mockup — Entregas v2: tabla única de estados + remito PDF</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:'Segoe UI',Arial,sans-serif;background:#eef1f7;color:#1f2430;font-size:13.5px}
+  .top{background:#1b2a5e;color:#fff;padding:14px 26px;display:flex;justify-content:space-between;align-items:center}
+  .top h1{font-size:16px}.top span{font-size:11.5px;opacity:.8}
+  .wrap{max-width:1150px;margin:16px auto;padding:0 16px}
+  .banner{border-radius:8px;padding:10px 14px;margin-bottom:14px;font-size:12.8px;display:flex;gap:8px;align-items:flex-start}
+  .banner.info{background:#e8f0fe;border:1px solid #b9cdf5}
+  .banner.new{background:#fff8e6;border:1px solid #f0d896}
+  .card{background:#fff;border:1px solid #dde2ee;border-radius:10px;padding:16px 18px;margin-bottom:16px}
+  h2{font-size:14px;color:#1b2a5e;margin-bottom:10px}
+  .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:14px}
+  .kpi{background:#fff;border:1px solid #dde2ee;border-radius:10px;padding:12px 16px}
+  .kpi .t{font-size:10.5px;color:#7a8199;text-transform:uppercase;letter-spacing:.4px}
+  .kpi .v{font-size:22px;font-weight:700;color:#1b2a5e}
+  table{width:100%;border-collapse:collapse;font-size:12.8px}
+  th{background:#f3f5fb;color:#5a627a;padding:8px 10px;text-align:left;font-size:10.8px;letter-spacing:.4px;border-bottom:2px solid #d8dce8}
+  td{padding:8px 10px;border-bottom:1px solid #e9ecf4;vertical-align:middle}
+  .chip{display:inline-block;padding:3px 10px;border-radius:20px;font-size:10.8px;font-weight:700}
+  .c-gris{background:#eceff5;color:#5a627a}
+  .c-azul{background:#e2ebfb;color:#2b4fad}
+  .c-viol{background:#efe5fb;color:#7a3fb8}
+  .c-cel{background:#dff3fb;color:#0b7ea8}
+  .c-verde{background:#e2f3e6;color:#1c7a34}
+  .c-rojo{background:#fde3e3;color:#b02a2a}
+  .btn{border:0;border-radius:8px;padding:7px 13px;font-weight:700;font-size:12.2px;cursor:pointer}
+  .b-pri{background:#1b2a5e;color:#fff}
+  .b-sec{background:#eceff5;color:#3a4360}
+  .b-ok{background:#1c7a34;color:#fff}
+  .mut{color:#8a90a5;font-size:11.6px}
+  .tabbar{display:flex;gap:4px;border-bottom:2px solid #d8dce8;margin-bottom:16px}
+  .tb{padding:8px 18px;border-radius:8px 8px 0 0;cursor:pointer;font-weight:600;color:#5a627a;font-size:13px}
+  .tb.on{background:#1b2a5e;color:#fff}
+  .tpanel{display:none}.tpanel.on{display:block}
+  .filters{display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;align-items:center}
+  .inp{border:1px solid #ccd3e3;border-radius:8px;padding:7px 10px;font-size:12.6px;background:#fff}
+  .rem{color:#2b4fad;font-weight:600;cursor:pointer;text-decoration:underline}
+  /* modal remito */
+  .modal-bg{display:none;position:fixed;inset:0;background:rgba(15,20,45,.5);z-index:50;align-items:flex-start;justify-content:center;padding:30px 12px;overflow:auto}
+  .modal-bg.open{display:flex}
+  .modal{background:#fff;border-radius:12px;max-width:640px;width:100%;padding:0 0 18px}
+  .m-head{display:flex;align-items:center;gap:10px;padding:14px 20px;border-bottom:1px solid #e5e8f0}
+  .m-head h3{font-size:14.5px;color:#1b2a5e;flex:1}
+  .x{background:none;border:0;font-size:17px;cursor:pointer;color:#8a90a5}
+  .rdoc{margin:16px 20px;border:1px solid #c9cfdd}
+  .rtop{background:#1b2a5e;color:#fff;padding:12px 16px;display:flex;justify-content:space-between}
+  .rtop b{font-size:13.5px}
+  .rbody{padding:14px 16px;font-size:12.6px}
+  .rbody table td,.rbody table th{border:1px solid #dfe3ec;padding:6px 8px}
+  .rfirmas{display:flex;gap:30px;justify-content:space-between;margin:34px 16px 14px}
+  .rfirmas div{flex:1;text-align:center;border-top:1px solid #8a90a5;padding-top:5px;font-size:11.3px;color:#555d75}
+</style>
+</head>
+<body>
+<div class="top">
+  <h1>Entregas — v2: una sola tabla, el estado avanza con el botón</h1>
+  <span>mockup · período 2026-10</span>
+</div>
+<div class="wrap">
+
+<div class="banner new">🆕 <span><b>Cambios propuestos:</b> ① "Listos para armar" se calcula contra el <b>STOCK disponible</b> (no contra lo recibido de la OC del período — la recepción solo alimenta el stock). ② Una <b>única tabla de servicios</b> con el estado y la acción en cada fila: PENDIENTE → ARMADO → EN REPARTO → ENTREGADO, sin secciones separadas. ③ El remito se genera en <b>PDF imprimible</b> (hoy no se genera). La <b>Hoja de recorrido es un TAB propio</b> (a medida que se suman servicios, mezclado queda ilegible): ahí se planifican las fechas por zona y se sigue el reparto.</span></div>
+
+<div class="kpis">
+  <div class="kpi"><div class="t">Pendientes de armado</div><div class="v">2</div></div>
+  <div class="kpi"><div class="t">Armados</div><div class="v">1</div></div>
+  <div class="kpi"><div class="t">En reparto</div><div class="v">1</div></div>
+  <div class="kpi"><div class="t">Entregados</div><div class="v">1</div></div>
+</div>
+
+<div class="tabbar">
+  <div class="tb on" onclick="tab(1,this)">🚚 Entregas del período</div>
+  <div class="tb" onclick="tab(2,this)">📍 Hoja de recorrido</div>
+</div>
+
+<div class="tpanel on" id="p1">
+<div class="card">
+  <div class="filters">
+    <input class="inp" style="width:200px" placeholder="🔍 Buscar servicio…">
+    <select class="inp"><option>Estado: todos</option><option>Pendiente</option><option>Armado</option><option>En reparto</option><option>Entregado</option></select>
+    <select class="inp"><option>Zona: todas</option><option>La Matanza</option><option>CABA Norte</option><option>Campana</option></select>
+    <button class="btn b-sec">⬇ Exportar</button>
+  </div>
+  <table id="tabla">
+    <tr><th>SERVICIO</th><th>ZONA</th><th>PRODUCTOS</th><th>STOCK</th><th>REMITO</th><th>LÍMITE</th><th>ESTADO</th><th>ACCIÓN</th></tr>
+    <tr data-st="0">
+      <td><b>Chango Caseros</b></td><td>La Matanza</td><td>6 ítems</td><td><span class="chip c-verde">ALCANZA</span></td>
+      <td class="rem-cell mut">—</td><td class="mut">—</td>
+      <td class="est"><span class="chip c-gris">PENDIENTE DE ARMADO</span></td>
+      <td class="acc"><button class="btn b-pri" onclick="avanzar(this)">📦 Armar (checklist)</button></td></tr>
+    <tr data-st="0">
+      <td><b>Chango Pergamino</b></td><td>La Matanza</td><td>2 ítems</td><td><span class="chip c-rojo">FALTA 1 ítem</span></td>
+      <td class="rem-cell mut">—</td><td class="mut">—</td>
+      <td class="est"><span class="chip c-gris">PENDIENTE DE ARMADO</span></td>
+      <td class="acc"><button class="btn b-sec" onclick="avanzar(this)">📦 Armado parcial</button></td></tr>
+    <tr data-st="1">
+      <td><b>Chango Catan</b></td><td>La Matanza</td><td>3 ítems</td><td><span class="chip c-verde">✔</span></td>
+      <td class="rem-cell"><span class="rem" onclick="mOpen()">R-000001 🖨</span></td><td>09/10</td>
+      <td class="est"><span class="chip c-viol">ARMADO</span></td>
+      <td class="acc"><button class="btn b-pri" onclick="avanzar(this)">🚚 Marcar en reparto</button></td></tr>
+    <tr data-st="2">
+      <td><b>Hospital Campana</b></td><td>Campana</td><td>9 ítems</td><td><span class="chip c-verde">✔</span></td>
+      <td class="rem-cell"><span class="rem" onclick="mOpen()">R-000002 🖨</span></td><td>11/10</td>
+      <td class="est"><span class="chip c-cel">EN REPARTO</span></td>
+      <td class="acc"><button class="btn b-ok" onclick="avanzar(this)">✔ Registrar entrega</button></td></tr>
+    <tr data-st="3">
+      <td><b>Migueletes 2423</b></td><td>CABA Norte</td><td>4 ítems</td><td><span class="chip c-verde">✔</span></td>
+      <td class="rem-cell"><span class="rem" onclick="mOpen()">R-000003 🖨</span></td><td>08/10</td>
+      <td class="est"><span class="chip c-verde">ENTREGADO 08/10 · recibió M. Páez</span></td>
+      <td class="acc"><span class="mut">🖨 remito firmado</span></td></tr>
+  </table>
+  <div class="mut" style="margin-top:10px">La acción de cada fila depende del estado: Armar (abre el checklist de Fede, descuenta stock y genera el remito) → Marcar en reparto → Registrar entrega (fecha + quién recibió). Los vencidos se pintan en rojo como ahora. "FALTA" = el stock no cubre el pedido: se puede armar parcial y el faltante queda con prioridad en la reposición.</div>
+</div>
+</div>
+
+<div class="tpanel" id="p2">
+<div class="banner info">📍 <span><b>Hoja de recorrido — tab propio.</b> Los servicios ya pertenecen a un recorrido/zona (dato de la ficha del servicio). <b>La fecha de entrega se planifica ACÁ, por recorrido:</b> cada zona tiene su "Fecha de reparto" y al cargarla baja como límite a todas las salidas de esa zona (editable por servicio si uno necesita otra fecha). En la ventana de armado el campo desaparece — muestra la fecha heredada del recorrido.</span></div>
+
+<div class="card">
+  <h2>📍 Hoja de recorrido — planificación por zona</h2>
+  <table>
+    <tr><th>ZONA / RECORRIDO</th><th>SALIDAS</th><th>FECHA DE REPARTO</th><th></th></tr>
+    <tr><td><b>La Matanza</b></td><td>3 (Catan · Caseros · Pergamino)</td><td><input class="inp" type="date" value="2026-10-09" style="width:150px"></td><td><button class="btn b-sec" onclick="aplicarZona(this)">Aplicar a la zona</button> <span class="mut ok-zona"></span></td></tr>
+    <tr><td><b>Campana</b></td><td>1 (Hospital Campana)</td><td><input class="inp" type="date" value="2026-10-11" style="width:150px"></td><td><button class="btn b-sec" onclick="aplicarZona(this)">Aplicar a la zona</button> <span class="mut ok-zona"></span></td></tr>
+    <tr><td><b>CABA Norte</b></td><td>1 (Migueletes 2423)</td><td><input class="inp" type="date" style="width:150px"></td><td><button class="btn b-sec" onclick="aplicarZona(this)">Aplicar a la zona</button> <span class="mut ok-zona"></span></td></tr>
+  </table>
+  <div class="mut" style="margin-top:8px;margin-bottom:14px">Debajo, cada zona lista sus salidas con estado — la vista del repartidor:</div>
+  <table>
+    <tr><th colspan="3" style="background:#e8f0fe">📍 LA MATANZA — reparto 09/10 · 3 salida(s)</th></tr>
+    <tr><td>Chango Catan · R-000001</td><td><span class="chip c-cel">EN REPARTO</span></td><td style="text-align:right;color:#b02a2a">⚠ vencido hace 1d</td></tr>
+    <tr><td>Chango Caseros</td><td><span class="chip c-gris">PENDIENTE DE ARMADO</span></td><td style="text-align:right" class="mut">vence en 0d</td></tr>
+    <tr><td>Chango Pergamino · R-000002</td><td><span class="chip c-viol">ARMADO</span></td><td style="text-align:right" class="mut">vence en 0d</td></tr>
+    <tr><th colspan="3" style="background:#e8f0fe">📍 CAMPANA — reparto 11/10 · 1 salida(s)</th></tr>
+    <tr><td>Hospital Campana · R-000002</td><td><span class="chip c-cel">EN REPARTO</span></td><td style="text-align:right" class="mut">vence en 1d</td></tr>
+  </table>
+  <div class="mut" style="margin-top:8px">La zona de cada servicio sale de su ficha en el padrón de Servicios (si falta el dato de zona en el alta, hay que agregarlo — es la misma pregunta pendiente con Marcelo para los indicadores). El "vencido hace X días" se calcula contra esta fecha.</div>
+</div>
+</div>
+
+<!-- MODAL REMITO PDF -->
+<div class="modal-bg" id="mRem">
+  <div class="modal">
+    <div class="m-head"><h3>Remito R-000001 — vista de impresión</h3><button class="btn b-pri" onclick="alert('')" style="display:none"></button><button class="btn b-sec">🖨 Imprimir / PDF</button><button class="x" onclick="mClose()">✕</button></div>
+    <div class="rdoc">
+      <div class="rtop">
+        <div><b>COOPERATIVA DE TRABAJO OHLIMPIA LTDA.</b><br><span style="font-size:11px;opacity:.85">Logística — Remito de entrega de productos</span></div>
+        <div style="text-align:right;font-size:11.5px">REMITO <b>R-000001</b><br>Fecha: 10/10/2026 · Período 2026-10</div>
+      </div>
+      <div class="rbody">
+        <p style="margin-bottom:10px"><b>Servicio:</b> CHANGO.CATAN — Chango Mas Catán · <b>Zona:</b> La Matanza · <b>Supervisor:</b> Lorena Unzain</p>
+        <table>
+          <tr><th>PRODUCTO</th><th style="text-align:right">CANTIDAD</th></tr>
+          <tr><td>Balde de aplicación ceras</td><td style="text-align:right">1</td></tr>
+          <tr><td>Balde EASY 8 litros microfibra BLANCO</td><td style="text-align:right">2</td></tr>
+          <tr><td>Balde Gemini c/escurridor c/ruedas x 20 L</td><td style="text-align:right">3</td></tr>
+        </table>
+        <p class="mut" style="margin-top:8px">Sin precios: el remito acompaña la mercadería. La valorización queda en el sistema (y en la factura interna si el servicio paga productos).</p>
+      </div>
+      <div class="rfirmas">
+        <div>Entregó (Logística)<br>firma y aclaración</div>
+        <div>Recibió (servicio)<br>firma, aclaración y fecha</div>
+      </div>
+    </div>
+    <div style="padding:0 20px" class="mut">Para Fede: al completar el armado se genera este PDF (numeración R-000000 correlativa). Se imprime y viaja con la camioneta; "Registrar entrega" guarda fecha + quién recibió, y opcionalmente la foto del remito firmado (mismo patrón que la constancia de Uniformes).</div>
+  </div>
+</div>
+
+</div>
+<script>
+var PASOS=[
+ {chip:'<span class="chip c-viol">ARMADO</span>', btn:'<button class="btn b-pri" onclick="avanzar(this)">🚚 Marcar en reparto</button>', rem:'<span class="rem" onclick="mOpen()">R-000004 🖨</span>'},
+ {chip:'<span class="chip c-cel">EN REPARTO</span>', btn:'<button class="btn b-ok" onclick="avanzar(this)">✔ Registrar entrega</button>', rem:null},
+ {chip:'<span class="chip c-verde">ENTREGADO hoy · recibió …</span>', btn:'<span class="mut">🖨 remito firmado</span>', rem:null}
+];
+function avanzar(b){
+  var tr=b.closest('tr'); var st=parseInt(tr.dataset.st,10);
+  var paso=PASOS[Math.min(st,2)];
+  tr.querySelector('.est').innerHTML=paso.chip;
+  tr.querySelector('.acc').innerHTML=paso.btn;
+  if(st===0 && paso.rem) tr.querySelector('.rem-cell').innerHTML=paso.rem;
+  tr.dataset.st=st+1;
+}
+function aplicarZona(b){
+  b.closest('tr').querySelector('.ok-zona').textContent='✔ límite aplicado a todas las salidas de la zona';
+}
+function tab(i,el){
+  document.querySelectorAll('.tb').forEach(t=>t.classList.remove('on')); el.classList.add('on');
+  document.querySelectorAll('.tpanel').forEach(p=>p.classList.remove('on'));
+  document.getElementById('p'+i).classList.add('on');
+}
+function mOpen(){document.getElementById('mRem').classList.add('open')}
+function mClose(){document.getElementById('mRem').classList.remove('open')}
+</script>
+</body>
+</html>

@@ -4881,6 +4881,7 @@
       <span class="stab act" data-sub="consolidado" onclick="subTabComprasPP('consolidado',this)">1 · Consolidado del período</span>
       <span class="stab" data-sub="sugerencias" onclick="subTabComprasPP('sugerencias',this)">2 · Sugerencias en la compra</span>
       <span class="stab" data-sub="simulacion" onclick="subTabComprasPP('simulacion',this)">3 · Simulación mensual</span>
+      <span class="stab" data-sub="reposicion" onclick="subTabComprasPP('reposicion',this)">🛒 Reposición → OC</span>
       <span class="stab" data-sub="ordenes" onclick="subTabComprasPP('ordenes',this)">4 · Órdenes y seguimiento</span>
       <span class="stab" data-sub="comparador" onclick="subTabComprasPP('comparador',this)">🔍 Comparador de precios</span>
     </div>
@@ -4897,6 +4898,11 @@
 
     <div class="sub" id="pp-compras-sub-simulacion">
       <div id="pp-compras-simulacion"></div>
+    </div>
+
+    <div class="sub" id="pp-compras-sub-reposicion">
+      <p style="font-size:12px;color:var(--texto-suave);margin-bottom:10px;">La OC repone el depósito para el período siguiente: <b>consumo del período + mínimo − stock actual</b> (si ≤ 0, no se compra). Editable línea por línea. Se pueden agregar productos manualmente (stockeo / apertura de servicio).</p>
+      <div id="pp-compras-reposicion"></div>
     </div>
 
     <div class="sub" id="pp-compras-sub-ordenes">

@@ -17,7 +17,7 @@ import { toast, abrirModal, cerrarModal } from '@shared/ui.js';
 import { supaSync } from '@shared/supabase.js';
 import { getSupervisorDeCodigo, serviciosDeSupervisor } from '@modules/servicios_supervisor/servicios_supervisor.js';
 import { crearNotificacion } from '@shared/notificaciones.js';
-import { renderConsolidadoPP, renderSugerenciasPP, renderSimulacionPP, renderOrdenesPP, renderComparadorPreciosPP } from './compras.js';
+import { renderConsolidadoPP, renderSugerenciasPP, renderSimulacionPP, renderReposicionPP, renderOrdenesPP, renderComparadorPreciosPP } from './compras.js';
 import { badgeProveedorPP } from './colorProveedor.js';
 import { renderEntregasPP } from './entregas.js';
 import { renderRecargosPP } from './recargos.js';
@@ -328,6 +328,7 @@ export function tabPP(tab, btn) {
 
 const RENDER_SUBTAB_COMPRAS = {
   consolidado: renderConsolidadoPP, sugerencias: renderSugerenciasPP, simulacion: renderSimulacionPP,
+  reposicion: renderReposicionPP,
   ordenes: renderOrdenesPP, comparador: renderComparadorPreciosPP,
 };
 export function subTabComprasPP(sub, btn) {

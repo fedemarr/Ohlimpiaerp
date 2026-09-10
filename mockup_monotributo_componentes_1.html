@@ -1,0 +1,495 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Monotributo — cuota por componentes (ARCA + ARBA/AGIP)</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;font-family:'Segoe UI',Arial,sans-serif}
+body{background:#f0f2f7;color:#1c2430}
+.top{background:#1b2a5e;color:#fff;padding:14px 26px;display:flex;align-items:center;gap:16px}
+.top h1{font-size:17px;font-weight:600}
+.top .crumb{font-size:12px;opacity:.75}
+.wrap{max-width:1380px;margin:0 auto;padding:18px 22px 60px}
+.tabs{display:flex;gap:4px;border-bottom:2px solid #d8dce8;margin-bottom:16px;flex-wrap:wrap}
+.tab{padding:10px 18px;font-size:13.5px;font-weight:600;color:#5a6478;cursor:pointer;border-radius:8px 8px 0 0}
+.tab:hover{background:#e6e9f2}
+.tab.act{color:#1b2a5e;background:#fff;border:2px solid #d8dce8;border-bottom:2px solid #fff;margin-bottom:-2px}
+.tab .n{background:#e8590c;color:#fff;border-radius:10px;font-size:10.5px;padding:1px 7px;margin-left:6px}
+.panel{display:none}.panel.act{display:block}
+.card{background:#fff;border:1px solid #dde1ec;border-radius:10px;padding:16px 18px;margin-bottom:14px;box-shadow:0 1px 3px rgba(20,30,60,.05);overflow-x:auto}
+.card h2{font-size:14.5px;color:#1b2a5e;margin-bottom:10px}
+.banner{border-radius:8px;padding:10px 14px;font-size:12.8px;margin-bottom:14px;display:flex;gap:10px;align-items:flex-start}
+.banner.info{background:#e7f0ff;border:1px solid #b9d2f5;color:#1b3f77}
+.banner.ok{background:#eaf7ee;border:1px solid #a9dcbc;color:#156a3a}
+table{width:100%;border-collapse:collapse;font-size:12.4px}
+th{background:#f4f6fb;color:#3c4560;text-align:left;padding:8px 9px;font-size:10.6px;text-transform:uppercase;letter-spacing:.3px;border-bottom:2px solid #dde1ec;white-space:nowrap}
+td{padding:7px 9px;border-bottom:1px solid #eceef5;vertical-align:middle}
+tr.clk{cursor:pointer}tr.clk:hover td{background:#f2f6ff}
+.num{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+.chip{display:inline-block;padding:2px 9px;border-radius:11px;font-size:10.5px;font-weight:700;white-space:nowrap}
+.c-gris{background:#eceef3;color:#5a6478}.c-azul{background:#dbe7ff;color:#1b3f9e}.c-verde{background:#d9f2e2;color:#156a3a}
+.c-nara{background:#ffe8d6;color:#a04a08}.c-rojo{background:#fddede;color:#a11c1c}.c-viol{background:#ece0fa;color:#5b2ca0}.c-teal{background:#d5f0f2;color:#0b6470}
+.kpis{display:flex;gap:12px;margin-bottom:14px;flex-wrap:wrap}
+.kpi{background:#fff;border:1px solid #dde1ec;border-radius:10px;padding:12px 18px;min-width:150px}
+.kpi .v{font-size:20px;font-weight:700;color:#1b2a5e}
+.kpi .l{font-size:11.5px;color:#6a7386;margin-top:2px}
+.btn{border:none;border-radius:7px;padding:8px 14px;font-size:12.5px;font-weight:600;cursor:pointer;white-space:nowrap}
+.b-pri{background:#1b2a5e;color:#fff}.b-sec{background:#eceef3;color:#39425a}.b-warn{background:#e0a010;color:#fff}
+.mut{color:#7a8296;font-size:11.5px}
+.inp,select.inp{padding:7px 9px;border:1.5px solid #c6cbda;border-radius:7px;font-size:13px;background:#fff;width:100%}
+.catb{display:inline-block;width:22px;height:22px;border-radius:5px;background:#1b2a5e;color:#fff;font-weight:700;font-size:12px;text-align:center;line-height:22px}
+.bar{width:130px;height:7px;background:#e6e9f2;border-radius:4px;overflow:hidden;display:inline-block;vertical-align:middle}
+.bar i{display:block;height:100%;border-radius:4px}
+.subtabs{display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap}
+.stab{padding:6px 16px;border-radius:16px;font-size:12.5px;font-weight:700;cursor:pointer;background:#eceef3;color:#5a6478}
+.stab.act{background:#1b2a5e;color:#fff}
+.sub{display:none}.sub.act{display:block}
+.modal-bg{display:none;position:fixed;inset:0;background:rgba(15,22,45,.55);z-index:50;align-items:flex-start;justify-content:center;padding:30px 16px;overflow:auto}
+.modal-bg.open{display:flex}
+.modal{background:#fff;border-radius:12px;max-width:980px;width:100%;box-shadow:0 12px 40px rgba(10,18,45,.35)}
+.m-head{padding:16px 22px;border-bottom:1px solid #e3e6ef;display:flex;align-items:center;gap:14px}
+.m-head h3{font-size:15.5px;color:#1b2a5e}
+.m-head .x{margin-left:auto;font-size:20px;cursor:pointer;color:#8a92a6;background:none;border:none}
+.m-body{padding:16px 22px;max-height:70vh;overflow:auto}
+.m-foot{padding:14px 22px;border-top:1px solid #e3e6ef;display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.fg{display:grid;grid-template-columns:1fr 1fr;gap:12px 16px}
+.fg label{font-size:11.5px;color:#5a6478;display:block;margin-bottom:4px;font-weight:600}
+.fg .full{grid-column:1/3}
+.calcbox{background:#f7f8fc;border:1px solid #dde1ec;border-radius:10px;padding:14px 16px}
+.calcbox .row{display:flex;justify-content:space-between;font-size:12.8px;padding:5px 0;border-bottom:1px dashed #e3e6ef}
+.calcbox .row.tot{border-bottom:none;font-weight:700;font-size:15px;color:#1b2a5e;padding-top:10px}
+.calcbox .row .k{color:#5a6478}
+.calcbox .row .k b{color:#1b2a5e}
+.grid2{display:grid;grid-template-columns:1.15fr .85fr;gap:16px}
+@media(max-width:900px){.grid2{grid-template-columns:1fr}.fg{grid-template-columns:1fr}.fg .full{grid-column:1}}
+.tip{cursor:help;border-bottom:1px dotted #8a92a6}
+.vcarg{color:#1b3f9e;font-weight:700}
+</style>
+</head>
+<body>
+<div class="top">
+  <h1>Monotributo</h1>
+  <span class="crumb">Personal (RRHH) › Monotributo · <b>la cuota es una SUMA de componentes</b>: ARCA (20 · 21 · 24) + IIBB unificado (ARBA / AGIP) según condición, adherentes y zona</span>
+</div>
+<div class="wrap">
+
+<div class="kpis" id="kpis"></div>
+
+<div class="tabs">
+  <div class="tab act" onclick="tab(0,this)">📒 Padrón</div>
+  <div class="tab" onclick="tab(1,this)">⚠ Fuera de categoría <span class="n" id="nFuera">0</span></div>
+  <div class="tab" onclick="tab(2,this)">📊 Tablas de categorías y cuotas</div>
+  <div class="tab" onclick="tab(3,this)">🕘 Historial de cambios</div>
+  <div class="tab" onclick="tab(4,this)">💳 Pago mensual</div>
+  <div class="tab" onclick="tab(5,this)">📌 Casos del import <span class="n">2</span></div>
+</div>
+
+<!-- ============ PADRON ============ -->
+<div class="panel act" id="p0">
+  <div class="banner info">ℹ️ <span><b>Misma pantalla que hoy</b> (proyección del retiro anual contra el límite de la categoría, con el último retiro cobrado) con dos cambios: se agrega la columna <b>Condición</b>, y "CUR mensual" pasa a llamarse <b>Cuota mensual</b> — es la suma calculada con las tablas, nunca se carga a mano. Pasá el mouse sobre la cuota para ver el desglose; tocá la fila para abrirlo.</span></div>
+  <div class="card">
+    <div style="display:flex;gap:10px;align-items:center;margin-bottom:12px;flex-wrap:wrap">
+      <h2 style="margin:0">Padrón de monotributistas <span class="mut" style="font-weight:400">· muestra de 13 sobre 415</span></h2>
+      <select class="inp" style="width:140px;margin-left:auto"><option>Todos</option><option>OPERARIO</option><option>ADM</option><option>SUP</option></select>
+      <select class="inp" style="width:150px"><option>Todos</option><option>Común</option><option>Asociado a cooperativa</option><option>Jubilado</option></select>
+      <select class="inp" style="width:90px"><option>2026</option><option>2025</option></select>
+      <button class="btn b-warn">⚠ Ver fuera de categoría</button>
+      <button class="btn b-sec">⬆ Importar padrón RRHH</button>
+      <button class="btn b-sec">⬆ Importar CSV</button>
+      <button class="btn b-pri" onclick="abrirNuevo()">+ Nuevo monotributista</button>
+    </div>
+    <table id="tPad">
+      <tr><th>Asociado</th><th>N° socio</th><th>Puesto</th><th>Zona</th><th>Categoría</th><th>Condición <span class="chip c-azul">nueva</span></th><th class="num">Límite anual</th><th class="num">Cuota mensual</th><th class="num">Neto último mes</th><th>Proyección anual</th><th>Estado</th><th></th></tr>
+    </table>
+    <div class="mut" style="margin-top:8px">Cuota mensual = <b>20</b> impuesto integrado + <b>21</b> SIPA + <b>24</b> obra social × (1 + adherentes) + IIBB unificado (ARBA si es Provincia, AGIP si es Capital, o no aporta). <b>Asociado a cooperativa</b> (solo cat. A) no paga el 20 · <b>Jubilado</b> no paga el 24 (PAMI). Los adherentes se cargan en la ficha (✎) y no se muestran acá. Todo es locaciones y prestaciones de servicios: la cooperativa paga la cuota por lo trabajado en Ohlimpia.</div>
+  </div>
+</div>
+
+<!-- ============ FUERA DE CATEGORIA ============ -->
+<div class="panel" id="p1">
+  <div class="banner info">⚠ <span><b>Desde acá se recategoriza, y el cambio impacta en todo el módulo:</b> el Padrón muestra la categoría nueva (la anterior queda en el historial de la persona) · la <b>cuota se recalcula</b> con las tablas de la categoría nueva desde el mes de vigencia · si sale de la A, pierde "Asociado a cooperativa" · <b>Pago mensual</b>: los meses ya armados quedan congelados, los que se armen desde la vigencia usan la cuota nueva · queda en <b>Historial de cambios</b> con usuario, fecha y motivo · y el caso sale de esta lista.</span></div>
+  <div class="card"><h2>Proyección supera el límite — 2026</h2><table id="tFuera"><tr><th>Asociado</th><th>Categoría actual</th><th class="num">Tope anual</th><th class="num">Proyección anual</th><th class="num">% del tope</th><th>Categoría sugerida</th><th>Acción</th></tr></table>
+  <div class="mut" style="margin-top:8px">El sistema sugiere la primera categoría cuyo tope cubre la proyección — el humano decide. También se puede recategorizar desde la ficha (✎) sin estar fuera de categoría (bajar, por ejemplo).</div></div>
+</div>
+
+<!-- ============ TABLAS ============ -->
+<div class="panel" id="p2">
+  <div class="banner info">📊 <span><b>Tres tablas, mismo formato, cada una con sus vigencias</b> (una tabla nueva no pisa la anterior; los meses ya armados en Pago mensual quedan congelados). La tabla ARCA queda <b>como está hoy</b> con dos cambios: la columna "CUR" pasa a llamarse <b>Cuota</b>, y se agregan <b>dos filas de SIPA especiales</b> (jubilado / asociado a cooperativa) que el cálculo necesita. Todo es <b>locaciones y prestaciones de servicios</b>: la cooperativa paga la cuota por lo trabajado en Ohlimpia; si el asociado tiene otra actividad, la diferencia es suya.</span></div>
+  <div class="subtabs">
+    <span class="stab act" onclick="stab('A',this)">ARCA — Monotributo Unificado</span>
+    <span class="stab" onclick="stab('B',this)">ARBA — IIBB Provincia de Buenos Aires</span>
+    <span class="stab" onclick="stab('C',this)">AGIP — IIBB CABA</span>
+  </div>
+
+  <div class="sub act" id="sA">
+  <div class="card">
+    <div style="display:flex;gap:10px;align-items:center;margin-bottom:10px;flex-wrap:wrap">
+      <h2 style="margin:0">ARCA — componentes por categoría</h2>
+      <span class="mut">Códigos ARCA: 20 impuesto integrado · 21 SIPA · 24 obra social</span>
+      <select class="inp" style="width:150px;margin-left:auto"><option>Vigencia 2026-08</option><option>Vigencia 2026-02</option><option>Vigencia 2025-08</option></select>
+      <button class="btn b-pri">+ Nueva vigencia</button><button class="btn b-sec">⬆ Importar tabla</button>
+    </div>
+    <table id="tArca"><tr><th>Categoría</th><th class="num">Tope de ingresos brutos anuales</th><th class="num">Impuesto integrado</th><th class="num">Aporte jubilatorio (SIPA)</th><th class="num">Obra social</th><th class="num">Cuota base mensual</th><th class="num">Asociados</th></tr></table>
+    <div class="mut" style="margin-top:8px"><b>Cuota base</b> = impuesto integrado + SIPA + obra social del titular (antes se llamaba "CUR"). A eso el sistema le suma la obra social de cada adherente (mismo valor que el titular) y el IIBB de la zona. Las dos filas de abajo son los <b>valores especiales de SIPA</b> que el cálculo necesita; van con la misma vigencia que la tabla (fuente: credenciales reales — confirmar contra ARCA).</div>
+  </div>
+  </div>
+
+  <div class="sub" id="sB">
+  <div class="card">
+    <div style="display:flex;gap:10px;align-items:center;margin-bottom:10px;flex-wrap:wrap">
+      <h2 style="margin:0">ARBA — Régimen Simplificado unificado</h2>
+      <span class="mut">Una columna (locaciones y prestaciones de servicios) · mensual · se toma cuando la zona es Provincia y aporta</span>
+      <select class="inp" style="width:150px;margin-left:auto"><option>Vigencia 2026-08</option><option>Vigencia 2026-01</option></select>
+      <button class="btn b-pri">+ Nueva vigencia</button><button class="btn b-sec">⬆ Importar tabla</button>
+    </div>
+    <table id="tArba"><tr><th>Categoría</th><th class="num">Cuota mensual de ingresos brutos</th><th>Vigencia desde</th><th class="num">Asociados</th></tr></table>
+    <div class="mut" style="margin-top:8px">Fuente: ARBA "Montos a partir de Agosto 2026", columna "Locaciones y/o prestaciones de servicios". Import: <code>IIBB_ARBA_ago2026.csv</code> (la columna de ventas del CSV se ignora).</div>
+  </div>
+  </div>
+
+  <div class="sub" id="sC">
+  <div class="card">
+    <div style="display:flex;gap:10px;align-items:center;margin-bottom:10px;flex-wrap:wrap">
+      <h2 style="margin:0">AGIP — Régimen Simplificado unificado (CABA)</h2>
+      <span class="mut">Una sola cuota por categoría · MENSUAL desde 01/2026 (antes era bimestral) · se toma cuando la zona es Capital y aporta</span>
+      <select class="inp" style="width:150px;margin-left:auto" id="selAgip" onchange="renderAgip()"><option value="2026-08">Vigencia 2026-08</option><option value="2026-01">Vigencia 2026-01</option></select>
+      <button class="btn b-pri">+ Nueva vigencia</button><button class="btn b-sec">⬆ Importar tabla</button>
+    </div>
+    <table id="tAgip"><tr><th>Categoría</th><th class="num">Cuota mensual de ingresos brutos</th><th>Vigencia desde</th><th class="num">Asociados</th></tr></table>
+    <div class="mut" style="margin-top:8px">Fuente: AGIP "Tabla vigente desde el 01/08/2026". Import: <code>IIBB_AGIP_ago2026.csv</code>. La vigencia 2026-01 (A $22.485 = el viejo $44.970 bimestral ÷ 2) se carga solo si hace falta reconstruir enero–julio.</div>
+  </div>
+  </div>
+</div>
+
+<!-- ============ HISTORIAL ============ -->
+<div class="panel" id="p3">
+  <div class="card"><h2>Historial de cambios</h2>
+    <table>
+      <tr><th>Fecha</th><th>Usuario</th><th>Asociado</th><th>Cambio</th><th>Efecto en la cuota</th></tr>
+      <tr><td class="mut">01/09 10:12</td><td>rrhh.matilde</td><td>Elicabe Ricardo (113)</td><td>Categoría B → C (recategorización 08/2026)</td><td class="num">$ 100.369,08 → <b>$ 127.695,12</b></td></tr>
+      <tr><td class="mut">01/09 09:55</td><td>rrhh.matilde</td><td>Camacho Solis Katherine (5402)</td><td>Categoría A → B · pierde "Asociado a cooperativa" → Común (automático)</td><td class="num">$ 69.635,96 → <b>$ 82.073,63</b> (+ 20 imp. integrado B)</td></tr>
+      <tr><td class="mut">01/09 09:40</td><td>rrhh.matilde</td><td>Uballes Alvaro (521)</td><td>Adherentes 0 → 1</td><td class="num">$ 56.379,08 → <b>$ 82.073,63</b> (+ $ 25.694,55 OS)</td></tr>
+      <tr><td class="mut">31/08 15:50</td><td>finanzas.lautaro</td><td>—</td><td>Tablas IIBB ARBA y AGIP — vigencia 2026-08 importadas</td><td class="mut">recalculadas las cuotas con IIBB</td></tr>
+    </table>
+  </div>
+</div>
+
+<!-- ============ PAGO MENSUAL ============ -->
+<div class="panel" id="p4">
+  <div class="banner info">💳 <span><b>"Armar lista del mes" congela el DESGLOSE completo de cada asociado</b> (20 · 21 · 24 con adherentes · IIBB · total), no solo un monto. Los cambios de categoría, tabla o adherentes posteriores no tocan meses ya armados. El export sale con los componentes; la liquidación de retiros descuenta el TOTAL congelado.</span></div>
+  <div class="card">
+    <div style="display:flex;gap:10px;align-items:center;margin-bottom:10px;flex-wrap:wrap">
+      <h2 style="margin:0">Pago de monotributos — SEPTIEMBRE 2026 <span class="chip c-verde">LISTA ARMADA 01/09</span></h2>
+      <input class="inp" style="width:170px;margin-left:auto" value="septiembre de 2026">
+      <button class="btn b-pri">⬆ Armar lista del mes</button><button class="btn b-sec">⬇ Exportar CSV</button>
+    </div>
+    <table id="tPago"><tr><th>Asociado</th><th>N° socio</th><th>Cat. / condición</th><th class="num">20 Imp. integrado</th><th class="num">21 SIPA</th><th class="num">24 Obra social</th><th class="num">IIBB</th><th class="num">TOTAL congelado</th><th>Método</th><th>Pagado</th></tr></table>
+  </div>
+</div>
+
+<!-- ============ CASOS ============ -->
+<div class="panel" id="p5">
+  <div class="banner ok">✔ <span><b>Los 38 "mayores a tabla" y 2 "menores" del import de agosto quedaron explicados</b> por componentes (adherentes, IIBB, jubilado, asociado a cooperativa) — no eran errores. Quedan 2 casos reales.</span></div>
+  <div class="card"><h2>Casos del import — pendientes</h2>
+    <table>
+      <tr><th>Caso</th><th class="num">Monto planilla</th><th>Qué pasa</th><th>Acción</th></tr>
+      <tr><td>2 personas a $ 95.330,50</td><td class="num">$ 95.330,50</td><td class="mut">C + ARBA C loc da $ 95.280,12 — sobran $ 50,38. Puede ser un valor ARBA anterior o contribución municipal.</td><td><button class="btn b-sec" style="padding:4px 10px">Verificar con RRHH</button></td></tr>
+      <tr><td>Balbuena Daniela</td><td class="num">$ 51.990,75</td><td class="mut">"Nunca se le dio de baja" — no entra al padrón hasta que RRHH defina.</td><td><button class="btn b-sec" style="padding:4px 10px">Definir</button></td></tr>
+    </table>
+  </div>
+</div>
+
+</div><!-- /wrap -->
+
+<!-- ===== MODAL: nuevo / editar monotributista ===== -->
+<div class="modal-bg" id="mNuevo">
+  <div class="modal">
+    <div class="m-head"><h3 id="mNuevoTit">Nuevo monotributista</h3><button class="x" onclick="mClose('mNuevo')">✕</button></div>
+    <div class="m-body">
+      <div class="grid2">
+        <div class="fg">
+          <div class="full"><label>Nombre *</label><input class="inp" id="fNom" placeholder="Buscar asociado…"></div>
+          <div><label>CUIT</label><input class="inp" id="fCuit" placeholder="20-XXXXXXXX-X"></div>
+          <div><label>Categoría *</label><select class="inp" id="fCat" onchange="onCat()"><option value="">Seleccionar…</option><option>A</option><option>B</option><option>C</option><option>D</option><option>E</option><option>F</option><option>G</option><option>H</option><option>I</option><option>J</option><option>K</option></select></div>
+          <div><label>Fecha de alta</label><input class="inp" value="01/09/2026"></div>
+          <div><label>Zona</label><select class="inp" id="fZona" onchange="onZona()"><option>Provincia</option><option>Capital</option></select></div>
+          <div><label>Condición * <span class="mut">(reemplaza "Jubilado sí/no" · "Asociado a cooperativa" aparece solo con cat. A)</span></label>
+            <select class="inp" id="fCond" onchange="recalc()">
+              <option value="com">Monotributo común — paga 20 + 21 + 24</option>
+              <option value="coop" id="optCoop">Asociado a cooperativa — no paga el 20</option>
+              <option value="jub">Jubilado Ley 24241 — no paga el 24 (PAMI)</option>
+            </select></div>
+          <div><label>IIBB unificado <span class="mut">(lo define la zona)</span></label>
+            <div style="display:flex;gap:10px;align-items:center"><input class="inp" id="fIibbTxt" disabled value="ARBA — Provincia" style="flex:1"><label style="display:flex;gap:5px;align-items:center;font-size:12.5px;white-space:nowrap;cursor:pointer"><input type="checkbox" id="fIibbOn" checked onchange="recalc()"> aporta</label></div></div>
+          <div><label>Adherentes — cantidad <span class="mut">(el monto lo da la tabla)</span></label><input class="inp" id="fAdh" type="number" min="0" value="0" oninput="recalc()"></div>
+          <input type="hidden" id="fAct" value="loc">
+          <div class="full"><label>Observaciones</label><input class="inp" placeholder="…"></div>
+        </div>
+        <div>
+          <div class="calcbox">
+            <div style="font-size:12px;font-weight:700;color:#1b2a5e;margin-bottom:6px">CUOTA MENSUAL CALCULADA <span class="mut" style="font-weight:400">· tablas vigentes 2026-08</span></div>
+            <div class="row"><span class="k"><b>20</b> Impuesto integrado <span id="c20n" class="mut"></span></span><span class="num" id="c20">—</span></div>
+            <div class="row"><span class="k"><b>21</b> Jubilación (SIPA) <span id="c21n" class="mut"></span></span><span class="num" id="c21">—</span></div>
+            <div class="row"><span class="k"><b>24</b> Obra social <span id="c24n" class="mut"></span></span><span class="num" id="c24">—</span></div>
+            <div class="row"><span class="k">IIBB unificado <span id="ciin" class="mut"></span></span><span class="num" id="cii">—</span></div>
+            <div class="row tot"><span>TOTAL</span><span class="num" id="ctot">—</span></div>
+          </div>
+          <div class="mut" style="margin-top:10px">Nada de esto se tipea: cambiá la categoría, la condición, los adherentes o la zona y el total se rearma solo. Lo que se sacó del formulario actual: <b>"Adherentes — monto total $"</b> (lo da la tabla), <b>"Con familia"</b> (es adherentes &gt; 0), <b>"CUR manual"</b> (el monto no se carga a mano), <b>"Jubilado sí/no"</b> (pasa a Condición) y <b>"Estado"</b>.</div>
+          <div class="mut" style="margin-top:8px"><b>Reglas aplicadas:</b> todo es locaciones y prestaciones de servicios (la cooperativa paga por lo trabajado en Ohlimpia; otra actividad del asociado es problema suyo) · "Asociado a cooperativa" solo existe con cat. A — con otra categoría la opción no aparece, y si a futuro lo recategorizan pierde esa condición y vuelve a Común (queda en el historial) · Jubilado → obra social $0 y SIPA valor jubilado · IIBB lo define la Zona (Provincia → ARBA, Capital → AGIP); solo se destilda "aporta" para los no adheridos. Sin campo Estado.</div>
+        </div>
+      </div>
+    </div>
+    <div class="m-foot"><button class="btn b-pri" onclick="guardarNuevo()">Guardar</button><button class="btn b-sec" onclick="mClose('mNuevo')">Cancelar</button><span class="mut" id="msgNuevo"></span></div>
+  </div>
+</div>
+
+<!-- ===== MODAL: recategorizar ===== -->
+<div class="modal-bg" id="mRecat">
+  <div class="modal" style="max-width:640px">
+    <div class="m-head"><h3 id="recTit">Recategorizar</h3><button class="x" onclick="mClose('mRecat')">✕</button></div>
+    <div class="m-body">
+      <div class="fg">
+        <div><label>Categoría actual</label><input class="inp" id="rcAct" disabled></div>
+        <div><label>Categoría nueva *</label><select class="inp" id="rcNew" onchange="recPrev()"><option>A</option><option>B</option><option>C</option><option>D</option><option>E</option><option>F</option><option>G</option><option>H</option><option>I</option><option>J</option><option>K</option></select></div>
+        <div><label>Vigente desde (mes) *</label><input class="inp" id="rcVig" value="10/2026"></div>
+        <div><label>Motivo *</label><select class="inp"><option>Recategorización ARCA (proyección supera el tope)</option><option>Recategorización ARCA (baja de ingresos)</option><option>Corrección de dato</option><option>⚙ Otro…</option></select></div>
+      </div>
+      <div class="calcbox" style="margin-top:14px">
+        <div style="font-size:12px;font-weight:700;color:#1b2a5e;margin-bottom:6px">IMPACTO</div>
+        <div class="row"><span class="k">Cuota mensual</span><span class="num" id="rcCuota">—</span></div>
+        <div class="row"><span class="k">Tope anual de ingresos</span><span class="num" id="rcTope">—</span></div>
+        <div class="row"><span class="k">Condición</span><span id="rcCond">—</span></div>
+        <div class="row"><span class="k">Pago mensual</span><span class="mut" style="text-align:right">meses ya armados: congelados · desde la vigencia: cuota nueva</span></div>
+        <div class="row" style="border-bottom:none"><span class="k">Historial</span><span class="mut" style="text-align:right">queda con usuario, fecha, motivo y cuota anterior → nueva</span></div>
+      </div>
+    </div>
+    <div class="m-foot"><button class="btn b-pri" onclick="recConfirmar()">✔ Confirmar recategorización</button><button class="btn b-sec" onclick="mClose('mRecat')">Cancelar</button></div>
+  </div>
+</div>
+
+<!-- ===== MODAL: desglose ===== -->
+<div class="modal-bg" id="mDes">
+  <div class="modal" style="max-width:560px">
+    <div class="m-head"><h3 id="desTit">Desglose</h3><button class="x" onclick="mClose('mDes')">✕</button></div>
+    <div class="m-body" id="desBody"></div>
+    <div class="m-foot"><button class="btn b-pri" id="desEdit">✎ Editar</button><button class="btn b-sec" onclick="mClose('mDes')">Cerrar</button></div>
+  </div>
+</div>
+
+<script>
+// ───────── TABLAS (vigencia 2026-08) ─────────
+const LIM  = {A:12009410.45,B:17595182.74,C:24670494.31,D:30628651.43,E:36028231.33,F:45151659.41,G:53995798.87,H:81924660.37,I:91699761.90,J:105012519.20,K:126610838.75};
+//            imp loc, imp ventas, SIPA, obra social
+const ARCA = {A:[5585.77,5585.77,18246.86,25694.55],B:[10612.98,10612.98,20071.55,25694.55],C:[18246.86,16757.32,22078.71,25694.55],
+  D:[29790.79,27742.67,24286.58,30535.56],E:[55857.73,44313.79,26715.24,37238.48],F:[78573.20,57719.64,29386.76,42824.25],
+  G:[142995.76,71497.87,41141.46,46175.72],H:[409623.31,204811.64,57598.04,55485.33],I:[814591.79,325836.71,80637.26,68518.81],
+  J:[977510.14,391004.07,112892.16,76897.46],K:[1368514.20,456171.40,158049.02,87882.82]};
+const ARBA = {A:[11505,10010],B:[18720,16275],C:[29260,25450],D:[40685,35380],E:[53850,46820],F:[76250,66300],G:[103490,90000],H:[179010,155660],I:[229420,199505],J:[302140,262730],K:[420750,365870]};
+const AGIP = {'2026-08':{A:30025,B:43990,C:61675,D:76570,E:90070,F:112880,G:134990,H:204810,I:229250,J:262530,K:316525},
+              '2026-01':{A:22485,B:32945,C:46190,D:57345,E:67455,F:84535,G:101095,H:153385,I:171690,J:196610,K:237045}};
+const SIPA_JUB = 18246.86, SIPA_COOP = 18246.86;
+const CATS = Object.keys(ARCA);
+
+// ───────── PADRÓN (muestra) ─────────
+// zona: Provincia|Capital · cond: com|coop|jub · act: loc|ven · iibb: ARBA|AGIP|NO · neto: último retiro cobrado · proy: proyección anual
+const PAD = [
+ {n:'Dominguez Carlos Anibal', s:3104, p:'OPERARIO', zona:'Provincia', cat:'A', cond:'com', act:'loc', adh:0, iibb:'ARBA', neto:612300, proy:7347600, met:'PAGO 24'},
+ {n:'Camacho Solis Katherine Meliza', s:5402, p:'OPERARIO', zona:'Provincia', cat:'A', cond:'coop', act:'loc', adh:1, iibb:'NO', neto:588900, proy:7066800, met:'PAGO 24'},
+ {n:'Lascano Fernando Gregorio', s:2212, p:'OPERARIO', zona:'Capital', cat:'B', cond:'jub', act:'loc', adh:0, iibb:'NO', neto:1210400, proy:14524800, met:'PAGO 24'},
+ {n:'Lucero Gabriela Soledad', s:130, p:'ADM', zona:'Provincia', cat:'B', cond:'com', act:'loc', adh:2, iibb:'ARBA', neto:1385000, proy:16620000, met:'PAGO 24'},
+ {n:'Martinez Jose Luis', s:788, p:'ADM', zona:'Provincia', cat:'C', cond:'com', act:'loc', adh:0, iibb:'ARBA', neto:1890200, proy:22682400, met:'PAGO 24'},
+ {n:'Recalde Samaniego Cecilia Raquel', s:22, p:'ADM', zona:'Provincia', cat:'C', cond:'com', act:'loc', adh:0, iibb:'NO', neto:1720000, proy:20640000, met:'PAGO 24'},
+ {n:'Uballes Alvaro', s:521, p:'ADM', zona:'Provincia', cat:'B', cond:'com', act:'loc', adh:1, iibb:'NO', neto:1402700, proy:16832400, met:'PAGO 24'},
+ {n:'Ramirez Benitez Martina', s:856, p:'ADM', zona:'Provincia', cat:'B', cond:'com', act:'loc', adh:0, iibb:'ARBA', neto:1298000, proy:15576000, met:'PAGO 24'},
+ {n:'Lage Dario', s:690, p:'ADM', zona:'Provincia', cat:'F', cond:'com', act:'loc', adh:1, iibb:'NO', neto:3520000, proy:42240000, met:'PAGO 24'},
+ {n:'Elicabe Ricardo Ernesto', s:113, p:'ADM', zona:'Capital', cat:'C', cond:'com', act:'loc', adh:0, iibb:'AGIP', neto:1560000, proy:18720000, met:'PAGO 24'},
+ {n:'Gomez Juan Ramon', s:4410, p:'OPERARIO', zona:'Provincia', cat:'A', cond:'com', act:'loc', adh:0, iibb:'NO', neto:1085000, proy:13020000, met:'PAGO 24'},
+ {n:'Sosa Maria Elena', s:4522, p:'OPERARIO', zona:'Provincia', cat:'A', cond:'com', act:'loc', adh:1, iibb:'NO', neto:640500, proy:7686000, met:'MAESTRANZA'},
+ {n:'Ferreyra Lucas', s:5301, p:'OPERARIO', zona:'Capital', cat:'A', cond:'com', act:'loc', adh:0, iibb:'AGIP', neto:702000, proy:8424000, met:'QR'},
+];
+
+const fmt = v => '$ ' + v.toLocaleString('es-AR',{minimumFractionDigits:2,maximumFractionDigits:2});
+const fmt0 = v => '$ ' + v.toLocaleString('es-AR',{maximumFractionDigits:0});
+const r2 = v => Math.round(v*100)/100;
+const CONDN = {com:'Común', coop:'Asoc. cooperativa', jub:'Jubilado'};
+const ACTN = {loc:'Locaciones', ven:'Ventas'};
+
+function calc(p, agipVig){
+  const t = ARCA[p.cat]; if(!t) return null;
+  const imp  = p.cond==='coop' ? 0 : (p.act==='ven' ? t[1] : t[0]);
+  const sipa = p.cond==='jub' ? SIPA_JUB : p.cond==='coop' ? SIPA_COOP : t[2];
+  const os   = p.cond==='jub' ? 0 : r2(t[3]*(1+(p.adh||0)));
+  const iibb = p.iibb==='ARBA' ? (p.act==='ven' ? ARBA[p.cat][1] : ARBA[p.cat][0]) : p.iibb==='AGIP' ? AGIP[agipVig||'2026-08'][p.cat] : 0;
+  return {imp, sipa, os, iibb, total:r2(imp+sipa+os+iibb)};
+}
+const condChip = c => c==='com' ? '<span class="mut">Común</span>' : c==='coop' ? '<span class="chip c-viol">ASOC. COOPERATIVA</span>' : '<span class="chip c-teal">JUBILADO</span>';
+function desgloseTxt(p,c){
+  return `20 imp. integrado ${fmt(c.imp)} · 21 SIPA ${fmt(c.sipa)} · 24 obra social ${fmt(c.os)}${p.adh?' (titular + '+p.adh+' adh.)':''} · IIBB ${p.iibb==='NO'?'no aporta':p.iibb+' '+fmt(c.iibb)}`;
+}
+
+function renderPad(){
+  const t = document.getElementById('tPad'); t.querySelectorAll('tr:not(:first-child)').forEach(r=>r.remove());
+  const tf = document.getElementById('tFuera'); tf.querySelectorAll('tr:not(:first-child)').forEach(r=>r.remove());
+  let tot=0, fuera=0;
+  PAD.forEach((p,i)=>{
+    const c = calc(p); tot+=c.total;
+    const pct = Math.round(p.proy/LIM[p.cat]*100); const col = pct>100?'#d33':pct>85?'#e0a010':'#2e9e5b';
+    if(pct>100){ fuera++; const sug = CATS.find(k=>LIM[k]>=p.proy) || 'K'; const trf=document.createElement('tr'); trf.innerHTML=`<td><b>${p.n}</b> <span class="mut">${p.p} · ${p.zona}</span></td><td><span class="catb">${p.cat}</span></td><td class="num">${fmt(LIM[p.cat])}</td><td class="num" style="color:#a11c1c"><b>${fmt0(p.proy)}</b></td><td class="num"><b style="color:#a11c1c">${pct}%</b></td><td><span class="catb" style="background:#1d7a43">${sug}</span> <span class="mut">tope ${fmt0(LIM[sug])}</span></td><td><button class="btn b-pri" style="padding:4px 12px" onclick="abrirRecat(${i},'${sug}')">Recategorizar</button></td>`; tf.appendChild(trf); }
+    const tr = document.createElement('tr'); tr.className='clk';
+    tr.innerHTML = `<td><b>${p.n}</b></td><td class="mut">${p.s}</td><td><span class="chip c-gris">${p.p}</span></td>
+      <td><span class="chip ${p.zona==='Capital'?'c-azul':'c-verde'}">${p.zona}</span></td>
+      <td><span class="catb">${p.cat}</span><br><span class="mut">🕘 historial</span></td>
+      <td>${condChip(p.cond)}</td>
+      <td class="num">${fmt(LIM[p.cat])}</td>
+      <td class="num"><b class="tip vcarg" title="${desgloseTxt(p,c)}">${fmt(c.total)}</b></td>
+      <td class="num">${fmt(p.neto)}</td>
+      <td><div class="num" style="text-align:right">${fmt0(p.proy)}</div><span class="bar"><i style="width:${Math.min(pct,100)}%;background:${col}"></i></span> <span class="mut">${pct}% del límite</span></td>
+      <td>${pct>100?'<span class="chip c-rojo">SUPERA LÍMITE</span>':pct>85?'<span class="chip c-nara">CERCA DEL LÍMITE</span>':'<span class="chip c-verde">Al día</span>'}</td>
+      <td><button class="btn b-sec" style="padding:3px 9px" onclick="event.stopPropagation();abrirEdit(${i})">✎</button></td>`;
+    tr.onclick = ()=>verDes(i);
+    t.appendChild(tr);
+  });
+  document.getElementById('nFuera').textContent = fuera;
+  document.getElementById('kpis').innerHTML = `
+    <div class="kpi"><div class="v">415</div><div class="l">Registrados · activos en el sistema <span class="mut">(muestra: ${PAD.length})</span></div></div>
+    <div class="kpi"><div class="v" style="color:#a11c1c">${fuera}</div><div class="l">Fuera de categoría · proyección supera límite</div></div>
+    <div class="kpi"><div class="v" style="color:#8a6404">${fmt(tot)}</div><div class="l">Cuota total del mes <span class="mut">(muestra) · antes "Total CUR del mes"</span></div></div>
+    <div class="kpi"><div class="v" style="color:#156a3a">${PAD.length-fuera}</div><div class="l">Al día · dentro de categoría</div></div>
+    <div class="kpi" style="border-left:5px solid #e0a010;background:#fff8e1"><div class="v" style="color:#8a6404">2</div><div class="l">Casos a definir (RRHH) <span class="mut">· antes 10: 8 se explicaron por componentes</span></div></div>`;
+}
+
+function verDes(i){
+  const p = PAD[i], c = calc(p);
+  document.getElementById('desTit').textContent = 'Cuota mensual — ' + p.n;
+  document.getElementById('desBody').innerHTML = `
+    <div class="mut" style="margin-bottom:8px">Cat. <b>${p.cat}</b> · ${CONDN[p.cond]} · ${p.adh} adherente(s) · ${p.zona} · IIBB ${p.iibb==='NO'?'no aporta':p.iibb} · tablas vigentes 2026-08</div>
+    <div class="calcbox">
+      <div class="row"><span class="k"><b>20</b> Impuesto integrado ${p.cond==='coop'?'<span class="mut">— no aporta (asociado a cooperativa)</span>':''}</span><span class="num">${fmt(c.imp)}</span></div>
+      <div class="row"><span class="k"><b>21</b> Jubilación (SIPA) ${p.cond!=='com'?'<span class="mut">— valor '+CONDN[p.cond].toLowerCase()+'</span>':''}</span><span class="num">${fmt(c.sipa)}</span></div>
+      <div class="row"><span class="k"><b>24</b> Obra social ${p.cond==='jub'?'<span class="mut">— no aporta (PAMI)</span>':'<span class="mut">titular'+(p.adh?' + '+p.adh+' adherente(s) × '+fmt(ARCA[p.cat][3]):'')+'</span>'}</span><span class="num">${fmt(c.os)}</span></div>
+      <div class="row"><span class="k">IIBB unificado <span class="mut">${p.iibb==='NO'?'— no aporta':p.iibb+' cat. '+p.cat}</span></span><span class="num">${fmt(c.iibb)}</span></div>
+      <div class="row tot"><span>TOTAL</span><span class="num">${fmt(c.total)}</span></div>
+    </div>`;
+  document.getElementById('desEdit').onclick = ()=>{ mClose('mDes'); abrirEdit(i); };
+  mOpen('mDes');
+}
+
+// ───────── recategorización (desde Fuera de categoría o desde la ficha) ─────────
+let recIdx = -1;
+function abrirRecat(i, sug){
+  recIdx = i; const p = PAD[i];
+  document.getElementById('recTit').textContent = 'Recategorizar — ' + p.n;
+  document.getElementById('rcAct').value = p.cat + ' · cuota ' + fmt(calc(p).total) + ' · tope ' + fmt0(LIM[p.cat]);
+  document.getElementById('rcNew').value = sug; recPrev(); mOpen('mRecat');
+}
+function recPrev(){
+  const p = PAD[recIdx], nc = document.getElementById('rcNew').value;
+  const q = Object.assign({}, p, {cat:nc}); const pierde = p.cond==='coop' && nc!=='A'; if(pierde) q.cond='com';
+  const a = calc(p).total, b = calc(q).total;
+  document.getElementById('rcCuota').innerHTML = `${fmt(a)} → <b style="color:${b>a?'#a11c1c':'#156a3a'}">${fmt(b)}</b> <span class="mut">(${b>a?'+':''}${fmt(b-a)})</span>`;
+  document.getElementById('rcTope').innerHTML = `${fmt0(LIM[p.cat])} → <b>${fmt0(LIM[nc])}</b> <span class="mut">proyección ${fmt0(p.proy)} = ${Math.round(p.proy/LIM[nc]*100)}% del tope nuevo</span>`;
+  document.getElementById('rcCond').innerHTML = pierde ? '<span class="chip c-nara">pierde ASOC. COOPERATIVA → Común (paga el 20)</span>' : '<span class="mut">sin cambio · '+CONDN[q.cond]+'</span>';
+}
+function recConfirmar(){
+  const p = PAD[recIdx], nc = document.getElementById('rcNew').value, vig = document.getElementById('rcVig').value;
+  const antes = calc(p).total, catAnt = p.cat, pierde = p.cond==='coop' && nc!=='A';
+  p.cat = nc; if(pierde) p.cond = 'com';
+  const tr = document.createElement('tr');
+  tr.innerHTML = `<td class="mut">hoy</td><td>rrhh.matilde</td><td>${p.n} (${p.s})</td><td>Categoría ${catAnt} → <b>${nc}</b> · vigente desde ${vig} · desde Fuera de categoría${pierde?' · pierde "Asociado a cooperativa"':''}</td><td class="num">${fmt(antes)} → <b>${fmt(calc(p).total)}</b></td>`;
+  const tbl = document.querySelector('#p3 table'); tbl.rows[1].parentNode.insertBefore(tr, tbl.rows[1]);
+  mClose('mRecat'); renderPad(); renderPago();
+}
+
+// ───────── formulario nuevo / editar ─────────
+let editIdx = -1;
+function abrirNuevo(){
+  editIdx = -1;
+  document.getElementById('mNuevoTit').textContent = 'Nuevo monotributista';
+  document.getElementById('fNom').value=''; document.getElementById('fCuit').value='';
+  document.getElementById('fCat').value=''; document.getElementById('fAct').value='loc'; document.getElementById('fCond').value='com';
+  document.getElementById('fAdh').value=0; document.getElementById('fZona').value='Provincia'; document.getElementById('fIibbOn').checked=true; onZona();
+  document.getElementById('msgNuevo').textContent=''; onCat(); mOpen('mNuevo');
+}
+function abrirEdit(i){
+  const p = PAD[i]; editIdx = i;
+  document.getElementById('mNuevoTit').textContent = 'Editar — ' + p.n;
+  document.getElementById('fNom').value = p.n; document.getElementById('fCuit').value = '';
+  document.getElementById('fCat').value = p.cat; document.getElementById('fAct').value = p.act; document.getElementById('fCond').value = p.cond;
+  document.getElementById('fAdh').value = p.adh; document.getElementById('fZona').value = p.zona; document.getElementById('fIibbOn').checked = p.iibb!=='NO'; onZona();
+  document.getElementById('msgNuevo').textContent=''; onCat(); mOpen('mNuevo');
+}
+function onCat(){
+  const cat = document.getElementById('fCat').value, cond = document.getElementById('fCond'), opt = document.getElementById('optCoop');
+  opt.hidden = cat!=='A'; opt.disabled = opt.hidden;
+  if(opt.hidden && cond.value==='coop'){ cond.value='com'; document.getElementById('msgNuevo').textContent = '⚠ Al pasar a categoría '+cat+' pierde la condición "Asociado a cooperativa" → vuelve a Común (paga el 20). Queda en el historial.'; }
+  recalc();
+}
+function jurZona(){ return document.getElementById('fZona').value==='Capital' ? 'AGIP' : 'ARBA'; }
+function iibbForm(){ return document.getElementById('fIibbOn').checked ? jurZona() : 'NO'; }
+function onZona(){ document.getElementById('fIibbTxt').value = jurZona() + ' — ' + document.getElementById('fZona').value; recalc(); }
+function recalc(){
+  const cat = document.getElementById('fCat').value;
+  const p = {cat, act:document.getElementById('fAct').value, cond:document.getElementById('fCond').value, adh:parseInt(document.getElementById('fAdh').value||0), iibb:iibbForm()};
+  const set = (id,v)=>document.getElementById(id).textContent=v;
+  if(!cat){ ['c20','c21','c24','cii','ctot'].forEach(id=>set(id,'—')); ['c20n','c21n','c24n','ciin'].forEach(id=>set(id,'')); return; }
+  const c = calc(p);
+  set('c20', fmt(c.imp)); set('c20n', p.cond==='coop' ? '— no aporta (asoc. cooperativa)' : '· cat. '+cat);
+  set('c21', fmt(c.sipa)); set('c21n', p.cond==='jub' ? '— valor jubilado' : p.cond==='coop' ? '— valor asoc. cooperativa' : '· cat. '+cat);
+  set('c24', fmt(c.os));   set('c24n', p.cond==='jub' ? '— no aporta (PAMI)' : '· titular' + (p.adh ? ' + '+p.adh+' adh. × '+fmt(ARCA[cat][3]) : ''));
+  set('cii', fmt(c.iibb)); set('ciin', p.iibb==='NO' ? '— no aporta' : '· '+p.iibb+' cat. '+cat);
+  set('ctot', fmt(c.total));
+}
+function guardarNuevo(){
+  const cat = document.getElementById('fCat').value; if(!cat){ document.getElementById('msgNuevo').textContent='Falta la categoría.'; return; }
+  const p = { n: document.getElementById('fNom').value || 'Nuevo asociado', s:'—', p:'OPERARIO', zona:document.getElementById('fZona').value, cat, act:document.getElementById('fAct').value, cond:document.getElementById('fCond').value,
+    adh:parseInt(document.getElementById('fAdh').value||0), iibb:iibbForm(), neto:0, proy:0, met:'PAGO 24' };
+  if(editIdx>=0){ const old = PAD[editIdx]; p.s=old.s; p.p=old.p; p.met=old.met; p.neto=old.neto; p.proy=old.proy; PAD[editIdx]=p; } else PAD.unshift(p);
+  mClose('mNuevo'); renderPad(); renderPago();
+}
+
+// ───────── tablas ─────────
+function enPad(cat, f){ return PAD.filter(p=>p.cat===cat && (!f || f(p))).length; }
+function renderTablas(){
+  const ta = document.getElementById('tArca');
+  CATS.forEach(c=>{ const t=ARCA[c]; const tr=document.createElement('tr');
+    tr.innerHTML=`<td><span class="catb">${c}</span></td><td class="num">${fmt(LIM[c])}</td><td class="num">${fmt(t[0])}</td><td class="num">${fmt(t[2])}</td><td class="num">${fmt(t[3])}</td><td class="num vcarg">${fmt(t[0]+t[2]+t[3])}</td><td class="num">${enPad(c)}</td>`; ta.appendChild(tr); });
+  [['JUB','Jubilado Ley 24241 — SIPA','solo reemplaza el 21 · sin obra social (PAMI)',SIPA_JUB,p=>p.cond==='jub'],['COOP','Asociado a cooperativa — SIPA','solo reemplaza el 21 · sin impuesto integrado · solo cat. A',SIPA_COOP,p=>p.cond==='coop']].forEach(([k,nom,nota,v,f])=>{
+    const tr=document.createElement('tr'); tr.style.background='#f7f8fc';
+    tr.innerHTML=`<td><span class="chip ${k==='JUB'?'c-teal':'c-viol'}">${k}</span></td><td class="mut" colspan="2">${nom} <span class="mut">· ${nota}</span></td><td class="num vcarg">${fmt(v)}</td><td class="num mut">—</td><td class="num mut">—</td><td class="num">${PAD.filter(f).length}</td>`; ta.appendChild(tr); });
+  const tb = document.getElementById('tArba');
+  CATS.forEach(c=>{ const tr=document.createElement('tr');
+    tr.innerHTML=`<td><span class="catb">${c}</span></td><td class="num vcarg">${fmt(ARBA[c][0])}</td><td class="mut">01/08/2026</td><td class="num">${enPad(c,p=>p.iibb==='ARBA')}</td>`; tb.appendChild(tr); });
+  renderAgip();
+}
+function renderAgip(){
+  const v = document.getElementById('selAgip').value; const tc = document.getElementById('tAgip');
+  tc.querySelectorAll('tr:not(:first-child)').forEach(r=>r.remove());
+  CATS.forEach(c=>{ const tr=document.createElement('tr');
+    tr.innerHTML=`<td><span class="catb">${c}</span></td><td class="num vcarg">${fmt(AGIP[v][c])}</td><td class="mut">${v==='2026-08'?'01/08/2026':'01/01/2026'}</td><td class="num">${enPad(c,p=>p.iibb==='AGIP')}</td>`; tc.appendChild(tr); });
+}
+
+// ───────── pago mensual (congelado) ─────────
+function renderPago(){
+  const t = document.getElementById('tPago'); t.querySelectorAll('tr:not(:first-child)').forEach(r=>r.remove());
+  let s={imp:0,sipa:0,os:0,iibb:0,total:0};
+  PAD.forEach(p=>{ const c=calc(p); Object.keys(s).forEach(k=>s[k]+=c[k]);
+    const tr=document.createElement('tr');
+    tr.innerHTML=`<td><b>${p.n}</b></td><td class="mut">${p.s}</td><td><span class="catb">${p.cat}</span> <span class="mut">${CONDN[p.cond]}${p.adh?' · '+p.adh+' adh.':''}</span></td>
+      <td class="num">${c.imp?fmt(c.imp):'<span class="mut">—</span>'}</td><td class="num">${fmt(c.sipa)}</td><td class="num">${c.os?fmt(c.os):'<span class="mut">—</span>'}</td><td class="num">${c.iibb?fmt(c.iibb)+' <span class="mut">'+p.iibb+'</span>':'<span class="mut">—</span>'}</td>
+      <td class="num"><b>${fmt(c.total)}</b></td><td><span class="chip ${p.met==='PAGO 24'?'c-azul':p.met==='MAESTRANZA'?'c-viol':'c-teal'}">${p.met}</span></td><td><input type="checkbox" style="width:16px;height:16px"></td>`;
+    t.appendChild(tr); });
+  const tr=document.createElement('tr'); tr.style.background='#f7f8fc';
+  tr.innerHTML=`<td colspan="3"><b>TOTAL (muestra ${PAD.length})</b></td><td class="num"><b>${fmt(s.imp)}</b></td><td class="num"><b>${fmt(s.sipa)}</b></td><td class="num"><b>${fmt(s.os)}</b></td><td class="num"><b>${fmt(s.iibb)}</b></td><td class="num"><b>${fmt(s.total)}</b></td><td colspan="2" class="mut">export CSV con estas columnas</td>`;
+  t.appendChild(tr);
+}
+
+function tab(i,el){ document.querySelectorAll('.tab').forEach(t=>t.classList.remove('act')); el.classList.add('act'); document.querySelectorAll('.panel').forEach(p=>p.classList.remove('act')); document.getElementById('p'+i).classList.add('act'); }
+function stab(i,el){ document.querySelectorAll('.stab').forEach(t=>t.classList.remove('act')); el.classList.add('act'); document.querySelectorAll('.sub').forEach(p=>p.classList.remove('act')); document.getElementById('s'+i).classList.add('act'); }
+function mOpen(id){ document.getElementById(id).classList.add('open'); }
+function mClose(id){ document.getElementById(id).classList.remove('open'); }
+
+renderPad(); renderTablas(); renderPago();
+</script>
+</body>
+</html>

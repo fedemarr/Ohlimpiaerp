@@ -21,6 +21,9 @@ export {
   renderConsolidadoPP, exportarConsolidadoPP, generarOrdenesCompraPP, confirmarProveedorPP,
   renderSugerenciasPP, aceptarSugerenciaPP, mantenerSugerenciaPP, deshacerDecisionSugerenciaPP,
   renderSimulacionPP,
+  renderReposicionPP, editarCantidadReposicionPP, restablecerCantidadReposicionPP,
+  quitarManualReposicionPP, abrirAgregarManualReposicionPP, buscarProductoManualReposicionPP,
+  elegirProductoManualReposicionPP, guardarManualReposicionPP, confirmarReposicionProveedorPP,
   renderOrdenesPP, abrirDetalleOrdenPP, enviarOrdenPP, guardarRecepcionOrdenPP, exportarOrdenPP,
   abrirFacturaOrdenPP, confirmarFacturaOrdenPP,
   renderComparadorPreciosPP, abrirNuevoGrupoEquivalenciaPP, buscarProductoParaGrupoPP,
@@ -74,6 +77,9 @@ import {
   renderConsolidadoPP, exportarConsolidadoPP, generarOrdenesCompraPP, confirmarProveedorPP,
   renderSugerenciasPP, aceptarSugerenciaPP, mantenerSugerenciaPP, deshacerDecisionSugerenciaPP,
   renderSimulacionPP,
+  renderReposicionPP, editarCantidadReposicionPP, restablecerCantidadReposicionPP,
+  quitarManualReposicionPP, abrirAgregarManualReposicionPP, buscarProductoManualReposicionPP,
+  elegirProductoManualReposicionPP, guardarManualReposicionPP, confirmarReposicionProveedorPP,
   renderOrdenesPP, abrirDetalleOrdenPP, enviarOrdenPP, guardarRecepcionOrdenPP, exportarOrdenPP,
   abrirFacturaOrdenPP, confirmarFacturaOrdenPP,
   renderComparadorPreciosPP, abrirNuevoGrupoEquivalenciaPP, buscarProductoParaGrupoPP,
@@ -135,6 +141,15 @@ window.aceptarSugerenciaPP = aceptarSugerenciaPP;
 window.mantenerSugerenciaPP = mantenerSugerenciaPP;
 window.deshacerDecisionSugerenciaPP = deshacerDecisionSugerenciaPP;
 window.renderSimulacionPP = renderSimulacionPP;
+window.renderReposicionPP = renderReposicionPP;
+window.editarCantidadReposicionPP = editarCantidadReposicionPP;
+window.restablecerCantidadReposicionPP = restablecerCantidadReposicionPP;
+window.quitarManualReposicionPP = quitarManualReposicionPP;
+window.abrirAgregarManualReposicionPP = abrirAgregarManualReposicionPP;
+window.buscarProductoManualReposicionPP = buscarProductoManualReposicionPP;
+window.elegirProductoManualReposicionPP = elegirProductoManualReposicionPP;
+window.guardarManualReposicionPP = guardarManualReposicionPP;
+window.confirmarReposicionProveedorPP = confirmarReposicionProveedorPP;
 window.renderOrdenesPP = renderOrdenesPP;
 window.abrirDetalleOrdenPP = abrirDetalleOrdenPP;
 window.enviarOrdenPP = enviarOrdenPP;
