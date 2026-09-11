@@ -1,166 +1,279 @@
-// Módulo Retenciones — retenciones sobre haberes (rehecho de cero,
-// política A.11). Antes vivía en legacy.js con los mismos 2 bugs que
-// Uniformes: editar/liberar usaban el índice de la fila ya FILTRADA
-// (rompía con el filtro por tipo activo) y guardarRetencion() siempre
-// hacía supaSync del último elemento del array (correcto solo al crear).
-// Acá todo es por id, y se agrega soft delete (no existía antes).
+// Módulo Retenciones — retenciones sobre haberes ("se retiene el retiro
+// de un asociado", no confundir con retenciones impositivas AFIP).
 //
-// Tema 4 del relevamiento (Lautaro, 10/08) — sql/v076:
-// - Lista de CANDIDATOS AUTOMÁTICOS: toda persona en Art.42 (DB.art42
-//   abierto), de baja o con situación legal activa (legajo.estado /
-//   legajo.estadoLegal) aparece arriba de la tabla para que RRHH decida
-//   si abre un caso — no se crea nada solo, es una sugerencia calculada
-//   en cada render (dedupe por origen+nroSocio contra casos ya vivos).
-// - REPORTE DEL SUPERVISOR: un supervisor solo ve y reporta sobre SUS
-//   propios asociados activos (mismo criterio que ya usa Pedidos —
-//   pedidosVisiblesParaUsuario). Reporta con motivo tipificado +
-//   observación; el caso queda "Pendiente" hasta que RRHH decide monto
-//   o porcentaje. El supervisor no ve monto ni puede liberar/eliminar.
-// - Motivo TIPIFICADO (DB.motivosRetencion, catálogo parametrizable) y
-//   tipo de valor Monto/Porcentaje.
-// - Auditoría: creadoPor/creadoEn al alta, liberadoPor al liberar
-//   (fechaLiberacion ya existía).
+// REDISEÑO v126 (ticket "Módulo Retenciones", basado en
+// mockup_retenciones_3.html) — reemplaza el diseño anterior (v076:
+// candidatos automáticos Art.42/Baja/Legal + reporte del supervisor).
+// El ticket llegó con 2 supuestos incorrectos (dominio AFIP + "el módulo
+// no existe") — se investigó, se confirmaron 3 decisiones con el usuario
+// (todas "Recomendado" en el AskUserQuestion) y se rediseñó desde acá:
+//   1. Se elimina el flujo de reporte del supervisor y los candidatos
+//      automáticos genéricos — el mockup deja Retenciones 100% en manos
+//      de RRHH/Finanzas (Supervisor mantiene el módulo en su menú pero
+//      solo lectura, igual que Finanzas en Liquidaciones).
+//   2. El alcance "Total" (retiene el retiro COMPLETO del período,
+//      dinámico según horas ya cargadas) se implementa ahora, enganchado
+//      a Liquidación de horas — no se difiere a una iteración futura.
+//   3. "Aplicar como descuento → Uniformes" reutiliza el circuito real
+//      que ya existe: confirmarCierreDevolucion() en
+//      src/modules/uniformes/devoluciones.js crea filas en
+//      DB.descuentosUniformePendientes, ya consumidas por
+//      descuentosAutomaticosLegajo() en legacy.js — no se inventa un
+//      circuito nuevo, se crea una fila con esa misma forma.
+//
+// CICLO DE VIDA
+//   ACTIVA (recurrente: mientras siga Activa, CADA período nuevo desde
+//           periodoDesde vuelve a retener — antes era un período exacto,
+//           ahora es continuo, tal como pide el mockup)
+//     → LIBERADA (todo o una parte — el resto sigue ACTIVA)
+//         → PAGADA (al confirmar el pago; terminal)
+//     → APLICADA (convierte el saldo en un descuento real; terminal)
+//
+// alcance:
+//   'Total'   → retiene el BRUTO completo del período. NO se congela al
+//               crear: descuentosAutomaticosLegajo()/_totalDescLegajo()
+//               en legacy.js son quienes resuelven el monto contra el
+//               bruto real de cada corrida y quienes persisten
+//               montoAcumulado/periodosRetenidos recién cuando el pago
+//               se autoriza de verdad (mismo criterio que ya usan las
+//               cuotas de Uniformes/Préstamos: se consume al pagar, no
+//               al calcular).
+//   'Parcial' → tipoValor 'Monto' (fijo) o 'Porcentaje' del bruto — el
+//               mismo campo/semántica que ya existía desde v076.
+//
+// Movimientos (DB.retencionesMovimientos): cada liberación o aplicación
+// es una fila propia (tipo 'liberacion'|'aplicacion') — permite liberar o
+// aplicar una PARTE del saldo sin perder el resto activo, y separa la
+// auditoría de pago (fecha/comprobante/confirmadoPor) de la retención en
+// sí. Simplificación deliberada respecto al mockup: no hay edición ni
+// eliminación de una retención ya creada (el mockup tampoco las muestra
+// como acción) — un alta errónea se corrige liberándola de inmediato con
+// el motivo "Error de carga". Toda retención termina LIBERADA+PAGADA o
+// APLICADA, nunca desaparece (cita textual del mockup).
 
 import { DB, currentUser } from '@shared/state.js';
 import { $, cleanText } from '@shared/helpers.js';
 import { toast, abrirModal, cerrarModal } from '@shared/ui.js';
-import { supaSync } from '@shared/supabase.js';
+import { supaSync, SUPA } from '@shared/supabase.js';
+import { obtenerPrecioVigente } from '@modules/uniformes/precios.js';
 
+const BUCKET_ADJUNTOS = 'ohlimpia-adjuntos';
+
+const esSoloLectura = () => currentUser?.perfil === 'Supervisor';
 const getRetencionById = (id) => (DB.retenciones || []).find(r => String(r.id) === String(id));
-const esSupervisor = () => currentUser?.perfil === 'Supervisor';
-const legajosPropios = () => (DB.legajos || []).filter(l => l.estado === 'Activo' && l.supervisor === currentUser?.nombre);
+const getMovimientoById = (id) => (DB.retencionesMovimientos || []).find(m => String(m.id) === String(id));
+const movimientosDe = (retencionId) => (DB.retencionesMovimientos || []).filter(m => !m.anulado && String(m.retencionIdLocal) === String(retencionId));
+const legajoDe = (r) => (DB.legajos || []).find(l => String(l.nro) === String(r.nroSocio) || l.nombre === r.nombre);
+const mesActualISO = () => new Date().toISOString().slice(0, 7);
 
-const ORIGEN_LABEL = {
-  automatico_art42: '🏥 Art.42', automatico_baja: '🔴 Baja', automatico_legal: '⚖️ Legal',
-  reporte_supervisor: '👤 Reporte supervisor', manual: '✍️ Manual',
+// Lo efectivamente retenido acumulado menos lo ya liberado/aplicado.
+function restanteDe(r) {
+  const movs = movimientosDe(r.id).reduce((s, m) => s + (parseFloat(m.monto) || 0), 0);
+  return Math.max(0, (parseFloat(r.montoAcumulado) || 0) - movs);
+}
+
+const MOTIVO_CHIP = {
+  'Desvinculación — pendientes de devolución': 'badge-rojo',
+  'Art. 42': 'badge-acento',
+  'Sanción en proceso': 'badge-naranja',
+  'Conflicto / legal': 'badge-azul',
+  'Otro': 'badge-gris',
 };
 
-// ========== CANDIDATOS AUTOMÁTICOS ==========
-// No persiste nada — se recalcula en cada render contra los casos ya
-// existentes (dedupe por origen+nroSocio, ignorando los ya liberados
-// o anulados, que pueden volver a generar un candidato si reincide).
-export function candidatosAutomaticosRetencion() {
-  const vigentes = (DB.retenciones || []).filter(r => !r.anulado && r.estado !== 'Liberada');
-  const yaAbierto = (origen, nroSocio) => vigentes.some(r => r.origen === origen && String(r.nroSocio) === String(nroSocio));
-  const cands = [];
-  (DB.art42 || []).filter(a => a.estado === 'Abierto').forEach(a => {
-    if (yaAbierto('automatico_art42', a.nroSocio)) return;
-    cands.push({ origen: 'automatico_art42', nombre: a.asociado, nroSocio: a.nroSocio, servicio: a.servicio || '—', motivoTipificado: 'Situación Art.42', detalle: `Desde ${a.fechaInicio || '—'} · ${a.dias} día(s) cargados` });
-  });
-  (DB.legajos || []).filter(l => l.estado === 'Baja').forEach(l => {
-    if (yaAbierto('automatico_baja', l.nro)) return;
-    cands.push({ origen: 'automatico_baja', nombre: l.nombre, nroSocio: l.nro, servicio: l.servicio || '—', motivoTipificado: 'Dado de baja', detalle: `Baja ${l.fechaBaja || '—'}` });
-  });
-  (DB.legajos || []).filter(l => l.estadoLegal).forEach(l => {
-    if (yaAbierto('automatico_legal', l.nro)) return;
-    cands.push({ origen: 'automatico_legal', nombre: l.nombre, nroSocio: l.nro, servicio: l.servicio || '—', motivoTipificado: 'Situación legal activa', detalle: l.estadoLegal });
-  });
-  return cands;
+// ========== SUGERENCIA DEL SISTEMA (baja + devolución de Uniformes pendiente) ==========
+// No persiste nada — se recalcula en cada render contra las órdenes de
+// devolución de Uniformes todavía abiertas (RRHH no cerró la orden),
+// dedupe por origenRef contra retenciones ya vivas para esa orden. El
+// "Descartar" del mockup es una preferencia de sesión (no se persiste:
+// es un aviso de bajo compromiso, no un dato de negocio).
+const _descartadas = new Set();
+
+export function sugerenciasRetencion() {
+  const vigentes = (DB.retenciones || []).filter(r => !r.anulado && r.estado === 'Activa');
+  const yaAbierta = (ordenId) => vigentes.some(r => String(r.origenRef) === String(ordenId));
+  return (DB.devolucionesPorBaja || [])
+    .filter(o => !o.anulado && o.estado === 'Pendiente devolución' && !yaAbierta(o.id) && !_descartadas.has(o.id))
+    .map(o => {
+      const valor = (o.prendasADevolver || []).reduce((s, p) => s + (obtenerPrecioVigente(p.prenda, null)?.precio || 0) * (p.cantidad || 0), 0);
+      const cantPrendas = (o.prendasADevolver || []).reduce((s, p) => s + (p.cantidad || 0), 0);
+      return { ordenId: o.id, nombre: o.nombreOperario, nroSocio: o.legajoIdLocal, fechaBaja: o.fechaBaja, cantPrendas, valor };
+    });
 }
 
-function renderCandidatosRetencion() {
-  const cont = $('ret2-candidatos');
+function renderSugerenciasRetencion() {
+  const cont = $('ret-sugerencias');
   if (!cont) return;
-  if (esSupervisor()) { cont.innerHTML = ''; cont.style.display = 'none'; return; }
-  const cands = candidatosAutomaticosRetencion();
-  if (!cands.length) { cont.innerHTML = ''; cont.style.display = 'none'; return; }
-  cont.style.display = 'block';
-  cont.innerHTML = `<div class="form-section" style="margin-bottom:8px;">🔎 Candidatos automáticos (Art.42 / Baja / Legal) — ${cands.length}</div>
-    <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:16px;">
-      ${cands.map((c, i) => `
-        <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;background:#fff7ed;border:1px solid #fed7aa;border-radius:var(--radio);padding:8px 12px;">
-          <div>
-            <span class="chip" style="font-size:10px;">${ORIGEN_LABEL[c.origen]}</span>
-            <strong style="margin-left:6px;font-size:12.5px;">${c.nombre}</strong>
-            <span style="font-size:11px;color:var(--texto-suave);margin-left:6px;">N° ${c.nroSocio} · ${c.servicio}</span>
-            <div style="font-size:11px;color:var(--texto-muy-suave);margin-top:2px;">${c.detalle}</div>
-          </div>
-          <button class="btn btn-primary btn-sm" data-cand-idx="${i}">Abrir caso</button>
-        </div>`).join('')}
-    </div>`;
-  cont.querySelectorAll('button[data-cand-idx]').forEach(btn => {
-    btn.onclick = () => abrirCandidatoComoCaso(cands[parseInt(btn.dataset.candIdx)]);
+  if (esSoloLectura()) { cont.innerHTML = ''; return; }
+  const sug = sugerenciasRetencion();
+  if (!sug.length) { cont.innerHTML = ''; return; }
+  cont.innerHTML = sug.map(s => `
+    <div class="ret-sug" data-orden="${s.ordenId}" style="background:#fff8ec;border:1px dashed #dfa94f;border-radius:9px;padding:10px 14px;margin-bottom:12px;display:flex;justify-content:space-between;align-items:center;gap:12px;font-size:12.5px;">
+      <div>🤖 <b>Sugerencia del sistema:</b> <b>${s.nroSocio || '—'} · ${s.nombre}</b> tiene <b>baja el ${s.fechaBaja || '—'}</b> con
+        <b>${s.cantPrendas} prenda${s.cantPrendas !== 1 ? 's' : ''} sin devolver</b> (orden de devolución de Uniformes abierta,
+        valor $${s.valor.toLocaleString('es-AR')}). ¿Retener el último retiro hasta que devuelva?</div>
+      <div style="display:flex;gap:8px;flex-shrink:0;">
+        <button class="btn btn-primary btn-sm" data-sug-crear="${s.ordenId}">Crear retención</button>
+        <button class="btn btn-secondary btn-sm" data-sug-descartar="${s.ordenId}">Descartar</button>
+      </div>
+    </div>`).join('');
+  cont.querySelectorAll('button[data-sug-crear]').forEach(btn => {
+    btn.onclick = () => crearRetencionDesdeSugerencia(parseInt(btn.dataset.sugCrear));
+  });
+  cont.querySelectorAll('button[data-sug-descartar]').forEach(btn => {
+    btn.onclick = () => { _descartadas.add(parseInt(btn.dataset.sugDescartar)); renderSugerenciasRetencion(); };
   });
 }
 
-export function abrirCandidatoComoCaso(c) {
-  poblarSelectsRetenciones();
-  $('ret2-modal-title').textContent = 'Abrir caso — ' + c.nombre;
-  $('ret2-nombre').value = c.nombre;
-  $('ret2-nroSocio').value = c.nroSocio || '';
-  $('ret2-tipo').value = 'otra';
-  $('ret2-motivo-tip').value = '';
-  $('ret2-periodo').value = new Date().toISOString().slice(0, 7);
-  $('ret2-monto').value = '';
-  $('ret2-tipo-valor').value = 'Monto';
-  $('ret2-motivo').value = c.detalle || '';
-  $('ret2-estado').value = 'Pendiente';
-  const modal = $('modal-retencion');
-  if (modal) { delete modal.dataset.editId; modal.dataset.origen = c.origen; }
-  aplicarVisibilidadModalRetencion(false);
-  abrirModal('modal-retencion');
+export function crearRetencionDesdeSugerencia(ordenId) {
+  const orden = (DB.devolucionesPorBaja || []).find(o => o.id === ordenId);
+  if (!orden) return;
+  _abrirModalNuevaRetencion({
+    nombre: orden.nombreOperario,
+    nroSocio: orden.legajoIdLocal,
+    motivoTipificado: 'Desvinculación — pendientes de devolución',
+    alcance: 'Total',
+    descripcion: `Baja con ${(orden.prendasADevolver || []).map(p => `${p.cantidad}x ${p.prenda}`).join(', ')} sin devolver (orden de devolución #${orden.id} de Uniformes).`,
+    origenRef: String(ordenId),
+  });
 }
 
 // ========== RENDER ==========
 
-export function renderRetenciones(lista) {
-  const tbody = $('tbody-ret2'); if (!tbody) return;
-  const soyPropia = (r) => (DB.legajos || []).some(l => l.estado === 'Activo' && l.supervisor === currentUser?.nombre && (String(l.nro) === String(r.nroSocio) || l.nombre === r.nombre));
-  const base = (DB.retenciones || []).filter(r => !r.anulado && (!esSupervisor() || soyPropia(r) || r.origen === 'reporte_supervisor' && r.creadoPor === currentUser?.nombre));
-  const filtro = ($('ret2-filtro') || { value: '' }).value;
-  const rows = lista || base.filter(r => !filtro || r.tipo === filtro);
+let _tabActual = 'activas';
 
-  const ss = (id, v) => { const e = $(id); if (e) e.textContent = v; };
-  ss('st-ret2-total', base.length);
-  ss('st-ret2-conflicto', base.filter(r => r.tipo === 'conflicto' && r.estado === 'Activa').length);
-  ss('st-ret2-enfermedad', base.filter(r => r.tipo === 'enfermedad' && r.estado === 'Activa').length);
-  const totalMonto = base.filter(r => r.estado === 'Activa' && r.tipoValor !== 'Porcentaje').reduce((s, r) => s + (parseFloat(r.monto) || 0), 0);
-  ss('st-ret2-monto', esSupervisor() ? '—' : '$' + totalMonto.toLocaleString('es-AR'));
-
-  renderCandidatosRetencion();
-
-  if (!rows.length) {
-    tbody.innerHTML = '<tr><td colspan="9" style="padding:40px;text-align:center;color:var(--texto-muy-suave);">Sin retenciones registradas.</td></tr>';
-    return;
-  }
-  const tipoLabel = { conflicto: '⚡ Conflicto', enfermedad: '🏥 Enfermedad', otra: '📋 Otra' };
-  const estadoColor = { Activa: 'badge-rojo', Liberada: 'badge-verde', Pendiente: 'badge-naranja' };
-  tbody.innerHTML = rows.map(r => `<tr>
-    <td style="padding:6px 14px;border:1px solid var(--borde);font-weight:500;">${r.nombre}</td>
-    <td style="padding:6px 8px;border:1px solid var(--borde);font-size:11px;">${r.nroSocio || '—'}</td>
-    <td style="padding:6px 8px;border:1px solid var(--borde);"><span class="chip" style="font-size:11px;">${tipoLabel[r.tipo] || r.tipo || '—'}</span></td>
-    <td style="padding:6px 8px;border:1px solid var(--borde);font-size:11px;">${r.motivoTipificado || r.motivo || '—'}</td>
-    <td style="padding:6px 8px;border:1px solid var(--borde);font-size:11px;">${r.periodo || '—'}</td>
-    <td style="padding:6px 8px;border:1px solid var(--borde);text-align:right;font-weight:600;color:var(--rojo);">${esSupervisor() ? '—' : (r.tipoValor === 'Porcentaje' ? (r.monto || 0) + '%' : '$' + (parseFloat(r.monto) || 0).toLocaleString('es-AR'))}</td>
-    <td style="padding:6px 8px;border:1px solid var(--borde);font-size:11px;max-width:180px;">${r.motivo || '—'}</td>
-    <td style="padding:6px 8px;border:1px solid var(--borde);text-align:center;"><span class="badge ${estadoColor[r.estado] || 'badge-gris'}">${r.estado || '—'}</span></td>
-    <td style="padding:6px 8px;border:1px solid var(--borde);">
-      ${esSupervisor() ? '' : `
-        <button data-action="editar" data-id="${r.id}" class="btn btn-xs btn-secondary">✏️</button>
-        ${r.estado === 'Activa' ? `<button data-action="liberar" data-id="${r.id}" class="btn btn-xs" style="background:#dcfce7;color:#065f46;border:1px solid #9fdaba;">Liberar</button>` : ''}
-        <button data-action="eliminar" data-id="${r.id}" class="btn btn-xs" style="background:#fee2e2;color:#991b1b;border:1px solid #fca5a5;">🗑️</button>
-      `}
-    </td>
-  </tr>`).join('');
-  tbody.onclick = (e) => {
-    const btn = e.target.closest('button[data-action]'); if (!btn) return;
-    const id = btn.dataset.id;
-    const action = btn.dataset.action;
-    if (action === 'editar') abrirEditarRetencionPorId(id);
-    else if (action === 'liberar') liberarRetencionPorId(id);
-    else eliminarRetencionPorId(id);
-  };
+export function cambiarTabRetencion(tab, btn) {
+  _tabActual = tab;
+  document.querySelectorAll('#screen-retenciones .tab-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('#screen-retenciones .tab-content').forEach(t => t.classList.remove('active'));
+  if (btn) btn.classList.add('active');
+  else document.querySelector(`#screen-retenciones .tab-btn[data-ret-tab="${tab}"]`)?.classList.add('active');
+  $('ret-tab-' + tab)?.classList.add('active');
+  renderRetenciones();
 }
 
-export function filtrarRetenciones() { renderRetenciones(); }
+export function renderRetenciones() {
+  renderSugerenciasRetencion();
+
+  const activas = (DB.retenciones || []).filter(r => !r.anulado && r.estado === 'Activa');
+  const historial = (DB.retenciones || []).filter(r => !r.anulado && ['Pagada', 'Aplicada'].includes(r.estado));
+  const liberaciones = (DB.retencionesMovimientos || []).filter(m => !m.anulado && m.tipo === 'liberacion');
+  const mesActual = mesActualISO();
+  const aplicadasMes = (DB.retencionesMovimientos || []).filter(m => !m.anulado && m.tipo === 'aplicacion' && (m.creadoEn || '').slice(0, 7) === mesActual);
+
+  const ss = (id, v) => { const e = $(id); if (e) e.textContent = v; };
+  ss('kpi-ret-activas', activas.length);
+  ss('kpi-ret-acumulado', '$' + activas.reduce((s, r) => s + restanteDe(r), 0).toLocaleString('es-AR'));
+  ss('kpi-ret-pendientes', liberaciones.filter(m => m.estadoPago === 'Pendiente').length);
+  ss('kpi-ret-aplicadas', aplicadasMes.length);
+  const badgePend = $('badge-ret-pendientes');
+  if (badgePend) {
+    const n = liberaciones.filter(m => m.estadoPago === 'Pendiente').length;
+    badgePend.textContent = n ? n + ' pendiente' + (n !== 1 ? 's' : '') : 'al día';
+    badgePend.className = 'badge ' + (n ? 'badge-rojo' : 'badge-verde');
+    badgePend.style.fontSize = '10px';
+  }
+
+  if (_tabActual === 'activas') renderTabActivas(activas);
+  else if (_tabActual === 'liberadas') renderTabLiberadas(liberaciones);
+  else renderTabHistorial(historial);
+}
+
+function renderTabActivas(activas) {
+  const tbody = $('tbody-ret-activas');
+  if (!tbody) return;
+  if (!activas.length) { tbody.innerHTML = '<tr><td colspan="8" style="padding:40px;text-align:center;color:var(--texto-muy-suave);">Sin retenciones activas.</td></tr>'; return; }
+  tbody.innerHTML = activas.map(r => {
+    const leg = legajoDe(r);
+    const sub = leg?.estado === 'Baja' ? `BAJA ${leg.fechaBaja || ''}` : (leg?.servicio || '');
+    const chipCls = MOTIVO_CHIP[r.motivoTipificado] || 'badge-gris';
+    const alcanceHtml = r.alcance === 'Total'
+      ? '<span class="badge badge-gris">TOTAL</span>'
+      : `<span class="badge badge-azul">PARCIAL · ${r.tipoValor === 'Porcentaje' ? (r.monto || 0) + '%' : '$' + (parseFloat(r.monto) || 0).toLocaleString('es-AR')}${r.tipoValor === 'Porcentaje' ? '' : '/mes'}</span>`;
+    const nAdj = (r.adjuntos || []).length;
+    return `<tr>
+      <td style="padding:8px 10px;border:1px solid var(--borde);">
+        <div style="font-weight:600;">${r.nroSocio || '—'} · ${r.nombre}</div>
+        ${sub ? `<div style="font-size:11px;color:var(--texto-suave);">${sub}</div>` : ''}
+      </td>
+      <td style="padding:8px 10px;border:1px solid var(--borde);">
+        <span class="badge ${chipCls}">${(r.motivoTipificado || '—').toUpperCase()}</span>
+        ${r.motivo ? `<div style="font-size:11px;color:var(--texto-suave);margin-top:2px;max-width:220px;">${r.motivo}</div>` : ''}
+      </td>
+      <td style="padding:8px 10px;border:1px solid var(--borde);">${alcanceHtml}</td>
+      <td style="padding:8px 10px;border:1px solid var(--borde);font-size:12px;">${r.periodoDesde || '—'}</td>
+      <td style="padding:8px 10px;border:1px solid var(--borde);text-align:center;">${(r.periodosRetenidos || []).length}</td>
+      <td style="padding:8px 10px;border:1px solid var(--borde);text-align:right;font-weight:700;">$${restanteDe(r).toLocaleString('es-AR')}</td>
+      <td style="padding:8px 10px;border:1px solid var(--borde);font-size:11px;">
+        ${r.creadoPor || '—'}<br><span style="color:var(--texto-suave);">${(r.creadoEn || '').slice(0, 10).split('-').reverse().join('/')}${nAdj ? ` · 📎 ${nAdj}` : ''}</span>
+      </td>
+      <td style="padding:8px 10px;border:1px solid var(--borde);white-space:nowrap;">
+        ${esSoloLectura() ? '<span style="font-size:11px;color:var(--texto-muy-suave);">Solo lectura</span>' : `
+        <button class="btn btn-xs" style="background:#dcfce7;color:#065f46;border:1px solid #9fdaba;" data-liberar="${r.id}">Liberar</button>
+        <button class="btn btn-xs" style="background:#fdebd7;color:#b25b00;border:1px solid #f3c98a;" data-aplicar="${r.id}">Aplicar</button>`}
+      </td>
+    </tr>`;
+  }).join('');
+  if (esSoloLectura()) return;
+  tbody.querySelectorAll('button[data-liberar]').forEach(b => b.onclick = () => abrirLiberarRetencion(b.dataset.liberar));
+  tbody.querySelectorAll('button[data-aplicar]').forEach(b => b.onclick = () => abrirAplicarRetencion(b.dataset.aplicar));
+}
+
+function renderTabLiberadas(liberaciones) {
+  const tbody = $('tbody-ret-liberadas');
+  if (!tbody) return;
+  const filas = [...liberaciones].sort((a, b) => new Date(b.creadoEn || 0) - new Date(a.creadoEn || 0));
+  if (!filas.length) { tbody.innerHTML = '<tr><td colspan="6" style="padding:40px;text-align:center;color:var(--texto-muy-suave);">Sin liberaciones registradas.</td></tr>'; return; }
+  tbody.innerHTML = filas.map(m => {
+    const r = getRetencionById(m.retencionIdLocal) || {};
+    const fechaLib = (m.creadoEn || '').slice(0, 10).split('-').reverse().join('/');
+    const desc = `${m.esTotal ? 'Total' : 'Parcial'} — ${m.motivo || '—'}<br><span style="font-size:11px;color:var(--texto-suave);">liberada ${fechaLib}</span>`;
+    const estadoHtml = m.estadoPago === 'Pagada'
+      ? `<span class="badge badge-verde">PAGADA · ${(m.fechaPago || '').split('-').reverse().join('/')}</span><br><span style="font-size:11px;color:var(--texto-suave);">comp. ${m.comprobante || '—'}</span>`
+      : '<span class="badge badge-rojo">PENDIENTE DE PAGO</span>';
+    const accionHtml = m.estadoPago === 'Pagada'
+      ? `<span style="font-size:11px;color:var(--texto-suave);">conf. ${m.confirmadoPor || '—'}</span>`
+      : esSoloLectura() ? '<span style="font-size:11px;color:var(--texto-muy-suave);">Solo lectura</span>'
+      : `<button class="btn btn-xs" style="background:#dcfce7;color:#065f46;border:1px solid #9fdaba;" data-pago="${m.id}">✓ Confirmar pago</button>`;
+    return `<tr>
+      <td style="padding:8px 10px;border:1px solid var(--borde);font-weight:600;">${r.nroSocio || '—'} · ${r.nombre || '—'}</td>
+      <td style="padding:8px 10px;border:1px solid var(--borde);font-size:12px;">${desc}</td>
+      <td style="padding:8px 10px;border:1px solid var(--borde);text-align:right;font-weight:700;">$${(parseFloat(m.monto) || 0).toLocaleString('es-AR')}</td>
+      <td style="padding:8px 10px;border:1px solid var(--borde);font-size:12px;">${m.creadoPor || '—'}</td>
+      <td style="padding:8px 10px;border:1px solid var(--borde);text-align:center;">${estadoHtml}</td>
+      <td style="padding:8px 10px;border:1px solid var(--borde);text-align:center;">${accionHtml}</td>
+    </tr>`;
+  }).join('');
+  if (esSoloLectura()) return;
+  tbody.querySelectorAll('button[data-pago]').forEach(b => b.onclick = () => abrirConfirmarPagoMovimiento(b.dataset.pago));
+}
+
+function renderTabHistorial(historial) {
+  const tbody = $('tbody-ret-historial');
+  if (!tbody) return;
+  if (!historial.length) { tbody.innerHTML = '<tr><td colspan="5" style="padding:40px;text-align:center;color:var(--texto-muy-suave);">Sin retenciones resueltas todavía.</td></tr>'; return; }
+  tbody.innerHTML = historial.map(r => {
+    const chipCls = MOTIVO_CHIP[r.motivoTipificado] || 'badge-gris';
+    const movs = movimientosDe(r.id);
+    const ultima = movs.sort((a, b) => new Date(b.creadoEn || 0) - new Date(a.creadoEn || 0))[0];
+    const hasta = ultima ? (ultima.creadoEn || '').slice(0, 7) : r.periodoDesde;
+    const totalRet = Math.max(parseFloat(r.montoAcumulado) || 0, movs.reduce((s, m) => s + (parseFloat(m.monto) || 0), 0));
+    const resolucionHtml = r.estado === 'Pagada'
+      ? `<span class="badge badge-verde">LIBERADA Y PAGADA</span> <span style="font-size:11px;color:var(--texto-suave);">${(ultima?.fechaPago || '').split('-').reverse().join('/')}</span>`
+      : `<span class="badge badge-naranja">APLICADA COMO DESCUENTO</span> <span style="font-size:11px;color:var(--texto-suave);">${ultima?.circuitoDestino || ''}</span>`;
+    return `<tr>
+      <td style="padding:8px 10px;border:1px solid var(--borde);font-weight:600;">${r.nroSocio || '—'} · ${r.nombre}</td>
+      <td style="padding:8px 10px;border:1px solid var(--borde);"><span class="badge ${chipCls}">${(r.motivoTipificado || '—').toUpperCase()}</span></td>
+      <td style="padding:8px 10px;border:1px solid var(--borde);font-size:12px;">${r.periodoDesde || '—'} → ${hasta || '—'}</td>
+      <td style="padding:8px 10px;border:1px solid var(--borde);text-align:right;font-weight:700;">$${totalRet.toLocaleString('es-AR')}</td>
+      <td style="padding:8px 10px;border:1px solid var(--borde);">${resolucionHtml}</td>
+    </tr>`;
+  }).join('');
+}
 
 export function poblarSelectsRetenciones() {
-  const dl = $('dl-ret2-nombre');
-  if (dl) {
-    const fuente = esSupervisor() ? legajosPropios() : (DB.legajos || []).filter(l => l.estado === 'Activo');
-    dl.innerHTML = fuente.map(l => `<option value="${l.nombre}">${l.nombre} — ${l.nro}</option>`).join('');
-  }
-  const sel = $('ret2-motivo-tip');
+  const dl = $('dl-ret-nombre');
+  if (dl) dl.innerHTML = (DB.legajos || []).filter(l => l.estado === 'Activo' || l.estado === 'Baja').map(l => `<option value="${l.nombre}">${l.nombre} — ${l.nro}</option>`).join('');
+  const sel = $('ret-motivo-tip');
   if (sel) {
     const ph = '<option value="">— Elegir motivo —</option>';
     sel.innerHTML = ph + (DB.motivosRetencion || []).filter(m => m.activo !== false)
@@ -169,141 +282,351 @@ export function poblarSelectsRetenciones() {
   }
 }
 
-// Autocompleta N° de socio apenas se elige un asociado del datalist.
 export function autocompletarRetencion() {
-  const val = ($('ret2-nombre') || { value: '' }).value;
-  const leg = (esSupervisor() ? legajosPropios() : (DB.legajos || [])).find(l => l.nombre === val);
+  const val = ($('ret-nombre') || { value: '' }).value;
+  const leg = (DB.legajos || []).find(l => l.nombre === val);
   if (!leg) return;
-  if ($('ret2-nroSocio')) $('ret2-nroSocio').value = leg.nro;
+  if ($('ret-nroSocio')) $('ret-nroSocio').value = leg.nro;
+  _actualizarPreviewRetiro(leg);
 }
 
-// ========== VISIBILIDAD DEL MODAL (RRHH completo vs. reporte de supervisor) ==========
-// El supervisor solo carga motivo tipificado + observación; RRHH decide
-// tipo/monto/porcentaje/estado. Se ocultan esos campos con una clase en
-// vez de duplicar el modal entero.
-function aplicarVisibilidadModalRetencion(soloReporte) {
-  document.querySelectorAll('#modal-retencion .ret2-solo-rrhh').forEach(el => {
-    el.style.display = soloReporte ? 'none' : '';
-  });
+// Retiro estimado del período vigente — lee la consolidación real de
+// Liquidación de horas (legacy.js, expuesta en window porque ese archivo
+// no es un módulo ES separado) para mostrar la misma cifra que después va
+// a resolver descuentosAutomaticosLegajo() de verdad. Puramente
+// informativo: el monto NUNCA se congela acá (ver cabecera del archivo).
+function _actualizarPreviewRetiro(leg) {
+  const elServ = $('ret-servicio-estado');
+  const elRetiro = $('ret-retiro-estimado');
+  if (elServ) elServ.value = `${leg.servicio || '—'}${leg.estado === 'Baja' ? ' · BAJA ' + (leg.fechaBaja || '') : ''}`;
+  if (!elRetiro) return;
+  try {
+    const mes = mesActualISO();
+    const filas = window._getFilasConsolidadas ? window._getFilasConsolidadas(mes) : [];
+    const fila = filas.find(f => f.nombre === leg.nombre);
+    elRetiro.value = fila ? `${mes} · $${Math.round(fila.bruto).toLocaleString('es-AR')} (estimado hoy)` : `${mes} · sin horas cargadas todavía`;
+  } catch (e) {
+    elRetiro.value = '—';
+  }
 }
 
-// ========== AGREGAR / EDITAR (RRHH) ==========
+// ========== ALCANCE (radio Total/Parcial del modal Nueva) ==========
 
-export function abrirNuevaRetencion() {
-  if (esSupervisor()) { abrirReportarInconveniente(); return; }
+export function toggleAlcanceRetencion() {
+  const total = document.querySelector('input[name="ret-alcance"]:checked')?.value !== 'Parcial';
+  const bloque = $('ret-parcial-fields');
+  if (bloque) bloque.style.display = total ? 'none' : 'grid';
+}
+
+// ========== ADJUNTOS (subida directa a Storage, sin la tabla genérica
+// "adjuntos" — esa es DNI-céntrica para el ingreso, acá alcanza con un
+// jsonb liviano en la propia retención) ==========
+
+let _adjuntosPendientes = [];
+
+export function quitarAdjuntoPendiente(i) {
+  _adjuntosPendientes.splice(i, 1);
+  _renderAdjuntosPendientes();
+}
+
+function _renderAdjuntosPendientes() {
+  const cont = $('ret-adjuntos-lista');
+  if (!cont) return;
+  cont.innerHTML = _adjuntosPendientes.map((a, i) => `<div style="display:flex;justify-content:space-between;align-items:center;font-size:12px;padding:3px 0;">
+    <span>📎 ${a.nombre}</span><button type="button" data-quitar-adj="${i}" style="background:none;border:none;color:var(--rojo);cursor:pointer;">✕</button>
+  </div>`).join('');
+  cont.querySelectorAll('button[data-quitar-adj]').forEach(b => b.onclick = () => quitarAdjuntoPendiente(parseInt(b.dataset.quitarAdj)));
+}
+
+export async function agregarAdjuntoRetencion() {
+  const input = $('ret-adjunto-file');
+  const file = input?.files?.[0];
+  if (!file) return;
+  if (file.size > 10 * 1024 * 1024) { toast('⚠️ El archivo supera los 10 MB'); return; }
+  const ext = (file.name.split('.').pop() || 'bin').toLowerCase();
+  const path = `retenciones/${Date.now()}-${crypto.randomUUID()}.${ext}`;
+  const { error } = await SUPA.storage.from(BUCKET_ADJUNTOS).upload(path, file, { upsert: false, contentType: file.type });
+  if (error) { toast('⚠️ No se pudo subir el adjunto: ' + error.message); return; }
+  _adjuntosPendientes.push({ nombre: file.name, path, subidoPor: currentUser?.nombre || '', subidoEn: new Date().toISOString() });
+  input.value = '';
+  _renderAdjuntosPendientes();
+  toast('📎 Adjunto agregado');
+}
+
+// ========== NUEVA RETENCIÓN ==========
+
+function _abrirModalNuevaRetencion(prefill = {}) {
   poblarSelectsRetenciones();
-  $('ret2-modal-title').textContent = 'Nueva retención';
-  ['ret2-nombre', 'ret2-nroSocio', 'ret2-monto', 'ret2-motivo'].forEach(id => { const el = $(id); if (el) el.value = ''; });
-  $('ret2-tipo').value = 'conflicto';
-  $('ret2-motivo-tip').value = '';
-  $('ret2-tipo-valor').value = 'Monto';
-  $('ret2-periodo').value = new Date().toISOString().slice(0, 7);
-  $('ret2-estado').value = 'Activa';
-  const modal = $('modal-retencion'); if (modal) { delete modal.dataset.editId; delete modal.dataset.origen; }
-  aplicarVisibilidadModalRetencion(false);
+  _adjuntosPendientes = [];
+  _renderAdjuntosPendientes();
+  $('ret-modal-title').textContent = 'Nueva retención';
+  $('ret-nombre').value = prefill.nombre || '';
+  $('ret-nroSocio').value = prefill.nroSocio || '';
+  $('ret-motivo-tip').value = prefill.motivoTipificado || '';
+  $('ret-periodo').value = mesActualISO();
+  $('ret-motivo').value = prefill.descripcion || '';
+  $('ret-monto').value = '';
+  $('ret-tipo-valor').value = 'Monto';
+  document.querySelectorAll('input[name="ret-alcance"]').forEach(r => { r.checked = (r.value === (prefill.alcance || 'Total')); });
+  toggleAlcanceRetencion();
+  const leg = legajoDe({ nombre: prefill.nombre, nroSocio: prefill.nroSocio });
+  if (leg) _actualizarPreviewRetiro(leg);
+  else { if ($('ret-servicio-estado')) $('ret-servicio-estado').value = ''; if ($('ret-retiro-estimado')) $('ret-retiro-estimado').value = ''; }
+  const modal = $('modal-retencion');
+  if (modal) modal.dataset.origenRef = prefill.origenRef || '';
   abrirModal('modal-retencion');
 }
 
-// Tema 4: el supervisor solo reporta un inconveniente de SUS asociados
-// activos — no ve monto, no decide estado, no libera ni elimina. Queda
-// "Pendiente" para que RRHH decida.
-export function abrirReportarInconveniente() {
-  poblarSelectsRetenciones();
-  $('ret2-modal-title').textContent = '📋 Reportar inconveniente';
-  ['ret2-nombre', 'ret2-nroSocio', 'ret2-monto', 'ret2-motivo'].forEach(id => { const el = $(id); if (el) el.value = ''; });
-  $('ret2-tipo').value = 'otra';
-  $('ret2-motivo-tip').value = '';
-  $('ret2-tipo-valor').value = 'Monto';
-  $('ret2-periodo').value = new Date().toISOString().slice(0, 7);
-  $('ret2-estado').value = 'Pendiente';
-  const modal = $('modal-retencion'); if (modal) { delete modal.dataset.editId; modal.dataset.origen = 'reporte_supervisor'; }
-  aplicarVisibilidadModalRetencion(true);
-  abrirModal('modal-retencion');
-}
+export function abrirNuevaRetencion() { _abrirModalNuevaRetencion(); }
 
-export function abrirEditarRetencionPorId(id) {
-  const r = getRetencionById(id); if (!r) return;
-  poblarSelectsRetenciones();
-  $('ret2-modal-title').textContent = 'Editar retención';
-  $('ret2-nombre').value = r.nombre || '';
-  $('ret2-nroSocio').value = r.nroSocio || '';
-  $('ret2-tipo').value = r.tipo || 'conflicto';
-  $('ret2-motivo-tip').value = r.motivoTipificado || '';
-  $('ret2-periodo').value = r.periodo || '';
-  $('ret2-monto').value = r.monto || '';
-  $('ret2-tipo-valor').value = r.tipoValor || 'Monto';
-  $('ret2-motivo').value = r.motivo || '';
-  $('ret2-estado').value = r.estado || 'Activa';
-  $('modal-retencion').dataset.editId = r.id;
-  aplicarVisibilidadModalRetencion(false);
-  abrirModal('modal-retencion');
-}
-
-export function guardarRetencion() {
-  const nombre = cleanText(($('ret2-nombre') || { value: '' }).value);
-  const nroSocio = cleanText(($('ret2-nroSocio') || { value: '' }).value);
-  if (!nombre) { toast('⚠️ Ingresá el nombre'); return; }
-  const motivoTip = ($('ret2-motivo-tip') || { value: '' }).value;
+export async function guardarNuevaRetencion() {
+  const nombre = cleanText(($('ret-nombre') || { value: '' }).value);
+  const nroSocio = cleanText(($('ret-nroSocio') || { value: '' }).value);
+  const motivoTip = ($('ret-motivo-tip') || { value: '' }).value;
+  const descripcion = cleanText(($('ret-motivo') || { value: '' }).value);
+  const periodoDesde = ($('ret-periodo') || { value: '' }).value;
+  if (!nombre) { toast('⚠️ Buscá y elegí el asociado'); return; }
   if (!motivoTip) { toast('⚠️ Elegí el motivo'); return; }
+  if (!periodoDesde) { toast('⚠️ Elegí desde qué período'); return; }
+  if (!descripcion) { toast('⚠️ Completá la descripción / contexto'); return; }
+
+  const leg = (DB.legajos || []).find(l => l.nombre === nombre || (nroSocio && String(l.nro) === nroSocio));
+  const alcance = document.querySelector('input[name="ret-alcance"]:checked')?.value || 'Total';
+  const tipoValor = ($('ret-tipo-valor') || { value: 'Monto' }).value;
+  const monto = parseFloat(($('ret-monto') || { value: '' }).value) || 0;
+  if (alcance === 'Parcial' && monto <= 0) { toast('⚠️ Ingresá el monto fijo o el porcentaje'); return; }
 
   const modal = $('modal-retencion');
-  const editId = modal?.dataset?.editId;
-  const soloReporte = !editId && modal?.dataset?.origen === 'reporte_supervisor' && esSupervisor();
-  const r = editId ? getRetencionById(editId) : { id: Date.now(), origen: modal?.dataset?.origen || 'manual' };
-  if (!r) { toast('⚠️ No se encontró la retención'); return; }
-
-  const legFuente = esSupervisor() ? legajosPropios() : (DB.legajos || []);
-  const leg = legFuente.find(l => l.nombre === nombre || (nroSocio && String(l.nro) === nroSocio));
-  if (esSupervisor() && !leg) { toast('⚠️ Solo podés reportar asociados de tus propios servicios'); return; }
-
-  r.nombre = nombre;
-  r.nroSocio = nroSocio || (leg ? String(leg.nro) : null);
-  r.legajoIdLocal = leg ? String(leg.nro) : (r.legajoIdLocal || r.nroSocio || null);
-  r.motivoTipificado = motivoTip;
-  r.motivo = cleanText(($('ret2-motivo') || { value: '' }).value);
-
-  if (soloReporte) {
-    // El supervisor no decide tipo/monto/estado — queda pendiente para RRHH.
-    r.tipo = r.tipo || 'otra';
-    r.estado = 'Pendiente';
-  } else {
-    r.tipo = ($('ret2-tipo') || { value: 'conflicto' }).value;
-    r.periodo = ($('ret2-periodo') || { value: '' }).value;
-    r.monto = parseFloat(($('ret2-monto') || { value: '' }).value) || 0;
-    r.tipoValor = ($('ret2-tipo-valor') || { value: 'Monto' }).value;
-    r.estado = ($('ret2-estado') || { value: 'Activa' }).value;
-  }
-
-  if (editId) { r.editadoPor = currentUser?.nombre || ''; r.editadoEn = new Date().toISOString(); }
-  else { r.creadoPor = currentUser?.nombre || ''; r.creadoEn = new Date().toISOString(); }
-
-  if (!editId) { if (!DB.retenciones) DB.retenciones = []; DB.retenciones.push(r); }
-  if (modal) { delete modal.dataset.editId; delete modal.dataset.origen; }
-
-  supaSync('retenciones', r);
+  const r = {
+    id: Date.now(),
+    nombre,
+    nroSocio: nroSocio || (leg ? String(leg.nro) : null),
+    legajoIdLocal: leg ? String(leg.nro) : (nroSocio || null),
+    motivoTipificado: motivoTip,
+    motivo: descripcion,
+    alcance,
+    tipoValor: alcance === 'Parcial' ? tipoValor : 'Monto',
+    monto: alcance === 'Parcial' ? monto : 0,
+    periodoDesde,
+    estado: 'Activa',
+    montoAcumulado: 0,
+    periodosRetenidos: [],
+    adjuntos: _adjuntosPendientes,
+    origen: 'manual',
+    origenRef: modal?.dataset?.origenRef || null,
+    creadoPor: currentUser?.nombre || '',
+    creadoEn: new Date().toISOString(),
+    anulado: false,
+  };
+  if (!DB.retenciones) DB.retenciones = [];
+  DB.retenciones.push(r);
+  await supaSync('retenciones', r);
+  if (modal) delete modal.dataset.origenRef;
   cerrarModal('modal-retencion');
   renderRetenciones();
-  toast(editId ? '✅ Retención actualizada' : soloReporte ? '✅ Inconveniente reportado — queda pendiente de RRHH' : '✅ Retención guardada');
+  toast('✅ Retención creada — queda ACTIVA');
 }
 
-// ========== LIBERAR / ELIMINAR (RRHH — el supervisor no llega acá, sin botones) ==========
+// ========== LIBERAR (total o parcial) ==========
 
-export function liberarRetencionPorId(id) {
-  const r = getRetencionById(id); if (!r) return;
-  if (!confirm(`¿Liberar la retención de ${r.nombre}?`)) return;
-  r.estado = 'Liberada';
-  r.fechaLiberacion = new Date().toISOString().slice(0, 10);
-  r.liberadoPor = currentUser?.nombre || '';
-  supaSync('retenciones', r);
-  renderRetenciones();
-  toast('✅ Retención liberada');
+let _retLiberandoId = null;
+
+export function abrirLiberarRetencion(id) {
+  const r = getRetencionById(id);
+  if (!r) return;
+  _retLiberandoId = id;
+  const restante = restanteDe(r);
+  $('ret-liberar-titulo').textContent = `Liberar retención — ${r.nroSocio || '—'} · ${r.nombre}`;
+  $('ret-liberar-restante').textContent = '$' + restante.toLocaleString('es-AR');
+  $('ret-liberar-todo-label').textContent = `Todo ($${restante.toLocaleString('es-AR')}) — la retención se cierra`;
+  document.querySelectorAll('input[name="ret-liberar-tipo"]').forEach(rd => rd.checked = rd.value === 'todo');
+  $('ret-liberar-parcial-monto').value = '';
+  $('ret-liberar-motivo').value = '';
+  abrirModal('modal-retencion-liberar');
 }
 
-export function eliminarRetencionPorId(id) {
-  const r = getRetencionById(id); if (!r) return;
-  if (!confirm(`¿Eliminar la retención de ${r.nombre}?`)) return;
-  r.anulado = true;
-  supaSync('retenciones', r);
+export async function confirmarLiberarRetencion() {
+  const r = getRetencionById(_retLiberandoId);
+  if (!r) return;
+  const restante = restanteDe(r);
+  const esTodo = document.querySelector('input[name="ret-liberar-tipo"]:checked')?.value !== 'parcial';
+  const motivo = cleanText(($('ret-liberar-motivo') || { value: '' }).value);
+  if (!motivo) { toast('⚠️ Ingresá el motivo de la liberación'); return; }
+  let monto = restante;
+  if (!esTodo) {
+    monto = parseFloat(($('ret-liberar-parcial-monto') || { value: '' }).value) || 0;
+    if (monto <= 0 || monto > restante) { toast('⚠️ El monto parcial debe ser mayor a 0 y no puede superar lo retenido'); return; }
+  }
+
+  const mov = {
+    id: Date.now(),
+    retencionIdLocal: String(r.id),
+    tipo: 'liberacion',
+    monto,
+    esTotal: esTodo,
+    motivo,
+    estadoPago: 'Pendiente',
+    creadoPor: currentUser?.nombre || '',
+    creadoEn: new Date().toISOString(),
+    anulado: false,
+  };
+  if (!DB.retencionesMovimientos) DB.retencionesMovimientos = [];
+  DB.retencionesMovimientos.push(mov);
+  await supaSync('retencionesMovimientos', mov);
+
+  if (esTodo) {
+    r.estado = 'Liberada';
+    r.editadoPor = currentUser?.nombre || '';
+    r.editadoEn = new Date().toISOString();
+    await supaSync('retenciones', r);
+  }
+
+  cerrarModal('modal-retencion-liberar');
   renderRetenciones();
-  toast('✅ Retención eliminada');
+  toast(esTodo ? '✅ Retención liberada — pasa a "Liberadas y pagos" como pendiente de pago' : '✅ Liberación parcial registrada — el resto sigue ACTIVA');
+}
+
+// ========== APLICAR COMO DESCUENTO ==========
+
+let _retAplicandoId = null;
+
+export function abrirAplicarRetencion(id) {
+  const r = getRetencionById(id);
+  if (!r) return;
+  _retAplicandoId = id;
+  const restante = restanteDe(r);
+  $('ret-aplicar-titulo').textContent = `Aplicar como descuento — ${r.nroSocio || '—'} · ${r.nombre}`;
+  $('ret-aplicar-monto').value = restante || '';
+  $('ret-aplicar-monto').max = restante;
+  $('ret-aplicar-circuito').value = 'Uniformes — devolución por baja';
+  $('ret-aplicar-motivo').value = '';
+  abrirModal('modal-retencion-aplicar');
+}
+
+export async function confirmarAplicarRetencion() {
+  const r = getRetencionById(_retAplicandoId);
+  if (!r) return;
+  const restante = restanteDe(r);
+  const montoAplicar = parseFloat(($('ret-aplicar-monto') || { value: '' }).value) || 0;
+  const circuito = ($('ret-aplicar-circuito') || { value: '' }).value;
+  const motivo = cleanText(($('ret-aplicar-motivo') || { value: '' }).value);
+  if (montoAplicar <= 0 || montoAplicar > restante) { toast('⚠️ El monto a aplicar debe ser mayor a 0 y no puede superar lo retenido'); return; }
+  if (!motivo) { toast('⚠️ Ingresá el motivo'); return; }
+
+  let descuentoId = null;
+  if (circuito === 'Uniformes — devolución por baja') {
+    const hoy = new Date().toISOString().slice(0, 10);
+    const d = {
+      id: Date.now(),
+      legajoIdLocal: r.legajoIdLocal || r.nroSocio,
+      montoTotal: montoAplicar,
+      cuotasTotales: 1,
+      cuotasCobradas: 0,
+      montoCuota: montoAplicar,
+      fechaGenerado: new Date().toISOString(),
+      fechaPrimeraCuota: hoy,
+      fechaUltimaCuota: hoy,
+      estado: 'En curso',
+      motivoGeneracion: `Retención aplicada — ${motivo}`,
+    };
+    if (!DB.descuentosUniformePendientes) DB.descuentosUniformePendientes = [];
+    DB.descuentosUniformePendientes.push(d);
+    await supaSync('descuentosUniformePendientes', d);
+    descuentoId = String(d.id);
+  }
+
+  const mov = {
+    id: Date.now() + 1,
+    retencionIdLocal: String(r.id),
+    tipo: 'aplicacion',
+    monto: montoAplicar,
+    motivo,
+    circuitoDestino: circuito,
+    descuentoUniformeIdLocal: descuentoId,
+    creadoPor: currentUser?.nombre || '',
+    creadoEn: new Date().toISOString(),
+    anulado: false,
+  };
+  if (!DB.retencionesMovimientos) DB.retencionesMovimientos = [];
+  DB.retencionesMovimientos.push(mov);
+  await supaSync('retencionesMovimientos', mov);
+
+  // El resto (si queda) se libera automáticamente — mismo comportamiento
+  // que muestra el mockup ("el resto se libera").
+  const resto = restante - montoAplicar;
+  if (resto > 0) {
+    const movResto = {
+      id: Date.now() + 2,
+      retencionIdLocal: String(r.id),
+      tipo: 'liberacion',
+      monto: resto,
+      esTotal: true,
+      motivo: `Resto liberado automáticamente al aplicar $${montoAplicar.toLocaleString('es-AR')} como descuento.`,
+      estadoPago: 'Pendiente',
+      creadoPor: currentUser?.nombre || '',
+      creadoEn: new Date().toISOString(),
+      anulado: false,
+    };
+    DB.retencionesMovimientos.push(movResto);
+    await supaSync('retencionesMovimientos', movResto);
+  }
+
+  r.estado = 'Aplicada';
+  r.editadoPor = currentUser?.nombre || '';
+  r.editadoEn = new Date().toISOString();
+  await supaSync('retenciones', r);
+
+  cerrarModal('modal-retencion-aplicar');
+  renderRetenciones();
+  toast('✅ Aplicada como descuento' + (resto > 0 ? ' — el resto se liberó, queda pendiente de pago' : ''));
+}
+
+// ========== CONFIRMAR PAGO (de una liberación) ==========
+
+let _movConfirmandoId = null;
+
+export function abrirConfirmarPagoMovimiento(id) {
+  const m = getMovimientoById(id);
+  if (!m) return;
+  const r = getRetencionById(m.retencionIdLocal) || {};
+  _movConfirmandoId = id;
+  $('ret-pago-titulo').textContent = `✓ Confirmar pago — ${r.nroSocio || '—'} · ${r.nombre || ''}`;
+  $('ret-pago-monto').textContent = '$' + (parseFloat(m.monto) || 0).toLocaleString('es-AR');
+  $('ret-pago-fecha').value = new Date().toISOString().slice(0, 10);
+  $('ret-pago-comprobante').value = '';
+  $('ret-pago-obs').value = '';
+  abrirModal('modal-retencion-pago');
+}
+
+// Registrada como filtro del buscador global (src/main.js) — no hay
+// texto libre propio en este rediseño (el mockup no lo tiene), así que
+// solo re-renderiza la tab actual.
+export function filtrarRetenciones() { renderRetenciones(); }
+
+export async function confirmarPagoMovimiento() {
+  const m = getMovimientoById(_movConfirmandoId);
+  if (!m) return;
+  const fecha = ($('ret-pago-fecha') || { value: '' }).value;
+  const comprobante = cleanText(($('ret-pago-comprobante') || { value: '' }).value);
+  if (!fecha) { toast('⚠️ Ingresá la fecha de pago'); return; }
+  if (!comprobante) { toast('⚠️ Ingresá el N° de comprobante'); return; }
+
+  m.estadoPago = 'Pagada';
+  m.fechaPago = fecha;
+  m.comprobante = comprobante;
+  m.observacionesPago = cleanText(($('ret-pago-obs') || { value: '' }).value);
+  m.confirmadoPor = currentUser?.nombre || '';
+  m.confirmadoEn = new Date().toISOString();
+  await supaSync('retencionesMovimientos', m);
+
+  // Si esta liberación cerraba el saldo completo, la retención pasa a
+  // PAGADA (terminal) y se muestra en Historial.
+  if (m.esTotal) {
+    const r = getRetencionById(m.retencionIdLocal);
+    if (r) { r.estado = 'Pagada'; await supaSync('retenciones', r); }
+  }
+
+  cerrarModal('modal-retencion-pago');
+  renderRetenciones();
+  toast('✅ Pago confirmado');
 }

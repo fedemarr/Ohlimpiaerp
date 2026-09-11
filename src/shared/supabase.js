@@ -66,6 +66,7 @@ export const _SM = {
   monotributos: 'monotributos',
   uniformes: 'uniformes',
   retenciones: 'retenciones',
+  retencionesMovimientos: 'retenciones_movimientos', // v126 — liberaciones/aplicaciones (posiblemente parciales)
   motivosRetencion: 'motivos_retencion',
   rolesContacto: 'roles_contacto_cliente',
   itemsLogisticaServicio: 'items_logistica_servicio',
@@ -341,6 +342,11 @@ export function _toSnake(obj) {
     // Retenciones — tipificación (v076)
     motivoTipificado: 'motivo_tipificado', tipoValor: 'tipo_valor', origen: 'origen',
     creadoEn: 'creado_en', liberadoPor: 'liberado_por',
+    // Retenciones — rediseño mockup (v126)
+    montoAcumulado: 'monto_acumulado', periodosRetenidos: 'periodos_retenidos',
+    origenRef: 'origen_ref', retencionIdLocal: 'retencion_id_local',
+    circuitoDestino: 'circuito_destino', descuentoUniformeIdLocal: 'descuento_uniforme_id_local',
+    observacionesPago: 'observaciones_pago', esTotal: 'es_total',
     // Competencia Anual (v025)
     descuentoAusente: 'descuento_ausente',
     // Tabla adjuntos
@@ -816,6 +822,11 @@ export function _toCamel(obj) {
     // Retenciones — tipificación (v076)
     motivo_tipificado: 'motivoTipificado', tipo_valor: 'tipoValor',
     creado_en: 'creadoEn', liberado_por: 'liberadoPor',
+    // Retenciones — rediseño mockup (v126)
+    monto_acumulado: 'montoAcumulado', periodos_retenidos: 'periodosRetenidos',
+    origen_ref: 'origenRef', retencion_id_local: 'retencionIdLocal',
+    circuito_destino: 'circuitoDestino', descuento_uniforme_id_local: 'descuentoUniformeIdLocal',
+    observaciones_pago: 'observacionesPago', es_total: 'esTotal',
     // Competencia Anual (v025)
     descuento_ausente: 'descuentoAusente',
     // Tabla adjuntos

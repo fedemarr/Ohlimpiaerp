@@ -3534,36 +3534,114 @@
      por src/modules/uniformes/uniformes.js (patrón ensureModal, igual
      que Descansos) — no hace falta markup estático acá. -->
 
-<!-- MODAL RETENCIÓN -->
+<!-- MODAL NUEVA RETENCIÓN (rediseño v126) -->
 <div class="modal-overlay" id="modal-retencion">
-  <div class="modal" style="max-width:480px;">
-    <div class="modal-header"><h3 id="ret2-modal-title">Nueva retención</h3><button class="btn-close" onclick="cerrarModal('modal-retencion')">×</button></div>
+  <div class="modal" style="max-width:560px;">
+    <div class="modal-header"><h3 id="ret-modal-title">Nueva retención</h3><button class="btn-close" onclick="cerrarModal('modal-retencion')">×</button></div>
     <div class="modal-body">
       <div class="form-grid gap-12">
-        <div class="form-group"><label>Nombre *</label><input type="text" id="ret2-nombre" list="dl-ret2-nombre" placeholder="Buscar asociado..." oninput="autocompletarRetencion()"><datalist id="dl-ret2-nombre"></datalist></div>
+        <div class="form-group"><label>Asociado (N° o nombre) *</label><input type="text" id="ret-nombre" list="dl-ret-nombre" placeholder="Buscar asociado..." oninput="autocompletarRetencion()"><datalist id="dl-ret-nombre"></datalist></div>
         <div class="form-grid form-grid-2">
-          <div class="form-group"><label>N° de socio</label><input type="text" id="ret2-nroSocio"></div>
-          <div class="form-group ret2-solo-rrhh"><label>Tipo</label>
-            <select id="ret2-tipo"><option value="conflicto">Conflicto</option><option value="enfermedad">Enfermedad</option><option value="otra">Otra</option></select>
+          <div class="form-group"><label>N° de socio</label><input type="text" id="ret-nroSocio"></div>
+          <div class="form-group"><label>Servicio / estado</label><input type="text" id="ret-servicio-estado" readonly style="background:var(--fondo);"></div>
+        </div>
+        <div class="form-group"><label>Retiro del período vigente con horas</label><input type="text" id="ret-retiro-estimado" readonly style="background:var(--fondo);"></div>
+        <div class="form-group">
+          <label>Alcance *</label>
+          <div style="display:flex;gap:16px;align-items:center;font-size:13px;">
+            <label style="display:flex;align-items:center;gap:6px;font-weight:400;"><input type="radio" name="ret-alcance" value="Total" checked onchange="toggleAlcanceRetencion()"> Retiro completo</label>
+            <label style="display:flex;align-items:center;gap:6px;font-weight:400;"><input type="radio" name="ret-alcance" value="Parcial" onchange="toggleAlcanceRetencion()"> Parcial</label>
+          </div>
+          <div class="form-grid form-grid-2" id="ret-parcial-fields" style="display:none;margin-top:8px;">
+            <div class="form-group"><label>Tipo de valor</label><select id="ret-tipo-valor"><option value="Monto">Monto fijo ($/mes)</option><option value="Porcentaje">% del retiro</option></select></div>
+            <div class="form-group"><label>Valor</label><input type="number" id="ret-monto" placeholder="0"></div>
           </div>
         </div>
-        <div class="form-group"><label>Motivo tipificado *</label><select id="ret2-motivo-tip"></select></div>
-        <div class="form-grid form-grid-2 ret2-solo-rrhh">
-          <div class="form-group"><label>Período</label><input type="month" id="ret2-periodo"></div>
-          <div class="form-group"><label>Tipo de valor</label>
-            <select id="ret2-tipo-valor"><option value="Monto">Monto ($)</option><option value="Porcentaje">Porcentaje (%)</option></select>
-          </div>
+        <div class="form-grid form-grid-2">
+          <div class="form-group"><label>Motivo * <span style="font-weight:400;">(configurable)</span></label><select id="ret-motivo-tip"></select></div>
+          <div class="form-group"><label>Desde período *</label><input type="month" id="ret-periodo"></div>
         </div>
-        <div class="form-group ret2-solo-rrhh"><label>Monto / Porcentaje</label><input type="number" id="ret2-monto" placeholder="0"></div>
-        <div class="form-group"><label>Observación</label><input type="text" id="ret2-motivo" placeholder="Detalle del inconveniente..."></div>
-        <div class="form-group ret2-solo-rrhh"><label>Estado</label>
-          <select id="ret2-estado"><option>Activa</option><option>Liberada</option><option>Pendiente</option></select>
+        <div class="alerta alerta-info" style="font-size:12px;">El monto no se congela al crear: la retención toma el retiro del período vigente calculado desde las grillas de Liquidación de horas. Si se cargan más horas, lo retenido acompaña.</div>
+        <div class="form-group"><label>Descripción / contexto *</label><textarea id="ret-motivo" rows="2" placeholder="Detalle del caso..."></textarea></div>
+        <div class="form-group">
+          <label>Adjuntos</label>
+          <div style="display:flex;gap:8px;align-items:center;">
+            <input type="file" id="ret-adjunto-file" style="flex:1;">
+            <button type="button" class="btn btn-secondary btn-sm" onclick="agregarAdjuntoRetencion()">📎 Adjuntar</button>
+          </div>
+          <div id="ret-adjuntos-lista" style="margin-top:6px;"></div>
         </div>
       </div>
     </div>
     <div class="modal-footer">
       <button class="btn btn-secondary" onclick="cerrarModal('modal-retencion')">Cancelar</button>
-      <button class="btn btn-primary" onclick="guardarRetencion()">Guardar</button>
+      <button class="btn btn-primary" onclick="guardarNuevaRetencion()">Crear retención</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL LIBERAR RETENCIÓN -->
+<div class="modal-overlay" id="modal-retencion-liberar">
+  <div class="modal" style="max-width:480px;">
+    <div class="modal-header"><h3 id="ret-liberar-titulo">Liberar retención</h3><button class="btn-close" onclick="cerrarModal('modal-retencion-liberar')">×</button></div>
+    <div class="modal-body">
+      <div class="alerta alerta-info" style="font-size:12px;">Retenido acumulado: <b id="ret-liberar-restante">$0</b>. La liberación genera un pago pendiente que después hay que confirmar como pagado — no vuelve al ciclo de retiros.</div>
+      <div class="form-group">
+        <label>¿Cuánto se libera? *</label>
+        <div style="display:flex;flex-direction:column;gap:8px;font-size:13px;">
+          <label style="display:flex;align-items:center;gap:6px;font-weight:400;"><input type="radio" name="ret-liberar-tipo" value="todo" checked> <span id="ret-liberar-todo-label">Todo — la retención se cierra</span></label>
+          <label style="display:flex;align-items:center;gap:6px;font-weight:400;"><input type="radio" name="ret-liberar-tipo" value="parcial"> Parcial: $ <input type="number" id="ret-liberar-parcial-monto" placeholder="monto" style="width:130px;"> — el resto sigue ACTIVA</label>
+        </div>
+      </div>
+      <div class="form-group"><label>Motivo de la liberación *</label><textarea id="ret-liberar-motivo" rows="2"></textarea></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="cerrarModal('modal-retencion-liberar')">Cancelar</button>
+      <button class="btn btn-primary" onclick="confirmarLiberarRetencion()">Liberar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL APLICAR COMO DESCUENTO -->
+<div class="modal-overlay" id="modal-retencion-aplicar">
+  <div class="modal" style="max-width:480px;">
+    <div class="modal-header"><h3 id="ret-aplicar-titulo">Aplicar como descuento</h3><button class="btn-close" onclick="cerrarModal('modal-retencion-aplicar')">×</button></div>
+    <div class="modal-body">
+      <div class="alerta alerta-info" style="font-size:12px;">Esto convierte la retención (o parte) en un descuento definitivo — la plata no se paga. Va por el circuito que corresponda y queda el registro acá como APLICADA.</div>
+      <div class="form-grid form-grid-2">
+        <div class="form-group"><label>Monto a aplicar *</label><input type="number" id="ret-aplicar-monto"></div>
+        <div class="form-group"><label>Circuito de destino</label>
+          <select id="ret-aplicar-circuito">
+            <option>Uniformes — devolución por baja</option>
+            <option>Sanciones</option>
+            <option>Otro (manual)</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-group"><label>Motivo *</label><textarea id="ret-aplicar-motivo" rows="2"></textarea></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="cerrarModal('modal-retencion-aplicar')">Cancelar</button>
+      <button class="btn btn-primary" onclick="confirmarAplicarRetencion()">Aplicar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL CONFIRMAR PAGO -->
+<div class="modal-overlay" id="modal-retencion-pago">
+  <div class="modal" style="max-width:440px;">
+    <div class="modal-header"><h3 id="ret-pago-titulo">✓ Confirmar pago</h3><button class="btn-close" onclick="cerrarModal('modal-retencion-pago')">×</button></div>
+    <div class="modal-body">
+      <div class="alerta alerta-info" style="font-size:12px;">Monto liberado: <b id="ret-pago-monto">$0</b>. Con esta confirmación el sistema deja de mostrarlo como pendiente.</div>
+      <div class="form-grid form-grid-2">
+        <div class="form-group"><label>Fecha en que se pagó *</label><input type="date" id="ret-pago-fecha"></div>
+        <div class="form-group"><label>N° de comprobante *</label><input type="text" id="ret-pago-comprobante" placeholder="Transferencia / recibo..."></div>
+      </div>
+      <div class="form-group"><label>Observaciones</label><textarea id="ret-pago-obs" rows="2" placeholder="Opcional"></textarea></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="cerrarModal('modal-retencion-pago')">Cancelar</button>
+      <button class="btn btn-primary" onclick="confirmarPagoMovimiento()">Confirmar pago</button>
     </div>
   </div>
 </div>
@@ -5485,38 +5563,67 @@
   </div>
 </div>
 
-<!-- RETENCIONES -->
+<!-- RETENCIONES (rediseño v126 — mockup_retenciones_3.html) -->
 <div class="screen" id="screen-retenciones">
   <div class="stats-grid">
-    <div class="stat-card azul"><div class="stat-label">Total retenciones</div><div class="stat-valor" id="st-ret2-total">0</div><div class="stat-sub">Registradas</div></div>
-    <div class="stat-card rojo"><div class="stat-label">Por conflicto</div><div class="stat-valor" id="st-ret2-conflicto">0</div><div class="stat-sub">Activas</div></div>
-    <div class="stat-card acento"><div class="stat-label">Por enfermedad</div><div class="stat-valor" id="st-ret2-enfermedad">0</div><div class="stat-sub">Activas</div></div>
-    <div class="stat-card verde"><div class="stat-label">Monto retenido</div><div class="stat-valor" id="st-ret2-monto" style="font-size:14px;">$0</div><div class="stat-sub">Total acumulado</div></div>
+    <div class="stat-card azul"><div class="stat-label">Retenciones activas</div><div class="stat-valor" id="kpi-ret-activas">0</div><div class="stat-sub">En curso</div></div>
+    <div class="stat-card acento"><div class="stat-label">$ retenido acumulado</div><div class="stat-valor" id="kpi-ret-acumulado" style="font-size:16px;">$0</div><div class="stat-sub">Activas, a hoy</div></div>
+    <div class="stat-card rojo"><div class="stat-label">Liberadas — pago pendiente</div><div class="stat-valor" id="kpi-ret-pendientes">0</div><div class="stat-sub">Por confirmar</div></div>
+    <div class="stat-card verde"><div class="stat-label">Aplicadas como descuento</div><div class="stat-valor" id="kpi-ret-aplicadas">0</div><div class="stat-sub">Este mes</div></div>
   </div>
-  <div id="ret2-candidatos" style="display:none;"></div>
+  <div id="ret-sugerencias"></div>
   <div class="card" style="margin-top:0;">
-    <div class="card-header"><h3>🔒 Retenciones</h3>
-      <select id="ret2-filtro" onchange="filtrarRetenciones()" style="padding:6px 10px;border:1px solid var(--borde-fuerte);border-radius:var(--radio);font-size:13px;outline:none;">
-        <option value="">Todos los tipos</option>
-        <option value="conflicto">Por conflicto</option>
-        <option value="enfermedad">Por enfermedad</option>
-        <option value="otra">Otra</option>
-      </select>
+    <div class="tabs">
+      <button class="tab-btn active" data-ret-tab="activas" onclick="cambiarTabRetencion('activas',this)">Activas</button>
+      <button class="tab-btn" data-ret-tab="liberadas" onclick="cambiarTabRetencion('liberadas',this)">Liberadas y pagos <span class="badge badge-verde" id="badge-ret-pendientes" style="font-size:10px;">al día</span></button>
+      <button class="tab-btn" data-ret-tab="historial" onclick="cambiarTabRetencion('historial',this)">Historial</button>
     </div>
-    <div class="tabla-wrap"><table>
-      <thead><tr style="background:#374151;color:white;">
-        <th style="padding:8px 14px;border:1px solid #6b7280;text-align:left;">Asociado</th>
-        <th style="padding:8px;border:1px solid #6b7280;">Nro. Socio</th>
-        <th style="padding:8px;border:1px solid #6b7280;">Tipo</th>
-        <th style="padding:8px;border:1px solid #6b7280;">Motivo tipificado</th>
-        <th style="padding:8px;border:1px solid #6b7280;">Período</th>
-        <th style="padding:8px;border:1px solid #6b7280;text-align:right;">Monto/%</th>
-        <th style="padding:8px;border:1px solid #6b7280;">Observación</th>
-        <th style="padding:8px;border:1px solid #6b7280;text-align:center;">Estado</th>
-        <th style="padding:8px;border:1px solid #6b7280;min-width:80px;"></th>
-      </tr></thead>
-      <tbody id="tbody-ret2"></tbody>
-    </table></div>
+
+    <div id="ret-tab-activas" class="tab-content active">
+      <div class="tabla-wrap"><table>
+        <thead><tr style="background:#374151;color:white;">
+          <th style="padding:8px 14px;border:1px solid #6b7280;text-align:left;">Asociado</th>
+          <th style="padding:8px;border:1px solid #6b7280;text-align:left;">Motivo</th>
+          <th style="padding:8px;border:1px solid #6b7280;">Alcance</th>
+          <th style="padding:8px;border:1px solid #6b7280;">Desde</th>
+          <th style="padding:8px;border:1px solid #6b7280;">Períodos</th>
+          <th style="padding:8px;border:1px solid #6b7280;text-align:right;">$ retenido acum.</th>
+          <th style="padding:8px;border:1px solid #6b7280;text-align:left;">Creada por</th>
+          <th style="padding:8px;border:1px solid #6b7280;min-width:140px;">Acción</th>
+        </tr></thead>
+        <tbody id="tbody-ret-activas"></tbody>
+      </table></div>
+      <div class="alerta alerta-info" style="margin:12px 14px;font-size:12px;">Mientras la retención está ACTIVA, cada período nuevo vuelve a retener (total o el monto parcial). En Liquidaciones aparece en la columna RETENCIONES del período y resta del neto a pagar — Finanzas no la edita, solo la ve con el link a este módulo.</div>
+    </div>
+
+    <div id="ret-tab-liberadas" class="tab-content">
+      <div class="tabla-wrap"><table>
+        <thead><tr style="background:#374151;color:white;">
+          <th style="padding:8px 14px;border:1px solid #6b7280;text-align:left;">Asociado</th>
+          <th style="padding:8px;border:1px solid #6b7280;text-align:left;">Liberación</th>
+          <th style="padding:8px;border:1px solid #6b7280;text-align:right;">Monto liberado</th>
+          <th style="padding:8px;border:1px solid #6b7280;text-align:left;">Liberada por</th>
+          <th style="padding:8px;border:1px solid #6b7280;">Estado</th>
+          <th style="padding:8px;border:1px solid #6b7280;">Acción</th>
+        </tr></thead>
+        <tbody id="tbody-ret-liberadas"></tbody>
+      </table></div>
+      <div class="alerta alerta-info" style="margin:12px 14px;font-size:12px;">La liberación genera un pago propio, desacoplado del ciclo de retiros. Hasta que alguien confirma el pago, el sistema lo muestra como plata liberada sin pagar. Nunca se vuelve a sumar a un período siguiente.</div>
+    </div>
+
+    <div id="ret-tab-historial" class="tab-content">
+      <div class="tabla-wrap"><table>
+        <thead><tr style="background:#374151;color:white;">
+          <th style="padding:8px 14px;border:1px solid #6b7280;text-align:left;">Asociado</th>
+          <th style="padding:8px;border:1px solid #6b7280;text-align:left;">Motivo</th>
+          <th style="padding:8px;border:1px solid #6b7280;">Vigencia</th>
+          <th style="padding:8px;border:1px solid #6b7280;text-align:right;">$ total retenido</th>
+          <th style="padding:8px;border:1px solid #6b7280;text-align:left;">Resolución</th>
+        </tr></thead>
+        <tbody id="tbody-ret-historial"></tbody>
+      </table></div>
+      <div class="alerta alerta-info" style="margin:12px 14px;font-size:12px;">Toda retención termina LIBERADA Y PAGADA o APLICADA — nunca desaparece. El legajo del asociado muestra sus retenciones (activas e históricas).</div>
+    </div>
   </div>
 </div>
 

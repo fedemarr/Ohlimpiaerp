@@ -8398,7 +8398,12 @@ if(!DB.uniformes) DB.uniformes = [];
 
 // ── DB Retenciones ──
 if(!DB.retenciones) DB.retenciones = [];
-// [{id, nombre, nroSocio, tipo:'conflicto'|'enfermedad'|'otra', periodo, monto, motivo, estado, fecha}]
+// Rediseño v126 (ver src/modules/retenciones/retenciones.js): ya no es
+// {tipo:'conflicto'|'enfermedad'|'otra', periodo} con corte exacto de mes.
+// Ahora es {alcance:'Total'|'Parcial', tipoValor, monto, periodoDesde,
+// estado:'Activa'|'Liberada'|'Pagada'|'Aplicada', montoAcumulado,
+// periodosRetenidos:[{periodo,monto}]} — recurrente mientras Activa.
+if(!DB.retencionesMovimientos) DB.retencionesMovimientos = [];
 
 if(!DB.mantPersonal) DB.mantPersonal = [
   {id:1, nombre:'Soria Guillermo', nroSocio:'3301', categoriBase:'Operario/a limpieza especializado/a', activo:true},
@@ -8414,12 +8419,13 @@ if(!DB.cuentaCorriente) DB.cuentaCorriente = {};  // DB.cuentaCorriente[nombre] 
 // (todavía no hay un monto/cuota automático para esos dos — Monotributo
 // es el tema 2, pendiente de un TAB de pago mensual).
 //
-// Los porcentajes de retención (tipoValor='Porcentaje') no se resuelven
-// acá porque hace falta el bruto de la fila, que se conoce recién en
-// renderLiquidaciones() — se devuelven en pctRetenciones y el llamador
-// los aplica sobre f.bruto.
+// Los porcentajes de retención (tipoValor='Porcentaje') y el alcance
+// 'Total' (todo el bruto) no se resuelven acá porque hace falta el bruto
+// de la fila, que se conoce recién en renderLiquidaciones() — se
+// devuelven en retencionesPct/retencionesTotal y el llamador los aplica
+// sobre f.bruto vía _resolverRetenciones().
 function descuentosAutomaticosLegajo(nro, mes){
-  const out = { uniforme:0, retConflicto:0, retEnfermedad:0, adelantos:0, prestamo:0, monotributo:0, programado:0, uniformeIds:[], prestamoId:null, programados:[], pctRetenciones:[] };
+  const out = { uniforme:0, retenciones:0, retencionesPct:[], retencionesTotal:[], retencionesIds:[], adelantos:0, prestamo:0, monotributo:0, programado:0, uniformeIds:[], prestamoId:null, programados:[] };
   if(!nro) return out;
   const nroStr = String(nro);
 
@@ -8451,13 +8457,16 @@ function descuentosAutomaticosLegajo(nro, mes){
     });
   });
 
-  // Retenciones ACTIVAS de este período exacto (no son recurrentes: se
-  // definen por período y RRHH las libera manualmente — tema 4). "otra"
-  // comparte columna con enfermedad, no hay columna propia todavía.
-  (DB.retenciones||[]).filter(r=>!r.anulado && r.estado==='Activa' && r.periodo===mes && String(r.nroSocio)===nroStr).forEach(r=>{
-    if(r.tipoValor==='Porcentaje'){ out.pctRetenciones.push({tipo:r.tipo, pct:parseFloat(r.monto)||0, id:r.id}); return; }
-    const val = parseFloat(r.monto)||0;
-    if(r.tipo==='conflicto') out.retConflicto += val; else out.retEnfermedad += val;
+  // Retenciones ACTIVAS — recurrentes (v126): mientras estado==='Activa'
+  // y ya llegó su periodoDesde, retienen TODOS los meses siguientes (RRHH
+  // las libera/aplica manualmente desde el módulo Retenciones, nunca se
+  // "vencen" solas). alcance 'Total' necesita el bruto real de la fila
+  // (se resuelve en _resolverRetenciones, junto a los porcentajes).
+  (DB.retenciones||[]).filter(r=>!r.anulado && r.estado==='Activa' && r.periodoDesde && r.periodoDesde<=mes && String(r.nroSocio)===nroStr).forEach(r=>{
+    out.retencionesIds.push(r.id);
+    if(r.alcance==='Total'){ out.retencionesTotal.push({id:r.id}); return; }
+    if(r.tipoValor==='Porcentaje'){ out.retencionesPct.push({pct:parseFloat(r.monto)||0, id:r.id}); return; }
+    out.retenciones += parseFloat(r.monto)||0;
   });
 
   // Adelantos aprobados de este período (formales e informales) — se
@@ -8475,21 +8484,46 @@ function descuentosAutomaticosLegajo(nro, mes){
   return out;
 }
 
+// Resuelve el total de retenciones de `auto` contra el bruto real de la
+// fila — separado en su propia función porque se necesita en 3 lugares
+// (acá, el consolidado de renderLiquidaciones y verDetalleLqs) y todos
+// deben coincidir centavo a centavo con lo que autorizarPago() persiste.
+function _resolverRetenciones(auto, bruto){
+  return _resolverRetencionesDetalle(auto, bruto).reduce((s,x)=>s+x.monto, 0);
+}
+
+// Detalle por retención (no solo el total) — lo necesita autorizarPago()
+// para persistir montoAcumulado/periodosRetenidos por id cuando el pago
+// se autoriza de verdad. Las de alcance Parcial+Monto fijo no se pushean
+// a out.retencionesPct/retencionesTotal en descuentosAutomaticosLegajo()
+// (van directo a la suma out.retenciones) — acá se recuperan por id
+// releyendo DB.retenciones, cada una con su propio r.monto (no es un
+// reparto: cada retención fija aporta exactamente lo suyo).
+function _resolverRetencionesDetalle(auto, bruto){
+  const detalle=[];
+  const idsMontoFijo = auto.retencionesIds.filter(id=>
+    !auto.retencionesTotal.some(t=>t.id===id) && !auto.retencionesPct.some(p=>p.id===id)
+  );
+  idsMontoFijo.forEach(id=>{
+    const r=(DB.retenciones||[]).find(x=>x.id===id);
+    if(r) detalle.push({id, monto:parseFloat(r.monto)||0});
+  });
+  auto.retencionesPct.forEach(pr=>{ detalle.push({id:pr.id, monto:Math.round((bruto||0)*(pr.pct/100))}); });
+  auto.retencionesTotal.forEach(t=>{ detalle.push({id:t.id, monto:(bruto||0)}); });
+  return detalle;
+}
+
 // Total de descuentos ya resuelto (sanciones/monotributo manuales +
-// automáticos, con los porcentajes de retención aplicados contra el
-// bruto recibido) — usado por _getFilasConsolidadas() para que el monto
-// que autoriza autorizarPago() coincida con lo que se ve en la grilla
-// principal de renderLiquidaciones().
+// automáticos, con los porcentajes/alcance Total de retención aplicados
+// contra el bruto recibido) — usado por _getFilasConsolidadas() para que
+// el monto que autoriza autorizarPago() coincida con lo que se ve en la
+// grilla principal de renderLiquidaciones().
 function _totalDescLegajo(nombre, mes, bruto){
   const desc=DB.lqsDescuentos?.[mes]?.[nombre]||{};
   const nro=(DB.legajos||[]).find(l=>l.nombre===nombre)?.nro;
   const auto=descuentosAutomaticosLegajo(nro, mes);
-  let retC=auto.retConflicto, retE=auto.retEnfermedad;
-  auto.pctRetenciones.forEach(pr=>{
-    const val=Math.round((bruto||0)*(pr.pct/100));
-    if(pr.tipo==='conflicto') retC+=val; else retE+=val;
-  });
-  return (desc.sanciones||0)+auto.monotributo+auto.uniforme+retC+retE+auto.adelantos+auto.prestamo+auto.programado;
+  const retenciones=_resolverRetenciones(auto, bruto);
+  return (desc.sanciones||0)+auto.monotributo+auto.uniforme+retenciones+auto.adelantos+auto.prestamo+auto.programado;
 }
 
 function renderLiquidaciones(){
@@ -8775,20 +8809,15 @@ function renderLiquidaciones(){
     // descuento sin el paso explícito de RRHH).
     const desc = DB.lqsDescuentos[mes][f.nombre] || {};
     const auto = descuentosAutomaticosLegajo(legajo?.nro, mes);
-    auto.pctRetenciones.forEach(pr=>{
-      const val = Math.round(f.bruto * (pr.pct/100));
-      if(pr.tipo==='conflicto') auto.retConflicto += val; else auto.retEnfermedad += val;
-    });
     f.uniforme      = auto.uniforme;
     f.sanciones     = desc.sanciones   ||0;
-    f.retConflicto  = auto.retConflicto;
-    f.retEnfermedad = auto.retEnfermedad;
+    f.retenciones   = _resolverRetenciones(auto, f.bruto);
     f.monotributo   = auto.monotributo;
     f.adelantos     = auto.adelantos;
     f.prestamo      = auto.prestamo;
     f.programado    = auto.programado;
     f._descAuto     = auto; // guardado para autorizarPago() — consumir cuotas al pagar
-    f.totalDesc = f.uniforme+f.sanciones+f.retConflicto+f.retEnfermedad+f.monotributo+f.adelantos+f.prestamo+f.programado;
+    f.totalDesc = f.uniforme+f.sanciones+f.retenciones+f.monotributo+f.adelantos+f.prestamo+f.programado;
     f.neto = Math.round(f.bruto + f.presentismo - f.totalDesc);
   });
 
@@ -8854,7 +8883,7 @@ function renderLiquidaciones(){
     <th style="${thStyle}min-width:70px;">Presentismo</th>
     <th style="${thStyle}min-width:100px;background:#1d4ed8;color:white;">Bruto</th>
     <th colspan="4" style="${thStyle}min-width:280px;background:#dc2626;color:white;">Descuentos (automáticos*)</th>
-    <th colspan="2" style="${thStyle}min-width:160px;background:#7c3aed;color:white;">Retenciones (automáticas*)</th>
+    <th colspan="1" style="${thStyle}min-width:90px;background:#7c3aed;color:white;">Retenciones</th>
     <th colspan="1" style="${thStyle}min-width:90px;background:#dc2626;color:white;">Monotributo</th>
     <th style="${thStyle}min-width:110px;background:#065f46;color:white;">NETO A PAGAR</th>
     <th style="${thStyle}min-width:120px;background:#14532d;color:white;">
@@ -8883,8 +8912,7 @@ function renderLiquidaciones(){
     <th style="${thStyle}background:#b91c1c;color:white;" title="Manual — no tiene módulo de cargos económicos todavía">Sanciones</th>
     <th style="${thStyle}background:#b91c1c;color:white;" title="Adelantos aprobados de este período — automático">Adelantos</th>
     <th style="${thStyle}background:#b91c1c;color:white;" title="Cuota del mes desde Préstamos — automático">Préstamo</th>
-    <th style="${thStyle}background:#6d28d9;color:white;" title="Retenciones activas de este período, tipo conflicto — automático">Ret.Conflicto</th>
-    <th style="${thStyle}background:#6d28d9;color:white;" title="Retenciones activas de este período, enfermedad/otra — automático">Ret.Enfermedad/Otra</th>
+    <th style="${thStyle}background:#6d28d9;color:white;" title="Retenciones activas de este período — se administran desde el módulo Retenciones">Retenciones</th>
     <th style="${thStyle}background:#b91c1c;color:white;" title="Del TAB 'Pago mensual' de Monotributo, mes congelado — automático">Monotributo</th>
     <th style="${thStyle}background:#065f46;color:white;"></th>
 
@@ -8906,7 +8934,7 @@ function renderLiquidaciones(){
   }
 
   if(!filasConsolidadas.length){
-    tbody.innerHTML=`<tr><td colspan="17" style="padding:40px;text-align:center;color:var(--texto-muy-suave);">
+    tbody.innerHTML=`<tr><td colspan="16" style="padding:40px;text-align:center;color:var(--texto-muy-suave);">
       Sin datos para el período. Cargá horas en Liquidación de horas o en la Planilla de Administración.
     </td></tr>`;
     return;
@@ -8942,8 +8970,7 @@ function renderLiquidaciones(){
     <td style="padding:2px 4px;border:1px solid var(--borde);background:#fff0f0;">${fmtDesc(f.nombre,'sanciones',f.sanciones)}</td>
     <td style="padding:2px 4px;border:1px solid var(--borde);background:#fff0f0;">${fmtAuto(f.adelantos)}</td>
     <td style="padding:2px 4px;border:1px solid var(--borde);background:#fff0f0;">${fmtAuto(f.prestamo)}</td>
-    <td style="padding:2px 4px;border:1px solid var(--borde);background:#f5f0ff;">${fmtAuto(f.retConflicto)}</td>
-    <td style="padding:2px 4px;border:1px solid var(--borde);background:#f5f0ff;">${fmtAuto(f.retEnfermedad)}</td>
+    <td style="padding:2px 4px;border:1px solid var(--borde);background:#f5f0ff;">${fmtAuto(f.retenciones)}</td>
     <td style="padding:2px 4px;border:1px solid var(--borde);background:#fff0f0;">${fmtAuto(f.monotributo)}</td>
     <td style="padding:4px 8px;border:1px solid var(--borde);text-align:right;font-weight:700;font-size:13px;color:white;background:#065f46;">${fmt(f.neto)}</td>
     <td style="padding:4px 6px;border:1px solid var(--borde);text-align:center;background:${pagoInfo?.pagado?'#dcfce7':listoInfo?'#dbeafe':'white'};">
@@ -9402,6 +9429,22 @@ function autorizarPago(){
           supaSync('prestamos', p);
         }
       }
+      // Retenciones (v126): recién ahora, al pagar de verdad, se persiste
+      // lo efectivamente retenido — montoAcumulado (usado por Retenciones
+      // para mostrar "$ retenido acum." y como tope de Liberar/Aplicar) y
+      // periodosRetenidos (auditoría + evita duplicar si se re-autoriza
+      // el mismo mes). Idempotente por período, mismo criterio que ya usa
+      // uniforme/préstamo con cuotasCobradas.
+      _resolverRetencionesDetalle(auto, f?.bruto||0).forEach(({id, monto})=>{
+        if(!monto) return;
+        const r=(DB.retenciones||[]).find(x=>x.id===id);
+        if(!r) return;
+        if(!r.periodosRetenidos) r.periodosRetenidos=[];
+        if(r.periodosRetenidos.some(pr=>pr.periodo===mes)) return; // ya contabilizado este mes
+        r.periodosRetenidos.push({periodo:mes, monto});
+        r.montoAcumulado = (parseFloat(r.montoAcumulado)||0) + monto;
+        supaSync('retenciones', r);
+      });
     }
   });
   toast('💰 Pago autorizado — '+listos.length+' asociados · $'+totalNeto.toLocaleString('es-AR'));
@@ -9551,18 +9594,13 @@ function verDetalleLqs(nombre, mes){
   const desc = (DB.lqsDescuentos?.[mes]?.[nombre]) || {};
   const nroPersona = (DB.legajos||[]).find(l=>l.nombre===nombre)?.nro;
   const autoPersona = descuentosAutomaticosLegajo(nroPersona, mes);
-  let retConfPersona=autoPersona.retConflicto, retEnfPersona=autoPersona.retEnfermedad;
-  autoPersona.pctRetenciones.forEach(pr=>{
-    const val=Math.round(totalBruto*(pr.pct/100));
-    if(pr.tipo==='conflicto') retConfPersona+=val; else retEnfPersona+=val;
-  });
+  const retPersona = _resolverRetenciones(autoPersona, totalBruto);
   const descItems = [
     {label:'Uniforme',      val:autoPersona.uniforme, color:'#b91c1c'},
     {label:'Sanciones',     val:desc.sanciones    ||0, color:'#b91c1c'},
     {label:'Adelantos',     val:autoPersona.adelantos, color:'#b91c1c'},
     {label:'Préstamo',      val:autoPersona.prestamo,  color:'#b91c1c'},
-    {label:'Ret. Conflicto',val:retConfPersona, color:'#6d28d9'},
-    {label:'Ret. Enfermedad/Otra',val:retEnfPersona, color:'#6d28d9'},
+    {label:'Retenciones',   val:retPersona, color:'#6d28d9'},
     {label:'Monotributo',   val:autoPersona.monotributo, color:'#6b7280'},
     ...autoPersona.programados.map(p=>({label:p.nombre, val:p.monto, color:'#b91c1c'})),
   ].filter(d=>d.val>0);
