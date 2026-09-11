@@ -3683,19 +3683,14 @@ async function enviarDesdeAplicacion(key, btn) {
 
 // ---- pdfmake: piezas del documento ----
 const NOTA_VERDE = "#1a5c3a", NOTA_GRIS = "#666";
+// Pie institucional — datos reales de Ohlimpia (11/09/2026, confirmados
+// por Fede). Antes tenía el pie de Lince Seguridad (0800/web/IG + 3
+// sucursales) copiado sin adaptar del sistema de origen.
 function pieInstitucionalNota() {
-  const col = (titulo, dir) => ({ alignment: "center", fontSize: 7, stack: [
-    { text: titulo, bold: true, color: NOTA_VERDE }, { text: dir, color: NOTA_GRIS },
-  ] });
   return { margin: [40, 6, 40, 0], stack: [
-    { text: "Tel: 0800 444 LINCE    ·    Web: www.linceseguridad.com.ar    ·    Mail: comercial@linceseguridad.com.ar    ·    IG: LinceSeguridadOficial", alignment: "center", fontSize: 8, color: NOTA_GRIS },
-    // línea horizontal verde (separa contacto de sucursales)
+    { text: "Tel: 11 3683-1100    ·    Mail: comercial@ohlimpia.com.ar", alignment: "center", fontSize: 8, color: NOTA_GRIS },
     { canvas: [{ type: "line", x1: 0, y1: 3, x2: 515, y2: 3, lineWidth: 1, lineColor: NOTA_VERDE }], margin: [0, 3, 0, 4] },
-    { columns: [
-      col("Suc. Mar del Plata", "Av. Colón 3083 3° Piso, Mar del Plata"),
-      col("Casa Central CABA", "Av. Federico Lacroze 4168 – C1427 – 11-5927-8989"),
-      col("Suc. Formosa", "Barrio Parque Urbano II Mz 215 Casa 4, Formosa CP 3600"),
-    ] },
+    { text: "Aguilar 2835 — (C1426) CABA", alignment: "center", fontSize: 7, color: NOTA_GRIS },
   ] };
 }
 function tablaAumentosNota(aumentos, conPrecio) {
@@ -3774,7 +3769,7 @@ function buildDocDefNota({ cliente, fecha, textoNota, tablaContent, firmante, lo
 // ---- Borradores de mail (.eml) ----
 const EMAIL_ASUNTO = "Actualización de precio - Ohlimpia";
 const EMAIL_CUERPO = "Estimados,\n\nAdjuntamos la nota con la actualización de precios correspondiente.\n\nAnte cualquier consulta, quedamos a su disposición.\n\nSaludos cordiales,\nComercial - Ohlimpia";
-const EMAIL_FROM = "comercial@ohlimpia.coop";
+const EMAIL_FROM = "comercial@ohlimpia.com.ar";
 
 function bytesToB64(bytes) {   // Uint8Array/Buffer -> base64 (por chunks, no revienta con archivos grandes)
   const b = bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes);
