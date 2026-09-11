@@ -3660,9 +3660,9 @@ function tablaAumentosNota(aumentos, conPrecio) {
   const widths = hayB ? [52, 66, 84, 84] : (conPrecio ? [58, 78, 92] : [60, 90]);
   const tabla = { table: { headerRows: 1, widths, body },
     layout: { hLineWidth: () => 0.7, vLineWidth: () => 0.7, hLineColor: () => "#999", vLineColor: () => "#999",
-      paddingLeft: () => 6, paddingRight: () => 6, paddingTop: () => 3, paddingBottom: () => 3 } };
+      paddingLeft: () => 6, paddingRight: () => 6, paddingTop: () => 2, paddingBottom: () => 2 } };
   // Centrada en la hoja: espaciadores "*" a ambos lados de la tabla (ancho "auto").
-  return { columns: [{ width: "*", text: "" }, { width: "auto", ...tabla }, { width: "*", text: "" }], margin: [0, 6, 0, 10] };
+  return { columns: [{ width: "*", text: "" }, { width: "auto", ...tabla }, { width: "*", text: "" }], margin: [0, 4, 0, 6] };
 }
 const LINK_ACTA_TXT = "Acta paritaria homologada — UPSRA";   // texto descriptivo del enlace (PDF y mail)
 function parrafosNota(t, actaUrl) {
@@ -3673,46 +3673,57 @@ function parrafosNota(t, actaUrl) {
     .filter(Boolean)
     .map((p) => {
       const lines = p.split("\n");
-      if (!lines.some((l) => l.trim() === "[LINK]")) return { text: p, alignment: "justify", margin: [0, 0, 0, 8] };
+      if (!lines.some((l) => l.trim() === "[LINK]")) return { text: p, alignment: "justify", margin: [0, 0, 0, 5] };
       // El párrafo tiene una línea [LINK]: la reemplazo por el enlace (si hay URL) o la quito limpia (si no).
       const parts = [];
       lines.forEach((l) => { if (l.trim() === "[LINK]") { if (actaUrl) parts.push(mkLink()); } else parts.push(l); });
       if (!parts.length) return null;   // párrafo era solo [LINK] sin URL → desaparece sin dejar hueco
       const withBreaks = [];
       parts.forEach((x, i) => { if (i > 0) withBreaks.push("\n"); withBreaks.push(x); });
-      return { text: withBreaks, alignment: "justify", margin: [0, 0, 0, 8] };
+      return { text: withBreaks, alignment: "justify", margin: [0, 0, 0, 5] };
     })
     .filter(Boolean);
 }
+// Ticket "PDF en una sola hoja" (11/09): la nota típica (texto + tabla +
+// firma) entraba de sobra en 1 página, pero los márgenes/espaciados
+// generosos (pensados para el pie de Lince con 3 sucursales, ya sacado)
+// la empujaban a una 2da hoja con solo la firma huérfana. Se compacta
+// todo (márgenes, interlineado, espacios entre párrafos, tamaño de la
+// firma) para que entre en una hoja siempre que el contenido lo permita
+// — una nota con MUCHO texto o muchos objetivos con aumentos distintos
+// puede seguir necesitando una 2da hoja, eso no se puede evitar sin
+// cortar contenido real.
 function buildDocDefNota({ cliente, fecha, textoNota, tablaContent, firmante, logo, firma, actaUrl }) {
   const lines = String(textoNota).split(/\r?\n/);
   const idx = lines.findIndex((l) => l.trim() === "[TABLA]");
   const antes = idx >= 0 ? lines.slice(0, idx).join("\n") : textoNota;   // sin [TABLA] → todo antes, tabla al final
   const despues = idx >= 0 ? lines.slice(idx + 1).join("\n") : "";
   return {
-    pageSize: "A4", pageMargins: [60, 110, 60, 95],
+    pageSize: "A4", pageMargins: [60, 92, 60, 68],
     images: { logo, firma },
-    header: () => ({ image: "logo", width: 150, alignment: "center", margin: [0, 25, 0, 0] }),
+    header: () => ({ image: "logo", width: 120, alignment: "center", margin: [0, 14, 0, 0] }),
     footer: () => pieInstitucionalNota(),
     content: [
-      { text: fecha, alignment: "right", margin: [0, 0, 0, 14] },
-      { text: `ESTIMADO ${cliente}:`, bold: true, margin: [0, 0, 0, 12] },
+      { text: fecha, alignment: "right", margin: [0, 0, 0, 10] },
+      { text: `ESTIMADO ${cliente}:`, bold: true, margin: [0, 0, 0, 8] },
       ...parrafosNota(antes, actaUrl),
       ...tablaContent,
       ...parrafosNota(despues, actaUrl),
       // Sello de firma: bloque UBICADO a la derecha, pero su contenido (firma+nombre+cargo)
       // CENTRADO entre sí — columna izquierda flexible como spacer, columna derecha auto.
-      { margin: [0, 26, 0, 0], columns: [
+      // unbreakable: si por contenido largo igual no entra todo en una hoja,
+      // al menos la firma no queda partida a la mitad entre dos páginas.
+      { margin: [0, 14, 0, 0], unbreakable: true, columns: [
         { width: "*", text: "" },
         { width: "auto", alignment: "center", stack: [
           // fit[] respeta el aspect ratio (orig. 197x225 → no se deforma)
-          { image: "firma", fit: [115, 131], alignment: "center", margin: [0, 0, 0, 2] },
+          { image: "firma", fit: [95, 108], alignment: "center", margin: [0, 0, 0, 2] },
           { text: firmante.nombre, bold: true, alignment: "center" },
           { text: firmante.cargo, alignment: "center" },
         ] },
       ] },
     ],
-    defaultStyle: { fontSize: 11, alignment: "justify", lineHeight: 1.15 },
+    defaultStyle: { fontSize: 10.5, alignment: "justify", lineHeight: 1.08 },
   };
 }
 
