@@ -3935,6 +3935,41 @@ async function generarNotasCore({ eid, paritariaId, clientes, fechaVal, conPreci
   const cById = new Map(DATA.clientes.map((c) => [c.id, c]));
   const sucByCli = new Map();
   for (const s of DATA.suc) { if (!sucByCli.has(s.cliente_id)) sucByCli.set(s.cliente_id, []); sucByCli.get(s.cliente_id).push(s); }
+
+  // Ticket "Servicios — Mails de facturación" (Lautaro, 11/09): la nota de
+  // aumento deja de leer clientes.email_para/email_cc — la fuente única es
+  // el mail cargado en la ficha del SERVICIO (objetivos.email_facturacion/
+  // email_cc), porque un mismo cliente puede tener servicios con contactos
+  // administrativos distintos (match por sucursales.codigo_objetivo =
+  // objetivos.codigo, igual que el resto de este módulo). Si NINGUNO de
+  // los servicios del cliente tiene mail cargado todavía, cae al viejo
+  // clientes.email_para/email_cc (transición mientras se termina de cargar
+  // el padrón de 158 servicios).
+  const emailsPorCodigoObj = new Map();
+  try {
+    const rows = await fetchAllRows("objetivos", "codigo, email_facturacion, email_cc");
+    for (const r of rows || []) emailsPorCodigoObj.set(r.codigo, { ema: r.email_facturacion || "", cc: r.email_cc || "" });
+  } catch { /* si objetivos no tiene las columnas todavía, sigue con el fallback de cliente */ }
+  const _splitMails = (s) => String(s || "").split(/[;,]/).map((x) => x.trim()).filter(Boolean);
+  function emailsDeServiciosCliente(cli) {
+    const objsCli = sucByCli.get(cli) || [];
+    const emas = new Set(), ccs = new Set();
+    for (const s of objsCli) {
+      const e = emailsPorCodigoObj.get(s.codigo_objetivo);
+      if (!e) continue;
+      _splitMails(e.ema).forEach((m) => emas.add(m));
+      _splitMails(e.cc).forEach((m) => ccs.add(m));
+    }
+    return { ema: [...emas].join("; "), cc: [...ccs].join("; ") };
+  }
+  function emailFacturacionCliente(c, cli) {
+    const deServicios = emailsDeServiciosCliente(cli);
+    return {
+      ema: deServicios.ema || c?.email_para || "",
+      cc: deServicios.cc || c?.email_cc || "",
+    };
+  }
+
   const nombreMes = (m) => `${m.slice(5, 7)}/${m.slice(0, 4)}`;   // MM/AAAA (incluye el año: las escalas pueden cruzar de año)
   const money = (v) => (v == null ? "" : fmtMoney(v));
   const fecha = fmtFechaNota(fechaVal);
@@ -4037,7 +4072,8 @@ async function generarNotasCore({ eid, paritariaId, clientes, fechaVal, conPreci
     // no registra estado y NO sube nada a Storage: sale por este return, mucho antes de la
     // subida. Es una nota para mirar en Outlook, no una nota emitida.
     if (prueba) {
-      const eml = buildEml({ to: normalizarMails(c?.email_para), cc: normalizarMails(c?.email_cc), subject: EMAIL_ASUNTO, bodyText: EMAIL_CUERPO, pdfBytes: pdf, pdfName: fname, homolog, actaUrl, boundary: `=_lince_${fechaVal}_prueba` });
+      const emailsPrueba = emailFacturacionCliente(c, cli);
+      const eml = buildEml({ to: normalizarMails(emailsPrueba.ema), cc: normalizarMails(emailsPrueba.cc), subject: EMAIL_ASUNTO, bodyText: EMAIL_CUERPO, pdfBytes: pdf, pdfName: fname, homolog, actaUrl, boundary: `=_ohlimpia_${fechaVal}_prueba` });
       descargarBlob(new Blob([pdf], { type: "application/pdf" }), "PRUEBA - " + fname);
       descargarBlob(new Blob([eml], { type: "message/rfc822" }), "PRUEBA - " + fname.replace(/\.pdf$/i, ".eml"));
       ntMsg(`Nota de PRUEBA generada para ${esc(c?.nombre || cli)} (PDF + .eml). Abrí el .eml en Outlook para revisarlo. NO se registró como generada.${avisoLocal}`);
@@ -4063,10 +4099,11 @@ async function generarNotasCore({ eid, paritariaId, clientes, fechaVal, conPreci
 
     zip.file(fname, pdf);
     if (emlZip) {
-      const para = normalizarMails(c?.email_para);
-      const ccx = normalizarMails(c?.email_cc);
+      const emailsReales = emailFacturacionCliente(c, cli);
+      const para = normalizarMails(emailsReales.ema);
+      const ccx = normalizarMails(emailsReales.cc);
       if (!para) sinMail.push(c?.nombre || cli);
-      const eml = buildEml({ to: para, cc: ccx, subject: EMAIL_ASUNTO, bodyText: EMAIL_CUERPO, pdfBytes: pdf, pdfName: fname, homolog, actaUrl, boundary: `=_lince_${fechaVal}_${n}` });
+      const eml = buildEml({ to: para, cc: ccx, subject: EMAIL_ASUNTO, bodyText: EMAIL_CUERPO, pdfBytes: pdf, pdfName: fname, homolog, actaUrl, boundary: `=_ohlimpia_${fechaVal}_${n}` });
       emlZip.file(fname.replace(/\.pdf$/i, ".eml"), eml);
     }
     generados.push(cli);

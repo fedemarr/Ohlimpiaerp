@@ -1857,12 +1857,14 @@ function abrirModalObjetivo(idLocal){
     if($('obj-periodo-fact')) $('obj-periodo-fact').value=o.periodoFact||'';
     if($('obj-req-oc')) $('obj-req-oc').value=o.reqOC||'';
     $('obj-texto-factura').value=o.textoFactura||'';
+    if($('obj-email-facturacion')) $('obj-email-facturacion').value=o.emailFacturacion||'';
+    if($('obj-email-cc')) $('obj-email-cc').value=o.emailCc||'';
     $('obj-notas-precio').value=o.notas||'';
     if($('obj-log-productos')) $('obj-log-productos').value=o.logProductos||'';
     if($('obj-log-elementos')) $('obj-log-elementos').value=o.logElementos||'';
     if($('obj-log-maquinas')) $('obj-log-maquinas').value=o.logMaquinas||'';
   } else {
-    ['obj-cliente','obj-codigo','obj-nombre','obj-dir','obj-fecha-inicio','obj-valor','obj-efts','obj-efts-fijo','obj-valor-hora','obj-fecha-fin','obj-texto-factura','obj-notas-precio','obj-log-productos','obj-log-elementos','obj-log-maquinas'].forEach(id=>{const el=$(id);if(el)el.value='';});
+    ['obj-cliente','obj-codigo','obj-nombre','obj-dir','obj-fecha-inicio','obj-valor','obj-efts','obj-efts-fijo','obj-valor-hora','obj-fecha-fin','obj-texto-factura','obj-email-facturacion','obj-email-cc','obj-notas-precio','obj-log-productos','obj-log-elementos','obj-log-maquinas'].forEach(id=>{const el=$(id);if(el)el.value='';});
     if($('obj-jurisdiccion')) $('obj-jurisdiccion').value='';
     if($('obj-tipo-sitio')) $('obj-tipo-sitio').value='';
     poblarLocalidadesServicio();
@@ -1934,6 +1936,10 @@ async function guardarObjetivo(){
     clausulaActualizacion:$('obj-clausula-actualizacion')?.value||'',
     periodoFact:$('obj-periodo-fact')?.value,reqOC:$('obj-req-oc')?.value,
     textoFactura:$('obj-texto-factura')?.value,
+    // v125 — fuente única del mail de facturación / notas de aumento del
+    // servicio (ticket "Servicios — Mails de facturación", Lautaro 11/09).
+    emailFacturacion:cleanText($('obj-email-facturacion')?.value||''),
+    emailCc:cleanText($('obj-email-cc')?.value||''),
     notas:$('obj-notas-precio')?.value||'',
     // 2.5.1 (Delta Comercial v1.3): "Facturación de productos" se movió
     // de la tab Precio a la tab Logística y cambió de opciones/nombre

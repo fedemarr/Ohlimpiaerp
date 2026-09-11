@@ -248,6 +248,8 @@ export function _toSnake(obj) {
     // supaSync(), el alta de servicio fallaba en silencio 100% de las veces
     // (el toast de éxito se mostraba igual, ver fix en legacy.js).
     fechaInicio: 'fecha_inicio', fechaFin: 'fecha_fin', ultimoContacto: 'ultimo_contacto',
+    // v125 — objetivos: mail de facturación/notas de aumento del servicio
+    emailFacturacion: 'email_facturacion', emailCc: 'email_cc',
     candidatoId: 'candidato_id', psicoId: 'psico_id', fechaTurno: 'fecha_turno',
     observacion: 'observacion',
     preocupId: 'preocup_id',
@@ -735,6 +737,7 @@ export function _toCamel(obj) {
     servicio_destino: 'servicioDestino', obra_social: 'obraSocial', forma_pago: 'formaPago',
     tipo_contrato: 'tipoContrato',
     fecha_inicio: 'fechaInicio', fecha_fin: 'fechaFin', ultimo_contacto: 'ultimoContacto',
+    email_facturacion: 'emailFacturacion', email_cc: 'emailCc',
     candidato_id: 'candidatoId', psico_id: 'psicoId', fecha_turno: 'fechaTurno',
     observacion: 'observacion',
     preocup_id: 'preocupId',
