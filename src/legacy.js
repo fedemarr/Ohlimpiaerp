@@ -11113,17 +11113,36 @@ function getMonoPagoById(id){ return (DB.monoPagosMes||[]).find(x=>String(x.id)=
 // Paso 1: arma la lista del mes desde el padrón, solo activos que
 // trabajaron ese período (reusa _getFilasConsolidadas, la misma fuente
 // que ya usa Liquidaciones para saber quién cobra retiro este mes).
+//
+// BUG reportado (MONOTRIBUTO_pago_mensual_para_Fede.md, 11/09): antes esta
+// función solo AGREGABA a los que faltaban y nunca tocaba a quien ya
+// tuviera una fila para el mes — "congelado" se interpretaba como
+// inmutable desde el instante en que se armaba la lista, no desde que se
+// pagaba de verdad. Eso dejó filas con desglose "—" y total sin sentido
+// (ej. Nolasco Cantaro con $5.138.910 y todo el desglose en null, de una
+// corrida vieja anterior al padrón con condición/zona/IIBB) y filas en $0
+// para gente que en ese momento no tenía categoría en el padrón — cuando
+// después el padrón se corrigió/importó, "Armar lista" ya no las volvía a
+// tocar porque el nombre ya "existía" ese mes.
+//
+// Fix: mientras la fila NO esté pagada (pagado!==true), "Armar lista"
+// SIEMPRE recalcula su desglose contra el padrón/tabla vigente HOY — recién
+// se congela de verdad (inmutable) cuando se tilda como pagada. Esto es
+// coherente con cómo ya se congelan uniforme/préstamo en Liquidación de
+// horas (se consume/fija al pagar, no antes).
 function abrirMesMonoPagos(){
   const mes=_mesMonoPagosSel();
-  const yaArmado=(DB.monoPagosMes||[]).some(p=>p.periodo===mes);
-  if(yaArmado){
-    if(!confirm(`El mes ${mes} ya tiene una lista armada. ¿Agregar los que falten (sin tocar los ya congelados)?`)) return;
+  const existentesDelMes=(DB.monoPagosMes||[]).filter(p=>p.periodo===mes);
+  if(existentesDelMes.length){
+    if(!confirm(`El mes ${mes} ya tiene una lista armada. ¿Recalcular los que todavía NO estén tildados como pagados (los ya pagados no se tocan) y agregar los que falten?`)) return;
   }
   const nombresQueTrabajaron=new Set(_getFilasConsolidadas(mes).map(f=>f.nombre));
-  const vigencia=getVigenciaActual();
-  const existentes=new Set((DB.monoPagosMes||[]).filter(p=>p.periodo===mes).map(p=>p.nombre));
-  let agregados=0;
-  (DB.monotributos||[]).filter(r=>r.estado!=='Baja'&&nombresQueTrabajaron.has(r.nombre)&&!existentes.has(r.nombre)).forEach(r=>{
+  const porNombre=new Map(existentesDelMes.map(p=>[p.nombre,p]));
+  let agregados=0, actualizados=0;
+  (DB.monotributos||[]).filter(r=>r.estado!=='Baja'&&nombresQueTrabajaron.has(r.nombre)).forEach(r=>{
+    const existente=porNombre.get(r.nombre);
+    if(existente && existente.pagado) return; // ya pagado: congelado de verdad, no se toca
+
     // Desglose completo congelado (ticket "cuota por componentes", punto 3):
     // 20/21/24/IIBB por separado, no solo el total — así el export y una
     // auditoría posterior ven de qué se compone cada cuota de ESTE mes,
@@ -11131,21 +11150,51 @@ function abrirMesMonoPagos(){
     const c = r.curManual && r.cur>0
       ? {imp:r.cur, sipa:0, os:0, iibb:0, total:r.cur} // cuota manual: todo el monto va a "imp" para no inventarle un desglose que no tiene
       : calcularCuotaComponentes(r, getVigenciaActualOrg());
-    const pago={
-      id:Date.now()+Math.floor(Math.random()*1000),
-      periodo:mes, nroSocio:r.nroSocio||null, nombre:r.nombre,
-      impIntegradoCongelado:c.imp, sipaCongelado:c.sipa, obraSocialCongelado:c.os, iibbCongelado:c.iibb,
-      condicionCongelada:r.condicion||'comun', categoriaCongelada:r.categoria,
-      curCongelado:c.total, adherentesMontoCongelado:0, total:c.total,
-      pagado:false, metodoPago:null, pagadoPor:null, pagadoEn:null,
-    };
-    if(!DB.monoPagosMes) DB.monoPagosMes=[];
-    DB.monoPagosMes.push(pago);
-    supaSync('monoPagosMes', pago);
-    agregados++;
+    if(existente){
+      existente.nroSocio=r.nroSocio||null;
+      existente.impIntegradoCongelado=c.imp; existente.sipaCongelado=c.sipa;
+      existente.obraSocialCongelado=c.os; existente.iibbCongelado=c.iibb;
+      existente.condicionCongelada=r.condicion||'comun'; existente.categoriaCongelada=r.categoria;
+      existente.curCongelado=c.total; existente.adherentesMontoCongelado=0; existente.total=c.total;
+      supaSync('monoPagosMes', existente);
+      actualizados++;
+    } else {
+      const pago={
+        id:Date.now()+Math.floor(Math.random()*1000),
+        periodo:mes, nroSocio:r.nroSocio||null, nombre:r.nombre,
+        impIntegradoCongelado:c.imp, sipaCongelado:c.sipa, obraSocialCongelado:c.os, iibbCongelado:c.iibb,
+        condicionCongelada:r.condicion||'comun', categoriaCongelada:r.categoria,
+        curCongelado:c.total, adherentesMontoCongelado:0, total:c.total,
+        pagado:false, metodoPago:null, pagadoPor:null, pagadoEn:null,
+      };
+      if(!DB.monoPagosMes) DB.monoPagosMes=[];
+      DB.monoPagosMes.push(pago);
+      supaSync('monoPagosMes', pago);
+      agregados++;
+    }
   });
-  toast(agregados?`✓ ${agregados} monotributista(s) agregado(s) al mes ${mes}`:'No hay nuevos monotributistas activos para este período');
+  const partes=[];
+  if(agregados) partes.push(`${agregados} agregado(s)`);
+  if(actualizados) partes.push(`${actualizados} recalculado(s)`);
+  toast(partes.length?`✓ ${partes.join(' · ')} en ${mes}`:'No hay monotributistas activos para este período (o ya están todos pagados)');
   renderMonoPagos();
+}
+
+// Eliminar una fila congelada del mes — escape manual para sacar a
+// alguien que no debería estar en la lista (ej. quedó de una prueba, o
+// no corresponde este mes). Bloqueado si ya está pagada: ese registro es
+// la fuente de la auditoría de pago real, no se borra por error de un
+// clic — primero hay que revertir el pago a mano si hiciera falta.
+function eliminarMonoPagoMes(id){
+  const p=getMonoPagoById(id); if(!p) return;
+  if(p.pagado){ toast('⚠️ Ya está tildada como pagada — no se puede eliminar desde acá'); return; }
+  if(!confirm(`¿Sacar a ${p.nombre} de la lista de ${p.periodo}?`)) return;
+  supaDel('monoPagosMes', idLocalTrunc(p.id)).then(ok=>{
+    if(!ok){ toast('⚠️ No se pudo eliminar en Supabase — reintentá'); return; }
+    DB.monoPagosMes=(DB.monoPagosMes||[]).filter(x=>String(x.id)!==String(id));
+    renderMonoPagos();
+    toast(`✅ ${p.nombre} sacado de la lista de ${p.periodo}`);
+  });
 }
 
 function renderMonoPagos(){
@@ -11153,7 +11202,7 @@ function renderMonoPagos(){
   const tbody=$('tbody-mono-pagos'); if(!tbody) return;
   const rows=(DB.monoPagosMes||[]).filter(p=>p.periodo===mes).sort((a,b)=>a.nombre.localeCompare(b.nombre));
   if(!rows.length){
-    tbody.innerHTML=`<tr><td colspan="9" style="padding:40px;text-align:center;color:var(--texto-muy-suave);">Sin lista armada para ${mes}. Usá "📥 Armar lista del mes".</td></tr>`;
+    tbody.innerHTML=`<tr><td colspan="10" style="padding:40px;text-align:center;color:var(--texto-muy-suave);">Sin lista armada para ${mes}. Usá "📥 Armar lista del mes".</td></tr>`;
     return;
   }
   const metodos=['Transferencia','Cheque','Efectivo','Débito automático','Otro'];
@@ -11163,6 +11212,7 @@ function renderMonoPagos(){
     // esa fila no tiene.
     const tieneDesglose = p.impIntegradoCongelado!=null || p.sipaCongelado!=null || p.obraSocialCongelado!=null || p.iibbCongelado!=null;
     const celda = v => tieneDesglose ? '$'+(v||0).toLocaleString('es-AR') : '<span class="form-hint">—</span>';
+    const total = p.total||p.curCongelado||0;
     return `<tr style="background:${p.pagado?'#f0fdf4':'white'};">
     <td style="padding:6px 14px;border:1px solid var(--borde);font-weight:500;">${p.nombre}${p.categoriaCongelada?` <span class="form-hint">(${p.categoriaCongelada}${p.condicionCongelada&&p.condicionCongelada!=='comun'?' · '+(CONDICION_LABEL[p.condicionCongelada]||p.condicionCongelada):''})</span>`:''}</td>
     <td style="padding:6px 8px;border:1px solid var(--borde);font-size:11px;">${p.nroSocio||'—'}</td>
@@ -11170,10 +11220,11 @@ function renderMonoPagos(){
     <td style="padding:6px 8px;border:1px solid var(--borde);text-align:right;">${celda(p.sipaCongelado)}</td>
     <td style="padding:6px 8px;border:1px solid var(--borde);text-align:right;">${celda(p.obraSocialCongelado)}</td>
     <td style="padding:6px 8px;border:1px solid var(--borde);text-align:right;">${celda(p.iibbCongelado)}</td>
-    <td style="padding:6px 8px;border:1px solid var(--borde);text-align:right;font-weight:700;color:#7c3aed;">$${(p.total||p.curCongelado||0).toLocaleString('es-AR')}</td>
+    <td style="padding:6px 8px;border:1px solid var(--borde);text-align:right;font-weight:700;color:#7c3aed;">$${total.toLocaleString('es-AR')}</td>
     <td style="padding:4px 6px;border:1px solid var(--borde);text-align:center;">
       ${p.pagado
         ? `<span style="font-size:11px;">${p.metodoPago||'—'}</span>`
+        : total<=0 ? '<span class="form-hint">—</span>'
         : `<select style="font-size:11px;padding:2px 4px;" onchange="_monoPagoMetodoTemp['${p.id}']=this.value">
              <option value="">Elegir...</option>
              ${metodos.map(m=>`<option value="${m}">${m}</option>`).join('')}
@@ -11182,7 +11233,14 @@ function renderMonoPagos(){
     <td style="padding:6px 8px;border:1px solid var(--borde);text-align:center;">
       ${p.pagado
         ? `<div><span class="badge badge-verde" style="font-size:10px;">✓ Pagado</span><div style="font-size:9px;color:var(--texto-suave);margin-top:2px;">${p.pagadoPor||'—'} · ${p.pagadoEn?new Date(p.pagadoEn).toLocaleDateString('es-AR'):''}</div></div>`
+        // Bug reportado 11/09: filas en $0 no tienen nada que pagar — no
+        // tiene sentido ofrecer "Tildar pagado" (ni pedirle a RRHH que
+        // elija un método de pago para un monto inexistente).
+        : total<=0 ? '<span class="form-hint">Sin monto a pagar</span>'
         : `<button class="btn btn-xs" style="background:#dcfce7;color:#065f46;border:1px solid #9fdaba;" onclick="tildarPagoMono('${p.id}')">Tildar pagado</button>`}
+    </td>
+    <td style="padding:4px 6px;border:1px solid var(--borde);text-align:center;">
+      ${p.pagado?'':`<button class="btn btn-xs btn-secondary" title="Sacar de la lista" onclick="eliminarMonoPagoMes('${p.id}')">🗑️</button>`}
     </td>
   </tr>`;
   }).join('');
@@ -11531,18 +11589,59 @@ function confirmarImportMonotributo(){
 // IMPORTADOR DE PADRÓN RRHH — carga masiva de categorías y adherentes
 // Cuando RRHH entrega el listado con N° socio, categoría, adherentes.
 // Reutiliza el parser CSV existente (_parseCSVMono) y los alias (_ALIAS_MONO).
-// ══════════════════════════════════════════════════════════
+//
+// BUG reportado (MONOTRIBUTO_pago_mensual_para_Fede.md, 11/09): esta
+// ventana quedó desactualizada tras el rediseño "cuota por componentes"
+// (MONOTRIBUTO_para_Fede.md, 04/09) — no reconocía Condición, Zona ni
+// "IIBB aporta", las 3 columnas nuevas de las que depende
+// calcularCuotaComponentes(). Sin esas columnas, todo lo que se
+// importaba quedaba en condicion='comun'/zona='provincia'/iibbAporta=false
+// por default, dando una cuota calculada MAL para cualquiera que en
+// realidad fuera "asociado a cooperativa"/jubilado/con IIBB. El padrón de
+// 428 filas ya se cargó una vez por SQL directo (import_padron_monotributo.sql)
+// para no bloquear a Lautaro, pero la ventana en sí seguía rota para el
+// próximo archivo que llegue.
 const _ALIAS_PADRON_RRHH={
   n_socio:'nroSocio', n_de_socio:'nroSocio', nro_socio:'nroSocio',
   categoria:'categoria', cat:'categoria',
+  condicion:'condicion', condicion_arca:'condicion',
+  zona:'zona', zona_jurisdiccion:'zona', jurisdiccion:'zona',
+  iibb_aporta:'iibbAporta', aporta_iibb:'iibbAporta', iibb:'iibbAporta',
   adherentes_cant:'adherentesCant', adherentes:'adherentesCant',
   monto_adherentes:'adherentesMonto', monto_adherentes_total:'adherentesMonto',
   adherentes_monto:'adherentesMonto',
+  cuota_control:'cuotaControl', cuota:'cuotaControl',
   cur:'curManual', cur_manual:'curManual',
   observaciones:'obs', obs:'obs',
   motivo_estado:'motivoEstado',
   estado:'estado',
 };
+// Normalizadores tolerantes (mayúsculas/tildes/variantes de texto libre) —
+// si no reconocen el valor devuelven null en vez de adivinar, así el
+// import no pisa un dato bueno con un default equivocado.
+function _normCondicionMono(v){
+  const t=(v||'').trim().toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'');
+  if(!t) return null;
+  if(t.includes('cooperativ')) return 'asociado_cooperativa';
+  if(t.includes('jubilad')) return 'jubilado';
+  if(t.includes('no aportante')||t.includes('no_aportante')||t.includes('noaportante')) return 'no_aportante';
+  if(t.includes('comun')) return 'comun';
+  return null;
+}
+function _normZonaMono(v){
+  const t=(v||'').trim().toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'');
+  if(!t) return null;
+  if(t.includes('capital')||t==='caba'||t.includes('ciudad')) return 'capital';
+  if(t.includes('provincia')||t==='pba'||t.includes('bs as')||t.includes('buenos aires')) return 'provincia';
+  return null;
+}
+function _normBoolMono(v){
+  const t=(v||'').trim().toLowerCase();
+  if(!t) return null;
+  if(['si','sí','s','true','1','x','yes'].includes(t)) return true;
+  if(['no','n','false','0'].includes(t)) return false;
+  return null;
+}
 let _padronRRHHFilas=null;
 function abrirImportadorPadronRRHH(){
   ensureModalImportPadronRRHH();
@@ -11562,10 +11661,10 @@ function ensureModalImportPadronRRHH(){
       <div class="modal-header"><h3>📥 Importar padrón de RRHH (CSV)</h3><button class="btn-close" onclick="cerrarModal('modal-import-padron-rrhh')">×</button></div>
       <div class="modal-body">
         <p style="font-size:12.5px;color:var(--texto-suave);margin-bottom:8px;">
-          Columnas esperadas (con o sin tildes): <strong>N° socio, Categoría, Adherentes cant, Adherentes monto, CUR (opcional), Observaciones (opcional), Estado (opcional), Motivo estado (opcional)</strong>.
+          Columnas esperadas (con o sin tildes): <strong>N° socio, Categoría, Condición, Zona, IIBB aporta, Adherentes cant, Cuota control (opcional), CUR manual (opcional), Observaciones (opcional), Estado (opcional), Motivo estado (opcional)</strong>.
         </p>
         <p style="font-size:11px;color:var(--texto-suave);margin-bottom:10px;">
-          Matchea por N° de socio contra los monotributistas existentes. Si el N° socio no existe, lo crea. Si existe, actualiza categoría, adherentes y CUR (si se provee). Los meses de pago mensual ya armados NO se tocan.
+          Matchea por N° de socio contra los monotributistas existentes. Si el N° socio no existe, lo crea. Si existe, actualiza categoría/condición/zona/IIBB/adherentes — la cuota SIEMPRE la calcula el sistema por componentes, nunca se tipea (salvo que cargues "CUR manual" como excepción explícita). "Cuota control" es solo para verificar: si no coincide con lo calculado, el caso queda listado para revisar a mano, no pisa el cálculo. Los meses de pago mensual ya armados y no pagados se recalculan solos la próxima vez que uses "Armar lista del mes" — los ya pagados no se tocan nunca.
         </p>
         <input type="file" id="padron-rrhh-file" accept=".csv,.txt" onchange="seleccionarArchivoPadronRRHH()">
         <div id="padron-rrhh-resultado" style="margin-top:14px;"></div>
@@ -11605,58 +11704,83 @@ function seleccionarArchivoPadronRRHH(){
 function confirmarImportPadronRRHH(){
   if(!_padronRRHHFilas||!_padronRRHHFilas.length){ toast('⚠️ Elegí un archivo primero'); return; }
   let actualizados=0, creados=0, sinCategoria=0;
-  const nuevosEstado=[];
+  const nuevosEstado=[], revisarCuota=[];
   _padronRRHHFilas.forEach(o=>{
     const cat=(o.categoria||'').trim().toUpperCase();
+    // Regla documentada (MONOTRIBUTO_para_Fede.md §2): "asociado a
+    // cooperativa" es EXCLUSIVO de categoría A — si el archivo trae esa
+    // condición para otra categoría, se lo baja a 'comun' en vez de
+    // guardar una combinación inválida (mismo criterio que ya aplica
+    // onChangeCategoriaMonoFicha() en la carga manual).
+    let condicion=_normCondicionMono(o.condicion);
+    if(condicion==='asociado_cooperativa' && cat && cat!=='A') condicion='comun';
+    const zona=_normZonaMono(o.zona);
+    const iibbAporta=_normBoolMono(o.iibbAporta);
     const adherentesCant=parseInt(o.adherentesCant)||0;
     const adherentesMonto=_numArg(o.adherentesMonto);
     const curManual=parseFloat(o.curManual)||0;
+    const cuotaControl=_numArg(o.cuotaControl);
     const obs=(o.obs||'').trim();
     const estado=(o.estado||'').trim();
     const motivoEstado=(o.motivoEstado||'').trim();
     if(!cat) sinCategoria++;
 
-    let mono=(DB.monotributos||[]).find(m=>String(m.nroSocio)===o.nroSocio);
-    if(mono){
-      if(cat) mono.categoria=cat;
+    let persona=(DB.monotributos||[]).find(m=>String(m.nroSocio)===o.nroSocio);
+    if(persona){
+      if(cat) persona.categoria=cat;
+      if(condicion) persona.condicion=condicion;
+      if(zona) persona.zona=zona;
+      if(iibbAporta!==null) persona.iibbAporta=iibbAporta;
       if(adherentesCant>0||adherentesMonto>0){
-        mono.adherentesCantidad=adherentesCant;
-        mono.adherentesMonto=adherentesMonto;
+        persona.adherentesCantidad=adherentesCant;
+        persona.adherentesMonto=adherentesMonto;
       }
-      if(curManual>0) mono.cur=curManual;
-      if(obs) mono.obs=obs;
+      if(curManual>0){ persona.cur=curManual; persona.curManual=true; }
+      if(obs) persona.obs=obs;
       if(estado){
-        const estadoAnterior=mono.estado;
-        mono.estado=estado;
+        const estadoAnterior=persona.estado;
+        persona.estado=estado;
         if(estado!==estadoAnterior&&motivoEstado){
           if(!DB.monoCambios) DB.monoCambios=[];
           DB.monoCambios.unshift({
             id:Date.now()+Math.floor(Math.random()*1000),
-            nombre:mono.nombre, fecha:new Date().toLocaleDateString('es-AR'),
-            catAnterior:mono.categoria, catNueva:mono.categoria,
+            nombre:persona.nombre, fecha:new Date().toLocaleDateString('es-AR'),
+            catAnterior:persona.categoria, catNueva:persona.categoria,
             curAnterior:0, curNuevo:0, proyeccionAnual:0,
             motivo:motivoEstado, decidoPor:currentUser?.nombre||'Admin',
             resultado:estado==='Baja'?'Rechazado':'Aprobado',
           });
         }
       }
-      supaSync('monotributos', mono);
+      supaSync('monotributos', persona);
       actualizados++;
     } else {
       const leg=(DB.legajos||[]).find(l=>String(l.nro)===o.nroSocio);
-      const nuevo={
+      persona={
         id:Date.now()+Math.floor(Math.random()*1000),
         nombre:leg?leg.nombre:o.nroSocio, nroSocio:o.nroSocio,
         cuit:'', categoria:cat, fechaAlta:new Date().toISOString().slice(0,10),
-        zona:'provincia', obraSocial:false, jubilado:false,
-        cur:curManual, estado:estado||'Al día', obs,
+        zona:zona||'provincia', condicion:condicion||'comun', iibbAporta:iibbAporta||false,
+        obraSocial:false, jubilado:condicion==='jubilado',
+        cur:curManual, curManual:curManual>0, estado:estado||'Al día', obs,
         adherentesCantidad:adherentesCant, adherentesMonto,
         historialCategorias:[],
       };
-      DB.monotributos.push(nuevo);
-      supaSync('monotributos', nuevo);
+      DB.monotributos.push(persona);
+      supaSync('monotributos', persona);
       creados++;
-      if(estado&&estado!=='Al día') nuevosEstado.push(nuevo.nombre+' (N°'+o.nroSocio+': '+estado+')');
+      if(estado&&estado!=='Al día') nuevosEstado.push(persona.nombre+' (N°'+o.nroSocio+': '+estado+')');
+    }
+
+    // "Cuota control" es solo un chequeo — nunca pisa lo calculado (eso
+    // rompería "el sistema calcula, nunca se tipea a mano" del rediseño).
+    // Si no coincide, se marca para que RRHH decida caso por caso, mismo
+    // criterio que ya se usó a mano para el socio 130 (actividad ventas).
+    if(cuotaControl>0 && !persona.curManual){
+      const calc=calcularCuotaComponentes(persona, getVigenciaActualOrg()).total;
+      if(Math.abs(calc-cuotaControl)>1){
+        revisarCuota.push(`${persona.nombre} (N°${o.nroSocio}): calculada $${calc.toLocaleString('es-AR')} vs control $${cuotaControl.toLocaleString('es-AR')}`);
+      }
     }
   });
   cerrarModal('modal-import-padron-rrhh');
@@ -11666,6 +11790,7 @@ function confirmarImportPadronRRHH(){
   if(sinCategoria) partes.push(`${sinCategoria} sin categoría`);
   toast('✅ Padrón RRHH importado: '+partes.join(', '),9000);
   if(nuevosEstado.length) toast('⚠️ Asociados con estado especial: '+nuevosEstado.slice(0,5).join(', ')+(nuevosEstado.length>5?'…':''),12000);
+  if(revisarCuota.length) toast(`⚠️ ${revisarCuota.length} caso(s) con "cuota control" distinta de la calculada — revisar: ${revisarCuota.slice(0,5).join(' · ')}${revisarCuota.length>5?'…':''}`,15000);
 }
 
 // ========== IMPORTADOR CSV — LIQUIDACIÓN DE HORAS ==========
@@ -12213,12 +12338,20 @@ function recalcMonoFicha(){
 }
 window.recalcMonoFicha = recalcMonoFicha;
 function editarMonotributo(id){abrirModalNuevoMonotributo(id);}
+// BUG encontrado (revisión módulo Monotributos): esta función solo
+// filtraba DB.monotributos en memoria y nunca llamaba a supaDel() — el
+// registro "eliminado" volvía a aparecer solo con recargar la página
+// (supaInit() lo traía de nuevo de Supabase, donde nunca se había
+// borrado). Mismo patrón de fix que ya tienen feriados/cobros.
 function eliminarMonotributo(id){
   const r=getMonoById(id); if(!r) return;
   if(!confirm(`¿Eliminar el registro de ${r.nombre}?`)) return;
-  DB.monotributos=DB.monotributos.filter(x=>String(x.id)!==String(id));
-  renderMonotributos();
-  toast('Registro eliminado');
+  supaDel('monotributos', idLocalTrunc(r.id)).then(ok=>{
+    if(!ok){ toast('⚠️ No se pudo eliminar en Supabase — reintentá'); return; }
+    DB.monotributos=DB.monotributos.filter(x=>String(x.id)!==String(id));
+    renderMonotributos();
+    toast('✅ Registro eliminado');
+  });
 }
 function guardarMonotributo(){
   const idVal=$('mono-idx')?.value;
@@ -14597,6 +14730,7 @@ window.calcularFacturacionMensualObjetivo = calcularFacturacionMensualObjetivo;
 window.abrirMesMonoPagos = abrirMesMonoPagos;
 window.renderMonoPagos = renderMonoPagos;
 window.tildarPagoMono = tildarPagoMono;
+window.eliminarMonoPagoMes = eliminarMonoPagoMes;
 window.exportarMonoPagosCSV = exportarMonoPagosCSV;
 window.tabObjModal = tabObjModal;
 window.tabPrecios = tabPrecios;

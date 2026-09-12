@@ -4584,7 +4584,7 @@
         </div>
       </div>
       <div class="alerta alerta-info" style="margin:0 20px 12px;font-size:12px;">
-        "Armar lista del mes" trae del padrón a los activos que trabajaron este período (según Liquidación de horas / Administración) y congela el DESGLOSE completo de la cuota de ESTE mes (20 impuesto integrado · 21 SIPA · 24 obra social con adherentes · IIBB unificado) — los cambios de categoría, condición, adherentes o tabla más adelante no tocan meses ya armados. La liquidación de retiros descuenta el TOTAL congelado automáticamente.
+        "Armar lista del mes" trae del padrón a los activos que trabajaron este período (según Liquidación de horas / Administración) y calcula el DESGLOSE completo de la cuota de ESTE mes (20 impuesto integrado · 21 SIPA · 24 obra social con adherentes · IIBB unificado). Mientras una fila NO esté tildada como pagada, cada vez que volvés a "Armar lista" se recalcula con los datos vigentes del padrón (por si corregiste una categoría/condición) — recién queda congelada de verdad al tildarla pagada, y a partir de ahí la liquidación de retiros descuenta ese TOTAL sin volver a tocarlo.
       </div>
       <div class="tabla-wrap">
         <table style="width:100%;border-collapse:collapse;font-size:12px;">
@@ -4598,6 +4598,7 @@
             <th style="padding:8px;border:1px solid #6b7280;text-align:right;">TOTAL congelado</th>
             <th style="padding:8px;border:1px solid #6b7280;text-align:center;">Método de pago</th>
             <th style="padding:8px;border:1px solid #6b7280;text-align:center;">Pagado</th>
+            <th style="padding:8px;border:1px solid #6b7280;text-align:center;"></th>
           </tr></thead>
           <tbody id="tbody-mono-pagos"></tbody>
         </table>
