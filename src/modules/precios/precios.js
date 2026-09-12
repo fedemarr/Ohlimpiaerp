@@ -3682,14 +3682,18 @@ async function enviarDesdeAplicacion(key, btn) {
 }
 
 // ---- pdfmake: piezas del documento ----
-const NOTA_VERDE = "#1a5c3a", NOTA_GRIS = "#666";
+// NOTA_AZUL: el celeste/azul institucional de Ohlimpia (mismo --azul que
+// usa toda la UI de la app, src/styles/main.css). Antes esta línea (y las
+// de la tabla de aumentos) habían quedado en verde/gris — resabio sin
+// adaptar del sistema de origen (12/09).
+const NOTA_AZUL = "#1b4fa8", NOTA_GRIS = "#666";
 // Pie institucional — datos reales de Ohlimpia (11/09/2026, confirmados
 // por Fede). Antes tenía el pie de Lince Seguridad (0800/web/IG + 3
 // sucursales) copiado sin adaptar del sistema de origen.
 function pieInstitucionalNota() {
   return { margin: [40, 6, 40, 0], stack: [
     { text: "Tel: 11 3683-1100    ·    Mail: comercial@ohlimpia.com.ar", alignment: "center", fontSize: 8, color: NOTA_GRIS },
-    { canvas: [{ type: "line", x1: 0, y1: 3, x2: 515, y2: 3, lineWidth: 1, lineColor: NOTA_VERDE }], margin: [0, 3, 0, 4] },
+    { canvas: [{ type: "line", x1: 0, y1: 3, x2: 515, y2: 3, lineWidth: 1, lineColor: NOTA_AZUL }], margin: [0, 3, 0, 4] },
     { text: "Aguilar 2835 — (C1426) CABA", alignment: "center", fontSize: 7, color: NOTA_GRIS },
   ] };
 }
@@ -3709,7 +3713,7 @@ function tablaAumentosNota(aumentos, conPrecio) {
   }
   const widths = hayB ? [52, 66, 84, 84] : (conPrecio ? [58, 78, 92] : [60, 90]);
   const tabla = { table: { headerRows: 1, widths, body },
-    layout: { hLineWidth: () => 0.7, vLineWidth: () => 0.7, hLineColor: () => "#999", vLineColor: () => "#999",
+    layout: { hLineWidth: () => 0.7, vLineWidth: () => 0.7, hLineColor: () => NOTA_AZUL, vLineColor: () => NOTA_AZUL,
       paddingLeft: () => 6, paddingRight: () => 6, paddingTop: () => 2, paddingBottom: () => 2 } };
   // Centrada en la hoja: espaciadores "*" a ambos lados de la tabla (ancho "auto").
   return { columns: [{ width: "*", text: "" }, { width: "auto", ...tabla }, { width: "*", text: "" }], margin: [0, 4, 0, 6] };
