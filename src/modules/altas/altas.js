@@ -76,7 +76,20 @@ export function poblarSelectsAltas() {
   // migran ni se pierden — es texto libre en Supabase, sin enum/CHECK —
   // solo cambia qué se puede elegir de acá en adelante.
   fillSelect('alt-funcion', ['Operario/a', 'Administrativo'], ['— Seleccionar —']);
-  fillSelect('alt-categoria', [...DB.categorias, 'Runner', 'Franquero'], ['— Seleccionar —']);
+  // Categoría (14/09): antes usaba DB.categorias, una lista fija propia
+  // ('Operario A', 'Retén', 'Supervisor', etc.) que no coincidía con los
+  // nombres reales de categorias_base — la tabla que alimenta el padrón
+  // (ver src/modules/categorias/padron.js) y Liquidación de horas. Como
+  // ningún nombre matcheaba, el alta NUNCA escribía el primer registro
+  // del padrón (verificado: 0 registros con origen='ALTA' en la base,
+  // sobre 424 legajos activos). Ahora el selector sale directo de
+  // categorias_base — misma fuente que usa el matching — así no se
+  // vuelven a desincronizar.
+  const catsAlta = (DB.categoriasBase || [])
+    .filter(c => c.activa && !c.anulado)
+    .sort((a, b) => (a.orden || 0) - (b.orden || 0))
+    .map(c => c.nombre);
+  fillSelect('alt-categoria', catsAlta, ['— Seleccionar —']);
   // Poblar servicios — mismo helper que usa el resto de los módulos
   // migrados (window.obtenerServiciosActivos, definido en src/legacy.js:
   // objetivos con estado 'Operativo' + fallback legacy DB.servicios).
