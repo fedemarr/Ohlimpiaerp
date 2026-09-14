@@ -6399,13 +6399,27 @@ function poblarSelectsLiquidacion(){
   // Filtro de supervisores en la vista compacta
   const selSup=$('liq-sup-fil');
   if(selSup){
+    // FIX 14/09 (ticket "Alvaro Jesus Uballes no ve sus servicios"): este
+    // select se poblaba solo con DB.supervisores, la lista fija a mano de
+    // state.js — mismo bug de fondo ya encontrado y corregido en Pedidos de
+    // personal (caso real "Lorena Unzain" hardcodeado vs "Lorena Uzabain",
+    // el nombre real en objetivos): si el nombre real de un supervisor no
+    // está también tipeado igual en esa lista fija, el select ofrece un
+    // nombre que la base no tiene y el filtro nunca matchea. Ahora sale de
+    // nombresSupervisoresReales() (unión de DB.supervisores + objetivos +
+    // servicios_supervisor), igual que el resto de los selects de supervisor.
+    const supervisoresReales=nombresSupervisoresReales();
     const ph='<option value="">Todos los supervisores</option>';
-    selSup.innerHTML=ph+DB.supervisores.map(s=>`<option value="${s}">${s}</option>`).join('');
+    selSup.innerHTML=ph+supervisoresReales.map(s=>`<option value="${s}">${s}</option>`).join('');
     // Si el usuario es supervisor, filtrar automáticamente sus servicios
     if(currentUser?.perfil==='Supervisor'){
       const nombre=currentUser.nombre;
-      // Buscar el supervisor cuyo nombre coincide
-      const supNombre=DB.supervisores.find(s=>nombre.toLowerCase().includes(s.toLowerCase().split(' ')[0]))||nombre;
+      // Buscar el supervisor cuyo nombre coincide — exacto primero (evita
+      // que dos supervisores reales con el mismo primer nombre, ej. "Alvaro
+      // Uballes" padre vs "Alvaro Jesus Uballes" hijo, se crucen entre sí
+      // por el fallback de abajo, que solo mira la primera palabra).
+      const supNombre=supervisoresReales.find(s=>s.toLowerCase()===nombre.toLowerCase())
+        ||supervisoresReales.find(s=>nombre.toLowerCase().includes(s.toLowerCase().split(' ')[0]))||nombre;
       for(let i=0;i<selSup.options.length;i++){
         if(selSup.options[i].value===supNombre||selSup.options[i].value===currentUser.funcion){
           selSup.selectedIndex=i;break;
