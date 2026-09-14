@@ -558,6 +558,17 @@ export function _toSnake(obj) {
     objCodigo: 'objetivo_codigo', horasEFT: 'horas_eft', horasContratadas: 'horas_contratadas',
     alertaEFT: 'alerta_eft', totalHorasFacturables: 'total_horas_facturables',
     totalHorasNoFacturables: 'total_horas_no_facturables', totalAPagar: 'total_a_pagar',
+    // Liquidación de horas — v133 (14/09): origenGrilla/importadoDeCSV
+    // (ticket "importación no impacta en el supervisor", 09/09) y el
+    // candado congelada/* se escribían sin estas 7 entradas — supaSync()
+    // mandaba el objeto completo y Supabase rechazaba el insert/update
+    // ENTERO por columna inexistente. Efecto real: ninguna grilla nueva se
+    // guardó en el servidor desde el 09/09 (quedaban solo en memoria del
+    // navegador de quien la abrió) y el candado de congelar/descongelar
+    // nunca se compartió entre usuarios. Ver sql/v133.
+    origenGrilla: 'origen_grilla', importadoDeCSV: 'importado_de_csv',
+    congeladaPor: 'congelada_por', congeladaEn: 'congelada_en',
+    descongeladaPor: 'descongelada_por', descongeladaEn: 'descongelada_en',
     grillaId: 'grilla_id_local', asocIdx: 'asoc_idx', resueltoPor: 'resuelto_por',
     fechaResolucion: 'fecha_resolucion', nroSocio: 'nro_socio', horasPorDia: 'horas_por_dia',
     catActual: 'cat_actual', catPropuesta: 'cat_propuesta', propuestoPor: 'propuesto_por',
@@ -1018,6 +1029,10 @@ export function _toCamel(obj) {
     objetivo_codigo: 'objCodigo', horas_eft: 'horasEFT', horas_contratadas: 'horasContratadas',
     alerta_eft: 'alertaEFT', total_horas_facturables: 'totalHorasFacturables',
     total_horas_no_facturables: 'totalHorasNoFacturables', total_a_pagar: 'totalAPagar',
+    // Liquidación de horas — v133 (14/09), ver contraparte en _toSnake arriba
+    origen_grilla: 'origenGrilla', importado_de_csv: 'importadoDeCSV',
+    congelada_por: 'congeladaPor', congelada_en: 'congeladaEn',
+    descongelada_por: 'descongeladaPor', descongelada_en: 'descongeladaEn',
     grilla_id_local: 'grillaId', asoc_idx: 'asocIdx', resuelto_por: 'resueltoPor',
     fecha_resolucion: 'fechaResolucion', nro_socio: 'nroSocio', horas_por_dia: 'horasPorDia',
     cat_actual: 'catActual', cat_propuesta: 'catPropuesta', propuesto_por: 'propuestoPor',

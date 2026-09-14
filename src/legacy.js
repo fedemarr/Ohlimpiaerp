@@ -7229,7 +7229,7 @@ function renderLiqArt42(){
       const leg = (DB.legajos||[]).find(l=>l.nombre===asoc.nombre);
       filas.push({
         asociado:asoc.nombre, nroSocio:leg?.nro||'—',
-        servicio:grilla.objCodigo, supervisor:obj?.supervisor||'—',
+        servicio:grilla.objCodigo, supervisor:obj?.supervisorAsignado||'—',
         periodo:grilla.periodo, categoria:asoc.categoria||'—',
         dias:dias42.length, totalHs,
         desde:dias42[0], hasta:dias42[dias42.length-1],
@@ -11990,7 +11990,7 @@ async function confirmarImportLiquidacion(){
       grilla={
         id:'GRL-'+Date.now()+'-'+Math.floor(Math.random()*1000), periodo, tipo:'servicio',
         objCodigo:codigoServ, nombre:obj?obj.nombre:codigoServ,
-        supervisor:(f[idx.supervisor]||'').trim()||(obj?.supervisor||''),
+        supervisor:(f[idx.supervisor]||'').trim()||(obj?.supervisorAsignado||''),
         efts:obj?.efts||null, horasEFT:obj?.efts?obj.efts*200:null,
         horasContratadas:null,
         asociados:[], estado:'Abierta', alertaEFT:null,
@@ -12540,7 +12540,15 @@ function toggleCongelarGrilla(gId){
     toast('🔒 Grilla congelada — queda de solo lectura hasta descongelarla');
   }
   g.origenGrilla='manual';
-  supaSync('grillasLiq', g);
+  // FIX 14/09: congelada/congeladaPor/congeladaEn/descongeladaPor/
+  // descongeladaEn no tenían columna en Supabase (ver sql/v133) — el
+  // candado se togglaba solo en memoria, nunca llegaba a otros usuarios.
+  supaSync('grillasLiq', g).then(ok=>{
+    if(!ok){
+      const err=getLastSupaSyncError();
+      toast('⚠️ El candado no se pudo guardar en el servidor'+(err?.message?' ('+err.message+')':'')+' — otros usuarios no lo van a ver.');
+    }
+  });
   renderGrillasLiq();
 }
 
@@ -12755,7 +12763,7 @@ function renderGrillasLiq(){
       </td>
       <td style="padding:6px 8px;border:1px solid #6b7280;font-size:11px;color:rgba(255,255,255,.5);">—</td>
       <td style="padding:6px 8px;border:1px solid #6b7280;"></td>
-      <td style="padding:6px 8px;border:1px solid #6b7280;font-size:11px;color:rgba(255,255,255,.8);">${obj.supervisor||'—'}</td>
+      <td style="padding:6px 8px;border:1px solid #6b7280;font-size:11px;color:rgba(255,255,255,.8);">${obj.supervisorAsignado||'—'}</td>
       <td style="padding:6px 8px;border:1px solid #6b7280;"></td>
       ${dias.map(dia=>{
         const h=Math.round((horasPorDia[dia.iso]||0)*10)/10;
@@ -13029,7 +13037,7 @@ function expandirTodasGrillas(){
   renderGrillasLiq();
 }
 
-function crearGrillaDesdeObj(objCodigo, mes){
+async function crearGrillaDesdeObj(objCodigo, mes){
   const obj=DB.objetivos.find(o=>o.codigo===objCodigo); if(!obj) return;
   const calc=calcularHorasMes(mes,objCodigo);
   const legajosAsignados=(DB.legajos||[]).filter(l=>l.servicio===obj.codigo&&l.estado==='Activo');
@@ -13041,7 +13049,10 @@ function crearGrillaDesdeObj(objCodigo, mes){
   const nueva={
     id:'GRL-'+Date.now(), periodo:mes, tipo:'servicio',
     objCodigo:obj.codigo, nombre:obj.nombre,
-    supervisor:obj.supervisor||'',
+    // FIX 14/09 (ticket "planilla única"): "obj.supervisor" no existe en
+    // objetivos (la columna real es supervisorAsignado) — este branch
+    // dejaba la columna Supervisor de la grilla siempre en blanco.
+    supervisor:obj.supervisorAsignado||'',
     efts:obj.efts||null, horasEFT:obj.efts?obj.efts*200:null,
     horasContratadas:calc.totalHoras,
     asociados:asocAsignados, estado:'Abierta', alertaEFT:null,
@@ -13061,9 +13072,31 @@ function crearGrillaDesdeObj(objCodigo, mes){
   };
   DB.grillasLiq.push(nueva);
   _grillasExpandidas.add(objCodigo);
-  supaSync('grillasLiq', nueva);
+  // FIX 14/09 (ticket "planilla única — grillas duplicadas por usuario"):
+  // origenGrilla/importadoDeCSV se mandaban sin columna en Supabase (ver
+  // sql/v133) — TODO insert de grilla nueva fallaba en silencio desde el
+  // 09/09, así que cada usuario quedaba con su copia atrapada solo en su
+  // navegador, sin consolidar nunca con la de nadie más (el síntoma
+  // reportado). Ahora se espera el resultado; si falla por la constraint
+  // anti-duplicados (dos personas expandieron la misma fila casi al mismo
+  // tiempo), se descarta la copia local y se adopta la fila real que ya
+  // quedó guardada, en vez de dejar a alguien trabajando sobre una grilla
+  // fantasma que nunca se va a compartir.
+  const ok=await supaSync('grillasLiq', nueva);
+  if(!ok){
+    DB.grillasLiq=DB.grillasLiq.filter(g=>g!==nueva);
+    const {data:existente}=await SUPA.from('grillas_liq').select('*').eq('objetivo_codigo',objCodigo).eq('periodo',mes).eq('tipo','servicio').maybeSingle();
+    if(existente){
+      DB.grillasLiq.push(_toCamel(existente));
+      toast(`Esta grilla ya existía — se cargó la versión compartida de "${obj.nombre}".`);
+    } else {
+      const err=getLastSupaSyncError();
+      toast('⚠️ No se pudo crear la grilla en el servidor'+(err?.message?' ('+err.message+')':'')+' — reintentá.');
+    }
+  } else {
+    toast(`✓ Grilla "${obj.nombre}" creada con ${asocAsignados.length} asociado${asocAsignados.length!==1?'s':''}`);
+  }
   renderGrillasLiq();
-  toast(`✓ Grilla "${obj.nombre}" creada con ${asocAsignados.length} asociado${asocAsignados.length!==1?'s':''}`);
 }
 
 function quitarAsociadoGrilla(grillaId, asocIdx){
@@ -13332,9 +13365,19 @@ function crearGrilla(){
   const asocAsignados=tipo==='administracion'
     ?(DB.legajos||[]).filter(l=>l.servicio==='ADMINISTRATIVO'&&l.estado==='Activo').map(l=>mkAsoc(l,'ADMINISTRATIVO'))
     :(DB.legajos||[]).filter(l=>l.servicio===obj.codigo&&l.estado==='Activo').map(l=>mkAsoc(l,obj.codigo));
-  const nueva={id:'GRL-'+Date.now(),periodo,tipo,objCodigo:obj?.codigo||'ADMINISTRACION',nombre:tipo==='administracion'?'Administración':obj?.nombre,supervisor:$('ng-supervisor')?.value||obj?.supervisor||'',efts:obj?.efts||null,horasEFT:obj?.efts?obj.efts*200:null,horasContratadas:calc.totalHoras,asociados:asocAsignados,estado:'Abierta',alertaEFT:null,totalHorasFacturables:0,totalHorasNoFacturables:0,totalAPagar:0};
+  const nueva={id:'GRL-'+Date.now(),periodo,tipo,objCodigo:obj?.codigo||'ADMINISTRACION',nombre:tipo==='administracion'?'Administración':obj?.nombre,supervisor:$('ng-supervisor')?.value||obj?.supervisorAsignado||'',efts:obj?.efts||null,horasEFT:obj?.efts?obj.efts*200:null,horasContratadas:calc.totalHoras,asociados:asocAsignados,estado:'Abierta',alertaEFT:null,totalHorasFacturables:0,totalHorasNoFacturables:0,totalAPagar:0};
   DB.grillasLiq.push(nueva);
   cerrarModal('modal-nueva-grilla');renderLiquidacion();
+  // FIX 14/09 (mismo ticket "planilla única"): esta grilla (modal manual
+  // "+ Nueva grilla") nunca se mandaba a Supabase — quedaba 100% local,
+  // ni siquiera bloqueada por la falta de columna de origenGrilla (acá no
+  // se usa ese campo), simplemente faltaba el supaSync.
+  supaSync('grillasLiq', nueva).then(ok=>{
+    if(!ok){
+      const err=getLastSupaSyncError();
+      toast('⚠️ La grilla se creó pero no se pudo guardar en el servidor'+(err?.message?' ('+err.message+')':'')+' — recargá la página antes de seguir cargando horas.');
+    }
+  });
   toast(`✓ Grilla "${nueva.nombre}" — ${periodo} — ${asocAsignados.length} asociado${asocAsignados.length!==1?'s':''}`);
 }
 
@@ -13384,7 +13427,7 @@ function renderArt42(){
       const legajo = (DB.legajos||[]).find(l=>l.nombre===asoc.nombre);
       filas.push({
         asociado:asoc.nombre, nroSocio:legajo?.nro||asoc.nro||'—',
-        servicio:grilla.objCodigo, supervisor:obj?.supervisor||'—',
+        servicio:grilla.objCodigo, supervisor:obj?.supervisorAsignado||'—',
         periodo:grilla.periodo, categoria:asoc.categoria||'—',
         dias:diasArt42.length, totalHs,
         fechaDesde:diasArt42[0], fechaHasta:diasArt42[diasArt42.length-1],
