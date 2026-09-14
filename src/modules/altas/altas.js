@@ -2,7 +2,7 @@ import { DB, LOCALIDADES_BA, BARRIOS_CABA, PARTIDOS_LOCALIDADES, LOCALIDAD_A_PAR
 import { getSupervisorDeCodigo } from '@modules/servicios_supervisor/index.js';
 import { $, avatarEl, badge, cleanText, toTitleCase, validarCampos, fillSelect, applyTitleCase, cbuValido } from '@shared/helpers.js';
 import { toast, abrirModal, cerrarModal } from '@shared/ui.js';
-import { supaSync } from '@shared/supabase.js';
+import { supaSync, getLastSupaSyncError } from '@shared/supabase.js';
 import { subirAdjunto, listarAdjuntos, obtenerUrlFirmada, borrarAdjunto, MAX_SIZE } from '@shared/adjuntos.js';
 import { SECTORES_ADMIN } from '@modules/legajos/index.js';
 import { TALLES_POR_PRENDA } from '@modules/uniformes/catalogos.js';
@@ -971,8 +971,25 @@ export async function confirmarAlta() {
     categoria,
   };
 
+  // BUG real encontrado (14-15/09): esto nunca esperaba el resultado del
+  // guardado ni lo chequeaba — DB.legajos.push(legajo) hacía aparecer al
+  // asociado en la sesión de quien lo cargó (por eso "en el momento" se
+  // veía bien), pero si el guardado en Supabase fallaba o quedaba a medio
+  // camino, quedaba SOLO en memoria: catAltPendientes igual se marcaba
+  // "Alta completada" más abajo y salía el toast de éxito, así que nadie
+  // se enteraba — recién se notaba cuando alguien recargaba la página o
+  // entraba desde otra sesión y el legajo no estaba. Encontrados al menos
+  // 5 casos reales así entre julio y septiembre. Ahora se espera el
+  // guardado real y, si falla, se revierte y se avisa en vez de seguir
+  // como si hubiera salido bien.
   DB.legajos.push(legajo);
-  supaSync('legajos', legajo);
+  const okLegajo = await supaSync('legajos', legajo);
+  if (!okLegajo) {
+    DB.legajos.pop();
+    const err = getLastSupaSyncError();
+    toast('⚠️ No se pudo guardar el legajo en el servidor' + (err?.message ? ' (' + err.message + ')' : '') + ' — reintentá, no se confirmó el alta');
+    return;
+  }
 
   // Padrón de categorías (v124): el ALTA escribe el primer registro del
   // asociado en el padrón. Se matchea la categoría elegida (texto) contra
