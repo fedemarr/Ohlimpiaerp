@@ -83,9 +83,22 @@ export function renderDocum(listaFiltrada) {
             const tieneAlta = (DB.catAltPendientes || []).some(a =>
               d.dni && a.dni === d.dni && a.estado === 'Alta completada'
             );
-            return tieneAlta
-              ? '<span style="font-size:11px;color:#94a3b8;">Cerrado</span>'
-              : '<button onclick="revertirDocum(\'' + d.id + '\')" style="font-size:11px;padding:3px 10px;background:#f59e0b;color:white;border:none;border-radius:4px;cursor:pointer;">↩️ Revertir</button>';
+            // FIX 14/09 (ticket "revertir Cerrado — Sequeira Nicole"): acá NO
+            // había ningún estado incorrecto ni bug — revertirDocum() bloquea
+            // a propósito (con toast propio) volver a "En proceso" a alguien
+            // que YA tiene legajo, porque hacerlo desincronizaría el pipeline
+            // de ingreso de su situación laboral real (activa, trabajando).
+            // El problema real era la etiqueta "Cerrado": se leía como "está
+            // dada de baja/bloqueada" cuando en realidad significa "ya
+            // completó el ingreso, es socia". Ahora linkea directo a su
+            // legajo en vez de mostrar un texto muerto ambiguo.
+            if (!tieneAlta) {
+              return '<button onclick="revertirDocum(\'' + d.id + '\')" style="font-size:11px;padding:3px 10px;background:#f59e0b;color:white;border:none;border-radius:4px;cursor:pointer;">↩️ Revertir</button>';
+            }
+            const legajoDelAsoc = (DB.legajos || []).find(l => d.dni && l.dni === d.dni);
+            return legajoDelAsoc
+              ? '<button onclick="verLegajo(' + legajoDelAsoc.nro + ')" style="font-size:11px;padding:3px 10px;background:#e0f2fe;color:#075985;border:1px solid #7dd3fc;border-radius:4px;cursor:pointer;" title="Ya completó el ingreso y es socia activa — el ingreso ya no se edita acá">✓ Ya es socia — ver Legajo</button>'
+              : '<span style="font-size:11px;color:#94a3b8;" title="Ya completó el ingreso — es socia">✓ Ya es socia</span>';
           })())
     + '</td>'
     + '</tr>'
