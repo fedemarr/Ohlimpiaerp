@@ -2,7 +2,8 @@
 
 export {
   renderPedidoProductos, tabPP, poblarSelectsPeriodoPP,
-  renderCatalogoPP, abrirNuevoProductoPP, abrirEditarProductoPP, guardarProductoPP, anularProductoPP,
+  renderCatalogoPP, abrirNuevoProductoPP, abrirEditarProductoPP, guardarProductoPP, anularProductoPP, activarProductoPP,
+  productosNuncaUsadosPP, abrirNuncaUsadosPP, _toggleUnoNuncaUsadoPP, _toggleTodosNuncaUsadosPP, anularSeleccionadosNuncaUsadosPP,
   abrirNuevoPrecioPP, guardarNuevoPrecioPP, corregirPrecioPP,
   renderPeriodosPP, abrirPeriodoPP, cerrarPeriodoPP, filtrarDesglosePeriodoPP, chequearCierrePeriodosPP,
   renderMisPedidosPP, abrirCargaPedidoPP, filtrarCargaPedidoPP, guardarItemPedidoPP,
@@ -60,7 +61,8 @@ export const pedidoProductosScreenConfig = {
 
 import {
   tabPP,
-  renderCatalogoPP, abrirNuevoProductoPP, abrirEditarProductoPP, guardarProductoPP, anularProductoPP,
+  renderCatalogoPP, abrirNuevoProductoPP, abrirEditarProductoPP, guardarProductoPP, anularProductoPP, activarProductoPP,
+  productosNuncaUsadosPP, abrirNuncaUsadosPP, _toggleUnoNuncaUsadoPP, _toggleTodosNuncaUsadosPP, anularSeleccionadosNuncaUsadosPP,
   abrirNuevoPrecioPP, guardarNuevoPrecioPP, corregirPrecioPP,
   renderPeriodosPP, abrirPeriodoPP, cerrarPeriodoPP, filtrarDesglosePeriodoPP,
   renderMisPedidosPP, abrirCargaPedidoPP, filtrarCargaPedidoPP, guardarItemPedidoPP,
@@ -107,6 +109,11 @@ window.abrirNuevoProductoPP = abrirNuevoProductoPP;
 window.abrirEditarProductoPP = abrirEditarProductoPP;
 window.guardarProductoPP = guardarProductoPP;
 window.anularProductoPP = anularProductoPP;
+window.activarProductoPP = activarProductoPP;
+window.abrirNuncaUsadosPP = abrirNuncaUsadosPP;
+window._toggleUnoNuncaUsadoPP = _toggleUnoNuncaUsadoPP;
+window._toggleTodosNuncaUsadosPP = _toggleTodosNuncaUsadosPP;
+window.anularSeleccionadosNuncaUsadosPP = anularSeleccionadosNuncaUsadosPP;
 window.abrirNuevoPrecioPP = abrirNuevoPrecioPP;
 window.guardarNuevoPrecioPP = guardarNuevoPrecioPP;
 window.corregirPrecioPP = corregirPrecioPP;

@@ -363,31 +363,66 @@ function _poblarFiltroProveedorPP() {
 
 // ========== CATÁLOGO ==========
 
+// Ticket "SUGERENCIA — listado general de productos" (14/09): el catálogo
+// ya tenía el flag `anulado` y ya filtraba con él en TODOS los listados
+// (acá, buscadores de reposición, importador). Lo que faltaba era el
+// camino de vuelta: no había forma de VER un producto ya anulado ni de
+// reactivarlo — una vez anulado, quedaba invisible para siempre salvo que
+// alguien lo editara a mano en Supabase. Se agrega el filtro "Estado"
+// (Activos/Anulados/Todos) + botón Reactivar.
+function _productosUsadosPP() {
+  // "Usado" = alguna vez apareció en un pedido real (pp_items, lo que pide
+  // un supervisor) o en una orden de compra confirmada (pp_ordenes_compra,
+  // lo que Logística efectivamente compró). Cualquiera de los dos cuenta
+  // como "provisto o utilizado" — ver productosNuncaUsadosPP().
+  const usados = new Set();
+  (DB.ppItems || []).forEach(i => { if (i.productoIdLocal) usados.add(_idTrunc(i.productoIdLocal)); });
+  (DB.ppOrdenesCompra || []).forEach(o => (o.items || []).forEach(l => { if (l.productoIdLocal) usados.add(_idTrunc(l.productoIdLocal)); }));
+  return usados;
+}
+// Candidatos reales a "nunca fue provisto ni utilizado" (pedido del
+// ticket) — se calcula en vivo contra el historial real, no es una lista
+// hardcodeada ni una suposición por nombre.
+export function productosNuncaUsadosPP() {
+  const usados = _productosUsadosPP();
+  return (DB.ppProductos || []).filter(p => !p.anulado && !usados.has(_idTrunc(p.id)));
+}
+
 export function renderCatalogoPP() {
   const tbody = $('tbody-pp-catalogo'); if (!tbody) return;
   const q = ($('pp-cat-buscar') || { value: '' }).value.toLowerCase();
   const filtroTipo = ($('pp-cat-filtro-tipo') || { value: '' }).value;
   const filtroProv = ($('pp-cat-filtro-prov') || { value: '' }).value;
-  const rows = (DB.ppProductos || []).filter(p => !p.anulado)
+  const filtroEstado = ($('pp-cat-filtro-estado') || { value: 'activos' }).value;
+  const rows = (DB.ppProductos || [])
+    .filter(p => filtroEstado === 'todos' || (filtroEstado === 'anulados' ? p.anulado : !p.anulado))
     .filter(p => !q || p.descripcion.toLowerCase().includes(q) || (p.codigoMonica || '').toLowerCase().includes(q))
     .filter(p => !filtroTipo || p.tipoUso === filtroTipo)
     .filter(p => !filtroProv || String(p.proveedorIdLocal || '') === String(filtroProv))
     .sort((a, b) => a.descripcion.localeCompare(b.descripcion));
-  if (!rows.length) { tbody.innerHTML = '<tr><td colspan="7" style="padding:40px;text-align:center;color:var(--texto-muy-suave);">Sin productos en el catálogo.</td></tr>'; return; }
+  const nuncaUsadosCount = productosNuncaUsadosPP().length;
+  const avisoEl = $('pp-cat-aviso-nunca-usados');
+  if (avisoEl) {
+    avisoEl.style.display = nuncaUsadosCount ? 'flex' : 'none';
+    avisoEl.querySelector('.txt') && (avisoEl.querySelector('.txt').textContent = `🧹 ${nuncaUsadosCount} producto(s) del catálogo nunca aparecieron en un pedido ni en una orden de compra.`);
+  }
+  if (!rows.length) { tbody.innerHTML = `<tr><td colspan="7" style="padding:40px;text-align:center;color:var(--texto-muy-suave);">${filtroEstado === 'anulados' ? 'No hay productos anulados.' : 'Sin productos en el catálogo.'}</td></tr>`; return; }
   tbody.innerHTML = rows.map(p => {
     const costo = precioVigente(p.id);
     const prov = p.proveedorIdLocal ? getProveedorPP(p.proveedorIdLocal) : null;
-    return `<tr>
+    return `<tr style="${p.anulado ? 'opacity:.6;background:#fafafa;' : ''}">
       <td style="padding:6px 12px;border:1px solid var(--borde);">${p.codigoMonica || '—'}</td>
-      <td style="padding:6px 12px;border:1px solid var(--borde);font-weight:500;">${p.descripcion}</td>
+      <td style="padding:6px 12px;border:1px solid var(--borde);font-weight:500;">${p.descripcion}${p.anulado ? ' <span class="badge badge-gris" style="font-size:10px;">ANULADO</span>' : ''}</td>
       <td style="padding:6px 8px;border:1px solid var(--borde);color:var(--texto-suave);">${p.marca || '—'}</td>
       <td style="padding:6px 8px;border:1px solid var(--borde);text-align:center;">${prov ? badgeProveedorPP(prov) : '<span style="color:var(--texto-suave);">—</span>'}</td>
       <td style="padding:6px 8px;border:1px solid var(--borde);text-align:center;">${badgeTipoUsoPP(p.tipoUso)}</td>
       <td style="padding:6px 8px;border:1px solid var(--borde);text-align:right;">${costo ? _money(costo) : '<span style="color:var(--rojo);">sin precio</span>'}</td>
       <td style="padding:6px 8px;border:1px solid var(--borde);text-align:center;white-space:nowrap;">
-        <button class="btn btn-xs" onclick="abrirEditarProductoPP('${p.id}')">Editar</button>
-        <button class="btn btn-xs" onclick="abrirNuevoPrecioPP('${p.id}')">💲 Precio</button>
-        <button class="btn btn-xs btn-secondary" onclick="anularProductoPP('${p.id}')">Anular</button>
+        ${p.anulado
+          ? `<button class="btn btn-xs" style="background:#dcfce7;color:#065f46;border:1px solid #9fdaba;" onclick="activarProductoPP('${p.id}')">↩️ Reactivar</button>`
+          : `<button class="btn btn-xs" onclick="abrirEditarProductoPP('${p.id}')">Editar</button>
+             <button class="btn btn-xs" onclick="abrirNuevoPrecioPP('${p.id}')">💲 Precio</button>
+             <button class="btn btn-xs btn-secondary" onclick="anularProductoPP('${p.id}')">Anular</button>`}
       </td>
     </tr>`;
   }).join('');
@@ -486,6 +521,98 @@ export function anularProductoPP(id) {
   supaSync('ppProductos', p);
   renderCatalogoPP();
   toast(`${p.descripcion} anulado del catálogo`);
+}
+// Faltaba el camino de vuelta: antes, una vez anulado, un producto no
+// tenía forma de volver a aparecer desde la UI (ver comentario arriba de
+// renderCatalogoPP). No borra nada — un producto anulado (o reactivado)
+// sigue existiendo siempre en pp_productos, con su historial de precios y
+// sus referencias en órdenes/pedidos viejos intactas (esas guardan su
+// propia copia de descripción/marca/costo al momento de la operación, no
+// dependen de que el producto siga activo — ver _generarOrdenReposicionParaProveedorPP).
+export function activarProductoPP(id) {
+  const p = getProductoPP(id); if (!p) return;
+  p.anulado = false;
+  supaSync('ppProductos', p);
+  renderCatalogoPP();
+  toast(`✅ ${p.descripcion} reactivado`);
+}
+
+// ========== "NUNCA USADOS" — ayuda para la limpieza masiva del catálogo ==========
+// Ticket "SUGERENCIA": el pedido real no es "poder anular" (ya se podía)
+// sino "sacar de encima los ~900 ítems importados en bloque que nunca se
+// compraron ni se pidieron" (ej. BOLSA GASTRONOMICA, Cepillo lavajeans).
+// Se ofrece la lista calculada en vivo + selección múltiple para anular
+// en lote, en vez de dejarlo en un clic por producto — pero SIEMPRE con
+// revisión humana antes de confirmar (no se anula nada solo).
+let _nuncaUsadosSeleccion = new Set();
+export function abrirNuncaUsadosPP() {
+  _nuncaUsadosSeleccion = new Set();
+  ensureModalNuncaUsadosPP();
+  renderNuncaUsadosPP();
+  abrirModal('modal-pp-nunca-usados');
+}
+function ensureModalNuncaUsadosPP() {
+  if ($('modal-pp-nunca-usados')) return;
+  const m = document.createElement('div');
+  m.className = 'modal-overlay'; m.id = 'modal-pp-nunca-usados';
+  m.innerHTML = `
+    <div class="modal" style="max-width:640px;">
+      <div class="modal-header"><h3>🧹 Productos que nunca se pidieron ni se compraron</h3><button class="btn-close" onclick="cerrarModal('modal-pp-nunca-usados')">×</button></div>
+      <div class="modal-body">
+        <p style="font-size:12px;color:var(--texto-suave);margin-bottom:10px;">
+          Calculado contra el historial real: nunca aparecieron en un pedido (Mis pedidos) ni en una orden de compra confirmada. Anularlos NO borra nada — quedan en el historial y se pueden reactivar en cualquier momento desde "Anulados" en el filtro de Estado.
+        </p>
+        <div style="display:flex;gap:10px;margin-bottom:8px;font-size:12px;">
+          <button class="btn btn-xs btn-secondary" onclick="_toggleTodosNuncaUsadosPP(true)">Seleccionar todos</button>
+          <button class="btn btn-xs btn-secondary" onclick="_toggleTodosNuncaUsadosPP(false)">Ninguno</button>
+        </div>
+        <div id="pp-nunca-usados-lista" style="max-height:360px;overflow-y:auto;border:1px solid var(--borde);border-radius:var(--radio);"></div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="cerrarModal('modal-pp-nunca-usados')">Cerrar</button>
+        <button class="btn btn-primary" id="pp-nunca-usados-btn-anular" onclick="anularSeleccionadosNuncaUsadosPP()">Anular seleccionados</button>
+      </div>
+    </div>`;
+  document.body.appendChild(m);
+}
+function renderNuncaUsadosPP() {
+  const cont = $('pp-nunca-usados-lista'); if (!cont) return;
+  const lista = productosNuncaUsadosPP().sort((a, b) => a.descripcion.localeCompare(b.descripcion));
+  if (!lista.length) { cont.innerHTML = '<p style="padding:16px;text-align:center;color:var(--texto-muy-suave);font-size:12px;">No hay candidatos — todo lo activo del catálogo se usó alguna vez.</p>'; return; }
+  cont.innerHTML = lista.map(p => `
+    <label style="display:flex;align-items:center;gap:8px;padding:6px 12px;border-bottom:1px solid var(--borde);font-size:12.5px;cursor:pointer;">
+      <input type="checkbox" data-nu-id="${p.id}" ${_nuncaUsadosSeleccion.has(p.id) ? 'checked' : ''} onchange="_toggleUnoNuncaUsadoPP('${p.id}', this.checked)">
+      <span style="flex:1;">${p.descripcion}${p.marca ? ` <span style="color:var(--texto-suave);">(${p.marca})</span>` : ''}</span>
+      <span style="color:var(--texto-suave);">${p.codigoMonica || '—'}</span>
+    </label>`).join('');
+  _actualizarBotonNuncaUsadosPP();
+}
+export function _toggleUnoNuncaUsadoPP(id, checked) {
+  if (checked) _nuncaUsadosSeleccion.add(id); else _nuncaUsadosSeleccion.delete(id);
+  _actualizarBotonNuncaUsadosPP();
+}
+export function _toggleTodosNuncaUsadosPP(todos) {
+  _nuncaUsadosSeleccion = todos ? new Set(productosNuncaUsadosPP().map(p => p.id)) : new Set();
+  renderNuncaUsadosPP();
+}
+function _actualizarBotonNuncaUsadosPP() {
+  const btn = $('pp-nunca-usados-btn-anular'); if (!btn) return;
+  btn.textContent = _nuncaUsadosSeleccion.size ? `Anular ${_nuncaUsadosSeleccion.size} seleccionado(s)` : 'Anular seleccionados';
+  btn.disabled = !_nuncaUsadosSeleccion.size;
+}
+export function anularSeleccionadosNuncaUsadosPP() {
+  if (!_nuncaUsadosSeleccion.size) return;
+  if (!confirm(`¿Anular ${_nuncaUsadosSeleccion.size} producto(s)? Quedan ocultos del catálogo pero se pueden reactivar cuando quieras — no se borra nada.`)) return;
+  let n = 0;
+  _nuncaUsadosSeleccion.forEach(id => {
+    const p = getProductoPP(id); if (!p || p.anulado) return;
+    p.anulado = true;
+    supaSync('ppProductos', p);
+    n++;
+  });
+  cerrarModal('modal-pp-nunca-usados');
+  renderCatalogoPP();
+  toast(`✅ ${n} producto(s) anulado(s) — se pueden reactivar desde el filtro "Anulados"`);
 }
 
 // ========== PRECIOS (vigencia temporal, A.6) ==========

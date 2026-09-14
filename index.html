@@ -4877,11 +4877,20 @@
           <select id="pp-cat-filtro-prov" onchange="renderCatalogoPP()">
             <option value="">Todos los proveedores</option>
           </select>
+          <select id="pp-cat-filtro-estado" onchange="renderCatalogoPP()">
+            <option value="activos" selected>Activos</option>
+            <option value="anulados">Anulados</option>
+            <option value="todos">Todos</option>
+          </select>
           <button class="btn btn-secondary btn-sm" onclick="abrirImportarListadoPP()" title="Importar listado de precios del proveedor (CSV)">📥 Importar listado</button>
           <button class="btn btn-primary btn-sm" onclick="abrirNuevoProductoPP()">+ Nuevo producto</button>
         </div>
       </div>
       <p style="font-size:12px;color:var(--texto-suave);padding:0 20px 10px;">COSTO = precio de lista del proveedor (import o ajuste manual — nunca "aumento general"). RECARGO = margen de Logística por servicio (30% general + servicios con margen propio). El presupuesto del mes se controla contra COSTO.</p>
+      <div id="pp-cat-aviso-nunca-usados" class="alerta alerta-info" style="display:none;margin:0 20px 12px;align-items:center;justify-content:space-between;gap:10px;">
+        <span class="txt"></span>
+        <button class="btn btn-xs btn-secondary" onclick="abrirNuncaUsadosPP()">Ver y anular en lote</button>
+      </div>
       <div class="tabla-wrap"><table style="width:100%;border-collapse:collapse;font-size:12.5px;">
         <thead><tr style="background:#374151;color:white;">
           <th style="padding:8px 12px;">Cód. Mónica</th><th style="padding:8px 12px;text-align:left;">Producto</th>
