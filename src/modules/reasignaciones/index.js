@@ -1,7 +1,7 @@
 // Módulo Reasignaciones — Entry point
 
 export {
-  sincronizarConfigReasignaciones,
+  sincronizarConfigReasignaciones, chequearEjecucionesPendientes,
   tabReas, renderReasignacionesInicial,
   renderReasignaciones, renderReasPend, renderReasHist, renderRotacion,
   filtrarReas, filtrarReasH, filtrarRotacion,

@@ -10,6 +10,7 @@ import { crearNotificacion } from '@shared/notificaciones.js';
 import { obtenerValorHoraVigente, getCategoriaById, categoriaVigenteAsociado, registroPadronVigente } from './modules/categorias/consultas.js';
 import { pctEfectivoObjetivo, pctEfectivoCliente, pctGeneralVigente, esEditorSupervision, esMismoSupervisor, adicionalSupervisionDe, detalleAdicionalSupervision } from './modules/supervision/supervision.js';
 import { serviciosDeSupervisor, nombresSupervisoresReales } from './modules/servicios_supervisor/servicios_supervisor.js';
+import { chequearEjecucionesPendientes } from './modules/reasignaciones/index.js';
 import { listarAdjuntos, obtenerUrlFirmada, subirAdjunto, borrarAdjunto, MAX_SIZE as ADJ_MAX_SIZE } from '@shared/adjuntos.js';
 // v098 — Tab "Acceso y perfiles" de Configuración (matriz + usuarios + alta).
 import { renderTabAccesosPerfiles } from '@modules/accesos/index.js';
@@ -6374,6 +6375,15 @@ function calcularHorasMes(mesISO,objCodigo){
 
 
 function renderLiquidacion(){
+  // Ticket "Reasignaciones — 3 consultas" §2 (15/09): antes la ejecución
+  // automática por fecha efectiva solo se chequeaba al entrar a
+  // Reasignaciones — si nadie entraba ahí, una reasignación con fecha ya
+  // cumplida quedaba con el legajo en el servicio viejo hasta que alguien
+  // abriera ese módulo puntual. Se dispara también acá (una vez por
+  // entrada a Liquidación de horas, no en cada re-render de filtros) para
+  // que el corte de servicio esté aplicado ANTES de armar/revisar las
+  // grillas del mes.
+  chequearEjecucionesPendientes();
   const mes=$('liq-mes-sel')?.value||(new Date().toISOString().slice(0,7));
   if($('liq-mes-sel')&&!$('liq-mes-sel').value) $('liq-mes-sel').value=mes;
   const grillasActivas=DB.grillasLiq.filter(g=>g.periodo===mes);
@@ -12697,6 +12707,21 @@ function renderGrillasLiq(){
     }
 
     const alertaEFT=grilla?.alertaEFT?`<span class="liq-badge-tipo" style="background:#fef3c7;color:#92400e;">⚠️ EFT</span>`:'';
+    // Ticket "Reasignaciones — 3 consultas" §3 (15/09): caso de mitad de
+    // mes — la grilla del período en curso ya existe cuando se ejecuta la
+    // reasignación, así que la fila de la persona NO se mueve sola (eso
+    // queda pendiente, punto 2 de ese ticket). Por ahora, el aviso: se
+    // calcula en vivo contra reasignaciones ejecutadas de ESTE período que
+    // tengan a este servicio como origen o destino — no se persiste nada
+    // nuevo, es puramente derivado (mismo criterio que el resto de los
+    // "calculados solos" de este módulo).
+    const reasigsDelMes=(DB.reasignaciones||[]).filter(r=>!r.anulado&&r.estado==='Aprobada ejecutada'&&(r.fechaEfectiva||'').slice(0,7)===mes&&(r.servicioOrigen===obj.codigo||r.servicioDestino===obj.codigo));
+    const avisoReasig=reasigsDelMes.map(r=>{
+      const feDDMM=(r.fechaEfectiva||'').split('-').slice(1).reverse().join('/');
+      return r.servicioOrigen===obj.codigo
+        ? `<span class="liq-badge-tipo" style="background:#ede9fe;color:#5b21b6;" title="Reasignado el ${feDDMM} — dejar de cargarle horas acá desde esa fecha">🔀 ${r.nombreAsociado||('N°'+r.nroSocio)} reasignado ${feDDMM} → ${r.servicioDestino}</span>`
+        : `<span class="liq-badge-tipo" style="background:#ede9fe;color:#5b21b6;" title="Viene de ${r.servicioOrigen} por reasignación — agregalo a esta grilla si todavía no está">🔀 ${r.nombreAsociado||('N°'+r.nroSocio)} viene de ${r.servicioOrigen} desde ${feDDMM}</span>`;
+    }).join(' ');
     const estadoGrilla=grilla
       ?(_periodoCerradoLiq(grilla.periodo)
         ?'<span class="liq-badge-tipo" style="background:#fecaca;color:#7f1d1d;">🔒 Período cerrado</span>'
@@ -12711,6 +12736,7 @@ function renderGrillasLiq(){
         <span class="liq-toggle-icon">▶</span>
         ${obj.nombre}
         ${alertaEFT}
+        ${avisoReasig}
         <span style="font-size:10px;opacity:.7;margin-left:6px;">${obj.codigo}</span>
       </td>
       <td style="padding:6px 8px;border:1px solid #6b7280;font-size:11px;color:rgba(255,255,255,.5);">—</td>

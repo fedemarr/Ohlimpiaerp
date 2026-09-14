@@ -20,7 +20,7 @@ import { altasScreenConfig, filtrarAltas, poblarFiltrosColumnasAltas, renderAlta
 import { legajosScreenConfig, filtrarLegajos, renderLegajos } from './modules/legajos/index.js';
 import { pedidosScreenConfig, filtrarPedidos } from './modules/pedidos/index.js';
 import { seguimientoSeleccionScreenConfig, filtrarSeguimientoSeleccion } from './modules/seguimiento_seleccion/index.js';
-import { reasignacionesScreenConfig, sincronizarConfigReasignaciones } from './modules/reasignaciones/index.js';
+import { reasignacionesScreenConfig, sincronizarConfigReasignaciones, chequearEjecucionesPendientes } from './modules/reasignaciones/index.js';
 import { capacitacionesScreenConfig, filtrarCapacitaciones } from './modules/capacitaciones/index.js';
 import { uniformesScreenConfig } from './modules/uniformes/index.js';
 import { retencionesScreenConfig, filtrarRetenciones } from './modules/retenciones/index.js';
@@ -301,6 +301,12 @@ registerAuthCallbacks({
     // legacy.js sigue leyendo) desde la config real recién cargada, para
     // que no queden con el seed default hasta visitar Reasignaciones.
     sincronizarConfigReasignaciones();
+    // Ticket "Reasignaciones — 3 consultas" §2 (15/09): que la ejecución
+    // por fecha efectiva no dependa de que alguien entre puntualmente al
+    // módulo Reasignaciones (o a Liquidación de horas) — se chequea
+    // también acá, apenas se loguea alguien, antes de que abra cualquier
+    // pantalla.
+    chequearEjecucionesPendientes();
     // Refresca DB.servicios (array plano de códigos) desde
     // DB.serviciosSupervisor recién cargado — mismo motivo que la línea de
     // arriba: los 9+ consumidores de obtenerServiciosActivos() (legacy.js)

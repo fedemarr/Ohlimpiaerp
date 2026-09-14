@@ -42,7 +42,7 @@ const SCHEMA = {
       items: {
         type: 'object',
         properties: {
-          servicio: { type: 'string', description: 'Nombre exacto del servicio, tal como figura en la lista de clientes activos.' },
+          servicio: { type: 'string', description: 'Código exacto del servicio (campo "servicio" de la lista de servicios activos), no el nombre.' },
           supervisor: { type: 'string' },
           zona: { type: 'string' },
           score: { type: 'integer', description: '0 a 100.' },
@@ -100,19 +100,32 @@ export default async function handler(req, res) {
     seisMesesAtras.setMonth(seisMesesAtras.getMonth() - 6);
     const seisMesesAtrasISO = seisMesesAtras.toISOString().slice(0, 10);
 
-    const [clientesRes, capacitacionesRes, pedidosRes, reasignacionesRes] = await Promise.all([
-      supa.from('clientes').select('nombre, servicio, supervisor, zona, direccion, estado, obs').eq('estado', 'Activo'),
+    // FIX (ticket "Reasignaciones — 3 consultas", 11-15/09): esto leía de
+    // `clientes` (servicio/supervisor/zona), pero en el modelo real esas
+    // columnas están SIEMPRE vacías ahí — el padrón real de servicios es
+    // `objetivos` (tab Operativos), donde el código de servicio vive en
+    // `codigo` y el supervisor en `supervisor_asignado`. Por eso el botón
+    // devolvía "sin servicios activos" para cualquier asociado, siempre —
+    // no era un tema de datos faltantes, apuntaba a la tabla que no es.
+    const [objetivosRes, capacitacionesRes, pedidosRes, reasignacionesRes] = await Promise.all([
+      supa.from('objetivos').select('codigo, nombre, supervisor_asignado, jurisdiccion, localidad, dir, observaciones, puestos_necesarios').eq('estado', 'Operativo'),
       supa.from('capacitaciones').select('tipo, fecha, estado, resultado').eq('nro_socio', String(nroSocio)).order('fecha', { ascending: false }).limit(20),
       supa.from('pedidos').select('servicio, puesto, urgencia, estado').eq('estado', 'Pendiente'),
       supa.from('reasignaciones').select('servicio_origen, servicio_destino, motivo, fecha_solicitud, estado').eq('nro_socio', String(nroSocio)).gte('fecha_solicitud', seisMesesAtrasISO),
     ]);
 
-    const clientesActivos = (clientesRes.data || []).filter(c => c.servicio && c.servicio !== legajo.servicio);
+    const serviciosActivos = (objetivosRes.data || [])
+      .filter(o => o.codigo && o.codigo !== legajo.servicio)
+      .map(o => ({
+        servicio: o.codigo, nombre: o.nombre, supervisor: o.supervisor_asignado || null,
+        zona: [o.localidad, o.jurisdiccion].filter(Boolean).join(' — ') || null,
+        direccion: o.dir || null, requisitos: o.observaciones || null, puestos_necesarios: o.puestos_necesarios || null,
+      }));
     const capacitaciones = capacitacionesRes.data || [];
     const pedidosPendientes = pedidosRes.data || [];
     const reasignacionesRecientes = reasignacionesRes.data || [];
 
-    if (!clientesActivos.length) {
+    if (!serviciosActivos.length) {
       res.status(200).json({ sugerencias: [] });
       return;
     }
@@ -140,7 +153,7 @@ REASIGNACIONES DEL ASOCIADO EN LOS ÚLTIMOS 6 MESES (para detectar rotación exc
 ${JSON.stringify(reasignacionesRecientes, null, 2)}
 
 SERVICIOS ACTIVOS DISPONIBLES COMO POSIBLE DESTINO:
-${JSON.stringify(clientesActivos, null, 2)}
+${JSON.stringify(serviciosActivos, null, 2)}
 
 PEDIDOS DE PERSONAL PENDIENTES (servicios con necesidad real de gente ahora mismo — priorizalos, pero no te limites solo a estos):
 ${JSON.stringify(pedidosPendientes, null, 2)}
@@ -148,7 +161,7 @@ ${JSON.stringify(pedidosPendientes, null, 2)}
 CRITERIOS A EVALUAR, en orden de prioridad:
 1. Que el servicio tenga un pedido de personal pendiente (más urgente = mejor).
 2. Cercanía: comparar la localidad del asociado con la zona/dirección del servicio (son datos de texto, no coordenadas — evaluá cercanía aproximada por barrio/partido/zona, no calcules distancia exacta).
-3. Que sus capacitaciones sean relevantes para las exigencias del servicio (fijate en el campo "obs" del cliente, a veces menciona requisitos como altura, habilitaciones especiales, etc.).
+3. Que sus capacitaciones sean relevantes para las exigencias del servicio (fijate en el campo "requisitos" del servicio, a veces menciona cosas como altura, habilitaciones especiales, etc.).
 4. Que no haya rotado en exceso (3 o más reasignaciones en los últimos 6 meses es una señal de alerta, no descalificante).
 5. Que no haya tenido un conflicto previo con ese mismo cliente/servicio (revisá el historial de reasignaciones y sus motivos).
 6. Antigüedad en la cooperativa (mayor experiencia es un plus).

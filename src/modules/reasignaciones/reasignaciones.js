@@ -76,7 +76,14 @@ export function renderReasignacionesInicial() {
 // Al entrar al módulo, las "Aprobada esperando fecha efectiva" cuya fecha
 // ya llegó pasan solas a "Aprobada ejecutada" (sin cron real todavía).
 
-function chequearEjecucionesPendientes() {
+// Exportada (ticket "Reasignaciones — 3 consultas" §2, 15/09): antes solo
+// se disparaba al entrar a Reasignaciones — si nadie entraba ahí en unos
+// días, una reasignación con fecha efectiva ya cumplida quedaba sin
+// ejecutar (el legajo seguía en el servicio viejo) hasta que alguien
+// abriera este módulo puntual. Se llama también al abrir Liquidación de
+// horas (legacy.js) y al iniciar sesión (main.js), sin cron real todavía
+// pero con muchos más puntos de entrada que la disparan.
+export function chequearEjecucionesPendientes() {
   const hoy = hoyISO();
   const aEjecutar = (DB.reasignaciones || []).filter(r =>
     !r.anulado && r.estado === 'Aprobada esperando fecha efectiva' && r.fechaEfectiva && r.fechaEfectiva <= hoy
@@ -399,7 +406,6 @@ export function poblarSelectsReas() {
   fS('cf-rn-motivo', DB.motivosReasignacion);
   fS('cf-rh-mot2', DB.motivosReasignacion);
   fS('cf-reas-sup', DB.supervisores);
-  fS('reas-sup-dest', DB.supervisores);
 
   const pedidosPend = (DB.pedidos || []).filter(p => p.estado === 'Pendiente');
   const selPed = $('reas-pedido-vinculado');
@@ -500,7 +506,7 @@ export function elegirSugerenciaDestino(idx) {
 // ========== ABRIR MODAL — NUEVA / RETOMAR BORRADOR ==========
 
 export function abrirNuevaReasignacion() {
-  ['reas-asociado', 'reas-nro', 'reas-serv-orig', 'reas-sup-orig', 'reas-categoria', 'reas-serv-dest', 'reas-desc'].forEach(id => {
+  ['reas-asociado', 'reas-nro', 'reas-serv-orig', 'reas-sup-orig', 'reas-categoria', 'reas-serv-dest', 'reas-sup-dest', 'reas-desc'].forEach(id => {
     const el = $(id); if (el) el.value = '';
   });
   const fechaEl = $('reas-fecha'); if (fechaEl) { fechaEl.value = ''; fechaEl.min = mananaISO(); }
