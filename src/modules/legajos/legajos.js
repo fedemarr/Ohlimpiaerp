@@ -713,6 +713,14 @@ export function editarLegajoActual() {
   const p = l.nombre.split(' ');
   $('edit-apellido').value = p[0] || '';
   $('edit-nombre').value = p.slice(1).join(' ') || '';
+  // N° de socio editable (ticket real 14/09: un legajo cargado mal tuvo
+  // que eliminarse por completo porque no había forma de corregir el
+  // número — ver renombrarNroSocioLegajo más abajo). Solo Administrador
+  // total/RRHH lo pueden tocar, mismo criterio que ya usa este archivo
+  // para clave fiscal (puedeVerClaveFiscal).
+  const puedeEditarNro = ['Administrador total', 'RRHH'].includes(currentUser?.perfil);
+  if ($('edit-nro')) { $('edit-nro').value = l.nro; $('edit-nro').disabled = !puedeEditarNro; }
+  if ($('edit-nro-wrap')) $('edit-nro-wrap').style.display = puedeEditarNro ? 'block' : 'none';
   $('edit-dni').value = l.dni;
   $('edit-cuit').value = l.cuit || '';
   if ($('edit-clave-fiscal')) $('edit-clave-fiscal').value = l.claveFiscal || '';
@@ -761,12 +769,99 @@ export function editarLegajoActual() {
   abrirModal('modal-editar-legajo');
 }
 
-export function guardarEdicionLegajo() {
+// ========== RENOMBRAR N° DE SOCIO (cascada) ==========
+// Ticket real (14/09): se cargó un legajo con el número equivocado, hubo
+// que ELIMINAR el asociado por completo (ver eliminarLegajoActual arriba)
+// y volver a cargarlo — "y varios problemas más" porque todo lo demás
+// (retenciones, monotributo, sanciones, vacaciones...) ya tenía cargado
+// el N° de socio viejo y quedó huérfano. Esto reemplaza "eliminar y
+// recrear" por "corregir el número in situ".
+//
+// legajo.nro es la id_local real de la tabla legajos (supaSync la
+// calcula desde obj.nro — ver src/shared/supabase.js) — no alcanza con
+// pisar l.nro y volver a hacer supaSync: eso INSERTARÍA una fila nueva
+// bajo el número nuevo y dejaría la fila vieja huérfana en Supabase. Hay
+// que borrar la fila vieja explícitamente antes de guardar bajo el
+// número nuevo (ver más abajo, en guardarEdicionLegajo).
+//
+// Cascada: releva por búsqueda de texto en el repo (no hay FK de
+// esquema real — es una convención del código, no una garantía de la
+// base) todas las tablas que guardan `nroSocio`/`legajoIdLocal`/
+// `legajoNro` como campo PLANO de nivel superior en cada fila, y las
+// actualiza. Lo que NO cubre (a propósito, ver comentario debajo de la
+// tabla) son los números que viven adentro de un array jsonb por
+// período — grillas de Liquidación de horas y planillas de adelantos —
+// porque esos flujos ya matchean también por NOMBRE como respaldo, así
+// que un número viejo ahí adentro no rompe nada activo; si hace falta
+// prolijidad histórica en esos dos, se revisa a mano el período puntual.
+const _CASCADA_NRO_SOCIO = [
+  { dbKey: 'retenciones', campos: ['nroSocio', 'legajoIdLocal'] },
+  { dbKey: 'monotributos', campos: ['nroSocio'] },
+  { dbKey: 'monoPagosMes', campos: ['nroSocio'] },
+  { dbKey: 'descansos', campos: ['nroSocio', 'legajoIdLocal'] },
+  { dbKey: 'enfermos', campos: ['nroSocio', 'legajoIdLocal'] },
+  { dbKey: 'casosLegales', campos: ['nroSocio'] },
+  { dbKey: 'reasignaciones', campos: ['nroSocio', 'legajoIdLocal'] },
+  { dbKey: 'sanciones', campos: ['nroSocio', 'legajoIdLocal'] },
+  { dbKey: 'pedidosUniformes', campos: ['nroSocio', 'legajoIdLocal'] },
+  { dbKey: 'descuentosUniformePendientes', campos: ['legajoIdLocal'] },
+  { dbKey: 'devolucionesPorBaja', campos: ['legajoIdLocal'] },
+  { dbKey: 'vacaciones', campos: ['nroSocio', 'legajoIdLocal'] },
+  { dbKey: 'capacitaciones', campos: ['nroSocio', 'legajoIdLocal'] },
+  { dbKey: 'evaluacionesEnviadas', campos: ['nroSocio', 'legajoIdLocal'] },
+  { dbKey: 'pedidosAdelantos', campos: ['nroSocio', 'legajoIdLocal'] },
+  { dbKey: 'prestamos', campos: ['nroSocio'] },
+  { dbKey: 'descuentos', campos: ['legajoIdLocal'] },
+  { dbKey: 'descuentosAdelantosPendientes', campos: ['nroSocio', 'legajoIdLocal'] },
+  { dbKey: 'padronCategoriasAsociado', campos: ['legajoNro'] },
+];
+async function _renombrarNroSocioEnCascada(nroViejo, nroNuevo) {
+  let filas = 0;
+  for (const { dbKey, campos } of _CASCADA_NRO_SOCIO) {
+    const arr = DB[dbKey];
+    if (!Array.isArray(arr)) continue;
+    for (const row of arr) {
+      let tocado = false;
+      for (const campo of campos) {
+        if (row[campo] != null && String(row[campo]) === String(nroViejo)) { row[campo] = String(nroNuevo); tocado = true; }
+      }
+      if (tocado) { await supaSync(dbKey, row); filas++; }
+    }
+  }
+  return filas;
+}
+
+export async function guardarEdicionLegajo() {
   const l = DB.legajos.find(x => x.nro === legajoActualNro);
   if (!l) return;
   const a = $('edit-apellido').value.trim();
   const n = $('edit-nombre').value.trim();
   if (!a || !n) { toast('Nombre y apellido obligatorios'); return; }
+
+  // N° de socio: si cambió, se resuelve ANTES que el resto de los campos
+  // (y con su propia confirmación) porque no es un campo más — es la
+  // clave que usa medio sistema para encontrar a esta persona.
+  const puedeEditarNro = ['Administrador total', 'RRHH'].includes(currentUser?.perfil);
+  if (puedeEditarNro && $('edit-nro')) {
+    const nroNuevo = parseInt($('edit-nro').value, 10);
+    if (nroNuevo !== l.nro) {
+      if (!nroNuevo || nroNuevo <= 0) { toast('⚠️ El N° de socio debe ser un número positivo'); return; }
+      if (DB.legajos.some(x => x.nro === nroNuevo)) { toast(`⚠️ Ya existe el legajo N° ${nroNuevo} (${DB.legajos.find(x => x.nro === nroNuevo).nombre})`); return; }
+      const nroViejo = l.nro;
+      if (!confirm(
+        `¿Cambiar el N° de socio de ${l.nombre} de ${nroViejo} a ${nroNuevo}?\n\n`
+        + 'Se actualiza en cascada en retenciones, monotributo, sanciones, vacaciones, uniformes, adelantos/préstamos, capacitaciones, casos legales/médicos, reasignaciones y padrón de categorías.\n'
+        + 'NO se corrigen solas las grillas de Liquidación de horas ni las planillas de adelantos ya armadas (matchean también por nombre, no se rompen, pero si hace falta prolijidad ahí hay que revisarlas a mano).\n\n'
+        + 'Esta acción no tiene un botón de "deshacer" — se puede volver a cambiar el número a mano si hace falta.'
+      )) return;
+      const ok = await supaDel('legajos', String(nroViejo));
+      if (!ok) { toast('⚠️ No se pudo liberar el N° de socio viejo en el servidor — reintentá'); return; }
+      l.nro = nroNuevo;
+      legajoActualNro = nroNuevo;
+      const filas = await _renombrarNroSocioEnCascada(nroViejo, nroNuevo);
+      toast(`✓ N° de socio cambiado a ${nroNuevo} — ${filas} registro(s) actualizados en otros módulos`, 8000);
+    }
+  }
   const dni = $('edit-dni').value.trim();
   if (dni && !/^\d{6,8}$/.test(dni)) {
     toast('⚠️ El DNI debe tener entre 6 y 8 dígitos numéricos');

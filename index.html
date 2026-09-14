@@ -6542,6 +6542,14 @@
           <div class="form-group"><label>Apellido *</label><input type="text" id="edit-apellido"></div>
           <div class="form-group"><label>Nombre *</label><input type="text" id="edit-nombre"></div>
         </div>
+        <div class="form-group" id="edit-nro-wrap" style="background:#fff7ed;border:1px solid #fed7aa;border-radius:var(--radio);padding:10px 12px;">
+          <label>N° de socio (legajo) <span style="font-weight:400;color:var(--texto-suave);">— solo Administrador/RRHH</span></label>
+          <input type="number" id="edit-nro" min="1" step="1" style="max-width:160px;">
+          <p style="font-size:11px;color:var(--texto-suave);margin:6px 0 0;">
+            Cambiarlo corrige el número en TODOS los módulos que ya lo tienen guardado (retenciones, monotributo, sanciones, vacaciones, uniformes, adelantos/préstamos, capacitaciones, casos legales/médicos, reasignaciones, padrón de categorías). Se pide confirmación aparte antes de aplicar el cambio.
+            No corrige por sí solo lo que ya está congelado en grillas de Liquidación de horas o en planillas de adelantos ya armadas — esos matchean también por nombre, así que no se rompen, pero si hace falta corregirlos hay que revisarlos a mano.
+          </p>
+        </div>
         <div class="form-grid form-grid-3">
           <div class="form-group"><label>DNI</label><input type="text" id="edit-dni"></div>
           <div class="form-group"><label>CUIT</label><input type="text" id="edit-cuit"></div>
