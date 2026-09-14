@@ -19,6 +19,7 @@ import { documScreenConfig, filtrarDocum, poblarFiltrosColumnasDocum } from './m
 import { altasScreenConfig, filtrarAltas, poblarFiltrosColumnasAltas, renderAltas, poblarSelectsAltas } from './modules/altas/index.js';
 import { legajosScreenConfig, filtrarLegajos, renderLegajos } from './modules/legajos/index.js';
 import { pedidosScreenConfig, filtrarPedidos } from './modules/pedidos/index.js';
+import { seguimientoSeleccionScreenConfig, filtrarSeguimientoSeleccion } from './modules/seguimiento_seleccion/index.js';
 import { reasignacionesScreenConfig, sincronizarConfigReasignaciones } from './modules/reasignaciones/index.js';
 import { capacitacionesScreenConfig, filtrarCapacitaciones } from './modules/capacitaciones/index.js';
 import { uniformesScreenConfig } from './modules/uniformes/index.js';
@@ -93,6 +94,7 @@ registerScreens(reasignacionesScreenConfig);
 registerScreens(capacitacionesScreenConfig);
 registerScreens(uniformesScreenConfig);
 registerScreens(retencionesScreenConfig);
+registerScreens(seguimientoSeleccionScreenConfig);
 registerScreens(competenciaScreenConfig);
 registerScreens(developerScreenConfig);
 registerScreens(vacacionesScreenConfig);
@@ -126,6 +128,7 @@ registerSearchFilters({
   pedidos: filtrarPedidos,
   capacitaciones: filtrarCapacitaciones,
   retenciones: filtrarRetenciones,
+  seguimiento_seleccion: filtrarSeguimientoSeleccion,
   maquinas: filtrarMaquinas,
 });
 

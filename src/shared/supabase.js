@@ -416,6 +416,9 @@ export function _toSnake(obj) {
     precioIdLocalReferencia: 'precio_id_local_referencia',
     estadoDesde: 'estado_desde', estadoHasta: 'estado_hasta', ejecutadoPor: 'ejecutado_por', ejecutadoEn: 'ejecutado_en',
     vigenciaDesde: 'vigencia_desde', vigenciaHasta: 'vigencia_hasta', cargadoPor: 'cargado_por', motivoCarga: 'motivo_carga',
+    // Seguimiento de selección (v127) — carga manual de una etapa hecha
+    // fuera del sistema (psicos/preocupacionales/documentacion_ingreso).
+    cargadoManualPor: 'cargado_manual_por',
     montoTotal: 'monto_total', cuotasTotales: 'cuotas_totales', cuotasCobradas: 'cuotas_cobradas', montoCuota: 'monto_cuota',
     fechaGenerado: 'fecha_generado', fechaPrimeraCuota: 'fecha_primera_cuota', fechaUltimaCuota: 'fecha_ultima_cuota',
     motivoGeneracion: 'motivo_generacion',
@@ -896,6 +899,7 @@ export function _toCamel(obj) {
     precio_id_local_referencia: 'precioIdLocalReferencia',
     estado_desde: 'estadoDesde', estado_hasta: 'estadoHasta', ejecutado_por: 'ejecutadoPor', ejecutado_en: 'ejecutadoEn',
     vigencia_desde: 'vigenciaDesde', vigencia_hasta: 'vigenciaHasta', cargado_por: 'cargadoPor', motivo_carga: 'motivoCarga',
+    cargado_manual_por: 'cargadoManualPor',
     monto_total: 'montoTotal', cuotas_totales: 'cuotasTotales', cuotas_cobradas: 'cuotasCobradas', monto_cuota: 'montoCuota',
     fecha_generado: 'fechaGenerado', fecha_primera_cuota: 'fechaPrimeraCuota', fecha_ultima_cuota: 'fechaUltimaCuota',
     // v084 — Descuentos por asociado

@@ -368,6 +368,10 @@ export const MENU = [
     // personal es la demanda del supervisor que dispara la búsqueda; después
     // Candidatos → Psicotécnico → Preocupacional → Documentación de ingreso
     // → Alta de asociado (etapas por las que pasa el postulante).
+    // Vista transversal de solo lectura (pedido de Jimena, 14/09) — arriba
+    // de Pedidos de personal porque es el punto de entrada para ver TODO
+    // el avance sin entrar pantalla por pantalla.
+    { key: 'seguimiento_seleccion', icon: '🧭', label: 'Seguimiento de selección', perfiles: ['Administrador total', 'RRHH'] },
     { key: 'pedidos', icon: '📋', label: 'Pedidos de personal', perfiles: ['Administrador total', 'RRHH', 'Operaciones', 'Supervisor'] },
     { key: 'candidatos', icon: '👥', label: 'Candidatos', perfiles: ['Administrador total', 'RRHH'] },
     { key: 'psicotecnico', icon: '🧠', label: 'Psicotécnico', perfiles: ['Administrador total', 'RRHH'] },

@@ -476,6 +476,29 @@ function poblarSelectRRHHCandidato() {
   sel.innerHTML = opts.join('');
 }
 
+// Ticket "Seguimiento de selección" (14/09): antes no existía NINGÚN
+// vínculo entre un candidato y el pedido de personal que está cubriendo
+// — Candidatos ni siquiera tenía un campo de servicio. Se agrega este
+// select opcional (mismo patrón que ya usa Reasignaciones con
+// "Pedido de personal vinculado" — reas-pedido-vinculado) para que
+// src/modules/seguimiento_seleccion/ pueda armar el pipeline real
+// Pedido → Vacante → Candidato → Etapa → Ingreso sin inventar nada.
+// vinculadoActualId: si se edita un candidato ya vinculado a un pedido
+// que mientras tanto se cubrió/canceló, igual se lo incluye en la lista
+// (marcado) para no "perder" visualmente el vínculo guardado.
+function poblarSelectPedidoVinculadoCandidato(vinculadoActualId) {
+  const sel = $('c-pedido-vinculado');
+  if (!sel) return;
+  const pedidosAbiertos = (DB.pedidos || []).filter(p => ['Pendiente', 'En búsqueda'].includes(p.estado));
+  const opciones = [...pedidosAbiertos];
+  if (vinculadoActualId && !opciones.some(p => String(p.id) === String(vinculadoActualId))) {
+    const p = (DB.pedidos || []).find(x => String(x.id) === String(vinculadoActualId));
+    if (p) opciones.push(p);
+  }
+  sel.innerHTML = '<option value="">— Sin vincular —</option>'
+    + opciones.map(p => `<option value="${p.id}">PP-${p.numero} — ${p.servicio}${p.puesto ? ' (' + p.puesto + ')' : ''}${p.estado !== 'Pendiente' && p.estado !== 'En búsqueda' ? ' — ' + p.estado : ''}</option>`).join('');
+}
+
 export function abrirNuevoCandidato() {
   ['c-apellido', 'c-nombre', 'c-dni', 'c-cuit', 'c-fecnac', 'c-tel', 'c-email', 'c-calle', 'c-piso',
    'c-obs', 'c-nombre-referido', 'c-fecha', 'c-hora'].forEach(id => {
@@ -485,6 +508,7 @@ export function abrirNuevoCandidato() {
     const el = $(id); if (el) el.selectedIndex = 0;
   });
   poblarSelectRRHHCandidato();
+  poblarSelectPedidoVinculadoCandidato();
   onChangeZonaCand();
   const tit = $('modal-cand-titulo'); if (tit) tit.textContent = 'Nuevo candidato';
   const modal = $('modal-candidato'); if (modal) delete modal.dataset.editId;
@@ -549,6 +573,7 @@ export async function guardarCandidato() {
   const rrhhIdNum = parseInt(rrhhIdRaw, 10);
   const rrhhId = Number.isNaN(rrhhIdNum) ? null : rrhhIdNum;
   const obs = cleanText(($('c-obs') || {}).value || '');
+  const pedidoVinculadoIdLocal = ($('c-pedido-vinculado') || {}).value || null;
   const estado = cleanText(($('c-estado-i') || {}).value || '');
   const fechaCita = ($('c-fecha') || {}).value || null;
   const horaCita = ($('c-hora') || {}).value || null;
@@ -590,7 +615,7 @@ export async function guardarCandidato() {
     Object.assign(c, {
       apellido, nombre, dni, cuit, fecNac, estadoCivil, genero, nacionalidad,
       tel, email, calle, piso, zona, partido, localidad, disponibilidadHoraria,
-      medio, nombreReferido, rrhhId, obs,
+      medio, nombreReferido, rrhhId, obs, pedidoVinculadoIdLocal,
       estado: estado || c.estado,
       fechaCita: fechaCita || c.fechaCita || null,
       horaCita: horaCita || c.horaCita || null,
@@ -613,7 +638,7 @@ export async function guardarCandidato() {
       id: Date.now(),
       apellido, nombre, dni, cuit, fecNac, estadoCivil, genero, nacionalidad,
       tel, email, calle, piso, zona, partido, localidad, disponibilidadHoraria,
-      medio, nombreReferido, rrhhId, obs,
+      medio, nombreReferido, rrhhId, obs, pedidoVinculadoIdLocal,
       estado: estado || 'Sin citar',
       asistio: null,
       fechaCita: fechaCita || null,
@@ -657,6 +682,7 @@ export async function guardarCandidato() {
 function editarCandidato(id) {
   const c = getCandById(id); if (!c) return;
   poblarSelectRRHHCandidato();
+  poblarSelectPedidoVinculadoCandidato(c.pedidoVinculadoIdLocal);
   const set = (elId, v) => { const el = $(elId); if (el) el.value = v != null ? v : ''; };
   set('c-apellido', c.apellido);
   set('c-nombre', c.nombre);
@@ -672,6 +698,7 @@ function editarCandidato(id) {
   set('c-medio', c.medio);
   set('c-dispo-horaria', c.disponibilidadHoraria);
   set('c-nombre-referido', c.nombreReferido);
+  set('c-pedido-vinculado', c.pedidoVinculadoIdLocal);
   const ecEl = $('c-estado-civil');
   if (ecEl) ecEl.value = c.estadoCivil || '';
   const genEl = $('c-genero');

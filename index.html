@@ -326,6 +326,99 @@
     </div>
   </div>
 </div>
+<!-- SEGUIMIENTO DE SELECCIÓN (14/09) — vista transversal de solo lectura;
+     lee de Pedidos de personal / Candidatos / Psicotécnico / Preocupacional
+     / Documentación de ingreso / Altas / Reasignaciones, no carga nada
+     propio (ver mockup_seguimiento_seleccion.html). -->
+<div class="screen" id="screen-seguimiento-seleccion">
+  <div class="stats-grid" style="grid-template-columns:repeat(5,1fr);">
+    <div class="stat-card azul"><div class="stat-label">Pedidos activos</div><div class="stat-valor" id="kpi-seg-activos">0</div></div>
+    <div class="stat-card naranja"><div class="stat-label">Vacantes en búsqueda</div><div class="stat-valor" id="kpi-seg-busqueda">0</div></div>
+    <div class="stat-card acento"><div class="stat-label">Con candidato en proceso</div><div class="stat-valor" id="kpi-seg-proceso">0</div></div>
+    <div class="stat-card verde"><div class="stat-label">Cubiertas este mes</div><div class="stat-valor" id="kpi-seg-cubiertas-mes">0</div></div>
+    <div class="stat-card rojo"><div class="stat-label">Vencidos</div><div class="stat-valor" id="kpi-seg-vencidos">0</div></div>
+  </div>
+
+  <div class="filtros-bar" style="margin-bottom:14px;">
+    <input type="text" id="seg-buscar" placeholder="🔍 Buscar pedido, servicio o candidato..." style="flex:1;min-width:220px;" oninput="filtrarSeguimientoSeleccion()">
+    <select id="seg-filtro-sup" onchange="filtrarSeguimientoSeleccion()"><option value="">Supervisor: todos</option></select>
+    <select id="seg-filtro-zona" onchange="filtrarSeguimientoSeleccion()"><option value="">Zona: todas</option></select>
+    <select id="seg-filtro-estado" onchange="filtrarSeguimientoSeleccion()">
+      <option value="">Estado: todos</option>
+      <option>En búsqueda</option><option>En proceso</option><option>Vencido</option><option>Cubierto</option>
+    </select>
+    <select id="seg-filtro-etapa" onchange="filtrarSeguimientoSeleccion()">
+      <option value="">Etapa: todas</option>
+      <option>Entrevista</option><option>Psico</option><option>Preocup.</option><option>Doc. ingreso</option><option>Alta</option>
+    </select>
+    <button class="btn btn-secondary" onclick="exportarSeguimientoCSV()">⬇️ Exportar</button>
+  </div>
+
+  <div class="card" style="margin-top:0;">
+    <div class="card-header"><h3>🧭 Pedidos de personal y su avance</h3>
+      <span style="font-size:12px;color:var(--texto-suave);">Pedido → Vacante → Candidato → Etapa → Ingreso</span>
+    </div>
+    <div class="tabla-wrap"><table>
+      <thead><tr style="background:#374151;color:white;">
+        <th style="width:26px;"></th>
+        <th style="padding:8px 12px;text-align:left;">N° Pedido</th>
+        <th style="padding:8px 12px;text-align:left;">Servicio / Cliente</th>
+        <th style="padding:8px 12px;text-align:left;">Supervisor</th>
+        <th style="padding:8px 12px;text-align:left;">Puesto</th>
+        <th style="padding:8px 12px;">Vacantes</th>
+        <th style="padding:8px 12px;">F. límite</th>
+        <th style="padding:8px 12px;">Estado</th>
+        <th style="padding:8px 12px;text-align:left;width:38%;">Candidatos y avance del proceso</th>
+        <th style="padding:8px 12px;"></th>
+      </tr></thead>
+      <tbody id="tbody-seg-sel"></tbody>
+    </table></div>
+  </div>
+
+  <div class="alerta alerta-info" style="margin-top:14px;">
+    <b>De dónde sale cada dato (nada se carga dos veces):</b> pedido, vacantes y fecha límite → <b>Pedidos de personal</b> · candidato y entrevista → <b>Candidatos</b> · etapas → <b>Psicotécnico / Preocupacional / Documentación de ingreso</b> · ingreso → <b>Altas de asociados</b> (que además escribe el primer registro del padrón de categorías, origen ALTA) · cobertura por reasignación → <b>Reasignaciones</b> ("Pedido de personal vinculado") · zona → <b>ficha del servicio</b> (Jurisdicción/Localidad). La carga manual existe pero es la excepción: queda con chip MANUAL y quién la hizo.
+  </div>
+</div>
+
+<!-- MODAL VER PEDIDO (Seguimiento de selección) -->
+<div class="modal-overlay" id="modal-seg-ver-pedido">
+  <div class="modal" style="max-width:640px;">
+    <div class="modal-header"><h3 id="seg-ver-titulo">Pedido</h3><button class="btn-close" onclick="cerrarModal('modal-seg-ver-pedido')">×</button></div>
+    <div class="modal-body">
+      <p id="seg-ver-resumen" style="font-size:12.5px;margin-bottom:12px;"></p>
+      <div class="tabla-wrap"><table>
+        <thead><tr><th>Candidato</th><th>Etapa actual</th><th>Ingreso</th></tr></thead>
+        <tbody id="tbody-seg-ver"></tbody>
+      </table></div>
+      <p style="font-size:12px;color:var(--texto-suave);margin-top:10px;">El pedido queda abierto hasta cubrir la totalidad de las vacantes. Cada candidato que no continúa queda en el historial y la vacante se re-vincula sin perder lo anterior.</p>
+    </div>
+    <div class="modal-footer"><button class="btn btn-secondary" onclick="cerrarModal('modal-seg-ver-pedido')">Cerrar</button></div>
+  </div>
+</div>
+
+<!-- MODAL CARGA MANUAL DE ETAPA (Seguimiento de selección) -->
+<div class="modal-overlay" id="modal-seg-manual">
+  <div class="modal" style="max-width:480px;">
+    <div class="modal-header"><h3 id="seg-man-titulo">Cargar etapa manual</h3><button class="btn-close" onclick="cerrarModal('modal-seg-manual')">×</button></div>
+    <div class="modal-body">
+      <input type="hidden" id="seg-man-cand-id">
+      <div class="alerta alerta-info" style="font-size:12px;">Para una etapa hecha FUERA del sistema (ej. psicotécnico ya realizado en papel). Queda marcada con chip MANUAL y tu nombre — no reemplaza cargarla de verdad en su módulo si tenés cómo.</div>
+      <div class="form-group"><label>Etapa *</label>
+        <select id="seg-man-etapa">
+          <option value="psico">Psicotécnico</option>
+          <option value="preocup">Preocupacional</option>
+          <option value="documentacion">Documentación de ingreso</option>
+        </select>
+      </div>
+      <div class="form-group"><label>Observación</label><textarea id="seg-man-obs" placeholder="Detalle de por qué se carga manual..."></textarea></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="cerrarModal('modal-seg-manual')">Cancelar</button>
+      <button class="btn btn-primary" onclick="guardarCargaManualEtapaSeguimiento()">Guardar</button>
+    </div>
+  </div>
+</div>
+
 <div class="screen" id="screen-pedidos">
   <div class="stats-grid" style="grid-template-columns:repeat(5,1fr);" id="pedidos-kpis"></div>
 
@@ -6244,6 +6337,10 @@
         <div class="form-grid form-grid-2">
           <div class="form-group"><label>Medio de contacto</label><select id="c-medio"></select></div>
           <div class="form-group"><label>Nombre del referido</label><input type="text" id="c-nombre-referido"></div>
+        </div>
+        <div class="form-group">
+          <label>Pedido de personal vinculado <span style="font-weight:400;color:var(--texto-suave);">(opcional — para verlo en Seguimiento de selección)</span></label>
+          <select id="c-pedido-vinculado"><option value="">— Sin vincular —</option></select>
         </div>
         <div class="form-grid form-grid-3">
           <div class="form-group"><label>Calle y número *</label><input type="text" id="c-calle"></div>
