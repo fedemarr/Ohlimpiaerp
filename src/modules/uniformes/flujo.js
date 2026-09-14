@@ -153,7 +153,7 @@ export async function supervisorEntregaConFirma(idLocal, legajo, adjunto) {
   // Congelar precios — guard: si falta precio vigente de alguna prenda, no se puede entregar.
   for (const pr of prendas) {
     const vigente = obtenerPrecioVigente(pr.prenda, pr.talle, new Date());
-    if (!vigente) { toast(`⚠️ No hay precio vigente cargado para ${pr.prenda} talle ${pr.talle} — cargalo en "Gestionar precios" antes de entregar`); return false; }
+    if (!vigente) { toast(`⚠️ No hay precio vigente cargado para ${pr.prenda} talle ${pr.talle} — cargalo en Stock → tab Precios antes de entregar`); return false; }
     pr.precioUnitarioCongelado = vigente.precio;
     pr.precioIdLocalReferencia = idLocalTrunc(vigente.id);
     await supaSync('pedidoUniformePrendas', pr);

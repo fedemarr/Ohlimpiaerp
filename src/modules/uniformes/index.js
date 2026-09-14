@@ -19,8 +19,7 @@ export {
 } from './uniformes.js';
 
 export {
-  abrirGestionPrecios, cambiarPrendaPrecio, abrirNuevoPrecioUniforme, abrirEditarPrecioUniforme,
-  abrirNuevoPrecioConVigencia, guardarPrecioUniforme, abrirHistorialPrecioUniforme,
+  cambiarPrendaPrecio, abrirNuevoPrecioConVigencia, guardarPrecioUniforme, abrirHistorialPrecioUniforme,
   renderPreciosUniformesGrid, filtrarAnioPreciosUniformes,
   abrirCargaMasivaPreciosUniformes, aplicarPorcentajeMasivoPreciosUniformes, confirmarCargaMasivaPreciosUniformes,
 } from './precios.js';
@@ -118,8 +117,7 @@ import {
   crearEntregaUniformeDesdeAlta,
 } from './uniformes.js';
 import {
-  abrirGestionPrecios, cambiarPrendaPrecio, abrirNuevoPrecioUniforme, abrirEditarPrecioUniforme,
-  abrirNuevoPrecioConVigencia, guardarPrecioUniforme, abrirHistorialPrecioUniforme,
+  cambiarPrendaPrecio, abrirNuevoPrecioConVigencia, guardarPrecioUniforme, abrirHistorialPrecioUniforme,
   renderPreciosUniformesGrid, filtrarAnioPreciosUniformes,
   abrirCargaMasivaPreciosUniformes, aplicarPorcentajeMasivoPreciosUniformes, confirmarCargaMasivaPreciosUniformes,
 } from './precios.js';
@@ -175,10 +173,7 @@ window.abrirAplicarDescuentoIncumplimiento = abrirAplicarDescuentoIncumplimiento
 window.abrirDetallePedidoUniforme = abrirDetallePedidoUniforme;
 window.crearEntregaUniformeDesdeAlta = crearEntregaUniformeDesdeAlta;
 
-window.abrirGestionPrecios = abrirGestionPrecios;
 window.cambiarPrendaPrecio = cambiarPrendaPrecio;
-window.abrirNuevoPrecioUniforme = abrirNuevoPrecioUniforme;
-window.abrirEditarPrecioUniforme = abrirEditarPrecioUniforme;
 window.abrirNuevoPrecioConVigencia = abrirNuevoPrecioConVigencia;
 window.guardarPrecioUniforme = guardarPrecioUniforme;
 window.abrirHistorialPrecioUniforme = abrirHistorialPrecioUniforme;

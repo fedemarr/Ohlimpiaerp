@@ -4745,7 +4745,6 @@
           <select id="uni-pend-servicio" onchange="filtrarPendientesUniformes()"><option value="">Todos los servicios</option></select>
           <select id="uni-pend-estado" onchange="filtrarPendientesUniformes()"><option value="">Todos los estados</option></select>
           <select id="uni-pend-retiro" onchange="filtrarPendientesUniformes()"><option value="">Retiro: todos</option></select>
-          <button class="btn btn-secondary btn-sm" onclick="abrirGestionPrecios()">💲 Gestionar precios</button>
           <button class="btn btn-secondary btn-sm" onclick="abrirGenerarOrdenManual()">+ Orden de devolución manual</button>
         </div>
       </div>
@@ -4840,23 +4839,9 @@
   </div>
 </div>
 
-<!-- Modales de precios de Uniformes (gestión + alta/edición + historial) -->
-<div class="modal-overlay" id="modal-uniformes-precios">
-  <div class="modal" style="max-width:680px;">
-    <div class="modal-header"><h3>💲 Precios de uniformes</h3><button class="btn-close" onclick="cerrarModal('modal-uniformes-precios')">×</button></div>
-    <div class="modal-body">
-      <div style="display:flex;justify-content:flex-end;margin-bottom:8px;">
-        <button class="btn btn-primary btn-sm" onclick="abrirNuevoPrecioUniforme()">+ Nuevo precio</button>
-      </div>
-      <div class="tabla-wrap"><table>
-        <thead><tr><th>Prenda</th><th>Talle</th><th>Precio</th><th>Vigente desde</th><th>Cargado por</th><th></th></tr></thead>
-        <tbody id="tbody-uni-precios"></tbody>
-      </table></div>
-    </div>
-    <div class="modal-footer"><button class="btn btn-secondary" onclick="cerrarModal('modal-uniformes-precios')">Cerrar</button></div>
-  </div>
-</div>
-
+<!-- Modales de precios de Uniformes (alta/edición + historial) — la lista
+     plana "Gestionar precios" se eliminó (14/09); la gestión vive en
+     Stock → tab Precios (grid prenda×mes). -->
 <div class="modal-overlay" id="modal-uniformes-precio">
   <div class="modal" style="max-width:420px;">
     <div class="modal-header"><h3 id="up-modal-title">Nuevo precio</h3><button class="btn-close" onclick="cerrarModal('modal-uniformes-precio')">×</button></div>
