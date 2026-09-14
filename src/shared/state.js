@@ -97,7 +97,14 @@ export const DB = {
   // aparecen como supervisores asignados en la planilla "Selección y
   // Reubicaciones" (ver DB.serviciosSupervisor, sql/v067) y no estaban
   // en esta lista.
-  supervisores: ['Alvaro Uballes', 'Alejandro Cacciato', 'Claudia Cazenave', 'Claudio Gonzalez', 'Fabio Benvenuto', 'Matias Maidana', 'Marcelo Moure', 'Santiago Ayala', 'Richard Recalde', 'Alfredo Arispe', 'Lorena Unzain', 'Dario Lage', 'Patricia Scaglia', 'Maximiliano Poncino', 'Sandra Luna'],
+  // "Alvaro Uballes" → "Alvaro Jesus Uballes" (15/09): son dos personas
+  // reales, padre e hijo — el padre (auballes@) es de Comercial y no
+  // supervisa nada; el hijo (ajuballes@) es el supervisor real de estos
+  // servicios (ver modulo ya echos/SUPERVISORES_y_SERVICIOS_para_Fede.md
+  // y sql/v128). Este array alimenta datalists/selects de todo el
+  // sistema (Pedidos, Reasignaciones, Descansos, Capacitaciones...) —
+  // dejar el nombre viejo acá lo reintroduce por más que se corrija la base.
+  supervisores: ['Alvaro Jesus Uballes', 'Alejandro Cacciato', 'Claudia Cazenave', 'Claudio Gonzalez', 'Fabio Benvenuto', 'Matias Maidana', 'Marcelo Moure', 'Santiago Ayala', 'Richard Recalde', 'Alfredo Arispe', 'Lorena Unzain', 'Dario Lage', 'Patricia Scaglia', 'Maximiliano Poncino', 'Sandra Luna'],
   // Deprecado (Clientes y Objetivos v1.1, v039) — no usar como fuente
   // directa. Usar window.obtenerServiciosActivos() (legacy.js), que
   // devuelve DB.objetivos.codigo (Operativos) + los códigos de esta lista

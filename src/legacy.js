@@ -8295,7 +8295,7 @@ if(DB.feriados.length===0){
 if(!DB.planillasAdelantos) DB.planillasAdelantos = [];
 if(DB.planillasAdelantos.length===0){
   DB.planillasAdelantos = [
-    {id:1,periodo:'2026-04',supervisorNombre:'Alvaro Uballes',estado:'Enviada',
+    {id:1,periodo:'2026-04',supervisorNombre:'Alvaro Jesus Uballes',estado:'Enviada',
      fechaCreacion:'01/04/2026',fechaEnvio:'02/04/2026',notificado:false,obs:'',
      items:[
        {nombre:'Benitez Marcos Ruben',nroSocio:104,monto:35000,estado:'Pendiente',obs:''},
