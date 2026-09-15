@@ -9318,7 +9318,11 @@ async function toggleCongelarLiquidacion(){
 
 
 // ── Marcar/desmarcar individualmente ──
+// Ticket "Módulo liquidaciones" (15/09): mismo aviso de "mes fuera de
+// curso" que ya existe en Liquidación de horas (confirmarEdicionFueraDeMes,
+// ~línea 12630 — se reutiliza tal cual, viven en el mismo archivo).
 function marcarListoIndividual(periodo, nombre, estado){
+  if(!confirmarEdicionFueraDeMes(periodo)) return;
   if(!DB.lqsListos[periodo]) DB.lqsListos[periodo]={};
   if(estado) DB.lqsListos[periodo][nombre]=true;
   else delete DB.lqsListos[periodo][nombre];
@@ -9328,6 +9332,7 @@ function marcarListoIndividual(periodo, nombre, estado){
 // ── Marcar/destildar todos (desde el header) ──
 function marcarTodosListo(estado){
   const mes = $('lqs-mes-sel')?.value || new Date().toISOString().slice(0,7);
+  if(!confirmarEdicionFueraDeMes(mes)) return;
   if(!DB.lqsListos[mes]) DB.lqsListos[mes]={};
   const grillasDelMes=(DB.grillasLiq||[]).filter(g=>g.periodo===mes);
   const nombres=new Set();
@@ -9529,6 +9534,10 @@ function autorizarPago(){
 }
 
 function setDescuentoLqs(mes, nombre, campo, valor){
+  // Mismo aviso que setHoraGrilla() en Liquidación de horas — si cancela,
+  // volver a renderizar para que el input pierda lo recién tipeado y
+  // muestre otra vez el valor real guardado.
+  if(!confirmarEdicionFueraDeMes(mes)){ renderLiquidaciones(); return; }
   if(!DB.lqsDescuentos[mes]) DB.lqsDescuentos[mes]={};
   if(!DB.lqsDescuentos[mes][nombre]) DB.lqsDescuentos[mes][nombre]={};
   DB.lqsDescuentos[mes][nombre][campo] = parseFloat(valor)||0;
