@@ -266,7 +266,7 @@ function crearHTMLModalAlta() {
         // Tab 3 — Uniforme
         '<div id="alta-section-3" style="display:none;">',
           '<div class="form-grid form-grid-2">',
-            '<div class="form-group"><label>Talle de ambo *</label><select id="alt-ambo" style="width:100%;padding:8px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;"><option value="">Seleccionar...</option>' + TALLES_POR_PRENDA.Ambo.map(t => '<option>' + t + '</option>').join('') + '</select></div>',
+            '<div class="form-group"><label>Talle de ambo</label><select id="alt-ambo" style="width:100%;padding:8px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;"><option value="">Seleccionar...</option>' + TALLES_POR_PRENDA.Ambo.map(t => '<option>' + t + '</option>').join('') + '</select></div>',
             '<div class="form-group"><label>Talle de calzado *</label><input type="number" id="alt-calzado" min="34" max="48"></div>',
           '</div>',
           // Chomba/Grafa(pantalón)/Buzo/Campera/Gorra (ticket "Uniforme"
@@ -799,8 +799,11 @@ export async function confirmarAlta() {
       { id: 'alt-funcion', label: 'Función' },
       { id: 'alt-categoria', label: 'Categoría' },
     ]},
+    // Ticket "Uniforme" (15/09): ambo deja de ser obligatorio — la
+    // columna en Supabase ya era nullable (legajos.ambo, sin NOT NULL),
+    // esto solo saca el chequeo de acá. Calzado se deja como estaba, no
+    // se pidió para ese campo.
     { tab: 3, campos: [
-      { id: 'alt-ambo', label: 'Talle de ambo' },
       { id: 'alt-calzado', label: 'Talle de calzado' },
     ]},
     { tab: 4, campos: [
