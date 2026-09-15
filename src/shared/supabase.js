@@ -66,6 +66,10 @@ export const _SM = {
   // v134 — cierre general del período (antes vivía solo en DB.lqsCongelado,
   // en memoria, nunca persistido — ver sql/v134_periodos_liquidacion.sql).
   periodosLiq: 'periodos_liquidacion',
+  // v137 — Anexo 075 digital (tab "Pedido de revisión de horas" de
+  // Resumen de horas). Ver src/modules/resumen_horas/.
+  revisionesRetiro: 'revisiones_retiro',
+  revisionesRetiroLineas: 'revisiones_retiro_lineas',
   monotributos: 'monotributos',
   uniformes: 'uniformes',
   retenciones: 'retenciones',
@@ -577,6 +581,12 @@ export function _toSnake(obj) {
     // (Finanzas, legacy.js); confirmado* lo escribe Resumen de horas.
     congeladoPor: 'congelado_por', congeladoEn: 'congelado_en',
     confirmadoPor: 'confirmado_por', confirmadoEn: 'confirmado_en',
+    // revisiones_retiro (v137)
+    nroSolicitud: 'nro_solicitud', tipoReclamo: 'tipo_reclamo', tipoHora: 'tipo_hora',
+    periodoReclamado: 'periodo_reclamado', montoTotal: 'monto_total', adelantoDetectado: 'adelanto_detectado',
+    armadoPor: 'armado_por', armadoEn: 'armado_en', revisadoPor: 'revisado_por', revisadoEn: 'revisado_en',
+    comprobantePago: 'comprobante_pago', confirmadoPagoPor: 'confirmado_pago_por', confirmadoPagoEn: 'confirmado_pago_en',
+    pendienteFacturar: 'pendiente_facturar', revisionIdLocal: 'revision_id_local', cantidadHoras: 'cantidad_horas',
     grillaId: 'grilla_id_local', asocIdx: 'asoc_idx', resueltoPor: 'resuelto_por',
     fechaResolucion: 'fecha_resolucion', nroSocio: 'nro_socio', horasPorDia: 'horas_por_dia',
     catActual: 'cat_actual', catPropuesta: 'cat_propuesta', propuestoPor: 'propuesto_por',
@@ -1043,6 +1053,12 @@ export function _toCamel(obj) {
     descongelada_por: 'descongeladaPor', descongelada_en: 'descongeladaEn',
     congelado_por: 'congeladoPor', congelado_en: 'congeladoEn',
     confirmado_por: 'confirmadoPor', confirmado_en: 'confirmadoEn',
+    // revisiones_retiro (v137)
+    nro_solicitud: 'nroSolicitud', tipo_reclamo: 'tipoReclamo', tipo_hora: 'tipoHora',
+    periodo_reclamado: 'periodoReclamado', monto_total: 'montoTotal', adelanto_detectado: 'adelantoDetectado',
+    armado_por: 'armadoPor', armado_en: 'armadoEn', revisado_por: 'revisadoPor', revisado_en: 'revisadoEn',
+    comprobante_pago: 'comprobantePago', confirmado_pago_por: 'confirmadoPagoPor', confirmado_pago_en: 'confirmadoPagoEn',
+    pendiente_facturar: 'pendienteFacturar', revision_id_local: 'revisionIdLocal', cantidad_horas: 'cantidadHoras',
     grilla_id_local: 'grillaId', asoc_idx: 'asocIdx', resuelto_por: 'resueltoPor',
     fecha_resolucion: 'fechaResolucion', nro_socio: 'nroSocio', horas_por_dia: 'horasPorDia',
     cat_actual: 'catActual', cat_propuesta: 'catPropuesta', propuesto_por: 'propuestoPor',
