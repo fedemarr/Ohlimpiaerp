@@ -63,6 +63,9 @@ export const _SM = {
   planillasAdelantos: 'planillas_adelantos',
   prestamos: 'prestamos',
   grillasLiq: 'grillas_liq',
+  // v134 — cierre general del período (antes vivía solo en DB.lqsCongelado,
+  // en memoria, nunca persistido — ver sql/v134_periodos_liquidacion.sql).
+  periodosLiq: 'periodos_liquidacion',
   monotributos: 'monotributos',
   uniformes: 'uniformes',
   retenciones: 'retenciones',
@@ -569,6 +572,11 @@ export function _toSnake(obj) {
     origenGrilla: 'origen_grilla', importadoDeCSV: 'importado_de_csv',
     congeladaPor: 'congelada_por', congeladaEn: 'congelada_en',
     descongeladaPor: 'descongelada_por', descongeladaEn: 'descongelada_en',
+    // periodos_liquidacion (v134) — cierre general persistente, ver
+    // src/modules/resumen_horas/. congelado* lo escribe Liquidaciones
+    // (Finanzas, legacy.js); confirmado* lo escribe Resumen de horas.
+    congeladoPor: 'congelado_por', congeladoEn: 'congelado_en',
+    confirmadoPor: 'confirmado_por', confirmadoEn: 'confirmado_en',
     grillaId: 'grilla_id_local', asocIdx: 'asoc_idx', resueltoPor: 'resuelto_por',
     fechaResolucion: 'fecha_resolucion', nroSocio: 'nro_socio', horasPorDia: 'horas_por_dia',
     catActual: 'cat_actual', catPropuesta: 'cat_propuesta', propuestoPor: 'propuesto_por',
@@ -1033,6 +1041,8 @@ export function _toCamel(obj) {
     origen_grilla: 'origenGrilla', importado_de_csv: 'importadoDeCSV',
     congelada_por: 'congeladaPor', congelada_en: 'congeladaEn',
     descongelada_por: 'descongeladaPor', descongelada_en: 'descongeladaEn',
+    congelado_por: 'congeladoPor', congelado_en: 'congeladoEn',
+    confirmado_por: 'confirmadoPor', confirmado_en: 'confirmadoEn',
     grilla_id_local: 'grillaId', asoc_idx: 'asocIdx', resuelto_por: 'resueltoPor',
     fecha_resolucion: 'fechaResolucion', nro_socio: 'nroSocio', horas_por_dia: 'horasPorDia',
     cat_actual: 'catActual', cat_propuesta: 'catPropuesta', propuesto_por: 'propuestoPor',

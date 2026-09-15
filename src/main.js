@@ -50,6 +50,7 @@ import { maquinasScreenConfig, filtrarMaquinas } from './modules/maquinas/index.
 import { negociacionesScreenConfig } from './modules/negociaciones/index.js';
 import { preciosScreenConfig } from './modules/precios/index.js';
 import { proveedoresScreenConfig } from './modules/proveedores/index.js';
+import { resumenHorasScreenConfig, poblarSelectsResumenHoras } from './modules/resumen_horas/index.js';
 // v098 — Tab "Acceso y perfiles" (no registra screen: la engancha legacy.js
 // en cfgTab). El import temprano garantiza window.renderTabAccesosPerfiles.
 import './modules/accesos/index.js';
@@ -115,6 +116,7 @@ registerScreens(maquinasScreenConfig);
 registerScreens(negociacionesScreenConfig);
 registerScreens(preciosScreenConfig);
 registerScreens(proveedoresScreenConfig);
+registerScreens(resumenHorasScreenConfig);
 
 // ========== REGISTRAR FILTROS DE BÚSQUEDA GLOBAL ==========
 
@@ -285,6 +287,7 @@ registerAuthCallbacks({
   poblarSelects() {
     poblarSelects();
     poblarSelectsAltas();
+    poblarSelectsResumenHoras();
   },
   navTo,
   poblarFiltrosColumnas() {

@@ -8211,7 +8211,11 @@ function confirmarNuevoAdminLiq(){
 // DB.lqsDescuentos[periodo][nombre] = {uniforme, sanciones, retConflicto, retEnfermedad, monotributo, adelantos}
 if(!DB.lqsDescuentos)  DB.lqsDescuentos  = {};
 if(!DB.lqsPagos)       DB.lqsPagos       = {};  // DB.lqsPagos[periodo][nombre] = {pagado:true, monto, fecha}
-if(!DB.lqsCongelado)   DB.lqsCongelado   = {};  // DB.lqsCongelado[periodo] = true/false
+// El cierre general del período (antes DB.lqsCongelado, solo en memoria,
+// nunca persistido) ahora vive en DB.periodosLiq[] — array cargado por
+// supaInit desde la tabla periodos_liquidacion (v134). Ver
+// _periodoLiqRow/_periodoCerradoLiq más abajo.
+if(!DB.periodosLiq)    DB.periodosLiq    = [];
 if(!DB.lqsListos)      DB.lqsListos      = {};  // DB.lqsListos[periodo][nombre] = true/false
 if(!DB.retenes) DB.retenes = [
   {id:1, nombre:'López Fabián',    nroSocio:'3112', categoriBase:'Operario/a limpieza', activo:true},
@@ -8556,7 +8560,7 @@ function renderLiquidaciones(){
   const esSupervisor = currentUser?.perfil === 'Supervisor';
   const puedeEditar = esAdmin;
   const _mesSel = $('lqs-mes-sel')?.value || new Date().toISOString().slice(0,7);
-  const congelado = DB.lqsCongelado?.[_mesSel] || false;
+  const congelado = _periodoCerradoLiq(_mesSel);
 
   // Poblar selector de mes
   const sel = $('lqs-mes-sel');
@@ -8851,7 +8855,7 @@ function renderLiquidaciones(){
     const btnMarcarListo  = $('btn-marcar-listo-lqs');
     const btnAutorizarPago= $('btn-autorizar-pago-lqs');
     if(puedeEditar){
-      const congeladoActual = DB.lqsCongelado?.[mes];
+      const congeladoActual = _periodoCerradoLiq(mes);
       const hayPagados = filasConsolidadas.some(f=>DB.lqsPagos?.[mes]?.[f.nombre]?.pagado);
       const hayListos  = filasConsolidadas.some(f=>DB.lqsListos?.[mes]?.[f.nombre]);
       if(btnCongelar){
@@ -9254,20 +9258,38 @@ function anularPago(periodo, nombre){
 }
 
 // ── Congelar / Descongelar mes ──
-function toggleCongelarLiquidacion(){
+// v134: persiste de verdad en periodos_liquidacion (antes solo tocaba
+// DB.lqsCongelado en memoria — se perdía con un F5 y nadie más lo veía,
+// ver sql/v134_periodos_liquidacion.sql). await + chequeo de resultado
+// para no repetir el mismo patrón de falla silenciosa ya encontrado en
+// confirmarAlta().
+async function toggleCongelarLiquidacion(){
   const mes = $('lqs-mes-sel')?.value || new Date().toISOString().slice(0,7);
-  const estaCongelado = DB.lqsCongelado?.[mes];
-  if(!DB.lqsCongelado) DB.lqsCongelado={};
+  const fila = _periodoLiqRow(mes);
+  const estaCongelado = !!fila?.congelado;
 
   if(estaCongelado){
     if(!confirm('¿Descongelar el período '+mes+'? Los supervisores podrán volver a modificar las grillas.')) return;
-    DB.lqsCongelado[mes] = false;
-    toast('🔓 Período '+mes+' descongelado — las grillas pueden modificarse nuevamente.');
   } else {
     if(!confirm('¿Congelar el período '+mes+'? No se podrán hacer modificaciones en las grillas hasta que lo descongeles.')) return;
-    DB.lqsCongelado[mes] = true;
-    toast('🔒 Período '+mes+' congelado — no se permiten modificaciones en las grillas.');
   }
+
+  const row = fila || {id:mes, periodo:mes, congelado:false, confirmado:false};
+  const esNueva = !fila;
+  row.congelado = !estaCongelado;
+  row.congeladoPor = currentUser?.nombre || '';
+  row.congeladoEn = new Date().toISOString();
+  if(esNueva){ if(!DB.periodosLiq) DB.periodosLiq=[]; DB.periodosLiq.push(row); }
+
+  const ok = await supaSync('periodosLiq', row);
+  if(!ok){
+    if(esNueva) DB.periodosLiq.splice(DB.periodosLiq.indexOf(row),1); else { row.congelado=estaCongelado; }
+    toast('⚠️ No se pudo guardar en el servidor — reintentá');
+    return;
+  }
+  toast(estaCongelado
+    ?'🔓 Período '+mes+' descongelado — las grillas pueden modificarse nuevamente.'
+    :'🔒 Período '+mes+' congelado — no se permiten modificaciones en las grillas.');
   // El cierre de período (Finanzas) ya NO toca grilla.estado — es un nivel
   // aparte del candado por servicio del supervisor (grilla.congelada).
   // _grillaEditable() consulta _periodoCerradoLiq() directamente.
@@ -9375,7 +9397,7 @@ function _getFilasConsolidadas(mes){
 
 function autorizarPago(){
   const mes = $('lqs-mes-sel')?.value || new Date().toISOString().slice(0,7);
-  if(!DB.lqsCongelado?.[mes]){
+  if(!_periodoCerradoLiq(mes)){
     toast('⚠️ El mes debe estar congelado antes de autorizar el pago');
     return;
   }
@@ -12498,10 +12520,12 @@ const _grillasExpandidas = new Set();
 
 // ── Candado por servicio (ticket 11/09, punto 3) ────────────────────
 // grilla.congelada = candado REVERSIBLE del supervisor (protege de toques
-// accidentales). DB.lqsCongelado[mes] = cierre del PERÍODO (Finanzas /
-// módulo Liquidaciones) — SIEMPRE manda: con el período cerrado la grilla
-// no se edita aunque el supervisor la descongele.
-function _periodoCerradoLiq(mes){ return !!(DB.lqsCongelado && DB.lqsCongelado[mes]); }
+// accidentales). DB.periodosLiq[] (v134, tabla periodos_liquidacion) =
+// cierre del PERÍODO (Finanzas / módulo Liquidaciones) — SIEMPRE manda:
+// con el período cerrado la grilla no se edita aunque el supervisor la
+// descongele. También trae `confirmado` (Operaciones, Resumen de horas).
+function _periodoLiqRow(mes){ return (DB.periodosLiq||[]).find(p=>p.periodo===mes) || null; }
+function _periodoCerradoLiq(mes){ return !!_periodoLiqRow(mes)?.congelado; }
 function _grillaEditable(g){
   if(!g) return false;
   // 'congelada' nueva, o legacy: una grilla con estado 'Cerrada' de antes

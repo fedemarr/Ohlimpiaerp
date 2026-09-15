@@ -3866,6 +3866,55 @@
 </div>
 
 
+<!-- RESUMEN DE HORAS -->
+<div class="screen" id="screen-resumen_horas">
+  <div class="stats-grid">
+    <div class="stat-card azul"><div class="stat-label">Asociados con horas</div><div class="stat-valor" id="kpi-rh-asociados">0</div></div>
+    <div class="stat-card verde"><div class="stat-label">Hs facturables</div><div class="stat-valor" id="kpi-rh-hsfact">0</div></div>
+    <div class="stat-card acento"><div class="stat-label">Hs no facturables</div><div class="stat-valor" id="kpi-rh-hsnofact">0</div></div>
+    <div class="stat-card azul"><div class="stat-label">Retiro del período</div><div class="stat-valor" id="kpi-rh-retiro" style="font-size:18px;">$0</div></div>
+    <div class="stat-card rojo"><div class="stat-label">Servicios sin carga real</div><div class="stat-valor" id="kpi-rh-faltantes">0</div></div>
+  </div>
+
+  <div id="rh-faltantes"></div>
+
+  <div class="card">
+    <div class="card-header">
+      <h3>📊 Resumen por asociado — <span id="rh-estado-periodo"></span></h3>
+      <div class="filtros-bar">
+        <input type="month" id="rh-mes" onchange="filtrarResumenHoras()">
+        <input type="text" id="rh-buscar" placeholder="🔍 Buscar por N° o nombre..." oninput="filtrarResumenHoras()" style="min-width:200px;">
+        <select id="rh-fil-sup" onchange="filtrarResumenHoras()"><option value="">Supervisor: todos</option></select>
+        <select id="rh-fil-tipo" onchange="filtrarResumenHoras()">
+          <option value="">Tipo de hora: todos</option>
+          <option value="facturable">✅ Facturable</option>
+          <option value="no_facturable">❌ No facturable</option>
+          <option value="art42">💊 Art. 42</option>
+          <option value="reten">🔄 Retén</option>
+        </select>
+        <button class="btn btn-secondary btn-sm" onclick="exportarResumenHorasCSV()">⬇️ Exportar</button>
+      </div>
+    </div>
+    <div class="tabla-wrap"><table>
+      <thead><tr>
+        <th></th><th style="text-align:left;">Asociado</th><th style="text-align:left;">Categoría</th>
+        <th style="text-align:right;">Servicios</th><th style="text-align:right;">Hs fac.</th>
+        <th style="text-align:right;">Hs no fac.</th><th style="text-align:right;">Total hs</th>
+        <th style="text-align:right;">Retiro del período</th>
+      </tr></thead>
+      <tbody id="tbody-resumen-horas"></tbody>
+    </table></div>
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:14px;padding:14px 18px;border-top:1px solid var(--borde);">
+      <div style="font-size:12.5px;color:var(--texto-suave);"><b>Revisión global del período.</b> Corregí lo que haga falta en la grilla del servicio — este resumen refleja al instante. Cuando esté todo revisado, confirmá el período.</div>
+      <button class="btn btn-primary" id="btn-rh-confirmar" onclick="confirmarPeriodoResumen()" style="display:none;white-space:nowrap;">✅ Confirmar período</button>
+    </div>
+  </div>
+
+  <div class="alerta alerta-info" style="margin-top:14px;">
+    <b>Vista de solo lectura — no se carga nada acá.</b> Los totales salen en vivo de las grillas de <b>Liquidación de horas</b> (misma fuente que usan los supervisores). El valor hora sale de la categoría vigente en el <b>padrón</b>. "Confirmar período" es el mismo cierre general de <b>Liquidaciones</b> (Finanzas) — congela las grillas y habilita facturación y liquidación de retiros.
+  </div>
+</div>
+
 <!-- PARITARIAS -->
 
 
