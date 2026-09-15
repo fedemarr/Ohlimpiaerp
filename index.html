@@ -4633,19 +4633,8 @@
       <div class="card-header">
         <h3>💸 Padrón de Monotributistas</h3>
         <div style="display:flex;gap:8px;align-items:center;">
-          <select id="mono-filtro-puesto" onchange="renderMonotributos()" style="padding:6px 10px;border:1px solid var(--borde-fuerte);border-radius:var(--radio);font-size:13px;outline:none;">
-            <option value="">Todos</option>
-            <option value="OPERARIO">Operarios</option>
-            <option value="ADM">ADM</option>
-            <option value="SUP">SUP</option>
-          </select>
-          <select id="mono-filtro" onchange="renderMonotributos()" style="padding:6px 10px;border:1px solid var(--borde-fuerte);border-radius:var(--radio);font-size:13px;outline:none;">
-            <option value="">Todos</option>
-            <option value="Al día">Al día</option>
-            <option value="Fuera de categoría">Fuera de categoría</option>
-            <option value="Baja">Baja</option>
-          </select>
           <select id="mono-anio" onchange="renderMonotributos()" style="padding:6px 10px;border:1px solid var(--borde-fuerte);border-radius:var(--radio);font-size:13px;outline:none;"></select>
+          <button class="btn btn-sm btn-secondary" onclick="limpiarFiltrosColumnaMono()" title="Limpiar los filtros por columna">✕ Limpiar filtros</button>
           <button class="btn btn-sm" style="background:#f59e0b;color:white;border:none;" onclick="tabMonotributos('alerta',null)">⚠️ Ver fuera de categoría</button>
           <button class="btn btn-secondary btn-sm" onclick="abrirImportadorPadronRRHH()">📥 Importar padrón RRHH</button>
           <button class="btn btn-secondary btn-sm" onclick="abrirImportadorMonotributo()">📥 Importar CSV</button>
@@ -4653,7 +4642,8 @@
       </div>
       <div id="mono-alerta-mipyme-anual" style="display:none;margin:0 20px 12px;"></div>
       <div class="tabla-wrap"><table style="width:100%;border-collapse:collapse;font-size:12px;">
-        <thead><tr style="background:#374151;color:white;">
+        <thead>
+        <tr style="background:#374151;color:white;">
           <th style="padding:8px 14px;border:1px solid #6b7280;text-align:left;min-width:180px;">Asociado</th>
           <th style="padding:8px;border:1px solid #6b7280;text-align:center;">N° socio</th>
           <th style="padding:8px;border:1px solid #6b7280;">Puesto</th>
@@ -4666,7 +4656,90 @@
           <th style="padding:8px;border:1px solid #6b7280;text-align:right;">Proyección anual</th>
           <th style="padding:8px;border:1px solid #6b7280;text-align:center;">Estado</th>
           <th style="padding:8px;border:1px solid #6b7280;min-width:90px;"></th>
-        </tr></thead>
+        </tr>
+        <!-- Fila de filtros por columna (ticket "Módulo Monotributos",
+             15/09) — texto libre con lupa en las columnas de texto/número,
+             select en las de valores acotados (Puesto/Zona/Categoría/
+             Condición/Estado, reemplazan a los selects que antes vivían en
+             el header de la card). Todo se combina en AND, ver
+             _pasaFiltrosColumnaMono() en legacy.js. -->
+        <tr style="background:#4b5563;">
+          <th style="padding:4px 6px;border:1px solid #6b7280;">
+            <div style="display:flex;align-items:center;gap:2px;background:white;border-radius:4px;padding:0 4px;">
+              <input type="text" id="mono-fcol-nombre" placeholder="Buscar..." oninput="renderMonotributos()" style="flex:1;min-width:0;padding:4px 2px;border:none;outline:none;font-size:11px;color:#111;">
+              <button onclick="renderMonotributos()" title="Buscar" style="border:none;background:none;cursor:pointer;font-size:11px;padding:2px;">🔍</button>
+            </div>
+          </th>
+          <th style="padding:4px 6px;border:1px solid #6b7280;">
+            <div style="display:flex;align-items:center;gap:2px;background:white;border-radius:4px;padding:0 4px;">
+              <input type="text" id="mono-fcol-socio" placeholder="N°..." oninput="renderMonotributos()" style="flex:1;min-width:0;width:100%;padding:4px 2px;border:none;outline:none;font-size:11px;color:#111;text-align:center;">
+              <button onclick="renderMonotributos()" title="Buscar" style="border:none;background:none;cursor:pointer;font-size:11px;padding:2px;">🔍</button>
+            </div>
+          </th>
+          <th style="padding:4px 6px;border:1px solid #6b7280;">
+            <select id="mono-fcol-puesto" onchange="renderMonotributos()" style="width:100%;padding:4px 2px;border:none;border-radius:4px;font-size:11px;outline:none;">
+              <option value="">Todos</option>
+              <option value="OPERARIO">Operarios</option>
+              <option value="ADM">ADM</option>
+              <option value="SUP">SUP</option>
+            </select>
+          </th>
+          <th style="padding:4px 6px;border:1px solid #6b7280;">
+            <select id="mono-fcol-zona" onchange="renderMonotributos()" style="width:100%;padding:4px 2px;border:none;border-radius:4px;font-size:11px;outline:none;">
+              <option value="">Todas</option>
+              <option value="capital">Capital</option>
+              <option value="provincia">Provincia</option>
+            </select>
+          </th>
+          <th style="padding:4px 6px;border:1px solid #6b7280;">
+            <select id="mono-fcol-categoria" onchange="renderMonotributos()" style="width:100%;padding:4px 2px;border:none;border-radius:4px;font-size:11px;outline:none;">
+              <option value="">Todas</option>
+            </select>
+          </th>
+          <th style="padding:4px 6px;border:1px solid #6b7280;">
+            <select id="mono-fcol-condicion" onchange="renderMonotributos()" style="width:100%;padding:4px 2px;border:none;border-radius:4px;font-size:11px;outline:none;">
+              <option value="">Todas</option>
+              <option value="comun">Común</option>
+              <option value="asociado_cooperativa">Asoc. cooperativa</option>
+              <option value="jubilado">Jubilado</option>
+              <option value="no_aportante">No aportante</option>
+            </select>
+          </th>
+          <th style="padding:4px 6px;border:1px solid #6b7280;">
+            <div style="display:flex;align-items:center;gap:2px;background:white;border-radius:4px;padding:0 4px;">
+              <input type="text" id="mono-fcol-limite" placeholder="Buscar..." oninput="renderMonotributos()" style="flex:1;min-width:0;width:100%;padding:4px 2px;border:none;outline:none;font-size:11px;color:#111;text-align:right;">
+              <button onclick="renderMonotributos()" title="Buscar" style="border:none;background:none;cursor:pointer;font-size:11px;padding:2px;">🔍</button>
+            </div>
+          </th>
+          <th style="padding:4px 6px;border:1px solid #6b7280;">
+            <div style="display:flex;align-items:center;gap:2px;background:white;border-radius:4px;padding:0 4px;">
+              <input type="text" id="mono-fcol-cuota" placeholder="Buscar..." oninput="renderMonotributos()" style="flex:1;min-width:0;width:100%;padding:4px 2px;border:none;outline:none;font-size:11px;color:#111;text-align:right;">
+              <button onclick="renderMonotributos()" title="Buscar" style="border:none;background:none;cursor:pointer;font-size:11px;padding:2px;">🔍</button>
+            </div>
+          </th>
+          <th style="padding:4px 6px;border:1px solid #6b7280;">
+            <div style="display:flex;align-items:center;gap:2px;background:white;border-radius:4px;padding:0 4px;">
+              <input type="text" id="mono-fcol-neto" placeholder="Buscar..." oninput="renderMonotributos()" style="flex:1;min-width:0;width:100%;padding:4px 2px;border:none;outline:none;font-size:11px;color:#111;text-align:right;">
+              <button onclick="renderMonotributos()" title="Buscar" style="border:none;background:none;cursor:pointer;font-size:11px;padding:2px;">🔍</button>
+            </div>
+          </th>
+          <th style="padding:4px 6px;border:1px solid #6b7280;">
+            <div style="display:flex;align-items:center;gap:2px;background:white;border-radius:4px;padding:0 4px;">
+              <input type="text" id="mono-fcol-proyeccion" placeholder="Buscar..." oninput="renderMonotributos()" style="flex:1;min-width:0;width:100%;padding:4px 2px;border:none;outline:none;font-size:11px;color:#111;text-align:right;">
+              <button onclick="renderMonotributos()" title="Buscar" style="border:none;background:none;cursor:pointer;font-size:11px;padding:2px;">🔍</button>
+            </div>
+          </th>
+          <th style="padding:4px 6px;border:1px solid #6b7280;">
+            <select id="mono-fcol-estado" onchange="renderMonotributos()" style="width:100%;padding:4px 2px;border:none;border-radius:4px;font-size:11px;outline:none;">
+              <option value="">Todos</option>
+              <option value="Al día">Al día</option>
+              <option value="Fuera de categoría">Fuera de categoría</option>
+              <option value="Baja">Baja</option>
+            </select>
+          </th>
+          <th style="padding:4px 6px;border:1px solid #6b7280;"></th>
+        </tr>
+        </thead>
         <tbody id="tbody-mono"></tbody>
       </table></div>
     </div>

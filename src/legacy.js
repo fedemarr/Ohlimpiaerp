@@ -10638,10 +10638,19 @@ function renderMonotributos(){
     }
   }
   const anio = parseInt($('mono-anio')?.value)||new Date().getFullYear();
-  const filtro = $('mono-filtro')?.value||'';
-  const filtroPuesto = $('mono-filtro-puesto')?.value||'';
+  const filtro = $('mono-fcol-estado')?.value||'';
+  const filtroPuesto = $('mono-fcol-puesto')?.value||'';
   const all = (DB.monotributos||[]).filter(r=>r.estado!=='Baja'||(filtro==='Baja'));
   const vigencia = getVigenciaActual();
+
+  // Poblar el select de Categoría de la fila de filtros (valores distintos
+  // presentes hoy en el padrón — no es una lista fija como Puesto/Condición
+  // porque la categoría depende de la tabla de vigencia elegida).
+  const selCat = $('mono-fcol-categoria');
+  if(selCat && selCat.options.length<=1){
+    const cats=[...new Set((DB.monotributos||[]).map(r=>r.categoria).filter(Boolean))].sort();
+    cats.forEach(c=>{ const opt=document.createElement('option'); opt.value=c; opt.textContent=c; selCat.appendChild(opt); });
+  }
 
   // Helper: derivar puesto del legajo asociado
   function _puestoDe(r){
@@ -10691,13 +10700,44 @@ function renderMonotributos(){
     return true;
   });
 
+  // Filtros por columna (ticket "Módulo Monotributos", 15/09) — texto
+  // libre case/acento-insensitive (_normTexto, ya usado en el resto del
+  // archivo) sobre columnas de texto/número, exacto sobre las de select.
+  // Todos se combinan en AND entre sí y con estado/puesto de arriba.
+  const fNombre = _normTexto($('mono-fcol-nombre')?.value||'');
+  const fSocio = _normTexto($('mono-fcol-socio')?.value||'');
+  const fZona = $('mono-fcol-zona')?.value||'';
+  const fCategoria = $('mono-fcol-categoria')?.value||'';
+  const fCondicion = $('mono-fcol-condicion')?.value||'';
+  const fLimite = _normTexto($('mono-fcol-limite')?.value||'');
+  const fCuota = _normTexto($('mono-fcol-cuota')?.value||'');
+  const fNeto = _normTexto($('mono-fcol-neto')?.value||'');
+  const fProyeccion = _normTexto($('mono-fcol-proyeccion')?.value||'');
+
+  const rowsFiltradas = rows.filter(r=>{
+    if(fNombre && !_normTexto(r.nombre).includes(fNombre)) return false;
+    if(fSocio && !_normTexto(r.nroSocio||'').includes(fSocio)) return false;
+    if(fZona && r.zona!==fZona) return false;
+    if(fCategoria && r.categoria!==fCategoria) return false;
+    if(fCondicion && (r.condicion||'comun')!==fCondicion) return false;
+    if(fLimite && !_normTexto(String(getLimiteCategoria(r.categoria,vigencia))).includes(fLimite)) return false;
+    if(fCuota && !_normTexto(String(Math.round(getCURPersona(r,vigencia)))).includes(fCuota)) return false;
+    if(fNeto && !_normTexto(String(getNetoUltimoMes(r.nombre))).includes(fNeto)) return false;
+    if(fProyeccion && !_normTexto(String(getProyeccionAnual(r.nombre,anio))).includes(fProyeccion)) return false;
+    return true;
+  });
+
   const tbody = $('tbody-mono'); if(!tbody)return;
-  if(!rows.length){
+  if(!all.length){
     tbody.innerHTML=`<tr><td colspan="12" style="padding:40px;text-align:center;color:var(--texto-muy-suave);">Sin monotributistas registrados. Usá "+ Nuevo registro".</td></tr>`;
     return;
   }
+  if(!rowsFiltradas.length){
+    tbody.innerHTML=`<tr><td colspan="12" style="padding:40px;text-align:center;color:var(--texto-muy-suave);">Sin resultados con los filtros aplicados.</td></tr>`;
+    return;
+  }
 
-  tbody.innerHTML = rows.map((r)=>{
+  tbody.innerHTML = rowsFiltradas.map((r)=>{
     const cur = getCURPersona(r, vigencia);
     const proy = getProyeccionAnual(r.nombre, anio);
     const limite = getLimiteCategoria(r.categoria, vigencia);
@@ -10765,6 +10805,15 @@ function renderMonotributos(){
 
   // Actualizar tab de alertas
   renderAlertasMonotributo(anio, vigencia);
+}
+
+// Limpiar los 9 filtros por columna del Padrón (fila de filtros del
+// thead) de un solo click — deja el año seleccionado como está, no es
+// un filtro de columna.
+function limpiarFiltrosColumnaMono(){
+  ['mono-fcol-nombre','mono-fcol-socio','mono-fcol-limite','mono-fcol-cuota','mono-fcol-neto','mono-fcol-proyeccion'].forEach(id=>{ const el=$(id); if(el) el.value=''; });
+  ['mono-fcol-puesto','mono-fcol-zona','mono-fcol-categoria','mono-fcol-condicion','mono-fcol-estado'].forEach(id=>{ const el=$(id); if(el) el.value=''; });
+  renderMonotributos();
 }
 
 // ── Helpers de cálculo ──
@@ -14801,6 +14850,7 @@ window.renderMesesLiq = renderMesesLiq;
 window.renderMisAdelantos = renderMisAdelantos;
 window.renderMisAuth = renderMisAuth;
 window.renderMonotributos = renderMonotributos;
+window.limpiarFiltrosColumnaMono = limpiarFiltrosColumnaMono;
 window.renderMotivosEFT = renderMotivosEFT;
 window.renderMotivosEFTLiq = renderMotivosEFTLiq;
 window.renderMotivosNF = renderMotivosNF;
