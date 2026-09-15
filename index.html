@@ -3495,6 +3495,34 @@
     </div>
   </div>
   </div>
+  <!-- FICHA DEL ASOCIADO (👁, Liquidaciones) — el JS ya la arma en
+       verDetalleLqs() (legacy.js); solo faltaba este markup, ver
+       LIQUIDACIONES_conexiones_para_Fede_1.md punto 4. -->
+  <div class="modal-overlay" id="modal-detalle-lqs">
+  <div class="modal" style="max-width:680px;">
+    <div class="modal-header"><h3>👁 <span id="det-lqs-nombre"></span> <span style="font-weight:400;font-size:13px;color:var(--texto-suave);" id="det-lqs-periodo"></span></h3><button class="btn-close" onclick="cerrarModal('modal-detalle-lqs')">×</button></div>
+    <div class="modal-body">
+      <div class="form-section">Servicios trabajados en el período</div>
+      <div id="det-lqs-body"></div>
+      <div class="form-section" style="margin-top:14px;">Recibo del período</div>
+      <div id="det-lqs-descuentos"></div>
+      <div style="display:flex;justify-content:space-between;padding:8px 4px;font-size:13px;border-top:1px solid var(--borde);margin-top:4px;">
+        <span>Bruto + presentismo</span><span id="det-lqs-total" style="font-weight:700;"></span>
+      </div>
+      <div style="display:flex;justify-content:space-between;padding:4px 4px;font-size:13px;color:var(--rojo);">
+        <span>Descuentos y retenciones</span><span id="det-lqs-desc" style="font-weight:700;"></span>
+      </div>
+      <div style="display:flex;justify-content:space-between;padding:10px 4px;border-top:2px solid var(--azul);margin-top:6px;font-size:16px;">
+        <span style="font-weight:700;">RETIRO NETO A PAGAR</span><span id="det-lqs-neto" style="font-weight:800;color:var(--verde);"></span>
+      </div>
+      <p style="font-size:11px;color:var(--texto-suave);margin-top:10px;">Click en un servicio para ver su planilla de horas día por día. La corrección siempre se hace en el módulo de origen — esta ficha refleja al instante.</p>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="cerrarModal('modal-detalle-lqs')">Cerrar</button>
+    </div>
+  </div>
+  </div>
+
   <div class="modal-overlay" id="modal-art42">
   <div class="modal" style="max-width:580px;">
     <div class="modal-header"><h3>🏥 Nuevo caso Artículo 42</h3><button class="btn-close" onclick="cerrarModal('modal-art42')">×</button></div>

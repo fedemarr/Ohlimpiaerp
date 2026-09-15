@@ -8600,11 +8600,21 @@ function renderLiquidaciones(){
   grillasDelMes.forEach(grilla=>{
     (grilla.asociados||[]).forEach(asoc=>{
       const dias = getDiasDelMes(mes);
-      let hsTotal=0, hsExtra=0;
+      let hsTotal=0, hsExtra=0, brutoAcum=0;
       dias.forEach(dia=>{
         const rawVal = asoc.horas?.[dia.iso];
         const h = parseFloat(rawVal||0);
-        if(!isNaN(h) && h>0) hsTotal+=h;
+        if(!isNaN(h) && h>0){
+          hsTotal+=h;
+          // LIQUIDACIONES_conexiones (14/09): getCategoriaVH leía de
+          // DB.categoriasSalariales — un array que quedó vacío/sin uso real
+          // desde que existe el módulo Categorías con vigencia — así que el
+          // bruto daba siempre $0 aunque las horas vinieran bien. Mismo
+          // cálculo día a día que ya usa renderGrillasLiq (el valor puede
+          // cambiar a mitad de mes por paritaria), fuente única real.
+          const vhDia = valorHoraEfectivoAsoc(asoc, grilla.nombre, dia.iso);
+          brutoAcum += h*(vhDia?.valorHora||0);
+        }
       });
       const params = DB.parametrosServicio[grilla.objCodigo]||{horasPorDia:8, diasSemana:[1,2,3,4,5]};
       const diasLab = getDiasDelMes(mes).filter(d=>{
@@ -8613,8 +8623,11 @@ function renderLiquidaciones(){
       }).length;
       const hsNormales = diasLab * (params.horasPorDia||8);
       hsExtra = Math.max(0, hsTotal - hsNormales);
-      const vh = getCategoriaVH(asoc.categoria||'');
-      const bruto = Math.round(hsTotal * vh);
+      const bruto = Math.round(brutoAcum);
+      // Valor hora "representativo" solo para mostrar en la columna — el
+      // cálculo real de arriba es día a día (fechaRepresentativaMes: hoy
+      // acotado al mes, o el último día si el mes ya cerró).
+      const vhRepresentativo = valorHoraEfectivoAsoc(asoc, grilla.nombre, fechaRepresentativaMes(mes))?.valorHora||0;
       filas.push({
         nombre: asoc.nombre,
         categoria: asoc.categoria||'—',
@@ -8623,7 +8636,7 @@ function renderLiquidaciones(){
         hsTotal,
         hsExtra: Math.round(hsExtra*10)/10,
         bruto,
-        valorHora: vh,
+        valorHora: vhRepresentativo,
       });
     });
   });
@@ -9007,7 +9020,9 @@ function renderLiquidaciones(){
            <div style="font-size:9px;color:#6b7280;">${pagoInfo.fecha}</div>`
         : puedeEditar
           ? `<div style="display:flex;align-items:center;justify-content:center;gap:8px;">
+               <button onclick="marcarListoIndividual('${mes}','${f.nombre}',true)" title="Marcar listo para pagar"
                  style="width:28px;height:28px;border-radius:50%;border:2px solid ${listoInfo?'#0369a1':'#d1d5db'};background:${listoInfo?'#0369a1':'white'};color:${listoInfo?'white':'#9ca3af'};cursor:pointer;font-size:14px;font-weight:700;line-height:1;">✓</button>
+               <button onclick="marcarListoIndividual('${mes}','${f.nombre}',false)" title="Desmarcar"
                  style="width:28px;height:28px;border-radius:50%;border:2px solid ${listoInfo?'#dc2626':'#d1d5db'};background:${listoInfo?'#fee2e2':'white'};color:${listoInfo?'#dc2626':'#9ca3af'};cursor:pointer;font-size:14px;font-weight:700;line-height:1;">✕</button>
              </div>`
           : listoInfo ? '<span style="color:#0369a1;font-weight:700;">✓</span>' : '—'
@@ -9152,7 +9167,10 @@ function verGrillaServicioDetalle(nombre, mes, servicioDesc, detalleIdx){
 
   const dias = getDiasDelMes(mes);
   const dN = ['D','L','M','X','J','V','S'];
-  const vh = getCategoriaVH(asoc.categoria||'');
+  // Mismo fix de bruto que renderLiquidaciones() — el valor hora real es
+  // día a día (valorHoraEfectivoAsoc), no un único getCategoriaVH muerto.
+  // vh acá es solo el valor representativo para el encabezado "$X/h".
+  const vh = valorHoraEfectivoAsoc(asoc, grilla.nombre, fechaRepresentativaMes(mes))?.valorHora||0;
   let totalHs=0, totalMonto=0;
 
   // ── Construir grilla HORIZONTAL: cols = días, rows = Horas / Monto ──
@@ -9189,7 +9207,8 @@ function verGrillaServicioDetalle(nombre, mes, servicioDesc, detalleIdx){
     const rawVal = asoc.horas?.[dia.iso];
     const esEsp = ['F','AJ','AI'].includes(String(rawVal||'').toUpperCase());
     const h = esEsp ? 0 : parseFloat(rawVal||0);
-    const m = h>0 ? Math.round(h*vh) : 0;
+    const vhDia = h>0 ? (valorHoraEfectivoAsoc(asoc, grilla.nombre, dia.iso)?.valorHora||0) : 0;
+    const m = h>0 ? Math.round(h*vhDia) : 0;
     if(m>0) totalMonto+=m;
     const dow = new Date(dia.iso+'T12:00:00').getDay();
     const bg = dia.esFeriado?'background:#ffe4e6;':dia.esFinde?'background:#fefce8;':'';
@@ -9328,10 +9347,21 @@ function _getFilasConsolidadas(mes){
   const grillasDelMes=(DB.grillasLiq||[]).filter(g=>g.periodo===mes);
   grillasDelMes.forEach(grilla=>{
     (grilla.asociados||[]).forEach(asoc=>{
-      let hs=0;
-      getDiasDelMes(mes).forEach(d=>{const h=parseFloat(asoc.horas?.[d.iso]||0);if(h>0)hs+=h;});
-      const vh=getCategoriaVH(asoc.categoria||'');
-      const bruto=Math.round(hs*vh);
+      let hs=0, brutoAcum=0;
+      // Mismo fix que renderLiquidaciones() (ver comentario ahí): bruto día
+      // a día con valorHoraEfectivoAsoc, no con el getCategoriaVH muerto —
+      // esta función es la que autorizarPago() usa para el neto REAL que
+      // se persiste, así que si solo se corrige la pantalla y no esto, se
+      // seguiría autorizando el pago con bruto $0.
+      getDiasDelMes(mes).forEach(d=>{
+        const h=parseFloat(asoc.horas?.[d.iso]||0);
+        if(h>0){
+          hs+=h;
+          const vhDia=valorHoraEfectivoAsoc(asoc, grilla.nombre, d.iso);
+          brutoAcum+=h*(vhDia?.valorHora||0);
+        }
+      });
+      const bruto=Math.round(brutoAcum);
       const totalDesc=_totalDescLegajo(asoc.nombre, mes, bruto);
       const presentismo=Math.round(bruto*0.03);
       const neto=Math.round(bruto+presentismo-totalDesc);
@@ -9515,15 +9545,24 @@ function verDetalleLqs(nombre, mes){
     const asoc = (grilla.asociados||[]).find(a=>a.nombre===nombre);
     if(!asoc) return;
     const dias = getDiasDelMes(mes);
-    let hs=0;
-    dias.forEach(d=>{const h=parseFloat(asoc.horas?.[d.iso]||0);if(h>0)hs+=h;});
+    let hs=0, brutoAcum=0;
+    // Mismo fix de bruto que renderLiquidaciones()/_getFilasConsolidadas —
+    // día a día con valorHoraEfectivoAsoc, no con el getCategoriaVH muerto.
+    dias.forEach(d=>{
+      const h=parseFloat(asoc.horas?.[d.iso]||0);
+      if(h>0){
+        hs+=h;
+        const vhDia=valorHoraEfectivoAsoc(asoc, grilla.nombre, d.iso);
+        brutoAcum+=h*(vhDia?.valorHora||0);
+      }
+    });
     detalles.push({
       fuente: 'Servicio',
       descripcion: grilla.nombre||grilla.objCodigo,
       categoria: asoc.categoria||'—',
       hs: Math.round(hs*10)/10,
-      valorHora: getCategoriaVH(asoc.categoria||''),
-      bruto: Math.round(hs * getCategoriaVH(asoc.categoria||'')),
+      valorHora: valorHoraEfectivoAsoc(asoc, grilla.nombre, fechaRepresentativaMes(mes))?.valorHora||0,
+      bruto: Math.round(brutoAcum),
     });
   });
 
