@@ -24,6 +24,7 @@ import { reasignacionesScreenConfig, sincronizarConfigReasignaciones, chequearEj
 import { capacitacionesScreenConfig, filtrarCapacitaciones } from './modules/capacitaciones/index.js';
 import { uniformesScreenConfig } from './modules/uniformes/index.js';
 import { retencionesScreenConfig, filtrarRetenciones } from './modules/retenciones/index.js';
+import { cuentasCbuScreenConfig } from './modules/cuentas_cbu/index.js';
 import { competenciaScreenConfig } from './modules/competencia/index.js';
 import { developerScreenConfig, sincronizarSugerenciasComoTickets, renderDevInicio, renderDevTickets, iniciarRealtimeDev, detenerRealtimeDev } from './modules/developer/index.js';
 import { vacacionesScreenConfig } from './modules/vacaciones/index.js';
@@ -95,6 +96,7 @@ registerScreens(reasignacionesScreenConfig);
 registerScreens(capacitacionesScreenConfig);
 registerScreens(uniformesScreenConfig);
 registerScreens(retencionesScreenConfig);
+registerScreens(cuentasCbuScreenConfig);
 registerScreens(seguimientoSeleccionScreenConfig);
 registerScreens(competenciaScreenConfig);
 registerScreens(developerScreenConfig);

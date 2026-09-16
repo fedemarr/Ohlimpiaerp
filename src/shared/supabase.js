@@ -70,6 +70,10 @@ export const _SM = {
   // Resumen de horas). Ver src/modules/resumen_horas/.
   revisionesRetiro: 'revisiones_retiro',
   revisionesRetiroLineas: 'revisiones_retiro_lineas',
+  // v138 — Padrón de cuentas bancarias (fuente única del CBU del
+  // asociado, reemplaza legajos.cbu/legajos.banco). Ver src/modules/cuentas_cbu/.
+  cuentasCbu: 'cuentas_cbu',
+  cuentasCbuHistorial: 'cuentas_cbu_historial',
   monotributos: 'monotributos',
   uniformes: 'uniformes',
   retenciones: 'retenciones',
@@ -587,6 +591,10 @@ export function _toSnake(obj) {
     armadoPor: 'armado_por', armadoEn: 'armado_en', revisadoPor: 'revisado_por', revisadoEn: 'revisado_en',
     comprobantePago: 'comprobante_pago', confirmadoPagoPor: 'confirmado_pago_por', confirmadoPagoEn: 'confirmado_pago_en',
     pendienteFacturar: 'pendiente_facturar', revisionIdLocal: 'revision_id_local', cantidadHoras: 'cantidad_horas',
+    // v138 — Cuentas CBU (padrón de cuentas bancarias)
+    cuitTitular: 'cuit_titular', esTercero: 'es_tercero', tramiteBanco: 'tramite_banco',
+    tramiteFecha: 'tramite_fecha', tramitePor: 'tramite_por', tramiteObservaciones: 'tramite_observaciones',
+    cbuAnterior: 'cbu_anterior', cbuNuevo: 'cbu_nuevo', bancoAnterior: 'banco_anterior', bancoNuevo: 'banco_nuevo',
     grillaId: 'grilla_id_local', asocIdx: 'asoc_idx', resueltoPor: 'resuelto_por',
     fechaResolucion: 'fecha_resolucion', nroSocio: 'nro_socio', horasPorDia: 'horas_por_dia',
     catActual: 'cat_actual', catPropuesta: 'cat_propuesta', propuestoPor: 'propuesto_por',
@@ -1059,6 +1067,10 @@ export function _toCamel(obj) {
     armado_por: 'armadoPor', armado_en: 'armadoEn', revisado_por: 'revisadoPor', revisado_en: 'revisadoEn',
     comprobante_pago: 'comprobantePago', confirmado_pago_por: 'confirmadoPagoPor', confirmado_pago_en: 'confirmadoPagoEn',
     pendiente_facturar: 'pendienteFacturar', revision_id_local: 'revisionIdLocal', cantidad_horas: 'cantidadHoras',
+    // v138 — Cuentas CBU (padrón de cuentas bancarias)
+    cuit_titular: 'cuitTitular', es_tercero: 'esTercero', tramite_banco: 'tramiteBanco',
+    tramite_fecha: 'tramiteFecha', tramite_por: 'tramitePor', tramite_observaciones: 'tramiteObservaciones',
+    cbu_anterior: 'cbuAnterior', cbu_nuevo: 'cbuNuevo', banco_anterior: 'bancoAnterior', banco_nuevo: 'bancoNuevo',
     grilla_id_local: 'grillaId', asoc_idx: 'asocIdx', resuelto_por: 'resueltoPor',
     fecha_resolucion: 'fechaResolucion', nro_socio: 'nroSocio', horas_por_dia: 'horasPorDia',
     cat_actual: 'catActual', cat_propuesta: 'catPropuesta', propuesto_por: 'propuestoPor',

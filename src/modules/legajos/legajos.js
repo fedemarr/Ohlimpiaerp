@@ -1,5 +1,5 @@
 import { DB, currentUser } from '@shared/state.js';
-import { $, avatarEl, badge, fillSelect, cbuValido } from '@shared/helpers.js';
+import { $, avatarEl, badge, fillSelect } from '@shared/helpers.js';
 import { toast, abrirModal, cerrarModal } from '@shared/ui.js';
 import { supaSync, supaDel, getLastSupaSyncError } from '@shared/supabase.js';
 import { TALLES_POR_PRENDA } from '@modules/uniformes/catalogos.js';
@@ -8,6 +8,7 @@ import { listarAdjuntos, obtenerUrlFirmada, subirAdjunto, borrarAdjunto, MAX_SIZ
 import { calcularEstadoVencimiento } from '../documentacion/documentacion.js';
 import { crearNotificacion } from '@shared/notificaciones.js';
 import { getSupervisorDeCodigo } from '@modules/servicios_supervisor/index.js';
+import { getCuentaCbu } from '@modules/cuentas_cbu/consultas.js';
 import { registroPadronVigente, getCategoriaById } from '@modules/categorias/consultas.js';
 
 // Tema 2 del relevamiento (MODULO_MONOTRIBUTO.md §4): "sin archivo:
@@ -135,7 +136,7 @@ export function renderLegajos(lista) {
       <td style="font-size:12px;">${l.supervisor}</td>
       <td style="font-size:12px;color:var(--texto-suave);">${l.ingreso}</td>
       <td>${pruebaEl}</td>
-      <td>${badge(l.estado)}${!l.cbu ? '<span class="badge badge-acento" style="font-size:10px;margin-left:4px;" title="CBU no cargado">🏦 Sin CBU</span>' : ''}</td>
+      <td>${badge(l.estado)}${getCuentaCbu(l.nro)?.estado !== 'ACTIVA' ? '<span class="badge badge-acento" style="font-size:10px;margin-left:4px;" title="CBU no cargado">🏦 Sin CBU</span>' : ''}</td>
       <td>${l.estadoLegal ? badge(l.estadoLegal) + '<br>' + adjLegal : '<span class="text-muted">—</span>'}</td>
       <td>${antecEl}</td>
       <td style="font-size:12px;color:var(--texto-suave);">${l.fechaBaja || '—'}</td>
@@ -314,7 +315,7 @@ export function verLegajo(nro) {
       <div style="display:flex;gap:6px;margin-top:5px;flex-wrap:wrap;">${badge(l.estado)}<span class="chip">${l.funcion}</span>${l.estadoLegal ? badge(l.estadoLegal) : ''}<span class="chip">N° ${l.nro}</span></div></div>
     </div>
     ${pr.enPrueba ? `<div class="alerta alerta-warn" style="margin-bottom:14px;"><strong>Período de prueba:</strong> Día ${pr.diasPasados} de ${pr.diasTotales} (${pr.pct}% completado — ${pr.diasTotales - pr.diasPasados} días restantes)</div>` : ''}
-    ${!l.cbu ? `<div class="alerta alerta-warn" style="margin-bottom:14px;"><strong>🏦 Falta el CBU:</strong> ${l.nombre} no tiene CBU cargado. Completalo desde "Editar legajo" o usá "🏦 Importar CBU desde archivo" en el listado.</div>` : ''}
+    ${(() => { const cc = getCuentaCbu(l.nro); return cc?.estado !== 'ACTIVA' ? `<div class="alerta alerta-warn" style="margin-bottom:14px;"><strong>🏦 Falta el CBU:</strong> ${l.nombre} ${cc?.estado === 'EN_TRAMITE' ? 'tiene un trámite bancario en curso' : 'no tiene CBU cargado'}. Se completa desde <a href="#" onclick="navTo('cuentas_cbu');return false;">Cuentas CBU</a>.</div>` : ''; })()}
     ${l.estadoLegal ? `<div class="alerta alerta-danger" style="margin-bottom:14px;"><strong>⚖️ Situación legal activa:</strong> ${l.estadoLegal}</div>` : ''}
     <div class="tabs">
       <button class="tab-btn active" onclick="tabLeg(0,this)">Datos personales</button>
@@ -346,8 +347,15 @@ export function verLegajo(nro) {
       <div class="info-item"><div class="key">Localidad</div><div class="val">${l.localidad || '—'}</div></div>
       <div class="info-item"><div class="key">Celular</div><div class="val">${l.tel || '—'}</div></div>
       <div class="info-item"><div class="key">Mail</div><div class="val">${l.mail || '—'}</div></div>
-      <div class="info-item"><div class="key">Banco</div><div class="val">${l.banco || '—'}</div></div>
-      <div class="info-item"><div class="key">CBU</div><div class="val" style="font-family:'DM Mono',monospace;font-size:12px;">${l.cbu || '<span style="font-family:inherit;color:var(--naranja);font-weight:600;">Sin CBU</span>'}</div></div>
+      <div class="info-item"><div class="key">Banco</div><div class="val">${(() => { const cc = getCuentaCbu(l.nro); return cc?.estado === 'ACTIVA' ? cc.banco : '—'; })()}</div></div>
+      <div class="info-item"><div class="key">CBU</div><div class="val" style="font-family:'DM Mono',monospace;font-size:12px;">${(() => {
+        // v138: fuente única = Cuentas CBU (padrón de cuentas bancarias) —
+        // solo lectura acá, mismo tratamiento que "Categoría" (padrón de
+        // categorías). Se cambia en Cuentas CBU, nunca desde el legajo.
+        const cc = getCuentaCbu(l.nro);
+        if (cc?.estado === 'ACTIVA') return `${cc.cbu} <span style="font-size:10px;color:var(--texto-suave);font-family:inherit;">(Cuentas CBU — se cambia ahí)</span>`;
+        return `<span style="font-family:inherit;color:var(--naranja);font-weight:600;">${cc?.estado === 'EN_TRAMITE' ? 'En trámite con el banco' : 'Sin CBU'}</span> <a href="#" style="font-family:inherit;font-size:10px;" onclick="navTo('cuentas_cbu');return false;">— cargarlo en Cuentas CBU</a>`;
+      })()}</div></div>
     </div></div>
     <div id="leg-tab-1" class="tab-content"><div class="info-grid">
       <div class="info-item"><div class="key">Función</div><div class="val">${l.funcion}</div></div>
@@ -729,8 +737,14 @@ export function editarLegajoActual() {
   if ($('edit-mipyme-estado')) $('edit-mipyme-estado').value = l.mipymeEstado || 'PENDIENTE';
   $('edit-tel').value = l.tel || '';
   $('edit-mail').value = l.mail || '';
-  $('edit-banco').value = l.banco || '';
-  if ($('edit-cbu')) $('edit-cbu').value = l.cbu || '';
+  // v138: Banco/CBU ya no se editan acá — fuente única = Cuentas CBU.
+  if ($('edit-cbu-readonly')) {
+    const cc = getCuentaCbu(l.nro);
+    $('edit-cbu-readonly').innerHTML = cc?.estado === 'ACTIVA'
+      ? `${cc.banco} · ${cc.cbu}`
+      : `<span style="color:var(--naranja);">${cc?.estado === 'EN_TRAMITE' ? 'En trámite con el banco' : 'Sin CBU'}</span>`;
+    $('edit-cbu-readonly').innerHTML += ` <a href="#" onclick="cerrarModal('modal-editar-legajo');navTo('cuentas_cbu');return false;">— cargar/cambiar en Cuentas CBU</a>`;
+  }
   $('edit-localidad').value = l.localidad || '';
   $('edit-nac').value = l.nac || '';
   $('edit-servicio').value = l.servicio;
@@ -907,13 +921,8 @@ export async function guardarEdicionLegajo() {
   }
   l.tel = $('edit-tel').value;
   l.mail = $('edit-mail').value;
-  l.banco = $('edit-banco').value;
-  const cbu = ($('edit-cbu') || { value: '' }).value;
-  if (cbu && !cbuValido(cbu)) {
-    toast('⚠️ El CBU debe tener exactamente 22 dígitos numéricos');
-    return;
-  }
-  l.cbu = cbu;
+  // v138: Banco/CBU se eliminaron de este formulario — fuente única =
+  // Cuentas CBU (ver getCuentaCbu() en el detalle/listado de legajos).
   l.localidad = $('edit-localidad').value;
   l.nac = $('edit-nac').value;
   l.funcion = $('edit-funcion').value;

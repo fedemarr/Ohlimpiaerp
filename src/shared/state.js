@@ -300,7 +300,7 @@ export const DB = {
 // ========== PERFILES Y ACCESOS ==========
 
 export const PERFILES = {
-  'Administrador total': { color: 'badge-rojo', modulos: ['inicio', 'candidatos', 'pedidos', 'psicotecnico', 'preocupacional', 'documentacion', 'altas', 'legajos', 'reasignaciones', 'legal', 'enfermos', 'capacitaciones', 'vacaciones', 'descansos', 'competencia', 'clientes', 'objetivos', 'precios', 'paritarias', 'categorias', 'crm', 'negociaciones', 'reclamos', 'cobros', 'comisiones', 'supervisores', 'supervision', 'liquidacion', 'resumen_horas', 'feriados', 'liq_admin', 'liquidaciones', 'retenes', 'mantenimiento', 'configuracion', 'smvm', 'monotributos', 'uniformes', 'stock', 'pedido_productos', 'retenciones', 'descuentos', 'sanciones', 'adelantos', 'pedidos_adelantos', 'gestion_adelantos', 'sugerencias', 'proveedores', 'maquinas', 'seguimiento_seleccion'], desc: 'Acceso completo.' },
+  'Administrador total': { color: 'badge-rojo', modulos: ['inicio', 'candidatos', 'pedidos', 'psicotecnico', 'preocupacional', 'documentacion', 'altas', 'legajos', 'reasignaciones', 'legal', 'enfermos', 'capacitaciones', 'vacaciones', 'descansos', 'competencia', 'clientes', 'objetivos', 'precios', 'paritarias', 'categorias', 'crm', 'negociaciones', 'reclamos', 'cobros', 'comisiones', 'supervisores', 'supervision', 'liquidacion', 'resumen_horas', 'feriados', 'liq_admin', 'liquidaciones', 'retenes', 'mantenimiento', 'configuracion', 'smvm', 'monotributos', 'uniformes', 'stock', 'pedido_productos', 'retenciones', 'descuentos', 'sanciones', 'adelantos', 'pedidos_adelantos', 'gestion_adelantos', 'sugerencias', 'proveedores', 'maquinas', 'seguimiento_seleccion', 'cuentas_cbu'], desc: 'Acceso completo.' },
   // Reorganización de menú/permisos (Lautaro, 12/08/2026): RRHH tiene que
   // VER toda el área Personal — antes no veía 'legal' ni 'enfermos' pese a
   // que esas 2 pantallas ya listaban 'RRHH' en su propio item.perfiles
@@ -308,9 +308,9 @@ export const PERFILES = {
   // este array .modulos). Monotributos/Retenciones quedan igual: RRHH ya
   // los tenía y los sigue teniendo aunque esos módulos ahora vivan en la
   // sección de menú Finanzas — la sección es organización, no permiso.
-  'RRHH': { color: 'badge-azul', modulos: ['inicio', 'candidatos', 'psicotecnico', 'preocupacional', 'documentacion', 'altas', 'legajos', 'reasignaciones', 'legal', 'enfermos', 'capacitaciones', 'vacaciones', 'descansos', 'competencia', 'reclamos', 'paritarias', 'categorias', 'liquidacion', 'liq_admin', 'liquidaciones', 'retenes', 'monotributos', 'uniformes', 'retenciones', 'descuentos', 'sanciones', 'adelantos', 'pedidos_adelantos', 'gestion_adelantos', 'sugerencias', 'seguimiento_seleccion'], desc: 'RRHH, legajos, capacitaciones.' },
+  'RRHH': { color: 'badge-azul', modulos: ['inicio', 'candidatos', 'psicotecnico', 'preocupacional', 'documentacion', 'altas', 'legajos', 'reasignaciones', 'legal', 'enfermos', 'capacitaciones', 'vacaciones', 'descansos', 'competencia', 'reclamos', 'paritarias', 'categorias', 'liquidacion', 'liq_admin', 'liquidaciones', 'retenes', 'monotributos', 'uniformes', 'retenciones', 'descuentos', 'sanciones', 'adelantos', 'pedidos_adelantos', 'gestion_adelantos', 'sugerencias', 'seguimiento_seleccion', 'cuentas_cbu'], desc: 'RRHH, legajos, capacitaciones.' },
   'Operaciones': { color: 'badge-verde', modulos: ['inicio', 'pedidos', 'legajos', 'reasignaciones', 'capacitaciones', 'vacaciones', 'descansos', 'competencia', 'clientes', 'objetivos', 'precios', 'paritarias', 'crm', 'negociaciones', 'reclamos', 'cobros', 'comisiones', 'supervisores', 'supervision', 'liquidacion', 'resumen_horas', 'retenes', 'mantenimiento', 'feriados', 'uniformes', 'sanciones', 'pedidos_adelantos', 'sugerencias'], desc: 'Operaciones y ventas.' },
-  'Finanzas': { color: 'badge-acento', modulos: ['inicio', 'legajos', 'smvm', 'cobros', 'comisiones', 'paritarias', 'supervision', 'liquidacion', 'resumen_horas', 'liq_admin', 'liquidaciones', 'retenes', 'mantenimiento', 'monotributos', 'retenciones', 'descuentos', 'adelantos', 'gestion_adelantos', 'sugerencias', 'proveedores', 'maquinas'], desc: 'Finanzas y liquidación.' },
+  'Finanzas': { color: 'badge-acento', modulos: ['inicio', 'legajos', 'smvm', 'cobros', 'comisiones', 'paritarias', 'supervision', 'liquidacion', 'resumen_horas', 'liq_admin', 'liquidaciones', 'retenes', 'mantenimiento', 'monotributos', 'retenciones', 'descuentos', 'adelantos', 'gestion_adelantos', 'sugerencias', 'proveedores', 'maquinas', 'cuentas_cbu'], desc: 'Finanzas y liquidación.' },
   'Supervisor': { color: 'badge-gris', modulos: ['inicio', 'pedidos', 'legajos', 'descansos', 'competencia', 'liquidacion', 'resumen_horas', 'liquidaciones', 'adelantos', 'pedidos_adelantos', 'uniformes', 'sanciones', 'sugerencias', 'retenciones', 'pedido_productos'], desc: 'Pedidos, legajos, descansos, competencia y liquidación de horas.' },
   'Comercial': { color: 'badge-naranja', modulos: ['inicio', 'clientes', 'objetivos', 'precios', 'supervision', 'crm', 'negociaciones', 'reclamos', 'comisiones', 'sugerencias'], desc: 'Clientes, objetivos, precios, CRM, negociación, reclamos y comisiones.' },
   // "Auditor interno" (MODULO_PEDIDO_PRODUCTOS.md §3) no tiene perfil propio
@@ -435,6 +435,11 @@ export const MENU = [
     { key: 'gestion_adelantos', icon: '🏦', label: 'Gestión de adelantos', perfiles: ['Administrador total', 'Finanzas', 'RRHH'] },
     { key: 'liquidaciones', icon: '💰', label: 'Liquidaciones', perfiles: ['Administrador total', 'RRHH', 'Finanzas', 'Supervisor'] },
     { key: 'monotributos', icon: '💸', label: 'Monotributos', perfiles: ['Administrador total', 'RRHH', 'Finanzas'] },
+    // Padrón de cuentas bancarias (ticket "Módulo cuentas bancarias",
+    // 16/09) — fuente única del CBU del asociado. RRHH inicia el trámite
+    // con el banco, Finanzas carga el CBU; el resto del sistema (legajo)
+    // solo lee de acá.
+    { key: 'cuentas_cbu', icon: '🏦', label: 'Cuentas CBU', perfiles: ['Administrador total', 'RRHH', 'Finanzas'] },
     { key: 'pedidos_adelantos', icon: '💵', label: 'Pedidos de adelantos', perfiles: ['Administrador total', 'RRHH', 'Operaciones', 'Supervisor'] },
     { key: 'sugerencias', icon: '💬', label: 'Reportes y sugerencias', perfiles: ['Administrador total', 'RRHH', 'Operaciones', 'Finanzas', 'Supervisor', 'Comercial', 'Logística', 'Asociado'] },
     { key: 'retenciones', icon: '🔒', label: 'Retenciones', perfiles: ['Administrador total', 'RRHH', 'Finanzas', 'Supervisor'] },

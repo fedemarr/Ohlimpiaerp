@@ -1026,6 +1026,16 @@ export async function confirmarAlta() {
     }
   } catch (e) { /* si el módulo Categorías no está listo, el alta no se bloquea */ }
 
+  // Cuentas CBU (v138): "la fila nace sola, nadie tiene que acordarse de
+  // crearla" — mismo criterio que el padrón de categorías arriba. Si esta
+  // tab de Altas ya trae un CBU válido, la cuenta arranca ACTIVA de una;
+  // si no, arranca SIN_CUENTA y cae en la bandeja de pendientes del
+  // módulo nuevo (RRHH inicia el trámite con el banco desde ahí).
+  try {
+    const { crearFilaAltaCbu } = await import('@modules/cuentas_cbu/index.js');
+    await crearFilaAltaCbu(nro, legajo.nombre, { cbu, banco, cuitTitular: cuit });
+  } catch (e) { /* si el módulo Cuentas CBU no está listo, el alta no se bloquea */ }
+
   // Uniformes: al dar de alta con talle de ambo/calzado cargado, se
   // genera sola una entrega "Pendiente" (por entregar) — Gabi no tiene
   // que volver a cargar algo que ya se supo en el alta. Indirección por
