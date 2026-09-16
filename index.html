@@ -4672,46 +4672,97 @@
     <div id="lqs-mes-titulo" style="font-size:20px;font-weight:800;letter-spacing:.5px;"></div>
     <div id="lqs-mes-aviso" style="font-size:12.5px;font-weight:700;"></div>
   </div>
-  <div class="card" style="margin-top:0;border-radius:var(--radio-lg);">
-    <div class="card-header">
-      <div style="display:flex;align-items:center;gap:10px;">
-        <h3 style="margin:0;">💰 Resumen de Liquidaciones</h3>
-        <span id="lqs-vista-badge" style="display:none;font-size:11px;background:#fef3c7;color:#92400e;padding:3px 8px;border-radius:6px;font-weight:600;">👁 Vista supervisión — solo lectura</span>
+
+  <div class="tabs" style="background:white;border-radius:var(--radio-lg) var(--radio-lg) 0 0;padding:0 20px;box-shadow:var(--sombra);border-bottom:none;">
+    <button class="tab-btn active" data-lqs-tab="resumen" onclick="tabLqs('resumen',this)">📊 Resumen</button>
+    <button class="tab-btn" data-lqs-tab="pago" onclick="tabLqs('pago',this)">💸 Pago de retiros</button>
+  </div>
+
+  <div id="lqs-tab-resumen" class="tab-content active">
+    <div class="card" style="margin-top:0;border-radius:0 0 var(--radio-lg) var(--radio-lg);">
+      <div class="card-header">
+        <div style="display:flex;align-items:center;gap:10px;">
+          <h3 style="margin:0;">💰 Resumen de Liquidaciones</h3>
+          <span id="lqs-vista-badge" style="display:none;font-size:11px;background:#fef3c7;color:#92400e;padding:3px 8px;border-radius:6px;font-weight:600;">👁 Vista supervisión — solo lectura</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:12px;">
+          <select id="lqs-mes-sel" onchange="renderLiquidaciones()" style="padding:6px 10px;border:1px solid var(--borde-fuerte);border-radius:var(--radio);font-size:13px;outline:none;"></select>
+          <button id="btn-autorizar-pago-lqs" class="btn btn-sm" onclick="autorizarPago()" style="background:#14532d;color:white;border:none;display:none;" title="Pago rápido de todos los marcados de una — el detalle bancario/archivos por banco están en el tab 'Pago de retiros'">💰 Autorizar pago (todo junto)</button>
+          <button id="btn-congelar-lqs" class="btn btn-sm" onclick="toggleCongelarLiquidacion()" style="background:#7c3aed;color:white;border:none;">🔒 Congelar mes</button>
+          <button class="btn btn-secondary btn-sm" onclick="exportarLiquidacion()">⬇️ Exportar</button>
+        </div>
       </div>
-      <div style="display:flex;align-items:center;gap:12px;">
-        <select id="lqs-mes-sel" onchange="renderLiquidaciones()" style="padding:6px 10px;border:1px solid var(--borde-fuerte);border-radius:var(--radio);font-size:13px;outline:none;"></select>
-        <button id="btn-autorizar-pago-lqs" class="btn btn-sm" onclick="autorizarPago()" style="background:#14532d;color:white;border:none;display:none;">💰 Autorizar pago</button>
-        <button id="btn-congelar-lqs" class="btn btn-sm" onclick="toggleCongelarLiquidacion()" style="background:#7c3aed;color:white;border:none;">🔒 Congelar mes</button>
-        <button class="btn btn-secondary btn-sm" onclick="exportarLiquidacion()">⬇️ Exportar</button>
+      <div class="alerta alerta-info" style="font-size:12px;margin-bottom:0;">
+        Consolida todas las fuentes: <strong>Liquidación de horas</strong>, <strong>Planilla Administración</strong> y <strong>Suplementos</strong>.
+        Monotributo y Adelantos se cargarán desde sus módulos respectivos (próximamente). Para pagar generando los archivos del banco, usá el tab <strong>💸 Pago de retiros</strong>.
+      </div>
+      <!-- Panel resumen neto -->
+      <div id="lqs-resumen-panel" style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;padding:14px 20px;background:#f8fafc;border-bottom:1px solid var(--borde);">
+        <div style="background:white;border:1px solid var(--borde);border-radius:10px;padding:12px 16px;">
+          <div style="font-size:10px;color:var(--texto-suave);font-weight:600;text-transform:uppercase;letter-spacing:.5px;">Total neto calculado</div>
+          <div id="lqs-res-total" style="font-size:20px;font-weight:800;color:#374151;margin-top:4px;">$0</div>
+          <div style="font-size:10px;color:var(--texto-suave);margin-top:2px;">Todos los asociados del período</div>
+        </div>
+        <div style="background:white;border:2px solid #0369a1;border-radius:10px;padding:12px 16px;">
+          <div style="font-size:10px;color:#0369a1;font-weight:600;text-transform:uppercase;letter-spacing:.5px;">Total neto a pagar</div>
+          <div id="lqs-res-apagar" style="font-size:20px;font-weight:800;color:#0369a1;margin-top:4px;">$0</div>
+          <div id="lqs-res-apagar-count" style="font-size:10px;color:var(--texto-suave);margin-top:2px;">0 asociados marcados</div>
+        </div>
+        <div style="background:white;border:2px solid #065f46;border-radius:10px;padding:12px 16px;">
+          <div style="font-size:10px;color:#065f46;font-weight:600;text-transform:uppercase;letter-spacing:.5px;">Total neto pagado</div>
+          <div id="lqs-res-pagado" style="font-size:20px;font-weight:800;color:#065f46;margin-top:4px;">$0</div>
+          <div id="lqs-res-pagado-count" style="font-size:10px;color:var(--texto-suave);margin-top:2px;">0 asociados pagados</div>
+        </div>
+      </div>
+      <div class="tabla-wrap" style="overflow-x:auto;">
+        <table style="border-collapse:collapse;font-size:12px;width:100%;min-width:1600px;">
+          <thead id="thead-lqs"></thead>
+          <tbody id="tbody-lqs"></tbody>
+        </table>
       </div>
     </div>
-    <div class="alerta alerta-info" style="font-size:12px;margin-bottom:0;">
-      Consolida todas las fuentes: <strong>Liquidación de horas</strong>, <strong>Planilla Administración</strong> y <strong>Suplementos</strong>.
-      Monotributo y Adelantos se cargarán desde sus módulos respectivos (próximamente).
+  </div>
+
+  <!-- PAGO DE RETIROS (LIQUIDACIONES_pago_archivos_para_Fede_2.md + mockup_pago_retiros.html) -->
+  <div id="lqs-tab-pago" class="tab-content">
+    <div class="card" style="margin-top:0;border-radius:0 0 var(--radio-lg) var(--radio-lg);">
+      <div class="tabs" style="padding:0 20px;border-bottom:1px solid var(--borde);">
+        <button class="tab-btn active" data-pago-tab="operarios" onclick="tabPago('operarios',this)">Operarios <span id="chip-pago-ope" class="badge badge-azul" style="font-size:10px;">0</span></button>
+        <button class="tab-btn" data-pago-tab="administrativos" onclick="tabPago('administrativos',this)">Administrativos <span id="chip-pago-adm" class="badge badge-azul" style="font-size:10px;">0</span></button>
+        <button class="tab-btn" data-pago-tab="lotes" onclick="tabPago('lotes',this)">Lotes de pago <span id="chip-pago-lotes" class="badge badge-gris" style="font-size:10px;">0</span></button>
+      </div>
+
+      <div id="pago-panel-operarios" class="tab-content active" style="padding:14px 18px;">
+        <div class="tabla-wrap"><table>
+          <thead><tr>
+            <th style="width:34px;"><input type="checkbox" onchange="marcarTodosPago('operarios',this.checked)"></th>
+            <th>Asociado</th><th>Servicio</th><th>Banco</th><th style="text-align:right;">Neto a pagar</th><th>Estado</th>
+          </tr></thead>
+          <tbody id="tbody-pago-ope"></tbody>
+        </table></div>
+        <div class="alerta alerta-info" style="font-size:12px;">Los <b>SIN CBU no se pueden tildar</b>: su neto queda retenido automáticamente y se libera cuando el padrón de <a href="#" onclick="navTo('cuentas_cbu');return false;">Cuentas CBU</a> tenga su cuenta.</div>
+      </div>
+
+      <div id="pago-panel-administrativos" class="tab-content" style="padding:14px 18px;">
+        <div class="tabla-wrap"><table>
+          <thead><tr>
+            <th style="width:34px;"><input type="checkbox" onchange="marcarTodosPago('administrativos',this.checked)"></th>
+            <th>Asociado</th><th>Área</th><th>Banco</th><th style="text-align:right;">Neto a pagar</th><th>Estado</th>
+          </tr></thead>
+          <tbody id="tbody-pago-adm"></tbody>
+        </table></div>
+        <div class="alerta alerta-info" style="font-size:12px;">La tanda de administrativos se confirma aparte — cada tab tiene su propio momento de pago, como las dos hojas del Excel actual (RET-OPE / RET-ADM).</div>
+      </div>
+
+      <div id="pago-panel-lotes" class="tab-content" style="padding:14px 18px;">
+        <div id="lotes-pago-cont"></div>
+        <div class="alerta alerta-info" style="font-size:12px;">Cada tanda confirmada queda como <b>lote</b>: fecha, quién, cuántos, total y sus archivos <b>re-descargables</b> (se regeneran siempre iguales a partir de lo guardado, nunca distintos).</div>
+      </div>
     </div>
-    <!-- Panel resumen neto -->
-    <div id="lqs-resumen-panel" style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;padding:14px 20px;background:#f8fafc;border-bottom:1px solid var(--borde);">
-      <div style="background:white;border:1px solid var(--borde);border-radius:10px;padding:12px 16px;">
-        <div style="font-size:10px;color:var(--texto-suave);font-weight:600;text-transform:uppercase;letter-spacing:.5px;">Total neto calculado</div>
-        <div id="lqs-res-total" style="font-size:20px;font-weight:800;color:#374151;margin-top:4px;">$0</div>
-        <div style="font-size:10px;color:var(--texto-suave);margin-top:2px;">Todos los asociados del período</div>
-      </div>
-      <div style="background:white;border:2px solid #0369a1;border-radius:10px;padding:12px 16px;">
-        <div style="font-size:10px;color:#0369a1;font-weight:600;text-transform:uppercase;letter-spacing:.5px;">Total neto a pagar</div>
-        <div id="lqs-res-apagar" style="font-size:20px;font-weight:800;color:#0369a1;margin-top:4px;">$0</div>
-        <div id="lqs-res-apagar-count" style="font-size:10px;color:var(--texto-suave);margin-top:2px;">0 asociados marcados</div>
-      </div>
-      <div style="background:white;border:2px solid #065f46;border-radius:10px;padding:12px 16px;">
-        <div style="font-size:10px;color:#065f46;font-weight:600;text-transform:uppercase;letter-spacing:.5px;">Total neto pagado</div>
-        <div id="lqs-res-pagado" style="font-size:20px;font-weight:800;color:#065f46;margin-top:4px;">$0</div>
-        <div id="lqs-res-pagado-count" style="font-size:10px;color:var(--texto-suave);margin-top:2px;">0 asociados pagados</div>
-      </div>
-    </div>
-    <div class="tabla-wrap" style="overflow-x:auto;">
-      <table style="border-collapse:collapse;font-size:12px;width:100%;min-width:1600px;">
-        <thead id="thead-lqs"></thead>
-        <tbody id="tbody-lqs"></tbody>
-      </table>
+
+    <div style="position:sticky;bottom:0;background:#1b2a5e;color:#fff;padding:12px 26px;display:flex;justify-content:space-between;align-items:center;border-radius:var(--radio);margin-top:12px;box-shadow:0 -3px 12px rgba(10,15,40,.15);">
+      <div style="font-size:13.5px;">Seleccionados: <b id="pago-sel-n" style="font-size:16px;">0</b> asociados · <b id="pago-sel-m" style="font-size:16px;">$0</b> <span style="opacity:.7;font-size:11.5px;" id="pago-sel-det"></span></div>
+      <button id="btn-confirmar-tanda" class="btn" style="display:none;background:#1e7b34;color:white;border:none;font-size:14px;padding:10px 20px;" onclick="abrirConfirmarTanda()">✅ Confirmar tanda y generar archivos</button>
     </div>
   </div>
 </div>

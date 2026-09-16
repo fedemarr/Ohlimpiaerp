@@ -74,6 +74,9 @@ export const _SM = {
   // asociado, reemplaza legajos.cbu/legajos.banco). Ver src/modules/cuentas_cbu/.
   cuentasCbu: 'cuentas_cbu',
   cuentasCbuHistorial: 'cuentas_cbu_historial',
+  // v139 — Pago de retiros por tandas (Liquidaciones). Ver src/modules/liquidaciones_pago/.
+  lotesPago: 'lotes_pago',
+  lotesPagoItems: 'lotes_pago_items',
   monotributos: 'monotributos',
   uniformes: 'uniformes',
   retenciones: 'retenciones',
@@ -595,6 +598,9 @@ export function _toSnake(obj) {
     cuitTitular: 'cuit_titular', esTercero: 'es_tercero', tramiteBanco: 'tramite_banco',
     tramiteFecha: 'tramite_fecha', tramitePor: 'tramite_por', tramiteObservaciones: 'tramite_observaciones',
     cbuAnterior: 'cbu_anterior', cbuNuevo: 'cbu_nuevo', bancoAnterior: 'banco_anterior', bancoNuevo: 'banco_nuevo',
+    // v139 — Lotes de pago (Liquidaciones — pago de retiros)
+    nroLote: 'nro_lote', confirmadoPor: 'confirmado_por', confirmadoEn: 'confirmado_en',
+    loteIdLocal: 'lote_id_local', esExcepcion: 'es_excepcion', fechaAcreditacion: 'fecha_acreditacion',
     grillaId: 'grilla_id_local', asocIdx: 'asoc_idx', resueltoPor: 'resuelto_por',
     fechaResolucion: 'fecha_resolucion', nroSocio: 'nro_socio', horasPorDia: 'horas_por_dia',
     catActual: 'cat_actual', catPropuesta: 'cat_propuesta', propuestoPor: 'propuesto_por',
@@ -1071,6 +1077,9 @@ export function _toCamel(obj) {
     cuit_titular: 'cuitTitular', es_tercero: 'esTercero', tramite_banco: 'tramiteBanco',
     tramite_fecha: 'tramiteFecha', tramite_por: 'tramitePor', tramite_observaciones: 'tramiteObservaciones',
     cbu_anterior: 'cbuAnterior', cbu_nuevo: 'cbuNuevo', banco_anterior: 'bancoAnterior', banco_nuevo: 'bancoNuevo',
+    // v139 — Lotes de pago (Liquidaciones — pago de retiros)
+    nro_lote: 'nroLote', confirmado_por: 'confirmadoPor', confirmado_en: 'confirmadoEn',
+    lote_id_local: 'loteIdLocal', es_excepcion: 'esExcepcion', fecha_acreditacion: 'fechaAcreditacion',
     grilla_id_local: 'grillaId', asoc_idx: 'asocIdx', resuelto_por: 'resueltoPor',
     fecha_resolucion: 'fechaResolucion', nro_socio: 'nroSocio', horas_por_dia: 'horasPorDia',
     cat_actual: 'catActual', cat_propuesta: 'catPropuesta', propuesto_por: 'propuestoPor',

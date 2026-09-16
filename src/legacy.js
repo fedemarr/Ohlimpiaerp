@@ -9475,83 +9475,95 @@ function autorizarPago(){
   const insuficientes=[];
   listos.forEach(([nombre])=>{
     const f=filas.find(x=>x.nombre===nombre);
-    const netoCrudo = f?.neto||0;
-    // Tema 5 del relevamiento: si el retiro del mes no cubre todos los
-    // descuentos, no se descuenta nada de las cuotas automáticas — el
-    // saldo completo (uniforme/préstamo) sigue pendiente y se vuelve a
-    // calcular solo el mes que viene (no se incrementa cuotasCobradas
-    // ni se agrega el pago del préstamo). RRHH ve el aviso y decide caso
-    // por caso desde Retenciones/Uniformes/Préstamos si hace falta.
-    const insuficiente = netoCrudo < 0;
-    const monto = Math.max(0, Math.round(netoCrudo));
+    const {insuficiente}=_registrarPagoAsociado(mes, nombre, f?.bruto||0, f?.neto||0, fecha, autorizadoPor);
     if(insuficiente) insuficientes.push(nombre);
-    DB.lqsPagos[mes][nombre]={pagado:true, monto, fecha, registradoPor:autorizadoPor, insuficiente: insuficiente||undefined};
-    // Limpiar el estado "listo" una vez pagado
-    if(DB.lqsListos[mes]) delete DB.lqsListos[mes][nombre];
-    // ── Registrar en cuenta corriente del asociado ──
-    if(!DB.cuentaCorriente[nombre]) DB.cuentaCorriente[nombre]=[];
-    DB.cuentaCorriente[nombre].push({
-      fecha,
-      tipo: 'Haber',
-      concepto: 'Liquidación de sueldo — '+new Date(mes+'-02').toLocaleDateString('es-AR',{month:'long',year:'numeric'}),
-      monto,
-      periodo: mes,
-      registradoPor: autorizadoPor,
-      estado: 'Acreditado',
-    });
-    if(!insuficiente){
-      // Consumir las cuotas automáticas reales (temas 3 y 5): recién
-      // ahora, al pagar de verdad, se incrementa cuotasCobradas del
-      // uniforme y se agrega el pago del préstamo — las retenciones no
-      // se "consumen" acá, son por período y RRHH las libera a mano
-      // (tema 4).
-      const nro=(DB.legajos||[]).find(l=>l.nombre===nombre)?.nro;
-      const auto=descuentosAutomaticosLegajo(nro, mes);
-      auto.uniformeIds.forEach(id=>{
-        const d=(DB.descuentosUniformePendientes||[]).find(x=>x.id===id);
-        if(!d) return;
-        d.cuotasCobradas=(d.cuotasCobradas||0)+1;
-        if(d.cuotasCobradas>=d.cuotasTotales) d.estado='Terminado';
-        supaSync('descuentosUniformePendientes', d);
-      });
-      // Descuentos por asociado (v084) — misma semántica que uniforme.
-      (auto.programados||[]).forEach(pr=>{
-        const d=(DB.descuentos||[]).find(x=>String(x.id)===String(pr.id));
-        if(!d) return;
-        d.cuotasCobradas=(d.cuotasCobradas||0)+1;
-        if(d.cuotasCobradas>=d.cuotasTotales) d.estado='Terminado';
-        supaSync('descuentos', d);
-      });
-      if(auto.prestamoId){
-        const p=(DB.prestamos||[]).find(x=>x.id===auto.prestamoId);
-        if(p){
-          if(!p.pagos) p.pagos=[];
-          p.pagos.push({fecha, monto:auto.prestamo, cuotaNro:p.pagos.length+1});
-          if(p.pagos.length>=p.cuotas) p.estado='Pagado';
-          supaSync('prestamos', p);
-        }
-      }
-      // Retenciones (v126): recién ahora, al pagar de verdad, se persiste
-      // lo efectivamente retenido — montoAcumulado (usado por Retenciones
-      // para mostrar "$ retenido acum." y como tope de Liberar/Aplicar) y
-      // periodosRetenidos (auditoría + evita duplicar si se re-autoriza
-      // el mismo mes). Idempotente por período, mismo criterio que ya usa
-      // uniforme/préstamo con cuotasCobradas.
-      _resolverRetencionesDetalle(auto, f?.bruto||0).forEach(({id, monto})=>{
-        if(!monto) return;
-        const r=(DB.retenciones||[]).find(x=>x.id===id);
-        if(!r) return;
-        if(!r.periodosRetenidos) r.periodosRetenidos=[];
-        if(r.periodosRetenidos.some(pr=>pr.periodo===mes)) return; // ya contabilizado este mes
-        r.periodosRetenidos.push({periodo:mes, monto});
-        r.montoAcumulado = (parseFloat(r.montoAcumulado)||0) + monto;
-        supaSync('retenciones', r);
-      });
-    }
   });
   toast('💰 Pago autorizado — '+listos.length+' asociados · $'+totalNeto.toLocaleString('es-AR'));
   if(insuficientes.length) toast(`⚠️ ${insuficientes.length} asociado(s) con descuentos mayores al bruto: ${insuficientes.slice(0,5).join(', ')}${insuficientes.length>5?'…':''}. No se descontó nada de sus cuotas este mes — el saldo completo pasa al mes siguiente.`, 10000);
   renderLiquidaciones();
+}
+
+// ── Registrar el pago efectivo de UN asociado (extraído de autorizarPago
+// para reutilizar en el "Pago de retiros" por tandas — LIQUIDACIONES_pago_
+// archivos_para_Fede_2.md, ticket 16/09). Marca DB.lqsPagos, agrega el
+// haber en cuenta corriente y, si el neto alcanza a cubrir los descuentos,
+// consume las cuotas automáticas reales (uniforme/descuentos programados/
+// préstamo/retenciones) — mismo criterio de siempre, sin duplicar lógica.
+// Devuelve {monto, insuficiente} para que el llamador arme sus totales.
+function _registrarPagoAsociado(mes, nombre, bruto, netoCrudo, fecha, registradoPor, extra){
+  if(!DB.lqsPagos[mes]) DB.lqsPagos[mes]={};
+  // Tema 5 del relevamiento: si el retiro del mes no cubre todos los
+  // descuentos, no se descuenta nada de las cuotas automáticas — el
+  // saldo completo (uniforme/préstamo) sigue pendiente y se vuelve a
+  // calcular solo el mes que viene (no se incrementa cuotasCobradas
+  // ni se agrega el pago del préstamo). RRHH ve el aviso y decide caso
+  // por caso desde Retenciones/Uniformes/Préstamos si hace falta.
+  const insuficiente = netoCrudo < 0;
+  const monto = Math.max(0, Math.round(netoCrudo));
+  DB.lqsPagos[mes][nombre]={pagado:true, monto, fecha, registradoPor, insuficiente: insuficiente||undefined, ...extra};
+  // Limpiar el estado "listo" una vez pagado
+  if(DB.lqsListos[mes]) delete DB.lqsListos[mes][nombre];
+  // ── Registrar en cuenta corriente del asociado ──
+  if(!DB.cuentaCorriente[nombre]) DB.cuentaCorriente[nombre]=[];
+  DB.cuentaCorriente[nombre].push({
+    fecha,
+    tipo: 'Haber',
+    concepto: 'Liquidación de sueldo — '+new Date(mes+'-02').toLocaleDateString('es-AR',{month:'long',year:'numeric'}),
+    monto,
+    periodo: mes,
+    registradoPor,
+    estado: 'Acreditado',
+  });
+  if(!insuficiente){
+    // Consumir las cuotas automáticas reales (temas 3 y 5): recién
+    // ahora, al pagar de verdad, se incrementa cuotasCobradas del
+    // uniforme y se agrega el pago del préstamo — las retenciones no
+    // se "consumen" acá, son por período y RRHH las libera a mano
+    // (tema 4).
+    const nro=(DB.legajos||[]).find(l=>l.nombre===nombre)?.nro;
+    const auto=descuentosAutomaticosLegajo(nro, mes);
+    auto.uniformeIds.forEach(id=>{
+      const d=(DB.descuentosUniformePendientes||[]).find(x=>x.id===id);
+      if(!d) return;
+      d.cuotasCobradas=(d.cuotasCobradas||0)+1;
+      if(d.cuotasCobradas>=d.cuotasTotales) d.estado='Terminado';
+      supaSync('descuentosUniformePendientes', d);
+    });
+    // Descuentos por asociado (v084) — misma semántica que uniforme.
+    (auto.programados||[]).forEach(pr=>{
+      const d=(DB.descuentos||[]).find(x=>String(x.id)===String(pr.id));
+      if(!d) return;
+      d.cuotasCobradas=(d.cuotasCobradas||0)+1;
+      if(d.cuotasCobradas>=d.cuotasTotales) d.estado='Terminado';
+      supaSync('descuentos', d);
+    });
+    if(auto.prestamoId){
+      const p=(DB.prestamos||[]).find(x=>x.id===auto.prestamoId);
+      if(p){
+        if(!p.pagos) p.pagos=[];
+        p.pagos.push({fecha, monto:auto.prestamo, cuotaNro:p.pagos.length+1});
+        if(p.pagos.length>=p.cuotas) p.estado='Pagado';
+        supaSync('prestamos', p);
+      }
+    }
+    // Retenciones (v126): recién ahora, al pagar de verdad, se persiste
+    // lo efectivamente retenido — montoAcumulado (usado por Retenciones
+    // para mostrar "$ retenido acum." y como tope de Liberar/Aplicar) y
+    // periodosRetenidos (auditoría + evita duplicar si se re-autoriza
+    // el mismo mes). Idempotente por período, mismo criterio que ya usa
+    // uniforme/préstamo con cuotasCobradas.
+    _resolverRetencionesDetalle(auto, bruto||0).forEach(({id, monto:montoRet})=>{
+      if(!montoRet) return;
+      const r=(DB.retenciones||[]).find(x=>x.id===id);
+      if(!r) return;
+      if(!r.periodosRetenidos) r.periodosRetenidos=[];
+      if(r.periodosRetenidos.some(pr=>pr.periodo===mes)) return; // ya contabilizado este mes
+      r.periodosRetenidos.push({periodo:mes, monto:montoRet});
+      r.montoAcumulado = (parseFloat(r.montoAcumulado)||0) + montoRet;
+      supaSync('retenciones', r);
+    });
+  }
+  return {monto, insuficiente};
 }
 
 function setDescuentoLqs(mes, nombre, campo, valor){
@@ -14560,6 +14572,7 @@ function confirmarSolicitudAsociado(){
 window._barraProgresoAdelantos = _barraProgresoAdelantos;
 window._calcEstadoAsociado = _calcEstadoAsociado;
 window._getFilasConsolidadas = _getFilasConsolidadas;
+window._registrarPagoAsociado = _registrarPagoAsociado;
 window._getPrimerRechazo = _getPrimerRechazo;
 window.abrirAgenteIA = abrirAgenteIA;
 window.abrirCargaRapidaMant = abrirCargaRapidaMant;

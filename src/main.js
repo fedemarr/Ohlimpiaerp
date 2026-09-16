@@ -26,6 +26,9 @@ import { capacitacionesScreenConfig, filtrarCapacitaciones } from './modules/cap
 import { uniformesScreenConfig } from './modules/uniformes/index.js';
 import { retencionesScreenConfig, filtrarRetenciones } from './modules/retenciones/index.js';
 import { cuentasCbuScreenConfig } from './modules/cuentas_cbu/index.js';
+// Pago de retiros: no es un screen propio, es un tab de screen-liquidaciones
+// (legacy.js). Se importa solo por sus window bindings (tabPago, etc.).
+import './modules/liquidaciones_pago/index.js';
 import { competenciaScreenConfig } from './modules/competencia/index.js';
 import { developerScreenConfig, sincronizarSugerenciasComoTickets, renderDevInicio, renderDevTickets, iniciarRealtimeDev, detenerRealtimeDev } from './modules/developer/index.js';
 import { vacacionesScreenConfig } from './modules/vacaciones/index.js';
