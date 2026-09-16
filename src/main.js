@@ -4,7 +4,8 @@
 import './styles/main.css';
 
 // ── Shared ──
-import { SUPA, supaInit, supaSync, supaDel, fetchCandidatosYTurnos, fetchSugerencias } from '@shared/supabase.js';
+import { SUPA, supaInit, supaSync, supaDel, fetchCandidatosYTurnos, fetchSugerencias, fetchAccesosVigentes } from '@shared/supabase.js';
+import { puedeVer } from '@modules/accesos/runtime.js';
 import { DB, PERFILES, MENU, BADGE_MAP, AREAS, LOCALIDADES_BA, currentUser } from '@shared/state.js';
 import { $, initials, avatarEl, badge, formatPeriodo, hoyStr, esFeriado, esFinde, getDiasDelMes, calcularDiasEntre, toTitleCase, cleanText, applyTitleCase, validarCampos, fillSelect, fillDL } from '@shared/helpers.js';
 import { toast, abrirModal, cerrarModal, initModalClickOutside, makeTableSortable, activarOrdenamiento, activarOrdenamientoTabla, handleBuscadorKeydown, confirmarModalInputSimple } from '@shared/ui.js';
@@ -278,6 +279,47 @@ function detenerPollingCampana() {
   if (pollingCampanaId) { clearInterval(pollingCampanaId); pollingCampanaId = null; }
 }
 
+// Chequeo periódico de la Matriz de Accesos (bug real reportado 16/09:
+// "Lautaro le activó Uniformes:Editable a un asociado, se guardó bien,
+// pero no lo autorizó" — el guardado en Supabase era correcto, pero
+// DB.usuarioAccesos/DB.perfilAccesos de la sesión YA ABIERTA de esa
+// persona quedaban con la foto de su login, sin nada que los refresque
+// después). Mismo patrón que los pollers de arriba: si algo cambió, se
+// reconstruye el menú y, si la pantalla abierta dejó de ser accesible, se
+// saca a Inicio; si sigue siendo accesible, se re-renderiza para que los
+// botones que dependen del nivel (ej. "Iniciar preparación" en Uniformes)
+// se actualicen solos, sin esperar a un F5 ni a un relogueo.
+const INTERVALO_POLLING_ACCESOS_MS = 20000;
+let pollingAccesosId = null;
+
+async function chequearAccesosActualizados() {
+  if (!currentUser) return;
+  const datos = await fetchAccesosVigentes();
+  if (!datos) return;
+  const antes = JSON.stringify([DB.usuarioAccesos || [], DB.perfilAccesos || []]);
+  const despues = JSON.stringify([datos.usuarioAccesos, datos.perfilAccesos]);
+  if (antes === despues) return;
+  DB.usuarioAccesos = datos.usuarioAccesos;
+  DB.perfilAccesos = datos.perfilAccesos;
+  construirMenu();
+  if (currentScreen && currentScreen !== 'inicio') {
+    if (currentUser.perfil && !puedeVer(currentScreen, currentUser.perfil, currentUser.id)) {
+      toast('⛔ Tu acceso a esta pantalla cambió — volviendo a Inicio');
+      navTo('inicio');
+    } else if (SCREEN_CONFIG[currentScreen]) {
+      SCREEN_CONFIG[currentScreen].render();
+    }
+  }
+}
+
+function iniciarPollingAccesos() {
+  if (pollingAccesosId) return;
+  pollingAccesosId = setInterval(chequearAccesosActualizados, INTERVALO_POLLING_ACCESOS_MS);
+}
+function detenerPollingAccesos() {
+  if (pollingAccesosId) { clearInterval(pollingAccesosId); pollingAccesosId = null; }
+}
+
 registerAuthCallbacks({
   construirMenu() {
     construirMenu();
@@ -339,11 +381,13 @@ registerAuthCallbacks({
     }
     else iniciarPolling();
     iniciarPollingCampana();
+    iniciarPollingAccesos();
   },
   detenerPolling() {
     detenerPolling();
     detenerPollingTickets();
     detenerPollingCampana();
+    detenerPollingAccesos();
     detenerRealtimeDev();
     ocultarBotonReporte();
   },

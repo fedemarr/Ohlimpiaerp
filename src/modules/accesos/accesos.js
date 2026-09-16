@@ -126,6 +126,7 @@ window.accCiclarPerfil = async function (perfil, moduloKey) {
     if (!DB.perfilAccesos) DB.perfilAccesos = [];
     DB.perfilAccesos.push({ perfil, moduloKey, nivel: nuevo });
   }
+  toast(`✓ ${perfil} — ${moduloKey}: ${TITULOS[nuevo]}`);
   renderMatriz();
 };
 
@@ -310,6 +311,12 @@ window.accCiclarUsuario = async function (moduloKey) {
     toast('✗ No se pudo guardar: ' + e.message);
     return;
   }
+  // FIX (bug real 16/09): antes esto quedaba mudo si salía bien — un admin
+  // que activaba un permiso no tenía forma de confirmar que había quedado
+  // guardado, y si la persona ya estaba logueada en otra pestaña/dispositivo
+  // el cambio tardaba hasta 20s en llegarle (ver chequearAccesosActualizados
+  // en main.js) — antes de eso ni siquiera llegaba nunca sin desloguearse.
+  toast(`✓ ${u.nombre || u.email} — ${moduloKey}: ${TITULOS[nuevo]} (si ya está usando el sistema, le llega en unos segundos, no hace falta que reinicie sesión)`, 5500);
   renderGrillaUsuario();
 };
 

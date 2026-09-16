@@ -1380,3 +1380,24 @@ export async function fetchSugerencias() {
   if (error) return null;
   return (data || []).map(row => _toCamel(row));
 }
+
+// Chequeo liviano de la Matriz de Accesos (perfil_accesos + usuario_accesos)
+// — usado por el polling de main.js para que un cambio de permisos hecho
+// por un admin (ej. Config usuarios → Accesos y perfiles) le llegue a
+// quien ya tiene una sesión abierta SIN que tenga que desloguearse y
+// volver a entrar. Bug real reportado (16/09): un admin activaba
+// "Uniformes: Editable" para alguien que ya estaba usando el sistema, el
+// guardado era correcto en Supabase, pero esa persona seguía viendo el
+// nivel viejo porque DB.usuarioAccesos/DB.perfilAccesos solo se cargaban
+// una vez, al login (supaInit()) — nada los refrescaba después.
+export async function fetchAccesosVigentes() {
+  const [rPerfil, rUsuario] = await Promise.all([
+    SUPA.from('perfil_accesos').select('*'),
+    SUPA.from('usuario_accesos').select('*'),
+  ]);
+  if (rPerfil.error || rUsuario.error) return null;
+  return {
+    perfilAccesos: (rPerfil.data || []).map(row => _toCamel(row)),
+    usuarioAccesos: (rUsuario.data || []).map(row => _toCamel(row)),
+  };
+}
