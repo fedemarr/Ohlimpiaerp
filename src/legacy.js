@@ -6522,6 +6522,58 @@ function esHoraFacturableReal(asoc,fechaISO){
   if(eft?.fueraEFT&&eft.autorizado!==true) return false;
   return true;
 }
+
+// ═══ GRILLAS proyectado→verificado + AJ (ticket 16/09, GRILLAS_proyectado_
+// verificado_para_Fede_1.md + mockup_grilla_proyectado_verificado.html) ═══
+//
+// horasCobradasDia(): cuántas horas de ESTE día cuentan para el PAGO.
+// Distinto de "horas facturables" (esHoraFacturableReal) — AJ (ausencia
+// justificada) paga las horas proyectadas del día pero NUNCA se factura
+// al cliente (§5b del documento): es el gemelo a nivel-día del tipo de
+// hora Art.42 (que es a nivel-fila). F y AI pagan 0 (ya era así).
+function horasCobradasDia(asoc,fechaISO){
+  const raw=asoc.horas?.[fechaISO];
+  if(raw==='AJ') return parseFloat(asoc.horasAJ?.[fechaISO]||0)||0;
+  const h=parseFloat(raw);
+  return isNaN(h)?0:h;
+}
+
+// estadoDia[fecha]==='ver' marca el día VERIFICADO por el supervisor.
+// Ausente = PROYECTADO (todavía no confirmado) — incluye tanto los días
+// recién sembrados por generarHorasPrecargas() como cualquier día pasado
+// que nadie tocó todavía. El campo ya existía en el modelo (setHoraGrilla
+// lo escribía) pero no lo leía nadie — se reaprovecha para esto.
+function diaEstaVerificado(asoc,fechaISO){ return asoc.estadoDia?.[fechaISO]==='ver'; }
+
+// Un día es "verificable" si hoy>=fecha (no se verifica el futuro, §6) y
+// tiene ALGÚN dato cargado (número o F/AJ/AI) — el vacío real nunca cuenta
+// ni como pendiente ni como verificado.
+function diaEsVerificable(asoc,fechaISO,hoyISO){
+  if(fechaISO>hoyISO) return false;
+  const raw=asoc.horas?.[fechaISO];
+  return raw!=null && raw!=='';
+}
+
+// Estadísticas de verificación de UNA fila (asociado) hasta hoy — usado
+// tanto para el detalle por fila como agregado a nivel servicio.
+function statsVerificacionAsoc(asoc,hoyISO,dias){
+  let verificables=0,verificados=0;
+  dias.forEach(dia=>{
+    if(dia.iso>hoyISO) return;
+    if(!diaEsVerificable(asoc,dia.iso,hoyISO)) return;
+    verificables++;
+    if(diaEstaVerificado(asoc,dia.iso)) verificados++;
+  });
+  return {verificables,verificados,pendientes:verificables-verificados};
+}
+function statsVerificacionServicio(grilla,hoyISO,dias){
+  let verificables=0,verificados=0;
+  (grilla?.asociados||[]).forEach(asoc=>{
+    const st=statsVerificacionAsoc(asoc,hoyISO,dias);
+    verificables+=st.verificables; verificados+=st.verificados;
+  });
+  return {verificables,verificados,pendientes:verificables-verificados};
+}
 function badgeTipoAuth(tipo){
   if(tipo==='no_facturable') return `<span class="badge badge-rojo" style="font-size:10px;">❌ No facturable</span>`;
   if(tipo==='cat_alt') return `<span class="badge" style="background:#e0e7ff;color:#3730a3;font-size:10px;">🔁 Cat. alternativa</span>`;
@@ -8623,10 +8675,12 @@ function renderLiquidaciones(){
       const dias = getDiasDelMes(mes);
       let hsTotal=0, hsExtra=0, brutoAcum=0;
       dias.forEach(dia=>{
-        const rawVal = asoc.horas?.[dia.iso];
-        const h = parseFloat(rawVal||0);
-        if(!isNaN(h) && h>0){
-          hsTotal+=h;
+        // AJ (ticket "Grillas proyectado/verificado" 16/09, §5b): cobra
+        // las horas proyectadas del día aunque no sea un número cargado —
+        // horasCobradasDia() ya resuelve F/AI en 0 y AJ en lo acreditado.
+        const hPago = horasCobradasDia(asoc, dia.iso);
+        if(hPago>0){
+          hsTotal+=hPago;
           // LIQUIDACIONES_conexiones (14/09): getCategoriaVH leía de
           // DB.categoriasSalariales — un array que quedó vacío/sin uso real
           // desde que existe el módulo Categorías con vigencia — así que el
@@ -8634,7 +8688,7 @@ function renderLiquidaciones(){
           // cálculo día a día que ya usa renderGrillasLiq (el valor puede
           // cambiar a mitad de mes por paritaria), fuente única real.
           const vhDia = valorHoraEfectivoAsoc(asoc, grilla.nombre, dia.iso);
-          brutoAcum += h*(vhDia?.valorHora||0);
+          brutoAcum += hPago*(vhDia?.valorHora||0);
         }
       });
       const params = DB.parametrosServicio[grilla.objCodigo]||{horasPorDia:8, diasSemana:[1,2,3,4,5]};
@@ -9311,7 +9365,18 @@ async function toggleCongelarLiquidacion(){
   if(estaCongelado){
     if(!confirm('¿Descongelar el período '+mes+'? Los supervisores podrán volver a modificar las grillas.')) return;
   } else {
-    if(!confirm('¿Congelar el período '+mes+'? No se podrán hacer modificaciones en las grillas hasta que lo descongeles.')) return;
+    // §7 del documento: verificar NO bloquea el congelado — el proceso
+    // administrativo no queda rehén de un supervisor de vacaciones. Solo
+    // se avisa cuánto quedó sin confirmar, para decidir con esa info.
+    const dias=getDiasDelMes(mes);
+    const grillasDelMes=(DB.grillasLiq||[]).filter(g=>g.periodo===mes);
+    let diasSinVerificar=0, serviciosConPendientes=0;
+    grillasDelMes.forEach(g=>{
+      const st=statsVerificacionServicio(g,mes<_mesActualISO()?(mes+'-31'):(mes>_mesActualISO()?(mes+'-00'):new Date().toISOString().slice(0,10)),dias);
+      if(st.pendientes>0){ diasSinVerificar+=st.pendientes; serviciosConPendientes++; }
+    });
+    const avisoVerif=diasSinVerificar>0?`\n\n⚠ Quedan ${diasSinVerificar} día(s) sin verificar en ${serviciosConPendientes} servicio(s).`:'';
+    if(!confirm('¿Congelar el período '+mes+'? No se podrán hacer modificaciones en las grillas hasta que lo descongeles.'+avisoVerif)) return;
   }
 
   const row = fila || {id:mes, periodo:mes, congelado:false, confirmado:false};
@@ -9380,11 +9445,13 @@ function _getFilasConsolidadas(mes){
       // se persiste, así que si solo se corrige la pantalla y no esto, se
       // seguiría autorizando el pago con bruto $0.
       getDiasDelMes(mes).forEach(d=>{
-        const h=parseFloat(asoc.horas?.[d.iso]||0);
-        if(h>0){
-          hs+=h;
+        // AJ cobra las horas proyectadas (horasCobradasDia) aunque no
+        // sea un número cargado — mismo criterio que renderLiquidaciones().
+        const hPago=horasCobradasDia(asoc, d.iso);
+        if(hPago>0){
+          hs+=hPago;
           const vhDia=valorHoraEfectivoAsoc(asoc, grilla.nombre, d.iso);
-          brutoAcum+=h*(vhDia?.valorHora||0);
+          brutoAcum+=hPago*(vhDia?.valorHora||0);
         }
       });
       const bruto=Math.round(brutoAcum);
@@ -12775,6 +12842,15 @@ function renderGrillasLiq(){
 
   const dias=getDiasDelMes(mes);
   const dN=['D','L','M','X','J','V','S'];
+  // Línea de HOY (§6): resaltada; a la derecha, todo atenuado (futuro
+  // editable pero no verificable). Solo existe de verdad si el mes
+  // mostrado es el mes en curso.
+  const hoyISO=new Date().toISOString().slice(0,10);
+  const esMesActualParaHoy=mes===_mesActualISO();
+  // Mismo criterio de "hoy efectivo" que setHoraGrilla/verificarCeldaGrilla:
+  // un mes ya pasado tiene TODOS sus días vencidos (verificables); uno
+  // futuro no tiene ninguno todavía.
+  const hoyEfectivoGrillas=mes<_mesActualISO()?(mes+'-31'):(mes>_mesActualISO()?(mes+'-00'):hoyISO);
 
   const thead=$('thead-servicios-compacta');
   const tbody=$('tbody-servicios-compacta');
@@ -12793,8 +12869,10 @@ function renderGrillasLiq(){
     <th style="padding:8px;border:1px solid #6b7280;min-width:100px;">Supervisor</th>
     <th style="padding:8px;border:1px solid #6b7280;min-width:90px;text-align:center;">Tipo hs</th>
     ${dias.map(dia=>{
-      const bg=dia.esFeriado?'background:#ffe4e6;color:#111;font-weight:800;':dia.esFinde?'background:#ffff00;color:#111;font-weight:700;':'';
-      return`<th style="padding:4px 2px;border:1px solid #6b7280;text-align:center;min-width:30px;font-size:10px;${bg}">
+      const esHoy=esMesActualParaHoy&&dia.iso===hoyISO;
+      const esFuturo=esMesActualParaHoy&&dia.iso>hoyISO;
+      const bg=esHoy?'background:#c96a00;color:white;font-weight:800;':dia.esFeriado?'background:#ffe4e6;color:#111;font-weight:800;':dia.esFinde?'background:#ffff00;color:#111;font-weight:700;':'';
+      return`<th style="padding:4px 2px;border:1px solid #6b7280;text-align:center;min-width:30px;font-size:10px;${bg}${esFuturo?'opacity:.55;':''}">
       ${dia.d}</th>`;
     }).join('')}
     <th style="padding:8px;border:1px solid #6b7280;text-align:right;min-width:65px;">Total hs</th>
@@ -12848,11 +12926,15 @@ function renderGrillasLiq(){
     dias.forEach(dia=>{
       let sumDia=0;
       if(grilla){
+        // FIX (ticket "Grillas proyectado/verificado" 16/09): antes este
+        // parseFloat sin guard daba NaN apenas había un F/AJ/AI cargado
+        // en el día, y "sumDia+=NaN" contaminaba el total del día ENTERO
+        // (y la fila de TOTAL GENERAL) para siempre. horasCobradasDia()
+        // ya devuelve 0 para F/AI y las horas acreditadas para AJ.
         (grilla.asociados||[]).forEach(asoc=>{
-          const h=parseFloat(asoc.horas?.[dia.iso]||0);
-          sumDia+=h;
-          if(esHoraFacturableReal(asoc,dia.iso)) totalFactObj+=h;
-          totalPagarObj+=0; // se recalcula abajo
+          const h=parseFloat(asoc.horas?.[dia.iso]);
+          sumDia+=horasCobradasDia(asoc,dia.iso);
+          if(!isNaN(h)&&esHoraFacturableReal(asoc,dia.iso)) totalFactObj+=h;
         });
       } else {
         // Sin grilla: mostrar horas esperadas según parámetros
@@ -12868,14 +12950,18 @@ function renderGrillasLiq(){
       let tFact=0,tPagar=0;
       (grilla.asociados||[]).forEach(asoc=>{
         dias.forEach(dia=>{
-          const h=parseFloat(asoc.horas?.[dia.iso]||0);
-          if(!h)return;
-          if(esHoraFacturableReal(asoc,dia.iso))tFact+=h;
-          // DELTA_liquidacion_horas_v1 — valor hora real (con vigencia
-          // por mes) en vez del legacy getCategoriaVH sin vigencia; día
-          // a día porque el valor puede cambiar a mitad de mes.
-          const vh=valorHoraEfectivoAsoc(asoc,obj.nombre,dia.iso);
-          tPagar+=h*(vh?.valorHora||0);
+          const h=parseFloat(asoc.horas?.[dia.iso]);
+          if(!isNaN(h)&&h>0&&esHoraFacturableReal(asoc,dia.iso))tFact+=h;
+          // AJ (§5b): cobra las horas acreditadas aunque no sean
+          // facturables — horasCobradasDia() ya resuelve F/AI en 0.
+          const hPago=horasCobradasDia(asoc,dia.iso);
+          if(hPago){
+            // DELTA_liquidacion_horas_v1 — valor hora real (con vigencia
+            // por mes) en vez del legacy getCategoriaVH sin vigencia; día
+            // a día porque el valor puede cambiar a mitad de mes.
+            const vh=valorHoraEfectivoAsoc(asoc,obj.nombre,dia.iso);
+            tPagar+=hPago*(vh?.valorHora||0);
+          }
         });
       });
       totalFactObj=tFact;totalPagarObj=Math.round(tPagar);
@@ -12906,11 +12992,21 @@ function renderGrillasLiq(){
           :'<span class="liq-badge-tipo" style="background:#dbeafe;color:#1e40af;">Abierta</span>'))
       :'<span class="liq-badge-tipo" style="background:#f3f4f6;color:#6b7280;">Sin grilla</span>';
 
+    // Chip de verificación por servicio (§1 del documento): de un vistazo,
+    // qué tan al día está el supervisor con lo que YA pasó.
+    const statsVer=grilla?statsVerificacionServicio(grilla,hoyEfectivoGrillas,dias):{verificables:0,verificados:0,pendientes:0};
+    const chipVerif=!grilla?''
+      :statsVer.verificables===0?''
+      :statsVer.pendientes===0
+        ?`<span class="liq-badge-tipo" style="background:#dff2e1;color:#1e7b34;" title="Todo lo que ya pasó está confirmado">✔ ${statsVer.verificados}/${statsVer.verificables} verif.</span>`
+        :`<span class="liq-badge-tipo" style="background:#fdebd7;color:#b25b00;" title="Días con dato cargado que todavía nadie confirmó">${statsVer.pendientes} sin verif.</span>`;
+
     // FILA RESUMEN DEL SERVICIO (siempre visible)
     html+=`<tr class="liq-row-servicio${expandido?' expandido':''}" onclick="toggleGrilla('${obj.codigo}')" data-obj="${obj.codigo}">
       <td style="padding:8px 12px;border:1px solid #6b7280;position:sticky;left:0;background:inherit;font-weight:700;color:white;">
         <span class="liq-toggle-icon">▶</span>
         ${obj.nombre}
+        ${chipVerif}
         ${alertaEFT}
         ${avisoReasig}
         <span style="font-size:10px;opacity:.7;margin-left:6px;">${obj.codigo}</span>
@@ -12945,12 +13041,17 @@ function renderGrillasLiq(){
         const asocs=grilla.asociados||[];
         if(true){  // siempre entra
           asocs.forEach((asoc,ai)=>{
-            let hsAsoc=0,hsFactAsoc=0,totalPagarAsoc=0;
+            let hsAsoc=0,hsFactAsoc=0,totalPagarAsoc=0,hsAJAsoc=0;
             dias.forEach(dia=>{
-              const h=parseFloat(asoc.horas?.[dia.iso]||0);
-              hsAsoc+=h;
-              if(esHoraFacturableReal(asoc,dia.iso))hsFactAsoc+=h;
-              if(h){const vhDia=valorHoraEfectivoAsoc(asoc,obj.nombre,dia.iso);totalPagarAsoc+=h*(vhDia?.valorHora||0);}
+              // FIX (NaN): parseFloat de un F/AJ/AI da NaN — antes esto
+              // contaminaba hsAsoc/totalPagarAsoc para siempre. AJ además
+              // ahora SUMA (cobra horas proyectadas, no se factura, §5b).
+              const h=parseFloat(asoc.horas?.[dia.iso]);
+              const hPago=horasCobradasDia(asoc,dia.iso);
+              hsAsoc+=hPago;
+              if(asoc.horas?.[dia.iso]==='AJ') hsAJAsoc+=hPago;
+              if(!isNaN(h)&&esHoraFacturableReal(asoc,dia.iso))hsFactAsoc+=h;
+              if(hPago){const vhDia=valorHoraEfectivoAsoc(asoc,obj.nombre,dia.iso);totalPagarAsoc+=hPago*(vhDia?.valorHora||0);}
             });
             totalPagarAsoc=Math.round(totalPagarAsoc);
             const legajoAsoc=(DB.legajos||[]).find(l=>String(l.nro)===String(asoc.nro));
@@ -13006,7 +13107,11 @@ function renderGrillasLiq(){
                 const rawVal=asoc.horas?.[dia.iso];
                 const esEsp=['F','AJ','AI'].includes(String(rawVal||'').toUpperCase());
                 const h=esEsp?0:parseFloat(rawVal||0);
-                const dispVal=esEsp?String(rawVal).toUpperCase():(h||'');
+                // Vacío real (§5d): SIN entrada en asoc.horas — nunca se
+                // muestra un valor proyectado viejo en gris para no dejar
+                // un "dato fantasma". "·" es el único indicador de vacío.
+                const vacioReal=rawVal==null||rawVal==='';
+                const dispVal=esEsp?String(rawVal).toUpperCase():(vacioReal?'':h);
                 const noFact=asoc.facturable?.[dia.iso]===false;
                 const dow=new Date(dia.iso+'T12:00:00').getDay();
                 const esTrab=params.diasSemana?.includes(dow)&&(params.trabajaFeriados||!dia.esFeriado)&&(params.trabajaFinde||!dia.esFinde);
@@ -13023,32 +13128,57 @@ function renderGrillasLiq(){
                       ? 'background:#dc2626;color:white;'  // rojo — rechazada
                       : ''
                   : '';
-                // Color de fondo
-                const bgCell=(h>0||esEsp)
-                  ? pendColor||(dia.esFeriado?'background:#ffe4e6;':dia.esFinde?'background:#ffff00;':'')
-                  :(dentroRango&&!esTrab?'background:#f5f5f5;':'');
-                // Color del texto: F=violeta, AJ=naranja, AI=rojo, noFact=rojo, horas=azul
-                const colorVal=esEsp&&rawVal==='F'?'color:#7c3aed;font-weight:700;'
-                  :esEsp&&rawVal==='AJ'?'color:#d97706;font-weight:700;'
-                  :esEsp?'color:#dc2626;font-weight:700;'
+                // Proyectado vs Verificado (§3): celeste = cargado, todavía
+                // sin confirmar por el supervisor; azul oscuro = confirmado.
+                const verificado=diaEstaVerificado(asoc,dia.iso);
+                const franco=esEsp&&rawVal==='F', esAJ=esEsp&&rawVal==='AJ', esAI=esEsp&&rawVal==='AI';
+                // Color de fondo — F rayado / AJ verde-agua / AI rojo tienen
+                // prioridad visual (son un hecho registrado); si no, feriado/
+                // finde/pendiente de autorización; si no, proyectado/verificado.
+                const bgCell = franco?'background:repeating-linear-gradient(135deg,#fff,#fff 3px,#eef1f7 3px,#eef1f7 6px);'
+                  :esAJ?'background:#d7f0ee;'
+                  :esAI?'background:#fbe0dc;'
+                  :(h>0)
+                    ?(pendColor||(dia.esFeriado?'background:#ffe4e6;':dia.esFinde?'background:#ffff00;':(verificado?'background:#1b2a5e;':'background:#dce7fb;')))
+                    :(dentroRango&&!esTrab?'background:#f5f5f5;':'');
+                // Color del texto: F=violeta, AJ=verde azulado, AI=rojo,
+                // noFact=rojo, verificado=blanco (fondo oscuro), proyectado=azul
+                const colorVal=franco?'color:#7c3aed;font-weight:700;'
+                  :esAJ?'color:#0b6e66;font-weight:700;'
+                  :esAI?'color:#b3261e;font-weight:700;'
                   :noFact?'color:var(--rojo);'
-                  :h>0?'color:var(--azul);font-weight:600;'
+                  :h>0?(verificado?'color:white;font-weight:700;':'color:#1451a4;font-weight:600;')
                   :'color:var(--texto-muy-suave);';
-                return`<td class="liq-celda-dia ${dia.esFeriado?'feriado':dia.esFinde?'finde':!esTrab?'no-laboral':''}" style="border:1px solid var(--borde);${bgCell}">
+                // Línea de HOY resaltada; futuro atenuado y NO verificable (§6)
+                const esHoyCelda=esMesActualParaHoy&&dia.iso===hoyISO;
+                const esFuturoCelda=esMesActualParaHoy&&dia.iso>hoyISO;
+                const verificable=!vacioReal&&diaEsVerificable(asoc,dia.iso,hoyEfectivoGrillas);
+                const obsTexto=asoc.observaciones?.[dia.iso];
+                const obsEsc=obsTexto?String(obsTexto).replace(/"/g,'&quot;'):'';
+                const titleBase=esFuturoCelda?'Día futuro — se verifica cuando pase':'Ingresá horas (ej: 8), F=Franco, AJ=Aus.Justificada, AI=Aus.Injustificada';
+                return`<td class="liq-celda-dia ${dia.esFeriado?'feriado':dia.esFinde?'finde':!esTrab?'no-laboral':''}"
+                    style="border:1px solid var(--borde);position:relative;${bgCell}${esFuturoCelda?'opacity:.55;':''}${esHoyCelda?'outline:2px solid #c96a00;outline-offset:-2px;':''}"
+                    ${obsTexto?`title="📝 ${obsEsc}"`:''}
+                    oncontextmenu="event.preventDefault();event.stopPropagation();observarCeldaGrilla('${grilla.id}',${ai},'${dia.iso}',event)">
+                  ${verificable?`<span onclick="event.stopPropagation();verificarCeldaGrilla('${grilla.id}',${ai},'${dia.iso}')"
+                      title="${verificado?'Verificado — click para volver a proyectado':'Proyectado — click para verificar'}"
+                      style="position:absolute;top:0;right:1px;font-size:7px;line-height:1;cursor:pointer;color:${verificado?'#4ade80':'#93a5c9'};z-index:1;">${verificado?'✓':'○'}</span>`:''}
+                  ${obsTexto?`<span style="position:absolute;top:0;left:0;width:0;height:0;border-top:7px solid #c9a200;border-right:7px solid transparent;pointer-events:none;"></span>`:''}
                   <input type="text" value="${dispVal}"
-                    placeholder="${esTrab&&dentroRango&&!h?(params.horasPorDia||8):''}"
-                    title="Ingresá horas (ej: 8), F=Franco, AJ=Aus.Justificada, AI=Aus.Injustificada"
+                    placeholder="${esTrab&&dentroRango&&!h&&vacioReal?(params.horasPorDia||8):''}"
+                    title="${titleBase}"
                     style="width:30px;${colorVal}border:none;background:transparent;text-align:center;font-size:11px;outline:none;padding:1px 0;text-transform:uppercase;"
                     ${_lockAttr(grilla)}
                     onclick="event.stopPropagation()"
                     onchange="event.stopPropagation();setHoraGrilla('${grilla.id}',${ai},'${dia.iso}',this.value.trim().toUpperCase())">
                 </td>`;
               }).join('')}
-              <td style="padding:4px 8px;border:1px solid var(--borde);text-align:right;font-weight:700;color:var(--azul);">${hsAsoc}hs</td>
+              <td style="padding:4px 8px;border:1px solid var(--borde);text-align:right;font-weight:700;color:var(--azul);">${hsAsoc}hs${hsAJAsoc>0?`<div style="font-size:9px;color:#0b6e66;font-weight:600;">(${hsAJAsoc} AJ no fact.)</div>`:''}</td>
               <td style="padding:4px 8px;border:1px solid var(--borde);text-align:right;font-size:11px;${vhInfo?'color:var(--texto-suave);':'color:var(--rojo);font-weight:600;'}" title="${vhInfo?'Valor hora vigente ('+fechaRepresentativaMes(mes)+')':'Sin categoría vinculada o sin valor cargado en el módulo Categorías'}">${vhInfo?'$'+Math.round(vhInfo.valorHora).toLocaleString('es-AR'):'Sin valor'}</td>
               <td style="padding:4px 8px;border:1px solid var(--borde);text-align:right;font-size:11px;">${hsFactAsoc}hs</td>
               <td style="padding:4px 8px;border:1px solid var(--borde);text-align:right;font-weight:600;color:var(--verde);">$${totalPagarAsoc.toLocaleString('es-AR')}</td>
-              <td style="padding:4px 8px;border:1px solid var(--borde);">
+              <td style="padding:4px 8px;border:1px solid var(--borde);white-space:nowrap;">
+                <button title="Verificar todo hasta hoy" style="background:none;border:none;cursor:pointer;font-size:11px;color:#1b2a5e;" onclick="event.stopPropagation();verificarFilaHastaHoy('${grilla.id}',${ai})">✔</button>
                 <button style="background:none;border:none;cursor:pointer;font-size:11px;color:var(--rojo);" onclick="event.stopPropagation();quitarAsociadoGrilla('${grilla.id}',${ai})">✕</button>
               </td>
             </tr>`;
@@ -13064,11 +13194,15 @@ function renderGrillasLiq(){
                 const cong = grilla.congelada || (grilla.congelada===undefined && grilla.estado==='Cerrada');
                 const quienCuando = cong && (grilla.congeladaPor||grilla.congeladaEn)
                   ? `<span style="font-size:9px;color:white;opacity:.7;display:block;margin-top:2px;">${grilla.congeladaPor||''}${grilla.congeladaEn?' · '+new Date(grilla.congeladaEn).toLocaleDateString('es-AR'):''}</span>` : '';
-                return `<button class="btn btn-xs" style="background:${cong?'#fee2e2':'var(--verde-claro)'};color:${cong?'#b91c1c':'var(--verde)'};border:1px solid ${cong?'#fca5a5':'#9fdaba'};" onclick="event.stopPropagation();toggleCongelarGrilla('${grilla.id}')">${cong?'🔓 Descongelar':'🔒 Congelar'}</button>${quienCuando}`;
+                const btnVerifServicio=!cong?`<button class="btn btn-xs" style="background:#dce7fb;color:#1451a4;border:1px solid #b9c3dd;margin-left:6px;" onclick="event.stopPropagation();verificarServicioHastaHoy('${grilla.id}')">✔ Verificar todo hasta hoy</button>`:'';
+                return `<button class="btn btn-xs" style="background:${cong?'#fee2e2':'var(--verde-claro)'};color:${cong?'#b91c1c':'var(--verde)'};border:1px solid ${cong?'#fca5a5':'#9fdaba'};" onclick="event.stopPropagation();toggleCongelarGrilla('${grilla.id}')">${cong?'🔓 Descongelar':'🔒 Congelar'}</button>${btnVerifServicio}${quienCuando}`;
               })()}
             </td>
             ${dias.map(dia=>{
-              const tot=(grilla.asociados||[]).reduce((s,a)=>s+parseFloat(a.horas?.[dia.iso]||0),0);
+              // FIX (bug real reportado — mockup 16/09): este reduce no
+              // tenía NINGÚN guard — un solo F/AJ/AI en el día rompía la
+              // fila entera con NaN, para siempre (parseFloat('F')=NaN).
+              const tot=(grilla.asociados||[]).reduce((s,a)=>s+horasCobradasDia(a,dia.iso),0);
               return`<td style="padding:4px 2px;border:1px solid var(--borde);text-align:center;font-size:11px;font-weight:700;color:white;">${tot||''}</td>`;
             }).join('')}
             <td style="padding:6px 8px;border:1px solid var(--borde);text-align:right;font-weight:700;color:var(--azul);">${grilla.totalHorasFacturables+(grilla.totalHorasNoFacturables||0)}hs</td>
@@ -13275,15 +13409,63 @@ function setHoraGrilla(gId,aIdx,fechaISO,valor){
   // ya no la va a pisar.
   g.origenGrilla='manual';
 
+  // "Hoy efectivo" para decidir si un día ya "pasó" (§3/§6): si la grilla
+  // es de un mes ya cerrado (anterior al actual), todos sus días pasaron;
+  // si es de un mes futuro, ninguno pasó todavía; si es el mes en curso,
+  // es la fecha real de hoy.
+  const hoyEfectivo=g.periodo<_mesActualISO()?(g.periodo+'-31'):(g.periodo>_mesActualISO()?(g.periodo+'-00'):new Date().toISOString().slice(0,10));
+
   const valStr=(valor||'').toString().trim().toUpperCase();
+
+  // ── Vacío real: BORRA el día, no lo deja en 0 (§5d/§4 del documento —
+  // antes "borrar" un campo lo dejaba en el NÚMERO 0, indistinguible de un
+  // 0 cargado a propósito; ahora el día directamente no tiene entrada). ──
+  if(valStr===''){
+    delete asoc.horas[fechaISO];
+    if(asoc.estadoDia) delete asoc.estadoDia[fechaISO];
+    if(asoc.horasAJ) delete asoc.horasAJ[fechaISO];
+    if(asoc.facturable) delete asoc.facturable[fechaISO];
+    if(asoc.motivoNoFact) delete asoc.motivoNoFact[fechaISO];
+    supaSync('grillasLiq', g);
+    renderGrillasLiq();
+    return;
+  }
+
   const esEspecial=['F','AJ','AI'].includes(valStr);
-  const nuevaHora=esEspecial?0:parseFloat(valor)||0;
+  // Vocabulario cerrado (§4): nada de texto libre que rompa los totales —
+  // antes un valor inválido se silenciaba a 0 sin avisar.
+  if(!esEspecial){
+    const n=parseFloat(valStr.replace(',','.'));
+    if(isNaN(n)||n<0||n>24){
+      toast('⚠️ Valor inválido — un número de horas (0 a 24), "F" (franco), "AJ" (aus. justificada), "AI" (aus. injustificada) o vacío para borrar.');
+      renderGrillasLiq();
+      return;
+    }
+  }
+  const nuevaHora=esEspecial?0:parseFloat(valStr.replace(',','.'));
 
   // ── Valores especiales: F=Franco, AJ=Ausencia Justificada, AI=Ausencia Injustificada ──
   if(esEspecial){
+    // AJ (§5b): cobra las horas PROYECTADAS de ese día (las de la
+    // dotación) — se capturan del valor previo (si ya había un número
+    // cargado/precargado) o, si la celda estaba vacía, de los parámetros
+    // del servicio. Se congela en asoc.horasAJ para que un cambio futuro
+    // de dotación no altere lo ya pagado.
+    if(valStr==='AJ'){
+      const previo=asoc.horas[fechaISO];
+      const previoNum=typeof previo==='number'?previo:parseFloat(previo);
+      const params=DB.parametrosServicio[g.objCodigo]||{horasPorDia:8};
+      if(!asoc.horasAJ)asoc.horasAJ={};
+      asoc.horasAJ[fechaISO]=!isNaN(previoNum)?previoNum:(params.horasPorDia||8);
+    }
     asoc.horas[fechaISO]=valStr;
-    if(!asoc.estadoDia)asoc.estadoDia={};
-    asoc.estadoDia[fechaISO]=valStr;
+    // Cargar un valor (especial o numérico) para un día ya pasado/hoy es
+    // constatar qué pasó — queda verificado solo (§3). A futuro no aplica
+    // (§6): se puede cargar la proyección, pero no queda "verificada".
+    if(fechaISO<=hoyEfectivo){
+      if(!asoc.estadoDia)asoc.estadoDia={};
+      asoc.estadoDia[fechaISO]='ver';
+    }
     supaSync('grillasLiq', g);
     renderGrillasLiq();
     return;
@@ -13327,6 +13509,12 @@ function setHoraGrilla(gId,aIdx,fechaISO,valor){
 
   // Guardar el valor numérico
   asoc.horas[fechaISO]=nuevaHora;
+  // Editar el valor de un día pasado/hoy lo deja verificado (§3) — si
+  // corrigió el número es porque lo constató. A futuro no aplica (§6).
+  if(fechaISO<=hoyEfectivo){
+    if(!asoc.estadoDia)asoc.estadoDia={};
+    asoc.estadoDia[fechaISO]='ver';
+  }
 
   // ── Horas no facturables: aplica a 'no_facturable' Y 'art42' ──
   if(nuevaHora>0 && (asoc.tipoHora==='no_facturable'||asoc.tipoHora==='art42')){
@@ -13379,6 +13567,100 @@ function setHoraGrilla(gId,aIdx,fechaISO,valor){
   supaSync('grillasLiq', g);
   renderGrillasLiq();
 }
+
+// ── Verificación de celda: click en una celda con dato cargado, día ya
+// pasado/hoy, la marca/desmarca verificada (§3 del documento — proyectado
+// celeste ↔ verificado azul). El futuro NUNCA se verifica (§6): se avisa
+// en vez de togglear. ──
+function verificarCeldaGrilla(gId,aIdx,fechaISO){
+  const g=DB.grillasLiq.find(x=>x.id===gId);if(!g)return;
+  if(!_grillaEditable(g)){ toast(_periodoCerradoLiq(g.periodo)?'El período está cerrado.':'La grilla está congelada — descongelala para verificar.'); return; }
+  const asoc=g.asociados[aIdx];if(!asoc)return;
+  const hoyEfectivo=g.periodo<_mesActualISO()?(g.periodo+'-31'):(g.periodo>_mesActualISO()?(g.periodo+'-00'):new Date().toISOString().slice(0,10));
+  if(fechaISO>hoyEfectivo){ toast('Día futuro — se verifica cuando pase. La proyección sí se puede editar.'); return; }
+  if(!diaEsVerificable(asoc,fechaISO,hoyEfectivo)) return; // vacío real: nada que verificar
+  if(!confirmarEdicionFueraDeMes(g.periodo)) return;
+  if(!asoc.estadoDia)asoc.estadoDia={};
+  if(diaEstaVerificado(asoc,fechaISO)) delete asoc.estadoDia[fechaISO];
+  else asoc.estadoDia[fechaISO]='ver';
+  supaSync('grillasLiq', g);
+  renderGrillasLiq();
+}
+
+// "Verificar todo hasta hoy" — el caso normal "pasó todo como estaba
+// proyectado" (§3). Por fila (un asociado) o por servicio (todos).
+function verificarFilaHastaHoy(gId,aIdx){
+  const g=DB.grillasLiq.find(x=>x.id===gId);if(!g)return;
+  if(!_grillaEditable(g)){ toast(_periodoCerradoLiq(g.periodo)?'El período está cerrado.':'La grilla está congelada — descongelala para verificar.'); return; }
+  const asoc=g.asociados[aIdx];if(!asoc)return;
+  const hoyEfectivo=g.periodo<_mesActualISO()?(g.periodo+'-31'):(g.periodo>_mesActualISO()?(g.periodo+'-00'):new Date().toISOString().slice(0,10));
+  if(!confirmarEdicionFueraDeMes(g.periodo)) return;
+  if(!asoc.estadoDia)asoc.estadoDia={};
+  let n=0;
+  Object.keys(asoc.horas||{}).forEach(iso=>{
+    if(!diaEsVerificable(asoc,iso,hoyEfectivo)) return;
+    if(!diaEstaVerificado(asoc,iso)){ asoc.estadoDia[iso]='ver'; n++; }
+  });
+  supaSync('grillasLiq', g);
+  renderGrillasLiq();
+  toast(n?`✓ ${n} día(s) verificado(s) — ${asoc.nombre}`:'Ya estaba todo verificado hasta hoy');
+}
+function verificarServicioHastaHoy(gId){
+  const g=DB.grillasLiq.find(x=>x.id===gId);if(!g)return;
+  if(!_grillaEditable(g)){ toast(_periodoCerradoLiq(g.periodo)?'El período está cerrado.':'La grilla está congelada — descongelala para verificar.'); return; }
+  if(!confirmarEdicionFueraDeMes(g.periodo)) return;
+  const hoyEfectivo=g.periodo<_mesActualISO()?(g.periodo+'-31'):(g.periodo>_mesActualISO()?(g.periodo+'-00'):new Date().toISOString().slice(0,10));
+  let n=0;
+  (g.asociados||[]).forEach(asoc=>{
+    if(!asoc.estadoDia)asoc.estadoDia={};
+    Object.keys(asoc.horas||{}).forEach(iso=>{
+      if(!diaEsVerificable(asoc,iso,hoyEfectivo)) return;
+      if(!diaEstaVerificado(asoc,iso)){ asoc.estadoDia[iso]='ver'; n++; }
+    });
+  });
+  supaSync('grillasLiq', g);
+  renderGrillasLiq();
+  toast(n?`✓ ${n} día(s) verificado(s) en "${g.nombre}"`:'Ya estaba todo verificado hasta hoy');
+}
+
+// ── Observación por celda (click derecho) — texto libre sobre un día
+// puntual (§5e). Queda amarilla con 📝 mientras haya observación activa;
+// se puede editar o borrar, pero el HISTORIAL de cambios nunca se borra
+// (quién, cuándo, qué decía) — es un documento que puede respaldar una
+// factura, nada desaparece del todo. Mismo patrón de prompt() que ya usa
+// el resto del proyecto (rechazarCandidatoPorId, agendarTurno). ──
+function observarCeldaGrilla(gId,aIdx,fechaISO,ev){
+  if(ev) ev.preventDefault();
+  const g=DB.grillasLiq.find(x=>x.id===gId);if(!g)return;
+  if(!_grillaEditable(g)){ toast(_periodoCerradoLiq(g.periodo)?'El período está cerrado.':'La grilla está congelada — descongelala para editar.'); return; }
+  const asoc=g.asociados[aIdx];if(!asoc)return;
+  const actual=asoc.observaciones?.[fechaISO]||'';
+  const fechaTxt=fechaISO.split('-').reverse().join('/');
+  const r=prompt(
+    actual
+      ?`Observación del ${fechaTxt} — ${asoc.nombre}\n(editá el texto, o borralo todo y Aceptar para eliminarla)`
+      :`Nueva observación para el ${fechaTxt} — ${asoc.nombre}\n(la celda queda en amarillo con 📝 hasta que se borre)`,
+    actual
+  );
+  if(r===null) return;
+  const texto=r.trim();
+  if(!asoc.observaciones)asoc.observaciones={};
+  if(!asoc.observacionesHistorial)asoc.observacionesHistorial={};
+  if(!asoc.observacionesHistorial[fechaISO])asoc.observacionesHistorial[fechaISO]=[];
+  const entrada={
+    texto: texto||actual, // si se borra, el historial guarda QUÉ decía lo borrado
+    accion: texto?(actual?'editada':'agregada'):'borrada',
+    por: currentUser?.nombre||'—',
+    en: new Date().toISOString(),
+  };
+  asoc.observacionesHistorial[fechaISO].push(entrada);
+  if(texto) asoc.observaciones[fechaISO]=texto;
+  else delete asoc.observaciones[fechaISO];
+  supaSync('grillasLiq', g);
+  renderGrillasLiq();
+  toast(texto?'📝 Observación guardada':'Observación borrada — queda en el historial');
+}
+
 function setTipoHoraAsoc(gId,aIdx,tipo){
   const g=DB.grillasLiq.find(x=>x.id===gId);if(!g)return;
   const asoc=g.asociados[aIdx];if(!asoc)return;
@@ -14934,6 +15216,10 @@ window.setCatBaseReten = setCatBaseReten;
 window.setDescuentoLqs = setDescuentoLqs;
 window.setHoraAdmin = setHoraAdmin;
 window.setHoraGrilla = setHoraGrilla;
+window.verificarCeldaGrilla = verificarCeldaGrilla;
+window.verificarFilaHastaHoy = verificarFilaHastaHoy;
+window.verificarServicioHastaHoy = verificarServicioHastaHoy;
+window.observarCeldaGrilla = observarCeldaGrilla;
 window.setHoraMant = setHoraMant;
 window.setHoraReten = setHoraReten;
 window.setHoraSuplemento = setHoraSuplemento;
