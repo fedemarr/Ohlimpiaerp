@@ -8585,6 +8585,27 @@ function renderLiquidaciones(){
   const mes = $('lqs-mes-sel')?.value || new Date().toISOString().slice(0,7);
   if(!DB.lqsDescuentos[mes]) DB.lqsDescuentos[mes]={};
 
+  // ── Mismo banner de "mes no vigente" que Liquidación de horas (Grillas) ──
+  {
+    const [yy,mm]=mes.split('-');
+    const nombreMesLargo=new Date(parseInt(yy),parseInt(mm)-1,1).toLocaleDateString('es-AR',{month:'long',year:'numeric'}).toUpperCase();
+    const tit=$('lqs-mes-titulo'); if(tit) tit.textContent='LIQUIDACIONES — '+nombreMesLargo;
+    const banner=$('lqs-mes-banner'), aviso=$('lqs-mes-aviso');
+    const esActual=mes===_mesActualISO(), esFuturo=mes>_mesActualISO();
+    if(banner&&aviso){
+      if(esActual){
+        banner.style.background='#eef2ff'; banner.style.border='1px solid #c7d2fe';
+        if(tit) tit.style.color='#1e3a8a'; aviso.textContent=''; aviso.style.color='';
+      } else {
+        banner.style.background=esFuturo?'#fef3c7':'#e0f2fe';
+        banner.style.border='2px solid '+(esFuturo?'#d97706':'#0284c7');
+        if(tit) tit.style.color=esFuturo?'#92400e':'#075985';
+        aviso.style.color=esFuturo?'#92400e':'#075985';
+        aviso.textContent=`⚠ Estás viendo ${nombreMesLargo} (${esFuturo?'mes futuro':'mes anterior'}) — NO es el mes en curso`;
+      }
+    }
+  }
+
   // ── Recolectar todos los asociados de todas las fuentes ──
   const filas = [];
 
