@@ -8269,13 +8269,12 @@ if(!DB.lqsPagos)       DB.lqsPagos       = {};  // DB.lqsPagos[periodo][nombre] 
 // _periodoLiqRow/_periodoCerradoLiq más abajo.
 if(!DB.periodosLiq)    DB.periodosLiq    = [];
 if(!DB.lqsListos)      DB.lqsListos      = {};  // DB.lqsListos[periodo][nombre] = true/false
-if(!DB.retenes) DB.retenes = [
-  {id:1, nombre:'López Fabián',    nroSocio:'3112', categoriBase:'Operario/a limpieza', activo:true},
-  {id:2, nombre:'Vera Claudia',    nroSocio:'2891', categoriBase:'Operario/a limpieza especializado/a', activo:true},
-  {id:3, nombre:'Gimenez Roberto', nroSocio:'3204', categoriBase:'Operario/a limpieza', activo:true},
-];
-// DB.retenHoras[periodo][retenId][fechaISO] = {hs, catAlt} — catAlt opcional
-if(!DB.retenHoras)  DB.retenHoras  = {};
+// DB.retenes/DB.retenHoras (registro manual + horas manuales de retenes):
+// eliminados (ticket "Módulo Retenes" 18/09) junto con el resto del
+// alta/carga manual — acá vivía además data DEMO con nombres de prueba
+// ("López Fabián", "Vera Claudia", "Gimenez Roberto") que, mientras
+// existió el bloque "Retenes" de renderLiquidaciones()/_getFilasConsolidadas(),
+// aparecía como filas de pago fantasma en Liquidaciones real.
 // ── DB Adelantos ──
 if(!DB.adelantosConfig) DB.adelantosConfig = {
   montoFijo: 30000,          // Monto fijo por defecto configurable por Finanzas
@@ -8336,22 +8335,11 @@ DB.enfermos = [];
 // antes de que este guard corra.)
 if(!DB.grillasLiq) DB.grillasLiq = [];
 
-// Retenes activos
-if(!DB.retenes) DB.retenes = [];
-if(DB.retenes.length===0){
-  DB.retenes = [
-    {id:1,periodo:'2026-03',supervisor:'Santiago Ayala',estado:'Borrador',fechaCreacion:'01/04/2026',
-     items:[
-       {nombre:'Gomez Diego Alejandro',nroSocio:71,diasTrabajados:0,obs:'De baja médica'},
-       {nombre:'Peralta Walter Ezequiel',nroSocio:129,diasTrabajados:18,obs:''},
-     ]},
-    {id:2,periodo:'2026-03',supervisor:'Dario Lage',estado:'Enviada',fechaCreacion:'31/03/2026',fechaEnvio:'01/04/2026',
-     items:[
-       {nombre:'Fleita Graciela Ines',nroSocio:130,diasTrabajados:0,obs:'De baja médica desde 20/3'},
-       {nombre:'Juarez Diego Martin',nroSocio:131,diasTrabajados:22,obs:''},
-     ]},
-  ];
-}
+// (Segundo seed de DB.retenes con forma equivocada — ni siquiera coincidía
+// con {nombre, categoriBase, activo}, era el esquema de otra pantalla
+// (periodo/supervisor/estado/items) pegado acá por error. Como
+// DB.retenes ya no tiene consumidores reales, se saca directamente en
+// vez de arreglarlo.)
 
 // Monotributos — categorías actuales
 // Nota: se sacó la semilla de datos de prueba (shape viejo, incompatible con
@@ -8757,49 +8745,16 @@ function renderLiquidaciones(){
   });
 
 
-  // 4. Retenes — solo visible para Admin, RRHH, Finanzas, Operaciones
-  if(!esSupervisor){
-    const horasSvc = getHorasRetenDeServicios(mes);
-    // Combinar retenes registrados + los que vienen solo de servicios
-    const todosRetLiq = [...(DB.retenes||[]).filter(r=>r.activo)];
-    Object.keys(horasSvc).forEach(nombre=>{
-      if(!todosRetLiq.find(r=>r.nombre===nombre)){
-        todosRetLiq.push({id:'svc_'+nombre.replace(/\s/g,'_'), nombre,
-          categoriBase: horasSvc[nombre].categoria||'Operario/a limpieza', activo:true});
-      }
-    });
-    todosRetLiq.forEach(r=>{
-      const diasR = getDiasDelMes(mes);
-      const HS_MINIMO = 200;
-      let hsReales=0, rechazos=0;
-      diasR.forEach(d=>{
-        // Horas manuales en el módulo Retenes
-        const vm = DB.retenHoras?.[mes]?.[r.id]?.[d.iso];
-        const hm = parseFloat(vm?.hs||0);
-        if(hm>0) hsReales+=hm;
-        if(String(vm?.hs||'').toUpperCase()==='AI') rechazos++;
-        // Horas del servicio (tipo retén)
-        const hsSvcDia = horasSvc[r.nombre]?.horas?.[d.iso];
-        const hsr = parseFloat(hsSvcDia||0);
-        if(hsr>0) hsReales+=hsr;
-        if(String(hsSvcDia||'').toUpperCase()==='AI') rechazos++;
-      });
-      const hsCobrar = Math.max(hsReales, HS_MINIMO - rechazos*8);
-      const vh = getCategoriaVH(r.categoriBase||'');
-      const bruto = Math.round(hsCobrar * vh);
-      filas.push({
-        nombre: r.nombre,
-        categoria: r.categoriBase||'—',
-        area: 'Retenes',
-        fuente: 'Retén',
-        hsTotal: hsCobrar,
-        hsExtra: Math.max(0, hsReales - HS_MINIMO),
-        bruto,
-        valorHora: vh,
-        detalleFuentes: [{fuente:'Retén', bruto, hs:hsCobrar, hsReales, rechazos}],
-      });
-    });
-  }
+  // Retenes (ticket "Módulo Retenes" 18/09 — el concepto cambió: el
+  // retén NO tiene garantía de horas, cobra por las horas que los
+  // supervisores le cargan en las grillas "como cualquier asociado" —
+  // esas horas YA se cuentan arriba, en el punto 1 (Servicios), porque
+  // ese loop no filtra por tipoHora. Este bloque viejo las volvía a sumar
+  // acá con un mínimo garantizado de 200hs que ya no corresponde —
+  // resultado real: un retén con horas en grilla cobraba DOBLE. Se saca
+  // (junto con su duplicado huérfano más abajo, que ya no llegaba a
+  // ningún lado desde que existe filasConsolidadas). El padrón/vista de
+  // Retenes ahora es puramente informativo — ver src/modules/retenes/.
 
   // 5. Mantenimiento — solo visible para Admin, RRHH, Finanzas, Operaciones
   if(!esSupervisor)
@@ -8855,50 +8810,6 @@ function renderLiquidaciones(){
   });
   const filasConsolidadas = Object.values(filasMap);
 
-
-  // 4. Retenes — solo visible para Admin, RRHH, Finanzas, Operaciones
-  if(!esSupervisor){
-    const horasSvc = getHorasRetenDeServicios(mes);
-    // Combinar retenes registrados + los que vienen solo de servicios
-    const todosRetLiq = [...(DB.retenes||[]).filter(r=>r.activo)];
-    Object.keys(horasSvc).forEach(nombre=>{
-      if(!todosRetLiq.find(r=>r.nombre===nombre)){
-        todosRetLiq.push({id:'svc_'+nombre.replace(/\s/g,'_'), nombre,
-          categoriBase: horasSvc[nombre].categoria||'Operario/a limpieza', activo:true});
-      }
-    });
-    todosRetLiq.forEach(r=>{
-      const diasR = getDiasDelMes(mes);
-      const HS_MINIMO = 200;
-      let hsReales=0, rechazos=0;
-      diasR.forEach(d=>{
-        // Horas manuales en el módulo Retenes
-        const vm = DB.retenHoras?.[mes]?.[r.id]?.[d.iso];
-        const hm = parseFloat(vm?.hs||0);
-        if(hm>0) hsReales+=hm;
-        if(String(vm?.hs||'').toUpperCase()==='AI') rechazos++;
-        // Horas del servicio (tipo retén)
-        const hsSvcDia = horasSvc[r.nombre]?.horas?.[d.iso];
-        const hsr = parseFloat(hsSvcDia||0);
-        if(hsr>0) hsReales+=hsr;
-        if(String(hsSvcDia||'').toUpperCase()==='AI') rechazos++;
-      });
-      const hsCobrar = Math.max(hsReales, HS_MINIMO - rechazos*8);
-      const vh = getCategoriaVH(r.categoriBase||'');
-      const bruto = Math.round(hsCobrar * vh);
-      filas.push({
-        nombre: r.nombre,
-        categoria: r.categoriBase||'—',
-        area: 'Retenes',
-        fuente: 'Retén',
-        hsTotal: hsCobrar,
-        hsExtra: Math.max(0, hsReales - HS_MINIMO),
-        bruto,
-        valorHora: vh,
-        detalleFuentes: [{fuente:'Retén', bruto, hs:hsCobrar, hsReales, rechazos}],
-      });
-    });
-  }
   // ── Calcular antigüedad, presentismo y descuentos por fila consolidada ──
   filasConsolidadas.forEach(f=>{
     const legajo = (DB.legajos||[]).find(l=>l.nombre===f.nombre);
@@ -9111,126 +9022,10 @@ function renderLiquidaciones(){
 
 // Ver la grilla de días de un asociado en un servicio específico
 
-// Ver la grilla de días de un retén desde el detalle de liquidaciones
-function verGrillaRetenDetalle(nombre, mes){
-  const reten = (DB.retenes||[]).find(r=>r.nombre===nombre&&r.activo);
-  if(!reten){ toast('No se encontró el retén '+nombre); return; }
-
-  const dias = getDiasDelMes(mes);
-  const dN = ['D','L','M','X','J','V','S'];
-  const HS_MINIMO = 200;
-  let hsReales=0, rechazos=0, totalMonto=0;
-
-  // Fila de horas
-  const headerCols = dias.map(dia=>{
-    const dow = new Date(dia.iso+'T12:00:00').getDay();
-    const bg = dia.esFeriado?'background:#ffe4e6;color:#111;':dia.esFinde?'background:#ffff00;color:#111;':'';
-    return`<th style="padding:4px 2px;border:1px solid #6b7280;text-align:center;min-width:34px;font-size:10px;${bg}">
-      <div style="font-weight:800;">${dN[dow]}</div>
-      <div>${dia.d}</div>
-    </th>`;
-  }).join('');
-
-  const filaHoras = dias.map(dia=>{
-    const celda = DB.retenHoras?.[mes]?.[reten.id]?.[dia.iso]||{};
-    const rawHs = celda.hs||'';
-    const catAlt = celda.catAlt||'';
-    const esEsp = ['F','AJ','AI'].includes(String(rawHs).toUpperCase());
-    const h = esEsp?0:parseFloat(rawHs||0);
-    const dispVal = esEsp?String(rawHs).toUpperCase():(h||'');
-    if(h>0) hsReales+=h;
-    if(String(rawHs).toUpperCase()==='AI') rechazos++;
-    const dow = new Date(dia.iso+'T12:00:00').getDay();
-    const bg = dia.esFeriado?'background:#ffe4e6;':dia.esFinde?'background:#fefce8;':'';
-    const color = esEsp&&String(rawHs).toUpperCase()==='F'?'color:#7c3aed;font-weight:700'
-      :esEsp&&String(rawHs).toUpperCase()==='AJ'?'color:#d97706;font-weight:700'
-      :esEsp?'color:#dc2626;font-weight:700'
-      :catAlt?'color:#7c3aed;font-weight:600'
-      :h>0?'color:#1d4ed8;font-weight:600':'color:#d1d5db';
-    return`<td style="padding:4px 2px;border:1px solid #e5e7eb;text-align:center;font-size:12px;${bg}${color}">
-      ${dispVal}${h>0&&!esEsp?'hs':''}
-      ${catAlt?`<div style="font-size:8px;color:#7c3aed;">${catAlt.substring(0,4)}</div>`:''}
-    </td>`;
-  }).join('');
-
-  // Fila de montos
-  const vh = getCategoriaVH(reten.categoriBase||'');
-  const filaMonto = dias.map(dia=>{
-    const celda = DB.retenHoras?.[mes]?.[reten.id]?.[dia.iso]||{};
-    const rawHs = celda.hs||'';
-    const catAlt = celda.catAlt||'';
-    const esEsp = ['F','AJ','AI'].includes(String(rawHs).toUpperCase());
-    const h = esEsp?0:parseFloat(rawHs||0);
-    const vhDia = catAlt ? getCategoriaVH(catAlt) : vh;
-    const m = h>0?Math.round(h*vhDia):0;
-    if(m>0) totalMonto+=m;
-    const dow = new Date(dia.iso+'T12:00:00').getDay();
-    const bg = dia.esFeriado?'background:#ffe4e6;':dia.esFinde?'background:#fefce8;':'';
-    return`<td style="padding:4px 2px;border:1px solid #e5e7eb;text-align:center;font-size:10px;${bg}color:${m>0?'#065f46':'#d1d5db'};">
-      ${m>0?'$'+m.toLocaleString('es-AR'):'—'}
-    </td>`;
-  }).join('');
-
-  const descRechazos = rechazos*8;
-  const hsCobrar = Math.max(hsReales, HS_MINIMO - descRechazos);
-  const totalFinal = Math.round(hsCobrar * vh);
-
-  const grillaHTML = `
-    <div style="margin-bottom:8px;">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;flex-wrap:wrap;gap:8px;">
-        <div style="font-size:13px;font-weight:700;color:#0369a1;">🔄 Planilla de retén — ${reten.categoriBase||'—'}</div>
-        <div style="font-size:11px;color:var(--texto-suave);">$${vh.toLocaleString('es-AR')}/h base</div>
-      </div>
-      ${rechazos>0?`<div style="background:#fee2e2;border:1px solid #fca5a5;border-radius:6px;padding:8px 12px;font-size:12px;color:#dc2626;margin-bottom:8px;">
-        ⚠️ <strong>${rechazos} rechazo${rechazos>1?'s':''}</strong> — descuento de ${descRechazos}hs del contrato
-      </div>`:''}
-      <div class="tabla-wrap" style="overflow-x:auto;">
-        <table style="border-collapse:collapse;font-size:12px;white-space:nowrap;">
-          <thead>
-            <tr style="background:#374151;color:white;">
-              <th style="padding:6px 10px;border:1px solid #6b7280;text-align:left;min-width:80px;position:sticky;left:0;background:#374151;z-index:2;">Concepto</th>
-              ${headerCols}
-              <th style="padding:6px 8px;border:1px solid #6b7280;min-width:80px;text-align:right;background:#1d4ed8;color:white;">Total</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td style="padding:5px 10px;border:1px solid #e5e7eb;font-weight:600;font-size:11px;position:sticky;left:0;background:white;z-index:1;">Horas</td>
-              ${filaHoras}
-              <td style="padding:5px 8px;border:1px solid #e5e7eb;text-align:right;font-weight:700;color:#1d4ed8;">${hsReales}hs reales</td>
-            </tr>
-            <tr style="background:#f9fafb;">
-              <td style="padding:5px 10px;border:1px solid #e5e7eb;font-weight:600;font-size:11px;position:sticky;left:0;background:#f9fafb;z-index:1;">Monto</td>
-              ${filaMonto}
-              <td style="padding:5px 8px;border:1px solid #e5e7eb;text-align:right;font-weight:700;color:#065f46;">$${totalMonto.toLocaleString('es-AR')}</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:12px;font-size:12px;">
-        <div style="background:#eff6ff;border-radius:8px;padding:8px;text-align:center;">
-          <div style="color:var(--texto-suave);font-size:10px;">Hs reales</div>
-          <div style="font-weight:700;color:#1d4ed8;">${hsReales}hs</div>
-        </div>
-        <div style="background:#${hsReales<HS_MINIMO?'fef3c7':'f0fdf4'};border-radius:8px;padding:8px;text-align:center;">
-          <div style="color:var(--texto-suave);font-size:10px;">Hs a cobrar</div>
-          <div style="font-weight:700;color:#${hsReales<HS_MINIMO?'92400e':'065f46'};">
-            ${hsCobrar}hs ${hsReales<HS_MINIMO?'(mín. garantizado)':''}
-          </div>
-        </div>
-        <div style="background:#f0fdf4;border-radius:8px;padding:8px;text-align:center;">
-          <div style="color:var(--texto-suave);font-size:10px;">Total a pagar</div>
-          <div style="font-weight:700;color:#065f46;">$${totalFinal.toLocaleString('es-AR')}</div>
-        </div>
-      </div>
-    </div>`;
-
-  $('det-grilla-titulo').textContent = nombre + ' — Retén';
-  $('det-grilla-periodo').textContent = new Date(mes+'-02').toLocaleDateString('es-AR',{month:'long',year:'numeric'});
-  $('det-grilla-body').innerHTML = grillaHTML;
-  abrirModal('modal-detalle-grilla-lqs');
-}
-
+// verGrillaRetenDetalle: eliminada (ticket "Módulo Retenes" 18/09) —
+// junto con el mínimo garantizado, ya no hay una "planilla de retén"
+// aparte para ver acá; sus horas están en la grilla del servicio como
+// las de cualquiera.
 function verGrillaServicioDetalle(nombre, mes, servicioDesc, detalleIdx){
   const grilla = (DB.grillasLiq||[]).find(g=>
     g.periodo===mes && (g.nombre===servicioDesc || g.objCodigo===servicioDesc)
@@ -9479,23 +9274,10 @@ function _getFilasConsolidadas(mes){
     if(existing){existing.bruto+=bruto;existing.neto+=bruto;}
     else filas.push({nombre:p.nombre,bruto,neto:bruto});
   });
-  (DB.retenes||[]).filter(r=>r.activo).forEach(r=>{
-    const diasR=getDiasDelMes(mes);
-    const HS_MINIMO=200;
-    let hsReales=0,rechazos=0;
-    diasR.forEach(d=>{
-      const v=DB.retenHoras?.[mes]?.[r.id]?.[d.iso];
-      const h=parseFloat(v?.hs||0);if(h>0)hsReales+=h;
-      if(String(v?.hs||'').toUpperCase()==='AI')rechazos++;
-    });
-    const hsCobrar=Math.max(hsReales,HS_MINIMO-rechazos*8);
-    const bruto=Math.round(hsCobrar*getCategoriaVH(r.categoriBase||''));
-    const totalDesc=_totalDescLegajo(r.nombre, mes, bruto);
-    const neto=Math.round(bruto*1.03-totalDesc);
-    const existing=filas.find(f=>f.nombre===r.nombre);
-    if(existing){existing.bruto+=bruto;existing.neto+=neto;}
-    else filas.push({nombre:r.nombre,bruto,neto});
-  });
+  // Retenes: sacado (ver comentario en renderLiquidaciones) — sus horas en
+  // grilla ya se cuentan arriba junto con el resto de Servicios; este
+  // bloque las volvía a sumar con un mínimo garantizado que ya no
+  // corresponde, pagando doble.
   // Mantenimiento
   (DB.mantPersonal||[]).filter(r=>r.activo).forEach(r=>{
     const diasM=getDiasDelMes(mes);
@@ -9707,33 +9489,10 @@ function verDetalleLqs(nombre, mes){
     });
   });
 
-  // 4. Retenes
-  const reten = (DB.retenes||[]).find(r=>r.nombre===nombre&&r.activo);
-  if(reten){
-    const dias = getDiasDelMes(mes);
-    const HS_MINIMO = 200;
-    let hsReales=0, rechazos=0;
-    dias.forEach(d=>{
-      const v = DB.retenHoras?.[mes]?.[reten.id]?.[d.iso];
-      const h = parseFloat(v?.hs||0);
-      if(h>0) hsReales+=h;
-      if(String(v?.hs||'').toUpperCase()==='AI') rechazos++;
-    });
-    const descRechazos = rechazos*8;
-    const hsCobrar = Math.max(hsReales, HS_MINIMO - descRechazos);
-    const vh = getCategoriaVH(reten.categoriBase||'');
-    detalles.push({
-      fuente: 'Retén',
-      descripcion: 'Disponibilidad + coberturas',
-      categoria: reten.categoriBase||'—',
-      hs: hsCobrar,
-      hsReales,
-      rechazos,
-      valorHora: vh,
-      bruto: Math.round(hsCobrar * vh),
-      horasFijas: HS_MINIMO,
-    });
-  }
+  // Retenes: sacado de acá (ticket "Módulo Retenes" 18/09) — sus horas ya
+  // aparecen arriba como una fila de Servicio más (cobran igual que
+  // cualquier asociado, sin mínimo garantizado). Ver src/modules/retenes/
+  // para el detalle de cobertura del mes.
 
   if(!detalles.length){ toast('Sin detalle disponible para '+nombre); return; }
 
@@ -9745,11 +9504,10 @@ function verDetalleLqs(nombre, mes){
   const detalleHTML = detalles.map((d,di)=>{
     // Solo los servicios son clickeables para ver la grilla de días
     const esServicio = d.fuente === 'Servicio';
-    const esReten = d.fuente === 'Retén';
     const esMant = d.fuente === 'Mantenimiento';
-    const esClickeable = esServicio || esReten || esMant;
+    const esClickeable = esServicio || esMant;
     const clickStyle = esClickeable ? 'cursor:pointer;' : '';
-    const clickHandler = esMant ? `onclick="verGrillaMantDetalle('${nombre}','${mes}')"` : esReten ? `onclick="verGrillaRetenDetalle('${nombre}','${mes}')"` : esServicio ? `onclick="verGrillaServicioDetalle('${nombre}','${mes}','${d.descripcion.replace(/'/g,"\\'")}',${di})"` : '';
+    const clickHandler = esMant ? `onclick="verGrillaMantDetalle('${nombre}','${mes}')"` : esServicio ? `onclick="verGrillaServicioDetalle('${nombre}','${mes}','${d.descripcion.replace(/'/g,"\\'")}',${di})"` : '';
     const hint = esClickeable ? '<span style="font-size:10px;color:#93c5fd;margin-left:6px;">👁 Ver grilla de días</span>' : '';
     return `
     <div style="background:#f8f9fd;border:1px solid var(--borde);border-radius:10px;padding:14px 16px;margin-bottom:10px;${clickStyle}"
@@ -9858,94 +9616,10 @@ function exportarLiquidacion(){
 // MÓDULO RETENES
 // ══════════════════════════════════════════════════════════
 
-let _retTabActual = 'planilla';
-
-
-// ── Carga rápida para retenes ──
-let _crrPendiente = null; // {mes, retenId, nombre}
-
-function abrirCargaRapidaReten(mes, retenId, nombre){
-  _crrPendiente = {mes, retenId, nombre};
-  if($('crr-nombre')) $('crr-nombre').textContent = nombre;
-
-  // Setear fechas del mes
-  const [y,m] = mes.split('-');
-  const primerDia = mes+'-01';
-  const ultimoDia = new Date(parseInt(y), parseInt(m), 0).toISOString().slice(0,10);
-  if($('crr-desde')) $('crr-desde').value = primerDia;
-  if($('crr-hasta')) $('crr-hasta').value = ultimoDia;
-  if($('crr-horas')) $('crr-horas').value = '8';
-
-  // Checkboxes días en true por defecto
-  ['lunes','martes','miercoles','jueves','viernes'].forEach(d=>{
-    const el=$('crr-'+d); if(el) el.checked=true;
-  });
-  ['sabados','domingos','feriados'].forEach(d=>{
-    const el=$('crr-'+d); if(el) el.checked=false;
-  });
-
-  // Poblar select de categoría alternativa
-  const selCat = $('crr-cat-alt');
-  if(selCat){
-    const cats = (DB.categoriasSind||[]).map(c=>c.nombre).filter(Boolean);
-    selCat.innerHTML = '<option value="">— Sin alternativa (usa categoría base) —</option>' +
-      cats.map(c=>`<option value="${c}">${c}</option>`).join('');
-  }
-
-  abrirModal('modal-carga-rapida-reten');
-}
-
-function confirmarCargaRapidaReten(){
-  if(!_crrPendiente) return;
-  const {mes, retenId, nombre} = _crrPendiente;
-
-  const desde     = $('crr-desde')?.value;
-  const hasta     = $('crr-hasta')?.value;
-  const horas     = parseFloat($('crr-horas')?.value)||8;
-  const lunes     = $('crr-lunes')?.checked !== false;
-  const martes    = $('crr-martes')?.checked !== false;
-  const miercoles = $('crr-miercoles')?.checked !== false;
-  const jueves    = $('crr-jueves')?.checked !== false;
-  const viernes   = $('crr-viernes')?.checked !== false;
-  const sabados   = $('crr-sabados')?.checked || false;
-  const domingos  = $('crr-domingos')?.checked || false;
-  const inclFeriados = $('crr-feriados')?.checked || false;
-  const catAlt    = $('crr-cat-alt')?.value || '';
-
-  if(!desde||!hasta){toast('Completá las fechas');return;}
-  if(horas<=0){toast('Ingresá las horas por día');return;}
-
-  const diasActivos = [
-    domingos?0:-1, lunes?1:-1, martes?2:-1, miercoles?3:-1,
-    jueves?4:-1, viernes?5:-1, sabados?6:-1
-  ].filter(d=>d>=0);
-
-  if(!diasActivos.length){toast('Seleccioná al menos un día');return;}
-
-  if(!DB.retenHoras[mes]) DB.retenHoras[mes]={};
-  if(!DB.retenHoras[mes][retenId]) DB.retenHoras[mes][retenId]={};
-
-  const feriados = (DB.feriados||[]).map(f=>f.fecha);
-  const d1 = new Date(desde+'T12:00:00');
-  const d2 = new Date(hasta+'T12:00:00');
-  let count = 0;
-
-  for(let d=new Date(d1); d<=d2; d.setDate(d.getDate()+1)){
-    const iso = d.toISOString().slice(0,10);
-    const dow = d.getDay();
-    const esFeriado = feriados.includes(iso);
-    if(esFeriado && !inclFeriados) continue;
-    if(!diasActivos.includes(dow)) continue;
-    DB.retenHoras[mes][retenId][iso] = {hs: horas, catAlt};
-    count++;
-  }
-
-  syncPeriodoReten(mes, retenId);
-  cerrarModal('modal-carga-rapida-reten');
-  toast('⚡ '+count+' días cargados para '+nombre+(catAlt?' (cat. alternativa: '+catAlt+')':''));
-  renderRetenes();
-}
-
+// Retenes: la carga rápida/manual de horas vivía acá — eliminada (ticket
+// "Módulo Retenes" 18/09, ver src/modules/retenes/). El retén ya no tiene
+// alta ni carga propia: cobra por lo que los supervisores le cargan en
+// las grillas, como cualquier asociado.
 
 // ══════════════════════════════════════════════════════════
 // MÓDULO MANTENIMIENTO
@@ -10355,343 +10029,10 @@ function verGrillaMantDetalle(nombre, mes){
   abrirModal('modal-detalle-grilla-lqs');
 }
 
-function tabRetenes(tab, btn){
-  document.querySelectorAll('#screen-retenes .tab-content').forEach(t=>t.classList.remove('active'));
-  document.querySelectorAll('#screen-retenes .tab-btn').forEach(b=>b.classList.remove('active'));
-  const el = $('ret-tab-'+tab); if(el) el.classList.add('active');
-  if(btn) btn.classList.add('active');
-  _retTabActual = tab;
-  if(tab==='planilla') renderRetenes();
-  if(tab==='resumen')  renderRetenResumen();
-}
-
-
-// ── Obtener horas de retén cargadas en grillas de servicios por asociado ──
-// Retorna: {[nombre]: {[fechaISO]: horas}} para todos los asociados con tipo "reten"
-function getHorasRetenDeServicios(mes){
-  const resultado = {};
-  const grillasDelMes = (DB.grillasLiq||[]).filter(g=>g.periodo===mes);
-  grillasDelMes.forEach(grilla=>{
-    (grilla.asociados||[]).forEach(asoc=>{
-      if(asoc.tipoHora !== 'reten') return;
-      if(!resultado[asoc.nombre]) resultado[asoc.nombre] = {nombre: asoc.nombre, categoria: asoc.categoria, horas:{}};
-      const dias = getDiasDelMes(mes);
-      dias.forEach(dia=>{
-        const rawVal = asoc.horas?.[dia.iso];
-        const esEsp = ['F','AJ','AI'].includes(String(rawVal||'').toUpperCase());
-        const h = esEsp ? 0 : parseFloat(rawVal||0);
-        if(h > 0){
-          resultado[asoc.nombre].horas[dia.iso] = (resultado[asoc.nombre].horas[dia.iso]||0) + h;
-        }
-        if(String(rawVal||'').toUpperCase()==='AI'){
-          resultado[asoc.nombre].horas[dia.iso] = 'AI'; // rechazo
-        }
-      });
-    });
-  });
-  return resultado;
-}
-
-function renderRetenes(){
-  // Asegurar tab activo
-  const tabActivo = $('ret-tab-'+(_retTabActual||'planilla'));
-  if(tabActivo && !tabActivo.classList.contains('active')){
-    tabActivo.classList.add('active');
-    document.querySelectorAll('#screen-retenes .tab-btn').forEach((b,i)=>{
-      if(i===0&&(_retTabActual||'planilla')==='planilla') b.classList.add('active');
-      if(i===1&&_retTabActual==='resumen') b.classList.add('active');
-    });
-  }
-  const sel = $('ret-mes-sel');
-  if(sel && !sel.options.length){
-    const hoy = new Date();
-    for(let i=-2;i<=3;i++){
-      const d = new Date(hoy.getFullYear(), hoy.getMonth()+i, 1);
-      const val = d.toISOString().slice(0,7);
-      const label = d.toLocaleDateString('es-AR',{month:'long',year:'numeric'});
-      const opt = document.createElement('option');
-      opt.value=val; opt.textContent=label;
-      if(i===0) opt.selected=true;
-      sel.appendChild(opt);
-    }
-  }
-  const mes = $('ret-mes-sel')?.value || new Date().toISOString().slice(0,7);
-  if(!DB.retenHoras[mes]) DB.retenHoras[mes]={};
-  const dias = getDiasDelMes(mes);
-  const dN = ['D','L','M','X','J','V','S'];
-  const HS_MINIMO = 200;
-  const cats = (DB.categoriasSind||[]).map(c=>c.nombre).filter(Boolean);
-
-  // ── Obtener retenes de DB + los que vienen de grillas de servicios ──
-  const horasDeServicio = getHorasRetenDeServicios(mes);
-
-  // Combinar: retenes registrados en DB + asociados con tipo reten en servicios
-  const retenesManuales = (DB.retenes||[]).filter(r=>r.activo);
-  const nombresEnServicio = Object.keys(horasDeServicio);
-
-  // Todos los retenes únicos (manual + servicio)
-  const todosRetenes = [...retenesManuales];
-  nombresEnServicio.forEach(nombre=>{
-    if(!todosRetenes.find(r=>r.nombre===nombre)){
-      // Agregar como retén temporal (viene solo de servicios)
-      todosRetenes.push({
-        id: 'svc_'+nombre.replace(/\s/g,'_'),
-        nombre,
-        nroSocio: '',
-        categoriBase: horasDeServicio[nombre].categoria||'Operario/a limpieza',
-        activo: true,
-        soloServicio: true, // flag para indicar que viene de servicios
-      });
-    }
-  });
-
-  // Stats
-  let totalHs=0, cobranMinimo=0, rechazos=0;
-  todosRetenes.forEach(r=>{
-    let hsR=0;
-    dias.forEach(d=>{
-      // Horas manuales
-      const vm = DB.retenHoras[mes][r.id]?.[d.iso];
-      const hm = parseFloat(vm?.hs||0);
-      // Horas de servicio
-      const hs = horasDeServicio[r.nombre]?.horas?.[d.iso];
-      const hsr = parseFloat(hs||0);
-      const h = hm + (isNaN(hsr)?0:hsr);
-      if(h>0) hsR+=h;
-      if(String(vm?.hs||'').toUpperCase()==='AI'||String(hs||'').toUpperCase()==='AI') rechazos++;
-    });
-    totalHs+=hsR;
-    if(hsR<HS_MINIMO) cobranMinimo++;
-  });
-  if($('st-ret-total'))    $('st-ret-total').textContent    = todosRetenes.length;
-  if($('st-ret-hs'))       $('st-ret-hs').textContent       = totalHs+'hs';
-  if($('st-ret-minimo'))   $('st-ret-minimo').textContent   = cobranMinimo;
-  if($('st-ret-rechazos')) $('st-ret-rechazos').textContent = rechazos;
-
-  const thead = $('thead-ret');
-  const tbody = $('tbody-ret');
-  if(!thead||!tbody) return;
-
-  thead.innerHTML = `<tr style="background:#374151;color:white;">
-    <th style="padding:8px 14px;border:1px solid #6b7280;text-align:left;min-width:180px;position:sticky;left:0;background:#374151;z-index:3;">Retén</th>
-    <th style="padding:8px;border:1px solid #6b7280;min-width:180px;">Categoría base</th>
-    ${dias.map(dia=>{
-      const dow=new Date(dia.iso+'T12:00:00').getDay();
-      const bg=dia.esFeriado?'background:#ffe4e6;color:#111;font-weight:800;':dia.esFinde?'background:#ffff00;color:#111;font-weight:700;':'';
-      return`<th style="padding:4px 2px;border:1px solid #6b7280;text-align:center;min-width:32px;font-size:10px;${bg}">
-        <div>${dN[dow]}</div><div style="font-weight:800;">${dia.d}</div></th>`;
-    }).join('')}
-    <th style="padding:8px;border:1px solid #6b7280;text-align:right;min-width:60px;">Hs serv.</th>
-    <th style="padding:8px;border:1px solid #6b7280;text-align:right;min-width:60px;">Hs manual</th>
-    <th style="padding:8px;border:1px solid #6b7280;text-align:right;min-width:75px;">Hs a cobrar</th>
-    <th style="padding:8px;border:1px solid #6b7280;text-align:right;min-width:80px;">Valor/h</th>
-    <th style="padding:8px;border:1px solid #6b7280;text-align:right;min-width:110px;background:#065f46;color:white;">Total a pagar</th>
-  </tr>`;
-
-  if(!todosRetenes.length){
-    tbody.innerHTML=`<tr><td colspan="100" style="padding:40px;text-align:center;color:var(--texto-muy-suave);">
-      Sin retenes activos. Agregá un retén o asigná tipo "Retén" en una grilla de servicios.
-    </td></tr>`;
-    return;
-  }
-
-  tbody.innerHTML = todosRetenes.map(r=>{
-    if(!DB.retenHoras[mes][r.id]) DB.retenHoras[mes][r.id]={};
-    let hsServicio=0, hsManual=0, diasRechazados=0;
-
-    const celdas = dias.map(dia=>{
-      // Horas del servicio (solo lectura, fondo verde claro)
-      const hsvcVal = horasDeServicio[r.nombre]?.horas?.[dia.iso];
-      const esRechSvc = String(hsvcVal||'').toUpperCase()==='AI';
-      const hSvc = esRechSvc ? 0 : parseFloat(hsvcVal||0);
-      if(hSvc>0) hsServicio+=hSvc;
-
-      // Horas manuales (editables)
-      const celda = DB.retenHoras[mes][r.id][dia.iso]||{};
-      const rawHs = celda.hs||'';
-      const catAlt = celda.catAlt||'';
-      const esEsp = ['F','AJ','AI'].includes(String(rawHs).toUpperCase());
-      const hMan = esEsp?0:parseFloat(rawHs||0);
-      if(hMan>0) hsManual+=hMan;
-      if(esRechSvc||String(rawHs).toUpperCase()==='AI') diasRechazados++;
-
-      const dow = new Date(dia.iso+'T12:00:00').getDay();
-      const bgBase = dia.esFeriado?'#ffe4e6':dia.esFinde?'#fefce8':'white';
-
-      // Celda dividida: servicio (arriba, solo lectura) + manual (abajo, editable)
-      const dispSvc = esRechSvc?'AI':hSvc>0?hSvc+'hs':'';
-      const colorSvc = esRechSvc?'color:#dc2626;font-weight:700':hSvc>0?'color:#059669;font-weight:600':'color:#d1d5db';
-      const dispMan = esEsp?String(rawHs).toUpperCase():(hMan||'');
-      const colorMan = esEsp&&rawHs==='F'?'color:#7c3aed;font-weight:700'
-        :esEsp&&rawHs==='AJ'?'color:#d97706;font-weight:700'
-        :esEsp?'color:#dc2626;font-weight:700'
-        :hMan>0?'color:#1d4ed8;font-weight:600':'color:#d1d5db';
-
-      return`<td style="border:1px solid var(--borde);background:${bgBase};padding:1px;min-width:32px;">
-        ${dispSvc?`<div style="font-size:10px;text-align:center;${colorSvc};border-bottom:1px dashed #d1fae5;padding:1px 0;" title="Cargado en servicio">${dispSvc}</div>`:''}
-        <input type="text" value="${dispMan}"
-          style="width:28px;${colorMan};border:none;background:transparent;text-align:center;font-size:11px;outline:none;padding:1px 0;text-transform:uppercase;display:block;margin:0 auto;"
-          onchange="setHoraReten('${mes}','${r.id}','${dia.iso}',this.value)">
-        ${catAlt?`<div style="font-size:8px;color:#7c3aed;text-align:center;">${catAlt.substring(0,3)}</div>`:''}
-      </td>`;
-    }).join('');
-
-    const hsTotal = hsServicio + hsManual;
-    const hsCobrar = Math.max(hsTotal, HS_MINIMO - diasRechazados*8);
-    const vh = getCategoriaVH(r.categoriBase||'');
-    const total = Math.round(hsCobrar * vh);
-
-    return`<tr>
-      <td style="padding:5px 12px;border:1px solid var(--borde);font-size:12px;font-weight:500;position:sticky;left:0;background:white;z-index:1;">
-        <div style="display:flex;align-items:center;justify-content:space-between;gap:6px;">
-          <div>
-            ${r.nombre}
-            ${r.soloServicio?'<span style="font-size:9px;background:#dcfce7;color:#065f46;border-radius:4px;padding:1px 5px;margin-left:4px;">Desde servicio</span>':''}
-            ${diasRechazados>0?`<span style="font-size:9px;background:#fee2e2;color:#dc2626;border-radius:4px;padding:1px 4px;margin-left:4px;">${diasRechazados} rechazo${diasRechazados>1?'s':''}</span>`:''}
-          </div>
-          ${!r.soloServicio?`<button title="Carga rápida" onclick="event.stopPropagation();abrirCargaRapidaReten('${mes}','${r.id}','${r.nombre}')"
-            style="background:#eff6ff;border:1px solid #bfdbfe;color:#1d4ed8;border-radius:6px;padding:2px 7px;font-size:11px;cursor:pointer;white-space:nowrap;">⚡ Rápido</button>`:''}
-        </div>
-      </td>
-      <td style="padding:4px 8px;border:1px solid var(--borde);">
-        <select style="font-size:11px;padding:2px;border:1px solid var(--borde-fuerte);border-radius:4px;width:100%;"
-          onchange="setCatBaseReten(${typeof r.id==='string'?'"'+r.id+'"':r.id},this.value)" ${r.soloServicio?'disabled':''}>
-          ${cats.map(c=>`<option value="${c}" ${c===r.categoriBase?'selected':''}>${c}</option>`).join('')}
-        </select>
-      </td>
-      ${celdas}
-      <td style="padding:4px 8px;border:1px solid var(--borde);text-align:right;font-size:11px;color:#059669;">${hsServicio>0?hsServicio+'hs':'—'}</td>
-      <td style="padding:4px 8px;border:1px solid var(--borde);text-align:right;font-size:11px;color:#1d4ed8;">${hsManual>0?hsManual+'hs':'—'}</td>
-      <td style="padding:4px 8px;border:1px solid var(--borde);text-align:right;font-weight:700;color:#1d4ed8;">
-        ${hsCobrar}hs${hsTotal<HS_MINIMO?`<div style="font-size:9px;color:var(--naranja);">mín. garantizado</div>`:''}
-      </td>
-      <td style="padding:4px 8px;border:1px solid var(--borde);text-align:right;">$${vh.toLocaleString('es-AR')}</td>
-      <td style="padding:4px 8px;border:1px solid var(--borde);text-align:right;font-weight:700;color:white;background:#065f46;">$${total.toLocaleString('es-AR')}</td>
-    </tr>`;
-  }).join('');
-}
-
-
-function syncPeriodoReten(mes, retenId){
-  supaSync('retenHorasRows', {
-    id:idPersonaPeriodo(retenId,mes), personaIdLocal:idLocalTrunc(retenId), periodo:mes,
-    horas: DB.retenHoras?.[mes]?.[retenId]||{},
-  });
-}
-function setHoraReten(mes, retenId, fechaISO, valor){
-  if(!DB.retenHoras[mes]) DB.retenHoras[mes]={};
-  if(!DB.retenHoras[mes][retenId]) DB.retenHoras[mes][retenId]={};
-  const valStr = (valor||'').toString().trim().toUpperCase();
-  const esEsp = ['F','AJ','AI'].includes(valStr);
-  DB.retenHoras[mes][retenId][fechaISO] = {
-    hs: esEsp ? valStr : (parseFloat(valor)||0),
-    catAlt: DB.retenHoras[mes][retenId][fechaISO]?.catAlt||'',
-  };
-  syncPeriodoReten(mes, retenId);
-  renderRetenes();
-}
-
-function setCatBaseReten(id, cat){
-  const r=(DB.retenes||[]).find(x=>x.id===id);
-  if(r){ r.categoriBase=cat; supaSync('retenes', r); renderRetenes(); }
-}
-
-// ── Resumen de pago ──
-function renderRetenResumen(){
-  const mes = $('ret-mes-sel')?.value || new Date().toISOString().slice(0,7);
-  const horasSvcRes = getHorasRetenDeServicios(mes);
-  const retenesBD = (DB.retenes||[]).filter(r=>r.activo);
-  const retenes = [...retenesBD];
-  Object.keys(horasSvcRes).forEach(nombre=>{
-    if(!retenes.find(r=>r.nombre===nombre))
-      retenes.push({id:'svc_'+nombre.replace(/\s/g,'_'), nombre,
-        categoriBase:horasSvcRes[nombre].categoria||'Operario/a limpieza', activo:true, soloServicio:true});
-  });
-  const dias = getDiasDelMes(mes);
-  const HS_MINIMO = 200;
-  const thead = $('thead-ret-resumen');
-  const tbody = $('tbody-ret-resumen');
-  if(!thead||!tbody) return;
-
-  thead.innerHTML = `<tr style="background:#374151;color:white;">
-    <th style="padding:8px 14px;border:1px solid #6b7280;text-align:left;">Retén</th>
-    <th style="padding:8px;border:1px solid #6b7280;">Categoría base</th>
-    <th style="padding:8px;border:1px solid #6b7280;text-align:right;">Hs reales</th>
-    <th style="padding:8px;border:1px solid #6b7280;text-align:right;">Rechazos</th>
-    <th style="padding:8px;border:1px solid #6b7280;text-align:right;">Desc. rechazos</th>
-    <th style="padding:8px;border:1px solid #6b7280;text-align:right;">Hs a cobrar</th>
-    <th style="padding:8px;border:1px solid #6b7280;text-align:right;">Valor/h</th>
-    <th style="padding:8px;border:1px solid #6b7280;text-align:right;background:#065f46;color:white;">Total a pagar</th>
-  </tr>`;
-
-  let grandTotal=0;
-  tbody.innerHTML = retenes.map(r=>{
-    let hsReales=0, rechazos=0;
-    dias.forEach(d=>{
-      const v=DB.retenHoras[mes]?.[r.id]?.[d.iso];
-      const h=parseFloat(v?.hs||0);
-      if(h>0) hsReales+=h;
-      if(String(v?.hs||'').toUpperCase()==='AI') rechazos++;
-    });
-    const descRechazos = rechazos*8;
-    const hsCobrar = Math.max(hsReales, HS_MINIMO-descRechazos);
-    const vh = getCategoriaVH(r.categoriBase||'');
-    const total = Math.round(hsCobrar*vh);
-    grandTotal+=total;
-    const cobrandoMinimo = hsReales<HS_MINIMO;
-    return`<tr>
-      <td style="padding:6px 14px;border:1px solid var(--borde);font-weight:500;">${r.nombre}</td>
-      <td style="padding:6px 8px;border:1px solid var(--borde);font-size:11px;">${r.categoriBase||'—'}</td>
-      <td style="padding:6px 8px;border:1px solid var(--borde);text-align:right;color:${cobrandoMinimo?'var(--naranja)':'var(--verde)'};">${hsReales}hs</td>
-      <td style="padding:6px 8px;border:1px solid var(--borde);text-align:right;color:${rechazos>0?'var(--rojo)':'var(--texto-suave)'};">${rechazos>0?rechazos+'d':'—'}</td>
-      <td style="padding:6px 8px;border:1px solid var(--borde);text-align:right;color:var(--rojo);">${descRechazos>0?'-'+descRechazos+'hs':'—'}</td>
-      <td style="padding:6px 8px;border:1px solid var(--borde);text-align:right;font-weight:700;color:#1d4ed8;">
-        ${hsCobrar}hs ${cobrandoMinimo?'<span style="font-size:9px;color:var(--naranja);">(mín)</span>':''}
-      </td>
-      <td style="padding:6px 8px;border:1px solid var(--borde);text-align:right;">$${vh.toLocaleString('es-AR')}</td>
-      <td style="padding:6px 8px;border:1px solid var(--borde);text-align:right;font-weight:700;color:white;background:#065f46;">$${total.toLocaleString('es-AR')}</td>
-    </tr>`;
-  }).join('');
-
-  // Fila de total
-  tbody.innerHTML += `<tr style="background:#f0fdf4;font-weight:800;">
-    <td colspan="7" style="padding:8px 14px;border:1px solid var(--borde);text-align:right;font-size:13px;">TOTAL DEL MES</td>
-    <td style="padding:8px 14px;border:1px solid var(--borde);text-align:right;font-size:15px;color:white;background:#065f46;">$${grandTotal.toLocaleString('es-AR')}</td>
-  </tr>`;
-}
-
-// ── Modal nuevo retén ──
-function abrirModalNuevoReten(){
-  if($('nret-nombre'))   $('nret-nombre').value='';
-  if($('nret-nro'))      $('nret-nro').value='';
-  // Poblar categorías
-  const selCat=$('nret-cat-base');
-  if(selCat){
-    const cats=(DB.categoriasSind||[]).map(c=>c.nombre).filter(Boolean);
-    selCat.innerHTML=cats.map(c=>`<option value="${c}">${c}</option>`).join('');
-  }
-  // Poblar datalist de nombres desde legajos
-  const dl=$('dl-nret-nombre');
-  if(dl) dl.innerHTML=(DB.legajos||[]).filter(l=>l.estado==='Activo')
-    .map(l=>`<option value="${l.nombre}">${l.nombre} — ${l.nro}</option>`).join('');
-  abrirModal('modal-nuevo-reten');
-}
-
-function confirmarNuevoReten(){
-  const nombre=$('nret-nombre')?.value.trim();
-  const nro=$('nret-nro')?.value.trim();
-  const cat=$('nret-cat-base')?.value;
-  if(!nombre){toast('Ingresá el nombre del retén');return;}
-  const yaExiste=(DB.retenes||[]).find(r=>r.nombre===nombre&&r.activo);
-  if(yaExiste){toast('Este asociado ya está como retén activo');return;}
-  const nuevo={id:Date.now(),nombre,nroSocio:nro,categoriBase:cat||'Operario/a limpieza',activo:true};
-  DB.retenes.push(nuevo);
-  supaSync('retenes', nuevo);
-  cerrarModal('modal-nuevo-reten');
-  toast('✅ Retén agregado — '+nombre);
-  renderRetenes();
-}
-
+// Retenes: vista/planilla/resumen/alta manual — reemplazados por
+// src/modules/retenes/ (ticket "Módulo Retenes" 18/09). Ver ese módulo:
+// la lista sale sola de la categoría "Retén Hora Base" en el padrón, y
+// todo es de solo lectura contra las grillas de servicios.
 
 // ══════════════════════════════════════════════════════════
 // MÓDULO MONOTRIBUTOS
@@ -14855,10 +14196,10 @@ window._barraProgresoAdelantos = _barraProgresoAdelantos;
 window._calcEstadoAsociado = _calcEstadoAsociado;
 window._getFilasConsolidadas = _getFilasConsolidadas;
 window._registrarPagoAsociado = _registrarPagoAsociado;
+window.horasCobradasDia = horasCobradasDia;
 window._getPrimerRechazo = _getPrimerRechazo;
 window.abrirAgenteIA = abrirAgenteIA;
 window.abrirCargaRapidaMant = abrirCargaRapidaMant;
-window.abrirCargaRapidaReten = abrirCargaRapidaReten;
 window.abrirEditarVacAdmin = abrirEditarVacAdmin;
 window.abrirModalAjusteNivelacion = abrirModalAjusteNivelacion;
 window.abrirModalArt42 = abrirModalArt42;
@@ -14885,7 +14226,6 @@ window.abrirModalNuevaVigencia = abrirModalNuevaVigencia;
 window.abrirModalNuevoAdminLiq = abrirModalNuevoAdminLiq;
 window.abrirModalNuevoMant = abrirModalNuevoMant;
 window.abrirModalNuevoMonotributo = abrirModalNuevoMonotributo;
-window.abrirModalNuevoReten = abrirModalNuevoReten;
 window.abrirModalNuevoSuplemento = abrirModalNuevoSuplemento;
 window.abrirModalParitaria = abrirModalParitaria;
 window.abrirModalPropuestaPrecio = abrirModalPropuestaPrecio;
@@ -14970,12 +14310,10 @@ window.cfgTab = cfgTab;
 window.confirmarAgregarAsoc = confirmarAgregarAsoc;
 window.confirmarAjusteNivelacion = confirmarAjusteNivelacion;
 window.confirmarCargaRapidaMant = confirmarCargaRapidaMant;
-window.confirmarCargaRapidaReten = confirmarCargaRapidaReten;
 window.confirmarImportacion = confirmarImportacion;
 window.confirmarMotivoTipo = confirmarMotivoTipo;
 window.confirmarNuevoAdminLiq = confirmarNuevoAdminLiq;
 window.confirmarNuevoMant = confirmarNuevoMant;
-window.confirmarNuevoReten = confirmarNuevoReten;
 window.confirmarNuevoSuplemento = confirmarNuevoSuplemento;
 window.confirmarBajaObjetivo = confirmarBajaObjetivo;
 window.confirmarSolicitudAsociado = confirmarSolicitudAsociado;
@@ -15032,7 +14370,6 @@ window.generarPropuestasClientes = generarPropuestasClientes;
 window.getCURPersona = getCURPersona;
 window.getCategoriaVH = getCategoriaVH;
 window.getCategoriasPorTipo = getCategoriasPorTipo;
-window.getHorasRetenDeServicios = getHorasRetenDeServicios;
 window.getLimiteCategoria = getLimiteCategoria;
 window.getNetoUltimoMes = getNetoUltimoMes;
 window.getProyeccionAnual = getProyeccionAnual;
@@ -15194,8 +14531,6 @@ window.renderReclamos = renderReclamos;
 window.renderRespObjetivoTemp = renderRespObjetivoTemp;
 window.renderResumenMes = renderResumenMes;
 window.renderResumenPlan = renderResumenPlan;
-window.renderRetenResumen = renderRetenResumen;
-window.renderRetenes = renderRetenes;
 window.renderSMVM = renderSMVM;
 window.renderStatsCRM = renderStatsCRM;
 window.renderStatsReclamos = renderStatsReclamos;
@@ -15212,7 +14547,6 @@ window.seleccionarAsocSearch = seleccionarAsocSearch;
 window.seleccionarTodasCategorias = seleccionarTodasCategorias;
 window.seleccionarTodosClientes = seleccionarTodosClientes;
 window.setCatBaseMant = setCatBaseMant;
-window.setCatBaseReten = setCatBaseReten;
 window.setDescuentoLqs = setDescuentoLqs;
 window.setHoraAdmin = setHoraAdmin;
 window.setHoraGrilla = setHoraGrilla;
@@ -15221,7 +14555,6 @@ window.verificarFilaHastaHoy = verificarFilaHastaHoy;
 window.verificarServicioHastaHoy = verificarServicioHastaHoy;
 window.observarCeldaGrilla = observarCeldaGrilla;
 window.setHoraMant = setHoraMant;
-window.setHoraReten = setHoraReten;
 window.setHoraSuplemento = setHoraSuplemento;
 window.setTipoAdmin = setTipoAdmin;
 window.setTipoHoraAsoc = setTipoHoraAsoc;
@@ -15260,7 +14593,6 @@ window.exportarMonoPagosCSV = exportarMonoPagosCSV;
 window.tabObjModal = tabObjModal;
 window.tabPrecios = tabPrecios;
 window.tabReclamos = tabReclamos;
-window.tabRetenes = tabRetenes;
 window.tabVacaciones = tabVacaciones;
 window.toggleActivoEFT = toggleActivoEFT;
 window.toggleActivoNF = toggleActivoNF;
@@ -15287,7 +14619,6 @@ window.verCliente = verCliente;
 window.verDetalleEvaluacion = verDetalleEvaluacion;
 window.verDetalleLqs = verDetalleLqs;
 window.verGrillaMantDetalle = verGrillaMantDetalle;
-window.verGrillaRetenDetalle = verGrillaRetenDetalle;
 window.verGrillaServicioDetalle = verGrillaServicioDetalle;
 window.verHistorialCat = verHistorialCat;
 window.verLead = verLead;

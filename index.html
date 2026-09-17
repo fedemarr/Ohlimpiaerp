@@ -3387,24 +3387,6 @@
     <div class="modal-footer" id="modal-cat-alt-footer"></div>
   </div>
   </div>
-  <div class="modal-overlay" id="modal-nuevo-reten">
-  <div class="modal" style="max-width:460px;">
-    <div class="modal-header"><h3>🔄 Nuevo retén</h3><button class="btn-close" onclick="cerrarModal('modal-nuevo-reten')">×</button></div>
-    <div class="modal-body">
-      <div class="form-grid gap-12">
-        <div class="form-group"><label>Nombre *</label><input type="text" id="nret-nombre" list="dl-nret-nombre" placeholder="Buscar en Personal..."><datalist id="dl-nret-nombre"></datalist></div>
-        <div class="form-grid form-grid-2">
-          <div class="form-group"><label>N° de socio</label><input type="text" id="nret-nro"></div>
-          <div class="form-group"><label>Categoría base</label><select id="nret-cat-base"></select></div>
-        </div>
-      </div>
-    </div>
-    <div class="modal-footer">
-      <button class="btn btn-secondary" onclick="cerrarModal('modal-nuevo-reten')">Cancelar</button>
-      <button class="btn btn-primary" onclick="confirmarNuevoReten()">Agregar</button>
-    </div>
-  </div>
-  </div>
   <div class="modal-overlay" id="modal-nuevo-mant">
   <div class="modal" style="max-width:460px;">
     <div class="modal-header"><h3>🔧 Nuevo técnico de mantenimiento</h3><button class="btn-close" onclick="cerrarModal('modal-nuevo-mant')">×</button></div>
@@ -3420,37 +3402,6 @@
     <div class="modal-footer">
       <button class="btn btn-secondary" onclick="cerrarModal('modal-nuevo-mant')">Cancelar</button>
       <button class="btn btn-primary" onclick="confirmarNuevoMant()">Agregar</button>
-    </div>
-  </div>
-  </div>
-  <div class="modal-overlay" id="modal-carga-rapida-reten">
-  <div class="modal" style="max-width:480px;">
-    <div class="modal-header"><h3>⚡ Carga rápida — <span id="crr-nombre"></span></h3><button class="btn-close" onclick="cerrarModal('modal-carga-rapida-reten')">×</button></div>
-    <div class="modal-body">
-      <div class="form-grid gap-12">
-        <div class="form-grid form-grid-3">
-          <div class="form-group"><label>Desde</label><input type="date" id="crr-desde"></div>
-          <div class="form-group"><label>Hasta</label><input type="date" id="crr-hasta"></div>
-          <div class="form-group"><label>Horas/día</label><input type="number" id="crr-horas" value="8"></div>
-        </div>
-        <div class="form-group"><label>Días de la semana</label>
-          <div style="display:flex;flex-wrap:wrap;gap:10px;font-size:12px;">
-            <label><input type="checkbox" id="crr-lunes"> Lun</label>
-            <label><input type="checkbox" id="crr-martes"> Mar</label>
-            <label><input type="checkbox" id="crr-miercoles"> Mié</label>
-            <label><input type="checkbox" id="crr-jueves"> Jue</label>
-            <label><input type="checkbox" id="crr-viernes"> Vie</label>
-            <label><input type="checkbox" id="crr-sabados"> Sáb</label>
-            <label><input type="checkbox" id="crr-domingos"> Dom</label>
-            <label><input type="checkbox" id="crr-feriados"> Feriados</label>
-          </div>
-        </div>
-        <div class="form-group"><label>Categoría alternativa</label><select id="crr-cat-alt"></select></div>
-      </div>
-    </div>
-    <div class="modal-footer">
-      <button class="btn btn-secondary" onclick="cerrarModal('modal-carga-rapida-reten')">Cancelar</button>
-      <button class="btn btn-primary" onclick="confirmarCargaRapidaReten()">Cargar</button>
     </div>
   </div>
   </div>
@@ -6354,48 +6305,42 @@
 
 
 <!-- RETENES -->
+<!-- RETENES v2 (ticket "Módulo Retenes" 18/09) — cobertura en tiempo real,
+     sin garantía de horas: el retén cobra por lo que los supervisores le
+     cargan en las grillas, como cualquier asociado. Pura lectura — no
+     hay alta ni carga acá; la lista sale sola de la categoría "Retén
+     Hora Base" del padrón (Categorías → Asociados). -->
 <div class="screen" id="screen-retenes">
+  <div class="alerta alerta-info" style="font-size:12.5px;">
+    <strong>El retén cobra por las horas que los supervisores le cargan en las grillas</strong> — este módulo no carga nada: lee y muestra. Sin garantía de horas (la garantía de 168hs es de Tareas Especiales, otro grupo). La corrección de cualquier dato se hace siempre en la grilla del servicio.
+  </div>
   <div class="stats-grid">
-    <div class="stat-card azul"><div class="stat-label">Retenes activos</div><div class="stat-valor" id="st-ret-total">0</div><div class="stat-sub">En nómina</div></div>
-    <div class="stat-card verde"><div class="stat-label">Total hs registradas</div><div class="stat-valor" id="st-ret-hs">0</div><div class="stat-sub">Mes seleccionado</div></div>
-    <div class="stat-card acento"><div class="stat-label">Cobran mínimo</div><div class="stat-valor" id="st-ret-minimo">0</div><div class="stat-sub">Con menos de 200hs</div></div>
-    <div class="stat-card rojo"><div class="stat-label">Rechazos (AI)</div><div class="stat-valor" id="st-ret-rechazos">0</div><div class="stat-sub">Días rechazados en el mes</div></div>
+    <div class="stat-card azul"><div class="stat-label">Retenes activos</div><div class="stat-valor" id="kpi-ret-activos">0</div><div class="stat-sub">Categoría Retén Hora Base</div></div>
+    <div class="stat-card verde"><div class="stat-label">HS del mes (en vivo)</div><div class="stat-valor" id="kpi-ret-hs" style="font-size:16px;">0 hs</div><div class="stat-sub">Con apertura fac. / no fac.</div></div>
+    <div class="stat-card acento"><div class="stat-label">Servicios cubiertos</div><div class="stat-valor" id="kpi-ret-servicios">0</div><div class="stat-sub">Distintos en el mes</div></div>
+    <div class="stat-card rojo"><div class="stat-label">Rechazos del mes</div><div class="stat-valor" id="kpi-ret-rechazos">0</div><div class="stat-sub">Días marcados AI</div></div>
   </div>
 
-  <div class="tabs" style="background:white;border-radius:var(--radio-lg) var(--radio-lg) 0 0;padding:0 20px;box-shadow:var(--sombra);border-bottom:none;">
-    <button class="tab-btn active" onclick="tabRetenes('planilla',this)">📋 Planilla del mes</button>
-    <button class="tab-btn" onclick="tabRetenes('resumen',this)">📊 Resumen de pago</button>
-  </div>
-
-  <!-- TAB PLANILLA -->
-  <div id="ret-tab-planilla" class="tab-content active" style="padding-top:0;">
-    <div class="card" style="margin-top:0;border-radius:0 var(--radio-lg) var(--radio-lg) var(--radio-lg);">
-      <div class="card-header">
-        <h3>🔄 Planilla de Retenes</h3>
-        <div style="display:flex;align-items:center;gap:12px;">
-          <select id="ret-mes-sel" onchange="renderRetenes()" style="padding:6px 10px;border:1px solid var(--borde-fuerte);border-radius:var(--radio);font-size:13px;outline:none;"></select>
-          <span style="font-size:11px;color:var(--texto-suave);">Mínimo garantizado: 200hs por retén</span>
-        </div>
-      </div>
-      <div class="tabla-wrap" style="overflow-x:auto;">
-        <table style="border-collapse:collapse;font-size:12px;width:100%;min-width:1200px;">
-          <thead id="thead-ret"></thead>
-          <tbody id="tbody-ret"></tbody>
-        </table>
+  <div class="card" style="margin-top:0;border-radius:var(--radio-lg);">
+    <div class="card-header">
+      <h3>🔄 Retenes activos — categoría <span class="badge" style="background:#ece2f7;color:#6a3fa0;">RETÉN HORA BASE</span> del padrón</h3>
+      <div style="display:flex;align-items:center;gap:12px;">
+        <span id="ret-chip-periodo"></span>
+        <select id="ret-mes-sel" onchange="renderRetenes()" style="padding:6px 10px;border:1px solid var(--borde-fuerte);border-radius:var(--radio);font-size:13px;outline:none;"></select>
       </div>
     </div>
-  </div>
-
-  <!-- TAB RESUMEN -->
-  <div id="ret-tab-resumen" class="tab-content" style="padding-top:0;">
-    <div class="card" style="margin-top:0;border-radius:0 var(--radio-lg) var(--radio-lg) var(--radio-lg);">
-      <div class="card-header"><h3>📊 Resumen de pago — Retenes</h3></div>
-      <div class="tabla-wrap">
-        <table style="border-collapse:collapse;font-size:12px;width:100%;">
-          <thead id="thead-ret-resumen"></thead>
-          <tbody id="tbody-ret-resumen"></tbody>
-        </table>
-      </div>
+    <div class="tabla-wrap">
+      <table style="border-collapse:collapse;font-size:12.5px;width:100%;">
+        <thead><tr style="background:var(--fondo);">
+          <th style="width:22px;"></th><th style="padding:8px 6px;text-align:left;">Retén</th><th style="padding:8px 6px;text-align:left;">Categoría base</th>
+          <th style="padding:8px 6px;text-align:right;">Servicios</th><th style="padding:8px 6px;text-align:right;">HS fac.</th>
+          <th style="padding:8px 6px;text-align:right;">HS no fac.</th><th style="padding:8px 6px;text-align:right;">Total HS</th><th style="padding:8px 6px;text-align:left;">Hoy</th>
+        </tr></thead>
+        <tbody id="tbody-retenes"></tbody>
+      </table>
+    </div>
+    <div class="alerta alerta-info" style="font-size:12px;margin:0;border-radius:0;">
+      Acá no hay alta ni carga. Ser retén = tener la categoría <b>Retén Hora Base</b> en el padrón de Asociados (se asigna en Categorías → Asociados). Click en una fila para ver el detalle del mes por servicio.
     </div>
   </div>
 </div>
