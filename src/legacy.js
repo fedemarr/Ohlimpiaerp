@@ -1708,7 +1708,21 @@ function agregarRespObjetivo(){
 // rompía cualquier guardado posterior (ticket importador Comercial 08/2026).
 function objetivoParaGuardar(o){
   const {responsables,adjuntos,historialPrecios,supervisor,clienteId,...resto}=o;
-  return resto;
+  // objetivos.fecha_inicio/fecha_fin son columnas `date` NATIVAS en Supabase
+  // (v039) — el resto del código guarda/lee estas fechas en memoria como
+  // string argentino sin padear (DD/M/YYYY, via toLocaleDateString('es-AR'),
+  // ver líneas ~1843/1854/1934). Mandar eso tal cual a una columna date le
+  // rompe la interpretación a Postgres apenas el día pasa de 12 ("date/time
+  // field value out of range: '16/9/2026'", reproducido en alta de servicio
+  // 17/09) y, peor, para día ≤ 12 lo guarda con día y mes invertidos SIN
+  // error (silencioso). Se convierte a ISO solo acá, para el payload que
+  // viaja a la columna real — el resto del código sigue usando DD/M/YYYY.
+  const ddmmyyyyAIso = (s) => {
+    if (!s || typeof s !== 'string' || !s.includes('/')) return s || null;
+    const [dd, mm, yy] = s.split('/');
+    return `${yy}-${String(mm).padStart(2, '0')}-${String(dd).padStart(2, '0')}`;
+  };
+  return { ...resto, fechaInicio: ddmmyyyyAIso(resto.fechaInicio), fechaFin: ddmmyyyyAIso(resto.fechaFin) };
 }
 // 2.2.1 (Delta Comercial v1.2) — el modelo de precio del objetivo queda
 // gobernado por el tipo de contrato del cliente (Por hora / Presupuesto
