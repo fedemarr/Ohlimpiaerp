@@ -350,12 +350,29 @@ export async function confirmarNuevaSancion() {
   await subirEvidenciaSiCorresponde(legajo);
 
   const payload = { protagonista: legajo, infraccionIdLocal, fechaHecho, fechaDeteccion, descripcionHecho, generadoPor: currentUser?.nombre || '' };
-  if (nivel === 0) await crearSancionNivel0(payload);
-  else if (nivel === 1) await crearYEjecutarNivel1(payload);
-  else await crearBorradorNivel2(payload);
+  let creada;
+  if (nivel === 0) creada = await crearSancionNivel0(payload);
+  else if (nivel === 1) creada = await crearYEjecutarNivel1(payload);
+  else creada = await crearBorradorNivel2(payload);
 
+  // BUG real reportado ("la sanción no aparece en la bandeja"): niveles 0
+  // y 1 quedan 'Ejecutada' apenas se crean (no pasan por aprobación) —
+  // pero el tab "Pendientes" (donde el módulo SIEMPRE aterriza y adonde
+  // esto redirigía siempre) arma su bandeja a partir de "enProceso"
+  // (todo lo que NO sea Ejecutada/Rechazada/Revertida), así que un
+  // Nivel 0/1 recién creado nunca podía aparecer ahí para quien lo
+  // acaba de cargar — la sanción SÍ se guardaba bien, solo que en el
+  // tab equivocado. Si guardarNueva() falló (ver flujo.js), `creada` es
+  // null: no cerramos el modal ni tocamos ningún tab, el aviso de error
+  // ya lo mostró guardarNueva().
+  if (!creada) return;
   cerrarModal('modal-sanc-nueva');
-  renderPendientesSanciones();
+  if (creada.estado === 'Ejecutada') {
+    toast('👉 Se ejecutó al toque — la vas a ver en el tab "Activas"', 5000);
+    if (window.tabSanc) window.tabSanc('activas'); else renderActivasSanciones();
+  } else {
+    renderPendientesSanciones();
+  }
 }
 
 // ========== ACCIONES DE FILA ==========

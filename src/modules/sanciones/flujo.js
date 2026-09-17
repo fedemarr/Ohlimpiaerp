@@ -5,7 +5,7 @@
 
 import { DB, currentUser } from '@shared/state.js';
 import { toast } from '@shared/ui.js';
-import { supaSync } from '@shared/supabase.js';
+import { supaSync, getLastSupaSyncError } from '@shared/supabase.js';
 import { crearNotificacion } from '@shared/notificaciones.js';
 import { registrarEvento, revertirEventoCompleto, idLocalTrunc as idLocalTruncCompetencia } from '../competencia/movimientos.js';
 import { gerenteResponsable, nombreGerenteRRHH } from './permisos.js';
@@ -83,10 +83,21 @@ function baseSancion({ protagonista, infraccionIdLocal, fechaHecho, fechaDetecci
   };
 }
 
+// Devuelve true/false — antes no chequeaba el resultado de supaSync, así
+// que un insert rechazado por el servidor (RLS, columna inexistente, red)
+// quedaba solo en memoria: la sanción aparecía "creada" en la sesión de
+// quien la cargó pero nunca llegaba a nadie más, y desaparecía sola con
+// un F5. Ahora se revierte el push local y se avisa con el motivo real.
 async function guardarNueva(sancion) {
   if (!DB.sancionesDisciplinarias) DB.sancionesDisciplinarias = [];
   DB.sancionesDisciplinarias.push(sancion);
-  await supaSync('sancionesDisciplinarias', sancion);
+  const ok = await supaSync('sancionesDisciplinarias', sancion);
+  if (!ok) {
+    DB.sancionesDisciplinarias = DB.sancionesDisciplinarias.filter(s => s !== sancion);
+    const err = getLastSupaSyncError();
+    toast('⚠️ No se pudo guardar la sanción en el servidor' + (err?.message ? ' (' + err.message + ')' : '') + ' — reintentá');
+  }
+  return ok;
 }
 
 // ========== NIVEL 0 — Llamado verbal (informal) ==========
@@ -96,7 +107,7 @@ export async function crearSancionNivel0({ protagonista, infraccionIdLocal, fech
   s.estado = 'Ejecutada';
   s.fechaNotificacionAsociado = new Date().toISOString();
   s.notificacionMetodo = 'Sistema';
-  await guardarNueva(s);
+  if (!await guardarNueva(s)) return null;
   await registrarEventoSancion(s, 'Borrador', 'Ejecutada', 'Registro informal — no cuenta como sanción');
   toast('✅ Llamado verbal registrado — no cuenta como sanción');
   return s;
@@ -109,7 +120,7 @@ export async function crearYEjecutarNivel1({ protagonista, infraccionIdLocal, fe
   s.estado = 'Ejecutada';
   s.fechaNotificacionAsociado = new Date().toISOString();
   s.notificacionMetodo = 'Sistema';
-  await guardarNueva(s);
+  if (!await guardarNueva(s)) return null;
   await registrarEventoSancion(s, 'Borrador', 'Ejecutada');
 
   const resultado = await registrarEvento({
@@ -154,7 +165,7 @@ export async function revertirNivel1(idLocal, motivo) {
 
 export async function crearBorradorNivel2({ protagonista, infraccionIdLocal, fechaHecho, fechaDeteccion, descripcionHecho, generadoPor }) {
   const s = baseSancion({ protagonista, infraccionIdLocal, fechaHecho, fechaDeteccion, descripcionHecho, generadoPor, nivel: 2, nombreNivel: 'Apercibimiento' });
-  await guardarNueva(s);
+  if (!await guardarNueva(s)) return null;
   toast('💾 Borrador de apercibimiento guardado');
   return s;
 }
