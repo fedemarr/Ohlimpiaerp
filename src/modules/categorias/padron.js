@@ -14,7 +14,7 @@
 import { DB, currentUser } from '@shared/state.js';
 import { $ } from '@shared/helpers.js';
 import { toast, abrirModal, cerrarModal } from '@shared/ui.js';
-import { supaSync, SUPA } from '@shared/supabase.js';
+import { supaSync, SUPA, getLastSupaSyncError } from '@shared/supabase.js';
 import { getCategoriaById, registroPadronVigente, historialPadronAsociado } from './consultas.js';
 
 const _idTrunc = (v) => String(v || '').slice(-9);
@@ -191,7 +191,11 @@ export async function guardarCambioCategoriaPadron() {
     legajoNro, categoriaIdLocal: catIdTrunc, vigenciaDesde: _primerDiaMes(vigMes),
     origen: 'DIRECTO', motivo,
   });
-  if (!reg) { toast('⚠️ No se pudo guardar — reintentá'); return; }
+  if (!reg) {
+    const err = getLastSupaSyncError();
+    toast('⚠️ No se pudo guardar' + (err?.message ? ' (' + err.message + ')' : '') + ' — reintentá');
+    return;
+  }
   cerrarModal('modal-padron-cambio');
   renderPadronCategorias();
   toast('✓ Cambio registrado — impacta legajo y grillas desde ' + _mesTxt(reg.vigenciaDesde));
