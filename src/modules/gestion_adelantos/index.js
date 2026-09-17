@@ -12,8 +12,10 @@ export {
 } from './revision.js';
 
 export {
-  renderDeposito, pagarIndividual, pagarSeleccionadosDeposito,
+  renderDeposito, tildarDeposito, tildarTodosDeposito, abrirConfirmarDeposito,
+  abrirDepositoManualUno, mostrarCamposManualClick, confirmarLoteAdelantos,
   abrirRechazarDeposito, confirmarRechazoDeposito,
+  renderLotesAdelantos, descargarArchivoLoteAdelantos, descargarExcepcionesLoteAdelantos,
 } from './deposito.js';
 
 export { renderHistorialGestion, filtrarHistorialGestion, exportarHistorialGestionExcel } from './historico.js';
@@ -26,21 +28,23 @@ export {
 // ========== TABS (con gateo por rol) ==========
 
 import { renderRevisionRRHH } from './revision.js';
-import { renderDeposito } from './deposito.js';
+import { renderDeposito, renderLotesAdelantos } from './deposito.js';
 import { renderHistorialGestion } from './historico.js';
 import { renderConfiguracionAdelantos } from './configuracion.js';
 
 const RENDER_POR_TAB = {
-  rrhh: renderRevisionRRHH, deposito: renderDeposito,
+  rrhh: renderRevisionRRHH, deposito: renderDeposito, lotes: renderLotesAdelantos,
   historial: renderHistorialGestion, configuracion: renderConfiguracionAdelantos,
 };
 
 function aplicarPermisosTabs() {
   const btnRrhh = document.querySelector('#screen-gestion_adelantos .tab-btn[data-gadl-tab="rrhh"]');
   const btnDeposito = document.querySelector('#screen-gestion_adelantos .tab-btn[data-gadl-tab="deposito"]');
+  const btnLotes = document.querySelector('#screen-gestion_adelantos .tab-btn[data-gadl-tab="lotes"]');
   const btnConfig = document.querySelector('#screen-gestion_adelantos .tab-btn[data-gadl-tab="configuracion"]');
   if (btnRrhh) btnRrhh.style.display = esRRHHoAdmin() ? '' : 'none';
   if (btnDeposito) btnDeposito.style.display = esFinanzasOAdmin() ? '' : 'none';
+  if (btnLotes) btnLotes.style.display = esFinanzasOAdmin() ? '' : 'none';
   if (btnConfig) btnConfig.style.display = esRRHHoAdmin() ? '' : 'none';
 }
 
@@ -72,7 +76,11 @@ export const gestionAdelantosScreenConfig = {
 // ========== WINDOW BINDINGS ==========
 
 import { abrirRevisionRRHH, aprobarRevisionRRHH, rechazarRevisionRRHH, devolverPedidoASupervisor } from './revision.js';
-import { pagarIndividual, pagarSeleccionadosDeposito, abrirRechazarDeposito, confirmarRechazoDeposito } from './deposito.js';
+import {
+  tildarDeposito, tildarTodosDeposito, abrirConfirmarDeposito, abrirDepositoManualUno,
+  mostrarCamposManualClick, confirmarLoteAdelantos, abrirRechazarDeposito, confirmarRechazoDeposito,
+  descargarArchivoLoteAdelantos, descargarExcepcionesLoteAdelantos,
+} from './deposito.js';
 import { filtrarHistorialGestion, exportarHistorialGestionExcel } from './historico.js';
 import {
   cambiarTipoCambioTope, abrirModificarTope, confirmarModificarTope, abrirHistorialTope,
@@ -85,10 +93,16 @@ window.aprobarRevisionRRHH = aprobarRevisionRRHH;
 window.rechazarRevisionRRHH = rechazarRevisionRRHH;
 window.devolverPedidoASupervisor = devolverPedidoASupervisor;
 
-window.pagarIndividual = pagarIndividual;
-window.pagarSeleccionadosDeposito = pagarSeleccionadosDeposito;
+window.tildarDeposito = tildarDeposito;
+window.tildarTodosDeposito = tildarTodosDeposito;
+window.abrirConfirmarDeposito = abrirConfirmarDeposito;
+window.abrirDepositoManualUno = abrirDepositoManualUno;
+window.mostrarCamposManualClick = mostrarCamposManualClick;
+window.confirmarLoteAdelantos = confirmarLoteAdelantos;
 window.abrirRechazarDeposito = abrirRechazarDeposito;
 window.confirmarRechazoDeposito = confirmarRechazoDeposito;
+window.descargarArchivoLoteAdelantos = descargarArchivoLoteAdelantos;
+window.descargarExcepcionesLoteAdelantos = descargarExcepcionesLoteAdelantos;
 
 window.filtrarHistorialGestion = filtrarHistorialGestion;
 window.exportarHistorialGestionExcel = exportarHistorialGestionExcel;

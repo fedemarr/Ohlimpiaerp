@@ -6142,6 +6142,7 @@
   <!-- TABS -->
   <div class="tabs" style="background:white;border-radius:var(--radio-lg) var(--radio-lg) 0 0;padding:0 20px;box-shadow:var(--sombra);border-bottom:none;">
     <button class="tab-btn active" data-padl-tab="mios" onclick="tabPedAdl('mios',this)">💵 Mis pedidos</button>
+    <button class="tab-btn" data-padl-tab="planilla" onclick="tabPedAdl('planilla',this)">📋 Pedido del período</button>
     <button class="tab-btn" data-padl-tab="historial" onclick="tabPedAdl('historial',this)">📜 Historial de mi equipo</button>
   </div>
 
@@ -6150,6 +6151,9 @@
     <div class="card" style="border-radius:0 var(--radio-lg) var(--radio-lg) var(--radio-lg);">
       <div class="card-header">
         <h3>Pedidos en curso</h3>
+        <div class="filtros-bar">
+          <button class="btn btn-primary btn-sm" onclick="tabPedAdl('planilla')">📋 Pedido del período</button>
+        </div>
       </div>
       <div class="tabla-wrap"><table>
         <thead><tr>
@@ -6157,6 +6161,38 @@
         </tr></thead>
         <tbody id="tbody-padl-mios"></tbody>
       </table></div>
+    </div>
+  </div>
+
+  <!-- TAB PEDIDO DEL PERÍODO -->
+  <div id="padl-tab-planilla" class="tab-content">
+    <div class="stats-grid">
+      <div class="stat-card azul"><div class="stat-label">Asociados con monto</div><div class="stat-valor" id="kpi-padl-pla-aso">0</div><div class="stat-sub">De este pedido</div></div>
+      <div class="stat-card verde"><div class="stat-label">Total del pedido</div><div class="stat-valor" id="kpi-padl-pla-tot" style="font-size:16px;">$0</div><div class="stat-sub">Suma de montos cargados</div></div>
+      <div class="stat-card acento"><div class="stat-label">Asociados a cargo</div><div class="stat-valor" id="kpi-padl-pla-equipo">0</div><div class="stat-sub">Tu equipo este período</div></div>
+    </div>
+    <div class="card" style="border-radius:var(--radio-lg);">
+      <div class="card-header">
+        <h3 id="padl-pla-titulo">Pedido del período</h3>
+        <div class="filtros-bar">
+          <button class="btn btn-secondary btn-sm" onclick="traerMontosAnterior()">↩ Traer montos del período anterior</button>
+        </div>
+      </div>
+      <div class="alerta alerta-info" style="font-size:12.5px;margin:12px 16px 0;">Tus asociados aparecen precargados desde tus servicios asignados. Cargá el monto <b>solo a los que pidieron</b> — las filas sin monto no se elevan. <b>HS VERIF.</b> es la referencia de horas verificadas del período al día de hoy.</div>
+      <div class="tabla-wrap"><table>
+        <thead><tr>
+          <th>N°</th><th>Apellido y nombre</th><th>Categoría</th><th style="text-align:right;">HS verif.</th>
+          <th style="text-align:right;">Adelanto anterior</th><th style="text-align:right;">Monto</th><th></th>
+        </tr></thead>
+        <tbody id="tbody-padl-planilla"></tbody>
+      </table></div>
+    </div>
+    <div style="position:sticky;bottom:0;background:#1b2a5e;color:#fff;padding:12px 26px;display:flex;justify-content:space-between;align-items:center;border-radius:var(--radio);margin-top:12px;box-shadow:0 -3px 12px rgba(10,15,40,.15);flex-wrap:wrap;gap:10px;">
+      <div style="font-size:13.5px;"><b id="padl-pla-bar-tot" style="font-size:15px;">0 asociados · $0</b> <span style="opacity:.7;font-size:11.5px;" id="padl-pla-bar-det"></span></div>
+      <div style="display:flex;gap:10px;">
+        <button class="btn btn-secondary btn-sm" onclick="guardarBorradorPlanilla()">Guardar borrador</button>
+        <button id="btn-padl-pla-elevar" class="btn" style="background:#1e7b34;color:white;border:none;font-size:14px;padding:10px 20px;" disabled onclick="abrirResumenPlanilla()">Guardar y elevar</button>
+      </div>
     </div>
   </div>
 
@@ -6173,7 +6209,7 @@
           </select>
           <select id="padlh-estado" onchange="filtrarHistorialEquipo()">
             <option value="">Todos los estados</option>
-            <option value="Aprobada">Pagado</option><option value="Rechazada RRHH">Rechazado</option><option value="Rechazada Finanzas">Rechazado por Finanzas</option><option value="Cancelada">Cancelado</option>
+            <option value="Aprobada">DEPOSITADO</option><option value="Rechazada RRHH">RECHAZADO</option><option value="Rechazada Finanzas">Devuelto por Finanzas</option><option value="Cancelada">Cancelado</option>
           </select>
           <input type="number" placeholder="Año" id="padlh-anio" oninput="filtrarHistorialEquipo()" style="width:80px;">
         </div>
@@ -6196,12 +6232,14 @@
     <div class="stat-card rojo"><div class="stat-label">Esperando RRHH</div><div class="stat-valor" id="st-gadl-pendientes">0</div><div class="stat-sub">Revisión pendiente</div></div>
     <div class="stat-card azul"><div class="stat-label">Esperando pago</div><div class="stat-valor" id="st-gadl-aprobados">0</div><div class="stat-sub">Aprobados por RRHH</div></div>
     <div class="stat-card verde"><div class="stat-label">Monto a depositar</div><div class="stat-valor" id="st-gadl-monto" style="font-size:16px;">$0</div><div class="stat-sub">Suma pendiente</div></div>
+    <div class="stat-card acento"><div class="stat-label">Lotes confirmados</div><div class="stat-valor" id="st-gadl-lotes">0</div><div class="stat-sub">Depósitos registrados</div></div>
   </div>
 
   <!-- TABS -->
   <div class="tabs" style="background:white;border-radius:var(--radio-lg) var(--radio-lg) 0 0;padding:0 20px;box-shadow:var(--sombra);border-bottom:none;">
     <button class="tab-btn active" data-gadl-tab="rrhh" onclick="tabGestAdl('rrhh',this)">👥 Revisión RRHH</button>
     <button class="tab-btn" data-gadl-tab="deposito" onclick="tabGestAdl('deposito',this)">🏦 Depósito</button>
+    <button class="tab-btn" data-gadl-tab="lotes" onclick="tabGestAdl('lotes',this)">📦 Lotes</button>
     <button class="tab-btn" data-gadl-tab="historial" onclick="tabGestAdl('historial',this)">📋 Historial</button>
     <button class="tab-btn" data-gadl-tab="configuracion" onclick="tabGestAdl('configuracion',this)">⚙️ Configuración</button>
   </div>
@@ -6222,18 +6260,29 @@
   <!-- TAB DEPÓSITO -->
   <div id="gadl-tab-deposito" class="tab-content">
     <div class="card" style="border-radius:0 var(--radio-lg) var(--radio-lg) var(--radio-lg);">
-      <div class="card-header">
-        <h3>Pedidos aprobados por RRHH — esperando pago</h3>
-        <div class="filtros-bar">
-          <button class="btn btn-primary btn-sm" onclick="pagarSeleccionadosDeposito()">💰 Pagar seleccionados</button>
-        </div>
-      </div>
+      <div class="card-header"><h3>Pedidos aprobados por RRHH — esperando depósito</h3></div>
       <div class="tabla-wrap"><table>
         <thead><tr>
-          <th></th><th>Fecha aprobación</th><th>Asociado</th><th>Tipo</th><th>Monto</th><th>Cuotas</th><th>Aprobado por</th><th></th>
+          <th style="width:36px;"><input type="checkbox" id="cb-gdep-all" onchange="tildarTodosDeposito(this.checked)"></th>
+          <th>Fecha aprobación</th><th>Asociado</th><th>Tipo</th><th>Monto</th><th>Banco</th><th>Aprobado por</th><th></th>
         </tr></thead>
         <tbody id="tbody-gadl-deposito"></tbody>
       </table></div>
+    </div>
+    <div style="position:sticky;bottom:0;background:#1b2a5e;color:#fff;padding:12px 26px;display:flex;justify-content:space-between;align-items:center;border-radius:var(--radio);margin-top:12px;box-shadow:0 -3px 12px rgba(10,15,40,.15);">
+      <div style="font-size:13.5px;">Seleccionados: <b id="gdep-sel-n" style="font-size:16px;">0</b> · <b id="gdep-sel-m" style="font-size:16px;">$0</b> <span style="opacity:.7;font-size:11.5px;" id="gdep-sel-det"></span></div>
+      <button id="btn-gdep-depositar" class="btn" style="background:#1e7b34;color:white;border:none;font-size:14px;padding:10px 20px;" disabled onclick="abrirConfirmarDeposito()">💰 Depositar seleccionados</button>
+    </div>
+  </div>
+
+  <!-- TAB LOTES -->
+  <div id="gadl-tab-lotes" class="tab-content">
+    <div class="card" style="border-radius:0 var(--radio-lg) var(--radio-lg) var(--radio-lg);">
+      <div class="card-header"><h3>📦 Lotes de depósito — ADELANTOS</h3></div>
+      <div style="padding:14px 18px;">
+        <div id="gadl-lotes-cont"></div>
+        <div class="alerta alerta-info" style="font-size:12px;">Los archivos del lote se re-descargan siempre iguales — si el portal del banco falla, se vuelve a bajar el mismo, no se regenera distinto. Los lotes MANUAL guardan fecha y N° de comprobante en lugar de archivos.</div>
+      </div>
     </div>
   </div>
 
@@ -6250,8 +6299,10 @@
           </select>
           <select id="gadlh-estado" onchange="filtrarHistorialGestion()">
             <option value="">Todos los estados</option>
-            <option>Borrador</option><option>Enviada</option><option>Aprobada RRHH</option><option>Aprobada</option>
-            <option>Rechazada RRHH</option><option>Rechazada Finanzas</option><option>Cancelada</option>
+            <option value="Borrador">Borrador</option><option value="Enviada">PENDIENTE</option>
+            <option value="Aprobada RRHH">APROBADO</option><option value="Aprobada">DEPOSITADO</option>
+            <option value="Rechazada RRHH">RECHAZADO</option><option value="Rechazada Finanzas">Devuelto por Finanzas</option>
+            <option value="Cancelada">Cancelado</option>
           </select>
           <input type="text" placeholder="Supervisor" id="gadlh-supervisor" oninput="filtrarHistorialGestion()">
           <input type="date" id="gadlh-desde" onchange="filtrarHistorialGestion()" title="Desde">

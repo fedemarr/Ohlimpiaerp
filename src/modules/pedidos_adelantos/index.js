@@ -11,11 +11,17 @@ export {
   confirmarNuevoPedido, elevarPedidoPorId, abrirDetallePedidoAdelanto, cancelarPedidoPorId,
 } from './pedidos.js';
 
+export {
+  renderPedidoPeriodo, recalcPlanilla, traerMontosAnterior, guardarBorradorPlanilla,
+  abrirResumenPlanilla, confirmarElevarPlanilla,
+} from './planilla.js';
+
 // ========== TABS ==========
 
 import { renderMisPedidos, renderHistorialEquipo } from './pedidos.js';
+import { renderPedidoPeriodo } from './planilla.js';
 
-const RENDER_POR_TAB = { mios: renderMisPedidos, historial: renderHistorialEquipo };
+const RENDER_POR_TAB = { mios: renderMisPedidos, planilla: renderPedidoPeriodo, historial: renderHistorialEquipo };
 
 export function tabPedAdl(tab, btn) {
   document.querySelectorAll('#screen-pedidos_adelantos .tab-btn').forEach(b => b.classList.remove('active'));
@@ -49,6 +55,9 @@ import {
   filtrarMisPedidos, filtrarHistorialEquipo, cambiarTipoPedidoModal, seleccionarAsociadoPedido, buscarAsociadoPedidoPorNro,
   chequearTopeModal, confirmarNuevoPedido, elevarPedidoPorId, abrirDetallePedidoAdelanto, cancelarPedidoPorId,
 } from './pedidos.js';
+import {
+  recalcPlanilla, traerMontosAnterior, guardarBorradorPlanilla, abrirResumenPlanilla, confirmarElevarPlanilla,
+} from './planilla.js';
 
 window.tabPedAdl = tabPedAdl;
 window.abrirNuevoPedidoAdelanto = abrirNuevoPedidoAdelanto;
@@ -62,3 +71,9 @@ window.confirmarNuevoPedido = confirmarNuevoPedido;
 window.elevarPedidoPorId = elevarPedidoPorId;
 window.abrirDetallePedidoAdelanto = abrirDetallePedidoAdelanto;
 window.cancelarPedidoPorId = cancelarPedidoPorId;
+
+window.recalcPlanilla = recalcPlanilla;
+window.traerMontosAnterior = traerMontosAnterior;
+window.guardarBorradorPlanilla = guardarBorradorPlanilla;
+window.abrirResumenPlanilla = abrirResumenPlanilla;
+window.confirmarElevarPlanilla = confirmarElevarPlanilla;

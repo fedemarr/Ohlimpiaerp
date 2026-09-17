@@ -25,6 +25,7 @@ function badgesAlerta(p) {
     badges.push(`<span class="badge ${factor > 2 ? 'badge-rojo' : 'badge-naranja'}" style="font-size:10px;">SUPERA TOPE</span>`);
   }
   if (p.estado === 'Rechazada Finanzas') badges.push('<span class="badge badge-naranja" style="font-size:10px;">Devuelto por Finanzas</span>');
+  (p.avisos || []).forEach(a => badges.push(`<span class="badge badge-rojo" style="font-size:10px;display:block;margin-top:2px;white-space:normal;">⚠ ${a}</span>`));
   return badges.join(' ');
 }
 
@@ -97,6 +98,7 @@ export function abrirRevisionRRHH(tipo, id) {
       <div class="info-item"><div class="key">Fecha</div><div class="val">${p.fechaPedido}</div></div>
     </div>
     ${(p.observaciones || p.obs) ? `<p style="font-size:13px;"><strong>Observaciones:</strong> ${p.observaciones || p.obs}</p>` : ''}
+    ${(p.avisos || []).map(a => `<div class="alerta alerta-warning" style="margin-bottom:8px;font-size:12.5px;">⚠ ${a} <span style="color:var(--texto-suave);">(aviso del supervisor al cargar el pedido)</span></div>`).join('')}
 
     <div class="form-section" style="margin-bottom:8px;">Contexto del asociado</div>
     <div class="info-grid" style="margin-bottom:10px;">

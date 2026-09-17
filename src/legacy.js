@@ -14211,6 +14211,7 @@ window._calcEstadoAsociado = _calcEstadoAsociado;
 window._getFilasConsolidadas = _getFilasConsolidadas;
 window._registrarPagoAsociado = _registrarPagoAsociado;
 window.horasCobradasDia = horasCobradasDia;
+window.diaEstaVerificado = diaEstaVerificado;
 window._getPrimerRechazo = _getPrimerRechazo;
 window.abrirAgenteIA = abrirAgenteIA;
 window.abrirCargaRapidaMant = abrirCargaRapidaMant;

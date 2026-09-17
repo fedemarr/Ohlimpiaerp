@@ -4,12 +4,7 @@
 import { DB } from '@shared/state.js';
 import { $ } from '@shared/helpers.js';
 import { toast } from '@shared/ui.js';
-
-const ESTADO_BADGE = {
-  'Borrador': 'badge-gris', 'Enviada': 'badge-acento', 'Aprobada RRHH': 'badge-azul',
-  'Aprobada': 'badge-verde', 'Rechazada RRHH': 'badge-rojo', 'Rechazada Finanzas': 'badge-rojo',
-  'Cancelada': 'badge-gris',
-};
+import { badgeEstado } from '../adelantos_prestamos_shared/estados.js';
 
 function todosLosPedidos() {
   const adelantos = (DB.pedidosAdelantos || []).filter(p => !p.anulado).map(p => ({
@@ -29,7 +24,7 @@ function filaHistorial(p) {
     <td style="font-size:12px;">${p.supervisorNombre}</td>
     <td style="text-align:right;">$${Number(p.monto || 0).toLocaleString('es-AR')}</td>
     <td style="font-size:12px;">${p.tipo === 'Préstamo' ? (p.cuotas ?? p.cuotasSolicitadas ?? '—') : '—'}</td>
-    <td><span class="badge ${ESTADO_BADGE[p.estado] || 'badge-gris'}">${p.estado}</span></td>
+    <td>${badgeEstado(p.estado)}</td>
     <td style="font-size:11px;">${p.aprobadoPorRrhh || '—'} / ${p.pagadoPor || '—'}</td>
     <td style="font-size:11px;">${p.motivoRechazoRrhh || p.motivoRechazoFinanzas || '—'}</td>
     <td style="font-size:12px;">${(p.fechaPago || '').slice(0, 10) || '—'}</td>

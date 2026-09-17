@@ -187,6 +187,10 @@ tbody tr{cursor:pointer;transition:background .1s;}
 .badge-viol{background:#ece2f7;color:#6a3fa0;}
 .badge-ia{background:linear-gradient(135deg,var(--azul-oscuro),var(--azul));color:white;}
 
+.input-monto-planilla{width:110px;padding:6px 8px;border:1px solid var(--borde-fuerte);border-radius:var(--radio);font-size:13px;text-align:right;font-family:inherit;}
+.input-monto-planilla:focus{outline:2px solid var(--azul);border-color:var(--azul);}
+.input-monto-prev{background:#fff8ec;border-color:#e8c48a;}
+
 /* BOTONES */
 .btn{display:inline-flex;align-items:center;gap:6px;padding:8px 16px;border-radius:var(--radio);font-size:13px;font-weight:500;cursor:pointer;border:none;transition:all .15s;font-family:inherit;white-space:nowrap;}
 .btn-primary{background:var(--azul);color:white;}.btn-primary:hover{background:var(--azul-medio);}

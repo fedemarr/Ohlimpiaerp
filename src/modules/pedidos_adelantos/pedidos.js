@@ -12,6 +12,7 @@ import {
 } from '../adelantos_prestamos_shared/flujo.js';
 import { obtenerTopeVigente } from '../adelantos_prestamos_shared/config.js';
 import { esSupervisor, esCentralOperaciones } from '../adelantos_prestamos_shared/permisos.js';
+import { badgeEstado } from '../adelantos_prestamos_shared/estados.js';
 
 // Mismo fix de huso horario que hoyISO() en flujo.js/config.js —
 // toISOString() es UTC, entre las 21:00 y medianoche en Argentina
@@ -21,24 +22,7 @@ function hoyISOLocal() {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
-const ESTADO_BADGE = {
-  'Borrador': 'badge-gris', 'Enviada': 'badge-acento', 'Aprobada RRHH': 'badge-azul',
-  'Aprobada': 'badge-verde', 'Rechazada RRHH': 'badge-rojo', 'Rechazada Finanzas': 'badge-rojo',
-  'Cancelada': 'badge-gris',
-};
-
-// El texto interno del estado (usado en flujo.js/revision.js/deposito.js
-// como fuente de verdad) no siempre es el más claro para el supervisor
-// — "Aprobada" a secas se confundía con "Aprobada RRHH" y nunca se veía
-// la palabra "Pagado", aunque Finanzas ya hubiera pagado (feedback QA).
-// Este mapa es solo de presentación, no toca el valor real de p.estado.
-const ESTADO_LABEL = {
-  'Borrador': 'Borrador', 'Enviada': 'Enviado', 'Aprobada RRHH': 'Pendiente de pago',
-  'Aprobada': 'Pagado', 'Rechazada RRHH': 'Rechazado', 'Rechazada Finanzas': 'Rechazado por Finanzas',
-  'Cancelada': 'Cancelado',
-};
-
-function badge(estado) { return `<span class="badge ${ESTADO_BADGE[estado] || 'badge-gris'}">${ESTADO_LABEL[estado] || estado}</span>`; }
+function badge(estado) { return badgeEstado(estado); }
 
 function equipoDelSupervisor() {
   if (esCentralOperaciones()) return null; // null = sin filtro, ve todo
