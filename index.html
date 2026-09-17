@@ -3889,8 +3889,9 @@
         </tr></thead>
         <tbody id="tbody-resumen-horas"></tbody>
       </table></div>
-      <div style="display:flex;justify-content:space-between;align-items:center;gap:14px;padding:14px 18px;border-top:1px solid var(--borde);">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:14px;padding:14px 18px;border-top:1px solid var(--borde);flex-wrap:wrap;">
         <div style="font-size:12.5px;color:var(--texto-suave);"><b>Revisión global del período.</b> Corregí lo que haga falta en la grilla del servicio — este resumen refleja al instante. Cuando esté todo revisado, confirmá el período.</div>
+        <span class="badge badge-rojo" id="rh-chip-sincat" style="display:none;"></span>
         <button class="btn btn-primary" id="btn-rh-confirmar" onclick="confirmarPeriodoResumen()" style="display:none;white-space:nowrap;">✅ Confirmar período</button>
       </div>
     </div>
@@ -3995,6 +3996,31 @@
     <div class="modal-footer">
       <button class="btn btn-secondary" onclick="cerrarModal('modal-pago-revision')">Cancelar</button>
       <button class="btn btn-primary" onclick="confirmarPagoRevisionRetiro()">Confirmar pago</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL REVISAR SOLICITUD (Central de Operaciones) -->
+<div class="modal-overlay" id="modal-revisar-solicitud">
+  <div class="modal" style="max-width:760px;">
+    <div class="modal-header"><h3>Revisión de Operaciones — <span id="rev-titulo"></span></h3><button class="btn-close" onclick="cerrarModal('modal-revisar-solicitud')">×</button></div>
+    <div class="modal-body">
+      <div class="alerta alerta-info"><b>Lo solicitado por el supervisor no se pisa.</b> Si constataste otra cosa, ajustá los valores de la(s) línea(s) — la solicitud guarda los dos, lado a lado, y el supervisor lo ve como "Corresponde con ajuste".</div>
+      <div class="tabla-wrap"><table style="font-size:12.5px;">
+        <thead><tr>
+          <th style="text-align:left;">Servicio (período)</th>
+          <th style="text-align:right;">Hs solicitadas</th><th style="text-align:right;">VH solicitado</th><th style="text-align:right;">Monto solicitado</th>
+          <th style="text-align:right;">Hs ajuste</th><th style="text-align:right;">VH ajuste</th><th style="text-align:right;">Monto ajuste</th>
+        </tr></thead>
+        <tbody id="rev-lineas-body"></tbody>
+      </table></div>
+      <div class="form-group" style="margin-top:12px;"><label>Motivo (obligatorio si rechaza o ajusta)</label><textarea id="rev-motivo" rows="2"></textarea></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="cerrarModal('modal-revisar-solicitud')">Cerrar</button>
+      <button class="btn" style="background:#fee2e2;color:#991b1b;" onclick="decidirRevisionSolicitud('no')">✗ No corresponde</button>
+      <button class="btn" id="rev-btn-ajuste" style="background:#fdebd7;border-color:#e8c48a;color:#b25b00;" onclick="decidirRevisionSolicitud('ajuste')" disabled>⚠ Corresponde con ajuste</button>
+      <button class="btn btn-primary" onclick="decidirRevisionSolicitud('si')">✓ Corresponde</button>
     </div>
   </div>
 </div>

@@ -2,25 +2,27 @@
 
 import {
   renderResumenHoras, filtrarResumenHoras, poblarSelectsResumenHoras,
-  toggleFilaResumenHoras, toggleDiasResumenHoras,
+  toggleFilaResumenHoras, toggleDiasResumenHoras, toggleSupervisorFaltantesRH,
   exportarResumenHorasCSV, confirmarPeriodoResumen,
   tabResumenHoras, renderRevisionesRetiro,
   abrirNuevaRevisionRetiro, autocompletarRevisionRetiro, onChangePeriodoRevisionRetiro,
   agregarLineaRevisionRetiro, quitarLineaRevisionRetiro, actualizarLineaRevisionRetiro,
   agregarAdjuntoRevisionRetiro, quitarAdjuntoRevisionRetiro,
-  guardarRevisionRetiro, marcarCorrespondeRevisionRetiro,
+  guardarRevisionRetiro,
+  abrirRevisarSolicitud, actualizarAjusteLinea, decidirRevisionSolicitud,
   abrirConfirmarPagoRevisionRetiro, confirmarPagoRevisionRetiro,
 } from './resumen_horas.js';
 
 export {
   renderResumenHoras, filtrarResumenHoras, poblarSelectsResumenHoras,
-  toggleFilaResumenHoras, toggleDiasResumenHoras,
+  toggleFilaResumenHoras, toggleDiasResumenHoras, toggleSupervisorFaltantesRH,
   exportarResumenHorasCSV, confirmarPeriodoResumen,
   tabResumenHoras, renderRevisionesRetiro,
   abrirNuevaRevisionRetiro, autocompletarRevisionRetiro, onChangePeriodoRevisionRetiro,
   agregarLineaRevisionRetiro, quitarLineaRevisionRetiro, actualizarLineaRevisionRetiro,
   agregarAdjuntoRevisionRetiro, quitarAdjuntoRevisionRetiro,
-  guardarRevisionRetiro, marcarCorrespondeRevisionRetiro,
+  guardarRevisionRetiro,
+  abrirRevisarSolicitud, actualizarAjusteLinea, decidirRevisionSolicitud,
   abrirConfirmarPagoRevisionRetiro, confirmarPagoRevisionRetiro,
 };
 
@@ -43,6 +45,7 @@ export const resumenHorasScreenConfig = {
 window.filtrarResumenHoras = filtrarResumenHoras;
 window.toggleFilaResumenHoras = toggleFilaResumenHoras;
 window.toggleDiasResumenHoras = toggleDiasResumenHoras;
+window.toggleSupervisorFaltantesRH = toggleSupervisorFaltantesRH;
 window.exportarResumenHorasCSV = exportarResumenHorasCSV;
 window.confirmarPeriodoResumen = confirmarPeriodoResumen;
 window.tabResumenHoras = tabResumenHoras;
@@ -56,6 +59,8 @@ window.actualizarLineaRevisionRetiro = actualizarLineaRevisionRetiro;
 window.agregarAdjuntoRevisionRetiro = agregarAdjuntoRevisionRetiro;
 window.quitarAdjuntoRevisionRetiro = quitarAdjuntoRevisionRetiro;
 window.guardarRevisionRetiro = guardarRevisionRetiro;
-window.marcarCorrespondeRevisionRetiro = marcarCorrespondeRevisionRetiro;
+window.abrirRevisarSolicitud = abrirRevisarSolicitud;
+window.actualizarAjusteLinea = actualizarAjusteLinea;
+window.decidirRevisionSolicitud = decidirRevisionSolicitud;
 window.abrirConfirmarPagoRevisionRetiro = abrirConfirmarPagoRevisionRetiro;
 window.confirmarPagoRevisionRetiro = confirmarPagoRevisionRetiro;

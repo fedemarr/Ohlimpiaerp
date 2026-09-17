@@ -34,12 +34,12 @@
 //    Liquidaciones en esta entrega.
 
 import { DB, currentUser } from '@shared/state.js';
-import { $, getDiasDelMes, fmtDecimal, cleanText } from '@shared/helpers.js';
+import { $, getDiasDelMes, fmtDecimal, parseNumeroAr, cleanText } from '@shared/helpers.js';
 import { toast, abrirModal, cerrarModal } from '@shared/ui.js';
 import { supaSync, getLastSupaSyncError, SUPA } from '@shared/supabase.js';
 import { registroPadronVigente, obtenerValorHoraVigente, categoriaVigenteAsociado, idLocalTrunc } from '@modules/categorias/consultas.js';
 import { esMismoSupervisor } from '@modules/supervision/supervision.js';
-import { nombresSupervisoresReales } from '@modules/servicios_supervisor/servicios_supervisor.js';
+import { nombresSupervisoresReales, getSupervisorDeCodigo } from '@modules/servicios_supervisor/servicios_supervisor.js';
 
 // ========== RÉPLICAS PURAS DE legacy.js ==========
 // esHoraFacturableReal() y valorHoraEfectivoAsoc() viven en legacy.js sin
@@ -82,6 +82,7 @@ function _tipoHoraInfo(tipo) { return TIPO_HORA_INFO[tipo] || TIPO_HORA_INFO.fac
 
 const _abiertos = new Set();   // 'asoc-<nro>' — fila de asociado expandida
 const _diasAbiertos = new Set(); // 'dias-<nro>-<idxFila>' — tira de días expandida
+const _supervisoresAbiertos = new Set(); // banner de faltantes, agrupado por supervisor (ajustes 17/09)
 
 function _mesResumen() {
   return $('rh-mes')?.value || new Date().toISOString().slice(0, 7);
@@ -196,17 +197,43 @@ export function renderResumenHoras() {
   set('kpi-rh-retiro', '$' + Math.round(totalRetiro).toLocaleString('es-AR'));
   set('kpi-rh-faltantes', faltantes.length);
 
-  // Banner de faltantes
+  // Banner de faltantes — agrupado por supervisor (ajuste 17/09: el
+  // bloque plano con ~159 chips no se podía leer). Una fila por
+  // supervisor, la que más debe primero; click despliega sus servicios.
+  // Sin supervisor asignado queda como grupo aparte, al final.
   const bannerFalt = $('rh-faltantes');
   if (bannerFalt) {
     if (!faltantes.length) {
       bannerFalt.innerHTML = '';
     } else {
-      bannerFalt.innerHTML = `<div class="alerta alerta-warn">
-        <b>⚠ ${faltantes.length} servicio${faltantes.length !== 1 ? 's' : ''} sin horas reales cargadas todavía este período:</b>
-        ${faltantes.map(f => `<span class="badge badge-naranja" style="margin:2px 4px;" title="${f.motivo}">${f.codigo}</span>`).join('')}
+      const grupos = _agruparFaltantesPorSupervisor(faltantes);
+      bannerFalt.innerHTML = `<div class="alerta alerta-warn" style="padding:0;overflow:hidden;">
+        <div style="padding:11px 16px;font-weight:700;">⚠ ${faltantes.length} servicio${faltantes.length !== 1 ? 's' : ''} sin horas reales cargadas este período — por supervisor (el que más debe, primero)</div>
+        ${grupos.map(g => {
+          const key = g.supervisor || '__sin_supervisor__';
+          const abierto = _supervisoresAbiertos.has(key);
+          const label = g.supervisor || 'Sin supervisor asignado';
+          return `<div style="display:flex;align-items:center;gap:10px;padding:9px 16px;border-top:1px solid #f0e2b6;cursor:pointer;" onclick="toggleSupervisorFaltantesRH('${key}')">
+              <span style="color:#b8912a;font-size:11px;width:12px;">${abierto ? '▼' : '▶'}</span>
+              <b>${label}</b>
+              <span style="margin-left:auto;"><span class="badge ${g.supervisor ? 'badge-naranja' : 'badge-rojo'}">${g.servicios.length} servicio${g.servicios.length === 1 ? '' : 's'} sin cargar</span></span>
+            </div>
+            ${abierto ? `<div style="padding:6px 16px 12px 38px;border-top:1px dashed #f0e2b6;background:#fffcf2;">
+              ${g.servicios.map(s => `<span class="badge badge-gris" style="margin:3px 4px 0 0;" title="${s.motivo}">${s.codigo}</span>`).join('')}
+            </div>` : ''}`;
+        }).join('')}
       </div>`;
     }
+  }
+
+  // Alerta al confirmar: asociados con horas y sin categoría → retiro $0
+  // (ajuste 17/09 §3 — que nadie congele un período con gente en cero
+  // sin verlo. Sobre TODO el período, no solo lo filtrado en pantalla).
+  const sinCategoria = asociados.filter(a => !a.categoria && (a.hsFact + a.hsNoFact) > 0).length;
+  const chipSinCat = $('rh-chip-sincat');
+  if (chipSinCat) {
+    chipSinCat.style.display = sinCategoria ? 'inline-block' : 'none';
+    chipSinCat.textContent = `⚠ ${sinCategoria} asociado${sinCategoria === 1 ? '' : 's'} con horas y sin categoría — su retiro es $0`;
   }
 
   // Estado del período (congelado / confirmado)
@@ -308,6 +335,32 @@ export function toggleFilaResumenHoras(nro) {
 
 export function toggleDiasResumenHoras(diasId) {
   if (_diasAbiertos.has(diasId)) _diasAbiertos.delete(diasId); else _diasAbiertos.add(diasId);
+  renderResumenHoras();
+}
+
+// Agrupa la lista plana de faltantes por supervisor (getSupervisorDeCodigo,
+// misma fuente central que usa Pedido de personal) — el que más servicios
+// debe primero, "sin supervisor asignado" siempre al final (también es un
+// dato para corregir, no solo un grupo más).
+function _agruparFaltantesPorSupervisor(faltantes) {
+  const grupos = new Map();
+  faltantes.forEach(f => {
+    const sup = getSupervisorDeCodigo(f.codigo) || '';
+    if (!grupos.has(sup)) grupos.set(sup, []);
+    grupos.get(sup).push(f);
+  });
+  const arr = [...grupos.entries()].map(([sup, servicios]) => ({ supervisor: sup || null, servicios }));
+  arr.sort((a, b) => {
+    if (!a.supervisor && !b.supervisor) return 0;
+    if (!a.supervisor) return 1;
+    if (!b.supervisor) return -1;
+    return b.servicios.length - a.servicios.length;
+  });
+  return arr;
+}
+
+export function toggleSupervisorFaltantesRH(key) {
+  if (_supervisoresAbiertos.has(key)) _supervisoresAbiertos.delete(key); else _supervisoresAbiertos.add(key);
   renderResumenHoras();
 }
 
@@ -456,11 +509,14 @@ export function renderRevisionesRetiro() {
   tbody.innerHTML = rows.map(r => {
     const ref = idLocalTrunc(r.id);
     const lineas = (DB.revisionesRetiroLineas || []).filter(l => l.revisionIdLocal === ref);
-    const detalle = lineas.map(l => `${l.cantidadHoras} hs ${l.servicioCodigo} (${l.periodo})`).join(' · ') || '—';
+    const detalle = lineas.map(l => `${fmtDecimal(l.cantidadHoras, 2)} hs ${l.servicioCodigo} (${l.periodo})`).join(' · ') || '—';
+    // Ajuste 17/09 §1c: lo solicitado nunca se pisa — se muestra al lado
+    // de lo ajustado, con quién y cuándo, para que el supervisor no
+    // descubra después que le pagaron distinto sin explicación.
+    const ajusteHtml = r.conAjuste ? `<div class="form-hint" style="color:#b25b00;">Solicitado: ${lineas.map(l => fmtDecimal(l.cantidadHoras, 2)).join('+')} hs · $${Math.round(lineas.reduce((s, l) => s + (l.monto || 0), 0)).toLocaleString('es-AR')} → <b>Ajustado: ${lineas.map(l => fmtDecimal(l.ajusteHoras ?? l.cantidadHoras, 2)).join('+')} hs · $${Math.round(r.montoTotal || 0).toLocaleString('es-AR')}</b> (${r.ajustadoPor || '—'}, ${(r.ajustadoEn || '').slice(0, 10)})</div>` : '';
     let accion = '<span class="form-hint">—</span>';
     if (r.estado === 'En revisión' && _puedeRevisarRevision()) {
-      accion = `<button class="btn btn-primary btn-xs" onclick="marcarCorrespondeRevisionRetiro('${r.id}',true)">Corresponde</button>
-                 <button class="btn btn-secondary btn-xs" onclick="marcarCorrespondeRevisionRetiro('${r.id}',false)">No</button>`;
+      accion = `<button class="btn btn-primary btn-xs" onclick="abrirRevisarSolicitud('${r.id}')">Revisar</button>`;
     } else if (r.estado === 'Aprobada - pago pendiente' && _puedePagarRevision()) {
       accion = `<button class="btn btn-primary btn-xs" onclick="abrirConfirmarPagoRevisionRetiro('${r.id}')">💵 Confirmar pago</button>`;
     } else if (r.estado === 'Rechazada' && r.motivoRechazo) {
@@ -468,14 +524,16 @@ export function renderRevisionesRetiro() {
     } else if (r.estado === 'Pagada') {
       accion = `<span class="form-hint">${r.comprobantePago || ''} · ${r.confirmadoPagoPor || ''}</span>`;
     }
+    const estadoLabel = (r.estado === 'Aprobada - pago pendiente' && r.conAjuste) ? 'CORRESPONDE CON AJUSTE' : (r.estado || '').toUpperCase();
+    const estadoBadge = (r.estado === 'Aprobada - pago pendiente' && r.conAjuste) ? 'badge-naranja' : (ESTADO_BADGE_RR[r.estado] || 'badge-gris');
     return `<tr>
       <td><b>${r.nroSolicitud}</b></td>
       <td>${r.legajoNro ? r.legajoNro + ' · ' : ''}${r.nombreAsociado}</td>
       <td>${r.periodoReclamado}</td>
-      <td style="font-size:11.5px;">${detalle}${r.observaciones ? '<br><span class="form-hint">' + r.observaciones + '</span>' : ''}</td>
+      <td style="font-size:11.5px;">${detalle}${ajusteHtml}${r.observaciones ? '<br><span class="form-hint">' + r.observaciones + '</span>' : ''}</td>
       <td style="text-align:right;font-weight:700;">$${Math.round(r.montoTotal || 0).toLocaleString('es-AR')}</td>
       <td style="font-size:11.5px;">${r.armadoPor || '—'}</td>
-      <td><span class="badge ${ESTADO_BADGE_RR[r.estado] || 'badge-gris'}">${(r.estado || '').toUpperCase()}</span></td>
+      <td><span class="badge ${estadoBadge}">${estadoLabel}</span></td>
       <td>${accion}</td>
     </tr>`;
   }).join('');
@@ -498,12 +556,25 @@ function _serviciosParaLineaRevision(nroSocio, periodo) {
   return conPrioridad;
 }
 
-function _valorHoraSugeridoLinea(nroSocio, servicioCodigo, periodo) {
-  if (!nroSocio || !servicioCodigo || !periodo) return 0;
+// Devuelve el valor hora sugerido JUNTO con la categoría de donde salió
+// (ajuste 17/09 §1b): "elegir asociado + período reclamado → buscar su
+// categoría vigente EN ESE PERÍODO (no la de hoy) → precargar el valor
+// hora de esa categoría". fechaISO ya usaba periodo+'-01' (no hoy), así
+// que la regla de fondo estaba bien — lo que faltaba era MOSTRAR de
+// dónde salió (leyenda) y avisar si el revisor lo pisó (chip).
+function _sugerenciaValorHoraLinea(nroSocio, servicioCodigo, periodo) {
+  if (!nroSocio || !servicioCodigo || !periodo) return { valorHora: 0, categoria: null };
   const servicioNombre = (DB.objetivos || []).find(o => o.codigo === servicioCodigo)?.nombre || servicioCodigo;
   const fechaISO = periodo + '-01';
   const vh = _valorHoraEfectivoAsoc({ nro: nroSocio }, servicioNombre, fechaISO);
-  return vh?.valorHora || 0;
+  const categoria = categoriaVigenteAsociado(nroSocio, fechaISO);
+  return { valorHora: vh?.valorHora || 0, categoria };
+}
+
+function _mesLabelCorto(periodo) {
+  if (!periodo) return '';
+  const [y, m] = periodo.split('-').map(Number);
+  return new Date(y, m - 1, 1).toLocaleDateString('es-AR', { month: 'short', year: 'numeric' }).toUpperCase().replace('.', '');
 }
 
 // ========== ADELANTOS DETECTADOS (solo lectura) ==========
@@ -582,10 +653,13 @@ export function agregarLineaRevisionRetiro() {
   const servicios = _serviciosParaLineaRevision(leg.nro, periodo);
   if (!servicios.length) { toast('⚠️ No hay servicios operativos cargados para elegir'); return; }
   const servicioCodigo = servicios[0].codigo;
+  const sug = _sugerenciaValorHoraLinea(leg.nro, servicioCodigo, periodo);
   _lineasRevision.push({
     periodo, servicioCodigo,
     cantidadHoras: 0,
-    valorHora: _valorHoraSugeridoLinea(leg.nro, servicioCodigo, periodo),
+    valorHora: sug.valorHora,
+    valorHoraSugerido: sug.valorHora,
+    categoriaSugerida: sug.categoria,
     monto: 0,
   });
   _renderLineasRevision();
@@ -600,24 +674,49 @@ function _recalcularMontoLinea(l) {
   l.monto = Math.round((parseFloat(l.cantidadHoras) || 0) * (parseFloat(l.valorHora) || 0) * 100) / 100;
 }
 
+// campo 'periodo'/'servicioCodigo' (select/mes, cambio discreto): se
+// vuelve a sugerir el valor hora y se re-renderiza toda la tabla. campo
+// 'cantidadHoras'/'valorHora' (texto tipeado, ajuste 17/09 §1a): NUNCA
+// se re-renderiza la fila completa mientras se tipea — regenerar el
+// <input> en cada tecla le hace perder el foco/cursor al usuario, que es
+// justo lo que este ajuste vino a arreglar. Solo se actualiza el monto y
+// el aviso de "modificado" por DOM directo (_actualizarFilaLineaDOM).
 export function actualizarLineaRevisionRetiro(i, campo, valor) {
   const l = _lineasRevision[i];
   if (!l) return;
   const nombre = ($('rr-nombre') || { value: '' }).value;
   const leg = (DB.legajos || []).find(x => x.nombre === nombre);
-  if (campo === 'periodo') {
-    l.periodo = valor;
-    if (leg) l.valorHora = _valorHoraSugeridoLinea(leg.nro, l.servicioCodigo, l.periodo);
-  } else if (campo === 'servicioCodigo') {
-    l.servicioCodigo = valor;
-    if (leg) l.valorHora = _valorHoraSugeridoLinea(leg.nro, l.servicioCodigo, l.periodo);
-  } else if (campo === 'cantidadHoras') {
-    l.cantidadHoras = parseFloat(valor) || 0;
-  } else if (campo === 'valorHora') {
-    l.valorHora = parseFloat(valor) || 0;
+  if (campo === 'periodo' || campo === 'servicioCodigo') {
+    l[campo] = valor;
+    if (leg) {
+      const sug = _sugerenciaValorHoraLinea(leg.nro, l.servicioCodigo, l.periodo);
+      l.valorHora = sug.valorHora; l.valorHoraSugerido = sug.valorHora; l.categoriaSugerida = sug.categoria;
+    }
+    _recalcularMontoLinea(l);
+    _renderLineasRevision();
+    return;
   }
+  if (campo === 'cantidadHoras') l.cantidadHoras = parseNumeroAr(valor);
+  else if (campo === 'valorHora') l.valorHora = parseNumeroAr(valor);
   _recalcularMontoLinea(l);
-  _renderLineasRevision();
+  _actualizarFilaLineaDOM(i);
+}
+
+function _actualizarFilaLineaDOM(i) {
+  const l = _lineasRevision[i];
+  if (!l) return;
+  const modificado = Math.abs((l.valorHora || 0) - (l.valorHoraSugerido || 0)) > 0.01;
+  const inpVh = $('rr-vh-' + i);
+  if (inpVh) {
+    inpVh.style.background = modificado ? '#fff8ec' : '';
+    inpVh.style.borderColor = modificado ? '#e8c48a' : '';
+  }
+  const warnEl = $('rr-vhwarn-' + i);
+  if (warnEl) warnEl.innerHTML = modificado ? `⚠ valor modificado (cat.: $${fmtDecimal(l.valorHoraSugerido, 2)})` : '';
+  const montoEl = $('rr-monto-' + i);
+  if (montoEl) montoEl.textContent = '$' + (l.monto || 0).toLocaleString('es-AR');
+  const elTotal = $('rr-total-preview');
+  if (elTotal) elTotal.textContent = '$' + Math.round(_lineasRevision.reduce((s, x) => s + (x.monto || 0), 0)).toLocaleString('es-AR');
 }
 
 function _renderLineasRevision() {
@@ -628,16 +727,24 @@ function _renderLineasRevision() {
 
   tbody.innerHTML = _lineasRevision.map((l, i) => {
     const servicios = leg ? _serviciosParaLineaRevision(leg.nro, l.periodo) : [];
+    const modificado = Math.abs((l.valorHora || 0) - (l.valorHoraSugerido || 0)) > 0.01;
+    const leyenda = l.categoriaSugerida
+      ? `Categoría vigente en ${_mesLabelCorto(l.periodo)}: <b>${l.categoriaSugerida.codigo} · ${l.categoriaSugerida.nombre}</b>`
+      : `<span style="color:var(--rojo);">Sin categoría vigente en ${_mesLabelCorto(l.periodo)} — no se pudo sugerir un valor hora</span>`;
     return `<tr>
       <td><input type="month" value="${l.periodo}" onchange="actualizarLineaRevisionRetiro(${i},'periodo',this.value)" style="width:120px;"></td>
       <td>
         <select onchange="actualizarLineaRevisionRetiro(${i},'servicioCodigo',this.value)">
           ${servicios.map(s => `<option value="${s.codigo}" ${s.codigo === l.servicioCodigo ? 'selected' : ''}>${s.trabajado ? '✓ ' : ''}${s.nombre} (${s.codigo})</option>`).join('')}
         </select>
+        <div style="font-size:10.5px;color:var(--texto-suave);margin-top:2px;">${leyenda}</div>
       </td>
-      <td><input type="number" min="0" step="0.5" value="${l.cantidadHoras || ''}" oninput="actualizarLineaRevisionRetiro(${i},'cantidadHoras',this.value)" style="width:70px;text-align:right;"></td>
-      <td><input type="number" min="0" step="0.01" value="${l.valorHora || ''}" oninput="actualizarLineaRevisionRetiro(${i},'valorHora',this.value)" style="width:90px;text-align:right;" title="Sugerido de la categoría vigente — se puede corregir"></td>
-      <td style="text-align:right;font-weight:700;">$${(l.monto || 0).toLocaleString('es-AR')}</td>
+      <td><input type="text" inputmode="decimal" id="rr-hs-${i}" value="${l.cantidadHoras ? String(l.cantidadHoras).replace('.', ',') : ''}" placeholder="0" oninput="actualizarLineaRevisionRetiro(${i},'cantidadHoras',this.value)" style="width:70px;text-align:right;"></td>
+      <td>
+        <input type="text" inputmode="decimal" id="rr-vh-${i}" value="${l.valorHora ? fmtDecimal(l.valorHora, 2) : ''}" placeholder="—" oninput="actualizarLineaRevisionRetiro(${i},'valorHora',this.value)" style="width:100px;text-align:right;${modificado ? 'background:#fff8ec;border-color:#e8c48a;' : ''}" title="Sugerido de la categoría vigente en el período — se puede corregir">
+        <div id="rr-vhwarn-${i}" style="font-size:10px;color:#b25b00;">${modificado ? `⚠ valor modificado (cat.: $${fmtDecimal(l.valorHoraSugerido, 2)})` : ''}</div>
+      </td>
+      <td style="text-align:right;font-weight:700;" id="rr-monto-${i}">$${(l.monto || 0).toLocaleString('es-AR')}</td>
       <td><button type="button" class="btn btn-secondary btn-xs" onclick="quitarLineaRevisionRetiro(${i})">✕</button></td>
     </tr>`;
   }).join('') || '<tr><td colspan="6" style="text-align:center;color:var(--texto-suave);padding:10px;">Sin líneas — agregá al menos una.</td></tr>';
@@ -744,32 +851,130 @@ export async function guardarRevisionRetiro() {
   renderRevisionesRetiro();
 }
 
-// ========== FLUJO: REVISAR (Operaciones) ==========
+// ========== FLUJO: REVISAR (Operaciones) — Corresponde / Corresponde
+// con ajuste / No corresponde (ajuste 17/09 §1c) ==========
+//
+// "Lo original nunca se pisa": cantidadHoras/valorHora/monto de cada
+// línea de revisiones_retiro_lineas siguen siendo lo que armó el
+// supervisor. El ajuste (si lo hay) se guarda al lado, por línea
+// (ajuste_horas/ajuste_valor_hora/ajuste_monto, sql/v143) — una
+// solicitud puede tener varias líneas, cada una con su propio ajuste o
+// sin ajuste. montoTotal SÍ se actualiza al total ajustado cuando hay
+// ajuste (es lo que termina pagando Finanzas); el detalle "solicitado
+// → ajustado" queda visible aparte, nunca se pierde.
 
-export async function marcarCorrespondeRevisionRetiro(id, corresponde) {
+let _revisandoId = null;
+let _lineasAjuste = [];
+
+export function abrirRevisarSolicitud(id) {
   if (!_puedeRevisarRevision()) { toast('⛔ Solo Central de Operaciones o Administración pueden revisar'); return; }
   const r = (DB.revisionesRetiro || []).find(x => String(x.id) === String(id));
   if (!r) return;
-  let motivo = '';
-  if (!corresponde) {
-    motivo = (prompt('Motivo del rechazo:') || '').trim();
-    if (!motivo) { toast('⚠️ El rechazo necesita un motivo'); return; }
-  } else if (!confirm(`¿Confirmar que "${r.nroSolicitud}" corresponde? Pasa a Finanzas como pago pendiente.`)) return;
+  _revisandoId = id;
+  const ref = idLocalTrunc(r.id);
+  const lineas = (DB.revisionesRetiroLineas || []).filter(l => l.revisionIdLocal === ref);
+  _lineasAjuste = lineas.map(l => ({
+    lineaId: l.id,
+    servicioNombre: (DB.objetivos || []).find(o => o.codigo === l.servicioCodigo)?.nombre || l.servicioCodigo,
+    periodo: l.periodo,
+    hsSolicitado: l.cantidadHoras, vhSolicitado: l.valorHora, montoSolicitado: l.monto,
+    hsAjuste: l.cantidadHoras, vhAjuste: l.valorHora,
+  }));
+  if ($('rev-titulo')) $('rev-titulo').textContent = r.nroSolicitud + ' · ' + r.nombreAsociado;
+  if ($('rev-motivo')) $('rev-motivo').value = '';
+  _renderLineasAjuste();
+  abrirModal('modal-revisar-solicitud');
+}
+
+function _huboCambioAjuste() {
+  return _lineasAjuste.some(l => Math.abs(l.hsAjuste - l.hsSolicitado) > 0.001 || Math.abs(l.vhAjuste - l.vhSolicitado) > 0.01);
+}
+
+function _actualizarBotonAjuste() {
+  const btn = $('rev-btn-ajuste');
+  if (btn) btn.disabled = !_huboCambioAjuste();
+}
+
+function _renderLineasAjuste() {
+  const tbody = $('rev-lineas-body');
+  if (!tbody) return;
+  tbody.innerHTML = _lineasAjuste.map((l, i) => `
+    <tr>
+      <td style="font-size:12px;">${l.servicioNombre}<br><span style="color:var(--texto-suave);">${l.periodo}</span></td>
+      <td style="text-align:right;">${fmtDecimal(l.hsSolicitado, 2)} hs</td>
+      <td style="text-align:right;">$${fmtDecimal(l.vhSolicitado, 2)}</td>
+      <td style="text-align:right;">$${Math.round(l.montoSolicitado || 0).toLocaleString('es-AR')}</td>
+      <td><input type="text" inputmode="decimal" id="rev-hs-${i}" value="${String(l.hsAjuste).replace('.', ',')}" oninput="actualizarAjusteLinea(${i},'hs',this.value)" style="width:70px;text-align:right;padding:5px 6px;border:1px solid var(--borde-fuerte);border-radius:var(--radio);"></td>
+      <td><input type="text" inputmode="decimal" id="rev-vh-${i}" value="${fmtDecimal(l.vhAjuste, 2)}" oninput="actualizarAjusteLinea(${i},'vh',this.value)" style="width:90px;text-align:right;padding:5px 6px;border:1px solid var(--borde-fuerte);border-radius:var(--radio);"></td>
+      <td style="text-align:right;font-weight:700;" id="rev-monto-${i}">$${Math.round(l.hsAjuste * l.vhAjuste).toLocaleString('es-AR')}</td>
+    </tr>`).join('');
+  _actualizarBotonAjuste();
+}
+
+export function actualizarAjusteLinea(i, campo, valor) {
+  const l = _lineasAjuste[i];
+  if (!l) return;
+  if (campo === 'hs') l.hsAjuste = parseNumeroAr(valor);
+  else if (campo === 'vh') l.vhAjuste = parseNumeroAr(valor);
+  const montoEl = $('rev-monto-' + i);
+  if (montoEl) montoEl.textContent = '$' + Math.round(l.hsAjuste * l.vhAjuste).toLocaleString('es-AR');
+  _actualizarBotonAjuste();
+}
+
+export async function decidirRevisionSolicitud(modo) {
+  const r = (DB.revisionesRetiro || []).find(x => String(x.id) === String(_revisandoId));
+  if (!r) return;
+  const motivo = ($('rev-motivo') || { value: '' }).value.trim();
+  if (modo === 'no' && !motivo) { toast('⚠️ El motivo es obligatorio para rechazar'); return; }
+  if (modo === 'ajuste') {
+    if (!motivo) { toast('⚠️ El motivo es obligatorio para ajustar'); return; }
+    if (!_huboCambioAjuste()) { toast('⚠️ No cambiaste ningún valor — usá "Corresponde" si está bien tal cual'); return; }
+  }
 
   const prev = { ...r };
-  r.estado = corresponde ? 'Aprobada - pago pendiente' : 'Rechazada';
+  const ref = idLocalTrunc(r.id);
+  const lineasReales = (DB.revisionesRetiroLineas || []).filter(l => l.revisionIdLocal === ref);
+  const lineasPrevias = lineasReales.map(l => ({ ...l }));
+
+  if (modo === 'no') {
+    r.estado = 'Rechazada';
+    r.motivoRechazo = motivo;
+  } else {
+    r.estado = 'Aprobada - pago pendiente';
+    r.conAjuste = modo === 'ajuste';
+    if (modo === 'ajuste') {
+      r.ajustadoPor = currentUser?.nombre || '';
+      r.ajustadoEn = new Date().toISOString();
+      let nuevoTotal = 0;
+      for (const l of _lineasAjuste) {
+        const real = lineasReales.find(x => x.id === l.lineaId);
+        if (!real) continue;
+        real.ajusteHoras = l.hsAjuste;
+        real.ajusteValorHora = l.vhAjuste;
+        real.ajusteMonto = Math.round(l.hsAjuste * l.vhAjuste * 100) / 100;
+        nuevoTotal += real.ajusteMonto;
+      }
+      r.montoTotal = nuevoTotal;
+    }
+  }
   r.revisadoPor = currentUser?.nombre || '';
   r.revisadoEn = new Date().toISOString();
-  if (!corresponde) r.motivoRechazo = motivo;
 
   const ok = await supaSync('revisionesRetiro', r);
   if (!ok) {
     Object.assign(r, prev);
+    lineasReales.forEach((l, i) => Object.assign(l, lineasPrevias[i]));
     const err = getLastSupaSyncError();
     toast('⚠️ No se pudo guardar' + (err?.message ? ' (' + err.message + ')' : '') + ' — reintentá');
     return;
   }
-  toast(corresponde ? '✅ Pasa a Finanzas como pago pendiente' : '✕ Rechazada — el supervisor va a ver el motivo');
+  if (modo === 'ajuste') {
+    for (const l of lineasReales) await supaSync('revisionesRetiroLineas', l);
+  }
+  cerrarModal('modal-revisar-solicitud');
+  toast(modo === 'no' ? '✕ Rechazada — el supervisor va a ver el motivo'
+    : modo === 'ajuste' ? '⚠ Corresponde CON AJUSTE — el supervisor ve solicitado y ajustado, lado a lado'
+      : '✅ Corresponde — pasa a Finanzas como pago pendiente');
   renderRevisionesRetiro();
 }
 

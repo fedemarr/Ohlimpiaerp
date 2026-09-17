@@ -597,6 +597,8 @@ export function _toSnake(obj) {
     armadoPor: 'armado_por', armadoEn: 'armado_en', revisadoPor: 'revisado_por', revisadoEn: 'revisado_en',
     comprobantePago: 'comprobante_pago', confirmadoPagoPor: 'confirmado_pago_por', confirmadoPagoEn: 'confirmado_pago_en',
     pendienteFacturar: 'pendiente_facturar', revisionIdLocal: 'revision_id_local', cantidadHoras: 'cantidad_horas',
+    // v143 — Revisión de retiro: "Corresponde con ajuste"
+    conAjuste: 'con_ajuste', ajusteHoras: 'ajuste_horas', ajusteValorHora: 'ajuste_valor_hora', ajusteMonto: 'ajuste_monto',
     // v138 — Cuentas CBU (padrón de cuentas bancarias)
     cuitTitular: 'cuit_titular', esTercero: 'es_tercero', tramiteBanco: 'tramite_banco',
     tramiteFecha: 'tramite_fecha', tramitePor: 'tramite_por', tramiteObservaciones: 'tramite_observaciones',
@@ -1078,6 +1080,7 @@ export function _toCamel(obj) {
     armado_por: 'armadoPor', armado_en: 'armadoEn', revisado_por: 'revisadoPor', revisado_en: 'revisadoEn',
     comprobante_pago: 'comprobantePago', confirmado_pago_por: 'confirmadoPagoPor', confirmado_pago_en: 'confirmadoPagoEn',
     pendiente_facturar: 'pendienteFacturar', revision_id_local: 'revisionIdLocal', cantidad_horas: 'cantidadHoras',
+    con_ajuste: 'conAjuste', ajuste_horas: 'ajusteHoras', ajuste_valor_hora: 'ajusteValorHora', ajuste_monto: 'ajusteMonto',
     // v138 — Cuentas CBU (padrón de cuentas bancarias)
     cuit_titular: 'cuitTitular', es_tercero: 'esTercero', tramite_banco: 'tramiteBanco',
     tramite_fecha: 'tramiteFecha', tramite_por: 'tramitePor', tramite_observaciones: 'tramiteObservaciones',

@@ -28,6 +28,18 @@ export const cleanText = s => (s || '').trim();
 export const fmtDecimal = (n, decimales = 2) =>
   Number(n || 0).toLocaleString('es-AR', { minimumFractionDigits: decimales, maximumFractionDigits: decimales });
 
+// Parsea un número tipeado en formato argentino (coma decimal, punto de
+// miles opcional: "4.383,12" o "4383,12" o "104") — para inputs de texto
+// tipeables en vez de <input type=number> con spinner (ticket "Resumen
+// de horas — ajustes" 17/09: cargar 104 horas o $4.383,12 a golpe de
+// flecha es inviable). "Número o nada": nunca lanza, devuelve 0 si no
+// se puede interpretar.
+export const parseNumeroAr = s => {
+  const v = String(s || '').trim().replace(/\./g, '').replace(',', '.');
+  const n = parseFloat(v);
+  return isNaN(n) ? 0 : n;
+};
+
 // ========== CBU (ticket "CBU" 08/2026) ==========
 // CBU argentino: exactamente 22 dígitos numéricos. Se normaliza quitando
 // espacios/guiones/puntos antes de validar (un input o CSV puede venir
