@@ -9,6 +9,7 @@ import { esRRHHoAdmin, esFinanzasOAdmin } from '../adelantos_prestamos_shared/pe
 
 export {
   renderRevisionRRHH, abrirRevisionRRHH, aprobarRevisionRRHH, rechazarRevisionRRHH, devolverPedidoASupervisor,
+  chequearCuotasModal,
 } from './revision.js';
 
 export {
@@ -75,7 +76,7 @@ export const gestionAdelantosScreenConfig = {
 
 // ========== WINDOW BINDINGS ==========
 
-import { abrirRevisionRRHH, aprobarRevisionRRHH, rechazarRevisionRRHH, devolverPedidoASupervisor } from './revision.js';
+import { abrirRevisionRRHH, aprobarRevisionRRHH, rechazarRevisionRRHH, devolverPedidoASupervisor, chequearCuotasModal } from './revision.js';
 import {
   tildarDeposito, tildarTodosDeposito, abrirConfirmarDeposito, abrirDepositoManualUno,
   mostrarCamposManualClick, confirmarLoteAdelantos, abrirRechazarDeposito, confirmarRechazoDeposito,
@@ -92,6 +93,7 @@ window.abrirRevisionRRHH = abrirRevisionRRHH;
 window.aprobarRevisionRRHH = aprobarRevisionRRHH;
 window.rechazarRevisionRRHH = rechazarRevisionRRHH;
 window.devolverPedidoASupervisor = devolverPedidoASupervisor;
+window.chequearCuotasModal = chequearCuotasModal;
 
 window.tildarDeposito = tildarDeposito;
 window.tildarTodosDeposito = tildarTodosDeposito;

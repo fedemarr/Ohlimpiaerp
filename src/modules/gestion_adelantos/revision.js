@@ -6,7 +6,7 @@ import { DB } from '@shared/state.js';
 import { $ } from '@shared/helpers.js';
 import { toast, abrirModal, cerrarModal } from '@shared/ui.js';
 import { getPedidoById, getPrestamoById, aprobarRRHH, rechazarRRHH, reAprobarTrasRechazoFinanzas, devolverASupervisorTrasRechazoFinanzas } from '../adelantos_prestamos_shared/flujo.js';
-import { obtenerTopeVigente, obtenerUmbralAlertaPedidos } from '../adelantos_prestamos_shared/config.js';
+import { obtenerTopeVigente, obtenerUmbralAlertaPedidos, obtenerMaxCuotas } from '../adelantos_prestamos_shared/config.js';
 import { construirContextoAsociado } from '../adelantos_prestamos_shared/contexto.js';
 
 function pedidosEnRevision() {
@@ -125,8 +125,9 @@ export function abrirRevisionRRHH(tipo, id) {
       <div class="form-section" style="margin-bottom:8px;">Definir cuotas aprobadas</div>
       <div class="form-grid form-grid-2">
         <div class="form-group"><label>Monto a aprobar</label><input type="number" id="gr-monto-aprobado" min="0" value="${p.montoSolicitado ?? p.monto ?? ''}"></div>
-        <div class="form-group"><label>Cuotas a aprobar</label><input type="number" id="gr-cuotas-aprobadas" min="1" value="${p.cuotasSolicitadas ?? p.cuotas ?? ''}"></div>
+        <div class="form-group"><label>Cuotas a aprobar</label><input type="number" id="gr-cuotas-aprobadas" min="1" value="${p.cuotasSolicitadas ?? p.cuotas ?? ''}" oninput="chequearCuotasModal()"></div>
       </div>
+      <div id="gr-aviso-cuotas" class="alerta alerta-warning" style="display:none;font-size:12px;margin-bottom:10px;"></div>
     ` : ''}
     <div class="form-group"><label>Motivo ${devuelto ? '(obligatorio para devolver al supervisor)' : '(obligatorio si rechaza)'}</label><textarea id="gr-motivo" rows="2" placeholder="${devuelto ? 'Ej: Monto muy elevado, solicitar menos / El asociado ya solicitó demasiados adelantos este mes' : ''}"></textarea></div>
   `;
@@ -137,7 +138,24 @@ export function abrirRevisionRRHH(tipo, id) {
     ${devuelto ? `<button class="btn" style="background:#fee2e2;color:#991b1b;" onclick="devolverPedidoASupervisor()">↩️ Devolver al supervisor</button>` : ''}
     <button class="btn btn-primary" onclick="aprobarRevisionRRHH()">✅ ${devuelto ? 'Ajustar y reenviar a Finanzas' : 'Aprobar'}</button>
   `;
+  if (tipo === 'Préstamo') chequearCuotasModal();
   abrirModal('modal-gadl-revision');
+}
+
+// PRESTAMOS_bug_para_Fede.md §2: soft-warning (no bloquea) si RRHH
+// define más cuotas que el máximo configurado en Configuración — el
+// mismo valor que ya usa esa pantalla (obtenerMaxCuotas), no uno nuevo.
+export function chequearCuotasModal() {
+  const cuotas = parseInt(($('gr-cuotas-aprobadas') || {}).value, 10) || 0;
+  const max = obtenerMaxCuotas();
+  const aviso = $('gr-aviso-cuotas');
+  if (!aviso) return;
+  if (cuotas > max) {
+    aviso.style.display = 'block';
+    aviso.textContent = `⚠ ${cuotas} cuotas supera el máximo configurado (${max}). Se puede aprobar igual si corresponde.`;
+  } else {
+    aviso.style.display = 'none';
+  }
 }
 
 export async function aprobarRevisionRRHH() {

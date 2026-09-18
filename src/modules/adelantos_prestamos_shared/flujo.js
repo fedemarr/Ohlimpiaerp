@@ -13,7 +13,8 @@
 // nueva).
 
 import { DB, currentUser } from '@shared/state.js';
-import { supaSync } from '@shared/supabase.js';
+import { supaSync, getLastSupaSyncError } from '@shared/supabase.js';
+import { toast } from '@shared/ui.js';
 import { crearNotificacion } from '@shared/notificaciones.js';
 import { obtenerTopeVigente } from './config.js';
 import { generarCompromisosDescuento } from './descuentos.js';
@@ -42,9 +43,27 @@ function _getById(tipo, id) {
 export function getPedidoById(id) { return _getById('Adelanto', id); }
 export function getPrestamoById(id) { return _getById('Préstamo', id); }
 
+// PRESTAMOS_bug_para_Fede.md (18/09): un préstamo elevado por el
+// supervisor quedaba "PENDIENTE" en Mis pedidos pero jamás llegaba a
+// Revisión RRHH. Causa real (confirmada contra la base): la tabla
+// prestamos NO tenía las columnas "servicio" ni "cargado_por" que
+// crearPedidoPrestamo() manda en TODO insert — Postgrest rechazaba el
+// upsert completo, en silencio, porque _guardar() nunca miraba el
+// resultado de supaSync(). El registro sobrevivía solo en la memoria del
+// navegador de quien lo cargó (por eso "su" vista lo mostraba pendiente
+// para siempre) y jamás existió para ninguna otra sesión — ver
+// sql/v148 para el ALTER TABLE que agrega las columnas que faltaban.
+// Este fix es la otra mitad: si vuelve a faltar una columna (acá o en
+// cualquier transición de este módulo), que se vea un error en vez de
+// fallar mudo con un toast de éxito.
 async function _guardar(tipo, obj) {
   const { dbKey } = _arrayYClave(tipo);
-  await supaSync(dbKey, obj);
+  const ok = await supaSync(dbKey, obj);
+  if (!ok) {
+    const err = getLastSupaSyncError();
+    toast(`⚠️ No se pudo guardar el ${tipo.toLowerCase()} en el servidor${err?.message ? ' (' + err.message + ')' : ''} — avisá a sistemas, el cambio puede perderse si recargás la página.`);
+  }
+  return ok;
 }
 
 async function _registrarEvento(tipo, pedido, estadoDesde, estadoHasta, observaciones = '') {
