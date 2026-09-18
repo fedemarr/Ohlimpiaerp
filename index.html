@@ -3229,7 +3229,6 @@
             <option>servicio</option><option>administracion</option>
             <option>retenes</option><option>trabajos_especiales</option>
           </select>
-          <button class="btn btn-ghost btn-sm" onclick="expandirTodasGrillas()" id="btn-expandir-todo">↕ Expandir todo</button>
           <button class="btn btn-secondary btn-sm" onclick="abrirImportadorLiquidacion()">📥 Importar CSV</button>
         </div>
       </div>
@@ -3711,6 +3710,34 @@
   </div>
 </div>
 
+
+<!-- MODAL: pantalla del servicio (GRILLAS_ajustes_v2 §1, 18/09) — la vista
+     principal de Grillas quedó plegada y de solo lectura/control; toda la
+     carga (horas, francos, observaciones, + Agregar asociado, Congelar)
+     vive acá adentro, en la pantalla propia de CADA servicio. -->
+<div class="modal-overlay" id="modal-grilla-servicio">
+  <div class="modal" style="max-width:1180px;width:96vw;">
+    <div class="modal-header">
+      <div>
+        <h3 id="mgs-nombre" style="margin:0;">Servicio</h3>
+        <div id="mgs-sub" style="font-size:11.5px;color:var(--texto-suave);margin-top:2px;"></div>
+      </div>
+      <button class="btn-close" onclick="cerrarDetalleServicioGrilla()">×</button>
+    </div>
+    <div class="modal-body" style="padding-top:10px;">
+      <div id="mgs-pend" style="margin-bottom:10px;font-size:12.5px;"></div>
+      <div class="tabla-wrap" style="overflow-x:auto;">
+        <table style="border-collapse:collapse;font-size:12px;width:100%;min-width:max-content;">
+          <thead id="thead-grilla-servicio"></thead>
+          <tbody id="tbody-grilla-servicio"></tbody>
+        </table>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="cerrarDetalleServicioGrilla()">Cerrar</button>
+    </div>
+  </div>
+</div>
 
 <!-- MODAL AGREGAR ASOCIADO A GRILLA -->
 <div class="modal-overlay" id="modal-agregar-asoc-grilla">

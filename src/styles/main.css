@@ -142,7 +142,6 @@ body{font-family:'DM Sans',sans-serif;background:var(--fondo);color:var(--texto)
 .liq-row-servicio{background:#6b7280;color:white;cursor:pointer;transition:background .1s;}
 .liq-row-servicio:hover{background:white;color:#111 !important;}
 .liq-row-servicio:hover td{color:#111 !important;}
-.liq-row-servicio.expandido{background:#4b5563;}
 .liq-row-asociado{background:white;}
 .liq-row-asociado:hover{background:var(--fondo);}
 .liq-row-asociado.extra{background:#fffbea;}
@@ -160,8 +159,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--fondo);color:var(--texto)
 .liq-celda-dia input{width:100%;border:none;background:transparent;text-align:center;font-size:11px;outline:none;padding:0;margin:0;display:block;color:var(--azul);font-weight:600;box-sizing:border-box;-webkit-appearance:none;-moz-appearance:textfield;appearance:textfield;}
 .liq-celda-dia input::-webkit-outer-spin-button,.liq-celda-dia input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0;}
 .liq-celda-dia input:disabled{color:var(--texto-muy-suave);}
-.liq-toggle-icon{display:inline-block;transition:transform .2s;font-size:10px;margin-right:6px;}
-.liq-row-servicio.expandido .liq-toggle-icon{transform:rotate(90deg);}
+.liq-toggle-icon{display:inline-block;font-size:10px;margin-right:6px;}
 .liq-badge-tipo{font-size:9px;padding:1px 6px;border-radius:10px;font-weight:600;margin-left:4px;}
 .liq-badge-reten{background:#dbeafe;color:#1e40af;}
 .liq-badge-especial{background:#ede9fe;color:#6d28d9;}

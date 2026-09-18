@@ -11,14 +11,17 @@ async function loginComoAdmin(page) {
   });
 }
 
-// GRILLAS_ajustes_v2_para_Fede.md (18/09) — 3 de los 6 puntos, los que no
-// requieren tocar la estructura de pantalla (eso queda para el punto 1,
-// el más grande, en una pasada aparte):
+// GRILLAS_ajustes_v2_para_Fede.md (18/09) — los 6 puntos:
+//   §1: la vista principal queda SIEMPRE plegada (solo lectura/control) y
+//     el click en el servicio abre su propia pantalla (modal) con la
+//     carga completa — ya no hay filas de detalle en el acordeón.
 //   §2/§3/§4: la celda con observación se pinta amarilla ENTERA con texto
 //     oscuro SIEMPRE (aunque esté verificada) y desaparece al borrar la obs.
 //   §5: "Verificar hasta…" pide la fecha (HOY precargado, nunca a futuro),
 //     no verifica días posteriores a la elegida.
-test('Grillas — observación amarilla manda + Verificar hasta con fecha elegible', async ({ page }) => {
+//   §6: verificar/desverificar una celda individual con un click — ya
+//     resuelto antes con el ícono ✓/○ de la esquina (no se tocó).
+test('Grillas — pantalla propia por servicio + observación amarilla manda + Verificar hasta con fecha elegible', async ({ page }) => {
   await loginComoAdmin(page);
   const mes = new Date().toISOString().slice(0, 7);
 
@@ -54,12 +57,19 @@ test('Grillas — observación amarilla manda + Verificar hasta con fecha elegib
   }, mes);
 
   await page.waitForTimeout(200);
-  await page.evaluate(() => window.toggleGrilla('OBJ-GRL-E2E'));
+
+  // --- §1: la vista principal NO tiene filas de asociado (siempre
+  // plegada) — el click abre la pantalla propia del servicio (modal) ---
+  await expect(page.locator('#tbody-servicios-compacta .liq-row-asociado')).toHaveCount(0);
+  await page.evaluate(() => window.abrirDetalleServicioGrilla('OBJ-GRL-E2E'));
   await page.waitForTimeout(200);
+  await expect(page.locator('#modal-grilla-servicio')).toBeVisible();
+  await expect(page.locator('#mgs-nombre')).toContainText('Servicio Grillas E2E');
+  await expect(page.locator('#tbody-grilla-servicio .liq-row-asociado')).toHaveCount(1);
 
   // --- §2/§4: la celda del día 5 (verificada + con observación) es
   // amarilla con texto oscuro, no blanca-sobre-blanco ---
-  const celdaD5 = page.locator(`td[oncontextmenu*="'${d5}'"]`).first();
+  const celdaD5 = page.locator(`#tbody-grilla-servicio td[oncontextmenu*="'${d5}'"]`).first();
   await expect(celdaD5).toHaveAttribute('style', /#fff3b0/);
   const inputD5 = celdaD5.locator('input');
   await expect(inputD5).toHaveAttribute('style', /#1a1a2e/);
@@ -71,10 +81,10 @@ test('Grillas — observación amarilla manda + Verificar hasta con fecha elegib
     const { DB } = await import('/src/shared/state.js');
     const g = DB.grillasLiq.find(x => x.id === 'GRL-AJV2-E2E');
     delete g.asociados[0].observaciones[d5];
-    window.renderGrillasLiq();
+    window.renderDetalleGrillaServicio('OBJ-GRL-E2E');
   }, d5);
   await page.waitForTimeout(150);
-  const celdaD5SinObs = page.locator(`td[oncontextmenu*="'${d5}'"]`).first();
+  const celdaD5SinObs = page.locator(`#tbody-grilla-servicio td[oncontextmenu*="'${d5}'"]`).first();
   await expect(celdaD5SinObs).not.toHaveAttribute('style', /#fff3b0/);
   // Sigue verificada (fondo azul oscuro), eso no lo tocó borrar la obs.
   await expect(celdaD5SinObs).toHaveAttribute('style', /#1b2a5e/);

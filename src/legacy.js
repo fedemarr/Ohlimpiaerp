@@ -12123,7 +12123,12 @@ function guardarRetencion(){
 
 // ========== PEDIDOS DE ADELANTOS + GESTIÓN DE ADELANTOS — migrado a src/modules/pedidos_adelantos/ + src/modules/gestion_adelantos/ (mis_adelantos / Portal del asociado NO se tocó, sigue mas abajo) ==========
 
-const _grillasExpandidas = new Set();
+// GRILLAS_ajustes_v2 §1 (18/09): reemplaza el viejo acordeón
+// (_grillasExpandidas) — la vista principal es siempre plegada; esto solo
+// guarda qué servicio está abierto en SU PROPIA pantalla (modal), o null
+// si el modal está cerrado. Lo usa renderGrillasLiq() al final para
+// refrescar también el detalle del modal si está abierto (ver abajo).
+let _grillaAbiertaObjCodigo = null;
 
 // ── Candado por servicio (ticket 11/09, punto 3) ────────────────────
 // grilla.congelada = candado REVERSIBLE del supervisor (protege de toques
@@ -12305,19 +12310,6 @@ function renderGrillasLiq(){
     const cli=DB.clientes.find(c=>c.id===obj.clienteId);
     let grilla=DB.grillasLiq.find(g=>g.periodo===mes&&g.objCodigo===obj.codigo);
     const params=DB.parametrosServicio[obj.codigo]||{diasSemana:[1,2,3,4,5],horasPorDia:8};
-    const expandido=_grillasExpandidas.has(obj.codigo);
-
-    // Bug #12 relevamiento: si el servicio está expandido pero todavía no
-    // tiene grilla del mes, había que auto-crearla (más abajo, en el bloque
-    // de detalle) ANTES de poder mostrar las horas reales — pero la fila
-    // de encabezado (resumen) se calculaba primero, con la grilla vieja
-    // (null), así que quedaba mostrando la estimación en vez de las horas
-    // reales recién cargadas. Adelantamos la auto-creación acá para que
-    // encabezado y detalle usen la misma grilla ya real en el mismo render.
-    if(expandido&&!grilla){
-      crearGrillaDesdeObj(obj.codigo, mes);
-      grilla=DB.grillasLiq.find(g=>g.periodo===mes&&g.objCodigo===obj.codigo);
-    }
 
     // Calcular totales de la fila resumen
     let totalHsObj=0,totalFactObj=0,totalPagarObj=0;
@@ -12411,8 +12403,10 @@ function renderGrillasLiq(){
         ?`<span class="liq-badge-tipo" style="background:#dff2e1;color:#1e7b34;" title="Todo lo que ya pasó está confirmado">✔ ${statsVer.verificados}/${statsVer.verificables} verif.</span>`
         :`<span class="liq-badge-tipo" style="background:#fdebd7;color:#b25b00;" title="Días con dato cargado que todavía nadie confirmó">${statsVer.pendientes} sin verif.</span>`;
 
-    // FILA RESUMEN DEL SERVICIO (siempre visible)
-    html+=`<tr class="liq-row-servicio${expandido?' expandido':''}" onclick="toggleGrilla('${obj.codigo}')" data-obj="${obj.codigo}">
+    // FILA RESUMEN DEL SERVICIO — GRILLAS_ajustes_v2 §1: vista SIEMPRE
+    // plegada, solo lectura y control; click abre la pantalla propia del
+    // servicio (modal-grilla-servicio) en vez de expandir filas acá.
+    html+=`<tr class="liq-row-servicio" onclick="abrirDetalleServicioGrilla('${obj.codigo}')" data-obj="${obj.codigo}">
       <td style="padding:8px 12px;border:1px solid #6b7280;position:sticky;left:0;background:inherit;font-weight:700;color:white;">
         <span class="liq-toggle-icon">▶</span>
         ${obj.nombre}
@@ -12437,219 +12431,6 @@ function renderGrillasLiq(){
       <td style="padding:6px 8px;border:1px solid #2d5a9e;">${estadoGrilla}</td>
     </tr>`;
 
-    // FILAS DETALLE (visibles solo cuando expandido)
-    if(expandido){
-      // Red de seguridad: la auto-creación real ya se adelantó arriba (antes
-      // de calcular la fila resumen) para que encabezado y detalle usen la
-      // misma grilla; esto solo cubre el caso defensivo de que haya fallado.
-      if(!grilla){
-        crearGrillaDesdeObj(obj.codigo, mes);
-        grilla=DB.grillasLiq.find(g=>g.periodo===mes&&g.objCodigo===obj.codigo);
-      }
-      if(grilla){
-        // Mostrar filas de asociados
-        const asocs=grilla.asociados||[];
-        if(true){  // siempre entra
-          asocs.forEach((asoc,ai)=>{
-            let hsAsoc=0,hsFactAsoc=0,totalPagarAsoc=0,hsAJAsoc=0;
-            dias.forEach(dia=>{
-              // FIX (NaN): parseFloat de un F/AJ/AI da NaN — antes esto
-              // contaminaba hsAsoc/totalPagarAsoc para siempre. AJ además
-              // ahora SUMA (cobra horas proyectadas, no se factura, §5b).
-              const h=parseFloat(asoc.horas?.[dia.iso]);
-              const hPago=horasCobradasDia(asoc,dia.iso);
-              hsAsoc+=hPago;
-              if(asoc.horas?.[dia.iso]==='AJ') hsAJAsoc+=hPago;
-              if(!isNaN(h)&&esHoraFacturableReal(asoc,dia.iso))hsFactAsoc+=h;
-              if(hPago){const vhDia=valorHoraEfectivoAsoc(asoc,obj.nombre,dia.iso);totalPagarAsoc+=hPago*(vhDia?.valorHora||0);}
-            });
-            totalPagarAsoc=Math.round(totalPagarAsoc);
-            const legajoAsoc=(DB.legajos||[]).find(l=>String(l.nro)===String(asoc.nro));
-            const vhInfo=valorHoraEfectivoAsoc(asoc,obj.nombre,fechaRepresentativaMes(mes));
-            const tipoClass=asoc.esReten?'reten':asoc.esEspecial?'especial':asoc.esExtra?'extra':asoc.esEnfermedad?'enfermedad':'';
-            const tipoBadge=asoc.esReten?'<span class="liq-badge-tipo liq-badge-reten">Retén</span>':asoc.esEspecial?'<span class="liq-badge-tipo liq-badge-especial">T.Esp.</span>':asoc.esExtra?'<span class="liq-badge-tipo liq-badge-extra">Extra</span>':asoc.esEnfermedad?'<span class="liq-badge-tipo liq-badge-enf">Enf.</span>':'';
-            html+=`<tr class="liq-row-asociado ${tipoClass}" data-parent="${obj.codigo}">
-              <td style="padding:5px 12px 5px 28px;border:1px solid var(--borde);font-size:12px;position:sticky;left:0;background:inherit;z-index:1;">
-                <b style="font-family:'DM Mono',monospace;">${asoc.nro||'—'}</b> · ${asoc.nombre} ${tipoBadge}
-              </td>
-              <td style="padding:4px 8px;border:1px solid var(--borde);font-size:11px;">
-                ${(()=>{
-                  // v124: la categoría se llena SOLA desde el padrón (registro
-                  // vigente al mes de la grilla). El "⚠ Vincular categoría"
-                  // desapareció — se cambia en Categorías → Asociados.
-                  const regP=registroPadronVigente(asoc.nro, fechaRepresentativaMes(grilla.periodo));
-                  const catP=regP?getCategoriaById(regP.categoriaIdLocal):null;
-                  if(catP) return `<div style="font-weight:600;color:var(--azul);">${catP.codigo} · ${catP.nombre}</div><div style="font-size:9px;color:var(--texto-suave);">padrón · desde ${String(regP.vigenciaDesde).slice(0,7)}</div>`;
-                  const catL=legajoAsoc?.categoriaIdLocal?getCategoriaById(legajoAsoc.categoriaIdLocal):null;
-                  if(catL) return `<div style="font-weight:500;color:var(--azul);">${catL.nombre}</div><div style="font-size:9px;color:var(--texto-suave);">legajo — falta en el padrón</div>`;
-                  return `<div style="color:var(--rojo);font-weight:600;">⚠ sin categoría</div><div style="font-size:9px;color:var(--texto-suave);">cargala en Categorías → Asociados</div>`;
-                })()}
-              </td>
-              <td style="padding:2px 4px;border:1px solid var(--borde);font-size:11px;min-width:120px;">
-                ${asoc.catAltEstado==='Pendiente'
-                  ? `<span style="background:#fef3c7;color:#92400e;font-size:10px;padding:2px 6px;border-radius:10px;font-weight:600;" title="Pendiente de aprobación de Operaciones — ver en Autorizaciones pendientes">⏳ ${asoc.catAltNombre}</span>`
-                  : asoc.catAltEstado==='Aprobada'
-                    ? `<span style="background:#d1fae5;color:#065f46;font-size:10px;padding:2px 6px;border-radius:10px;font-weight:600;" title="Compite por el valor más alto contra la categoría de legajo">✓ ${asoc.catAltNombre}</span>`
-                    : `<select style="width:100%;font-size:10px;padding:2px 3px;border:1px solid var(--borde-fuerte);border-radius:4px;outline:none;background:white;"
-                         onclick="event.stopPropagation()"
-                         onchange="event.stopPropagation();solicitarCatAlt('${grilla.id}',${ai},this.value)"
-                         ${_lockAttr(grilla)}>
-                         <option value="">— Sin alternativa —</option>
-                         ${(DB.categoriasBase||[]).filter(c=>c.activa).map(c=>`<option value="${c.id}">${c.nombre}</option>`).join('')}
-                       </select>`
-                }
-              </td>
-              <td style="padding:4px 8px;border:1px solid var(--borde);font-size:11px;color:var(--texto-suave);"></td>
-              <td style="padding:2px 4px;border:1px solid var(--borde);min-width:90px;">
-                <select style="width:100%;font-size:10px;padding:2px 3px;border:1px solid var(--borde-fuerte);border-radius:4px;outline:none;background:white;"
-                        onclick="event.stopPropagation()"
-                        onchange="event.stopPropagation();setTipoHoraAsoc('${grilla.id}',${ai},this.value)"
-                        ${_lockAttr(grilla)}>
-                  <option value="facturable"   ${(!asoc.tipoHora||asoc.tipoHora==='facturable')?'selected':''}>✅ Facturable</option>
-                  <option value="no_facturable" ${asoc.tipoHora==='no_facturable'?'selected':''}>❌ No facturable</option>
-                  <option value="art42"         ${asoc.tipoHora==='art42'?'selected':''}>🏥 Art. 42</option>
-                  <option value="reten"          ${asoc.tipoHora==='reten'?'selected':''}>🔄 Retén</option>
-                </select>
-                ${asoc.tipoHora==='no_facturable'&&asoc.motivoTipo?`<div style="font-size:9px;color:var(--rojo);margin-top:2px;">${asoc.motivoTipo}</div>`:''}
-                ${asoc.tipoHora==='art42'?`<div style="font-size:9px;color:#7c3aed;margin-top:2px;">Art.42</div>`:''}
-              </td>
-              ${dias.map(dia=>{
-                const rawVal=asoc.horas?.[dia.iso];
-                const esEsp=['F','AJ','AI'].includes(String(rawVal||'').toUpperCase());
-                const h=esEsp?0:parseFloat(rawVal||0);
-                // Vacío real (§5d): SIN entrada en asoc.horas — nunca se
-                // muestra un valor proyectado viejo en gris para no dejar
-                // un "dato fantasma". "·" es el único indicador de vacío.
-                const vacioReal=rawVal==null||rawVal==='';
-                const dispVal=esEsp?String(rawVal).toUpperCase():(vacioReal?'':h);
-                const noFact=asoc.facturable?.[dia.iso]===false;
-                const dow=new Date(dia.iso+'T12:00:00').getDay();
-                const esTrab=params.diasSemana?.includes(dow)&&(params.trabajaFeriados||!dia.esFeriado)&&(params.trabajaFinde||!dia.esFinde);
-                // Rango del asociado — solo para colorear, NO para bloquear edición
-                const dentroRango=(!asoc.rangoDesde||dia.iso>=asoc.rangoDesde)&&(!asoc.rangoHasta||dia.iso<=asoc.rangoHasta);
-                // Estado de autorización de este día
-                // Buscar en pendientes activos Y en historial para colorear
-                const pendAuth=(DB.pendientesAuth||[]).find(p=>p.grillaId===grilla.id&&p.asocIdx===ai)
-                             ||(DB.historialAuth||[]).find(p=>p.grillaId===grilla.id&&p.asocIdx===ai&&!p.supervisorNotificado);
-                const pendColor = pendAuth
-                  ? pendAuth.estado==='Pendiente'
-                    ? 'background:#fef3c7;'  // amarillo — pendiente
-                    : pendAuth.estado==='Rechazada'&&!pendAuth.supervisorNotificado
-                      ? 'background:#dc2626;color:white;'  // rojo — rechazada
-                      : ''
-                  : '';
-                // Proyectado vs Verificado (§3): celeste = cargado, todavía
-                // sin confirmar por el supervisor; azul oscuro = confirmado.
-                const verificado=diaEstaVerificado(asoc,dia.iso);
-                const franco=esEsp&&rawVal==='F', esAJ=esEsp&&rawVal==='AJ', esAI=esEsp&&rawVal==='AI';
-                const obsTexto=asoc.observaciones?.[dia.iso];
-                const obsEsc=obsTexto?String(obsTexto).replace(/"/g,'&quot;'):'';
-                // Color de fondo — GRILLAS_ajustes_v2 §2/§4 (18/09): si la
-                // celda tiene observación, EL AMARILLO MANDA siempre (aunque
-                // esté verificada o sea AJ/AI) — una observación es un "mirá
-                // esto", no una esquinita de dos píxeles. La verificación
-                // sigue contándose con el ✓ chiquito de la esquina (abajo),
-                // que no depende de este color. Si no hay observación seguimos
-                // igual que antes: F rayado / AJ verde-agua / AI rojo tienen
-                // prioridad visual (son un hecho registrado); si no, feriado/
-                // finde/pendiente de autorización; si no, proyectado/verificado.
-                const bgCell = obsTexto?'background:#fff3b0;'
-                  :franco?'background:repeating-linear-gradient(135deg,#fff,#fff 3px,#eef1f7 3px,#eef1f7 6px);'
-                  :esAJ?'background:#d7f0ee;'
-                  :esAI?'background:#fbe0dc;'
-                  :(h>0)
-                    ?(pendColor||(dia.esFeriado?'background:#ffe4e6;':dia.esFinde?'background:#ffff00;':(verificado?'background:#1b2a5e;':'background:#dce7fb;')))
-                    :(dentroRango&&!esTrab?'background:#f5f5f5;':'');
-                // Color del texto: con observación, SIEMPRE oscuro y legible
-                // (antes se conservaba el blanco del estado verificado y el
-                // número desaparecía sobre el amarillo — GRILLAS_ajustes_v2
-                // §2). Sin observación: F=violeta, AJ=verde azulado, AI=rojo,
-                // noFact=rojo, verificado=blanco (fondo oscuro), proyectado=azul.
-                const colorVal=obsTexto?'color:#1a1a2e;font-weight:700;'
-                  :franco?'color:#7c3aed;font-weight:700;'
-                  :esAJ?'color:#0b6e66;font-weight:700;'
-                  :esAI?'color:#b3261e;font-weight:700;'
-                  :noFact?'color:var(--rojo);'
-                  :h>0?(verificado?'color:white;font-weight:700;':'color:#1451a4;font-weight:600;')
-                  :'color:var(--texto-muy-suave);';
-                // Línea de HOY resaltada; futuro atenuado y NO verificable (§6)
-                const esHoyCelda=esMesActualParaHoy&&dia.iso===hoyISO;
-                const esFuturoCelda=esMesActualParaHoy&&dia.iso>hoyISO;
-                const verificable=!vacioReal&&diaEsVerificable(asoc,dia.iso,hoyEfectivoGrillas);
-                const titleBase=esFuturoCelda?'Día futuro — se verifica cuando pase':'Ingresá horas (ej: 8), F=Franco, AJ=Aus.Justificada, AI=Aus.Injustificada';
-                return`<td class="liq-celda-dia ${dia.esFeriado?'feriado':dia.esFinde?'finde':!esTrab?'no-laboral':''}"
-                    style="border:1px solid var(--borde);position:relative;${bgCell}${esFuturoCelda?'opacity:.55;':''}${esHoyCelda?'outline:2px solid #c96a00;outline-offset:-2px;':''}"
-                    ${obsTexto?`title="📝 ${obsEsc}"`:''}
-                    oncontextmenu="event.preventDefault();event.stopPropagation();observarCeldaGrilla('${grilla.id}',${ai},'${dia.iso}',event)">
-                  ${verificable?`<span onclick="event.stopPropagation();verificarCeldaGrilla('${grilla.id}',${ai},'${dia.iso}')"
-                      title="${verificado?'Verificado — click para volver a proyectado':'Proyectado — click para verificar'}"
-                      style="position:absolute;top:0;right:1px;font-size:7px;line-height:1;cursor:pointer;color:${verificado?'#4ade80':'#93a5c9'};z-index:1;">${verificado?'✓':'○'}</span>`:''}
-                  ${obsTexto?`<span style="position:absolute;top:0;left:0;width:0;height:0;border-top:7px solid #c9a200;border-right:7px solid transparent;pointer-events:none;"></span>`:''}
-                  <input type="text" value="${dispVal}"
-                    placeholder="${esTrab&&dentroRango&&!h&&vacioReal?(params.horasPorDia||8):''}"
-                    title="${titleBase}"
-                    style="width:30px;${colorVal}border:none;background:transparent;text-align:center;font-size:11px;outline:none;padding:1px 0;text-transform:uppercase;"
-                    ${_lockAttr(grilla)}
-                    onclick="event.stopPropagation()"
-                    onchange="event.stopPropagation();setHoraGrilla('${grilla.id}',${ai},'${dia.iso}',this.value.trim().toUpperCase())">
-                </td>`;
-              }).join('')}
-              <td style="padding:4px 8px;border:1px solid var(--borde);text-align:right;font-weight:700;color:var(--azul);">${hsAsoc}hs${hsAJAsoc>0?`<div style="font-size:9px;color:#0b6e66;font-weight:600;">(${hsAJAsoc} AJ no fact.)</div>`:''}</td>
-              <td style="padding:4px 8px;border:1px solid var(--borde);text-align:right;font-size:11px;${vhInfo?'color:var(--texto-suave);':'color:var(--rojo);font-weight:600;'}" title="${vhInfo?'Valor hora vigente ('+fechaRepresentativaMes(mes)+')':'Sin categoría vinculada o sin valor cargado en el módulo Categorías'}">${vhInfo?'$'+Math.round(vhInfo.valorHora).toLocaleString('es-AR'):'Sin valor'}</td>
-              <td style="padding:4px 8px;border:1px solid var(--borde);text-align:right;font-size:11px;">${hsFactAsoc}hs</td>
-              <td style="padding:4px 8px;border:1px solid var(--borde);text-align:right;font-weight:600;color:var(--verde);">$${totalPagarAsoc.toLocaleString('es-AR')}</td>
-              <td style="padding:4px 8px;border:1px solid var(--borde);white-space:nowrap;">
-                <button title="Verificar hasta…" style="background:none;border:none;cursor:pointer;font-size:11px;color:#1b2a5e;" onclick="event.stopPropagation();verificarFilaHastaHoy('${grilla.id}',${ai})">✔</button>
-                <button style="background:none;border:none;cursor:pointer;font-size:11px;color:var(--rojo);" onclick="event.stopPropagation();quitarAsociadoGrilla('${grilla.id}',${ai})">✕</button>
-              </td>
-            </tr>`;
-          });
-          // Fila de totales + buscador para agregar asociados
-          html+=`<tr class="liq-row-totales" data-parent="${obj.codigo}">
-            <td colspan="5" style="padding:6px 14px 6px 28px;border:1px solid var(--borde);position:sticky;left:0;background:#6b7280;z-index:1;">
-              ${(() => {
-                // Punto 3: candado reversible por servicio, separado del
-                // cierre de período de Finanzas (que siempre manda).
-                if(_periodoCerradoLiq(grilla.periodo))
-                  return '<span style="font-size:11px;color:white;opacity:.85;">🔒 Período cerrado (Finanzas)</span>';
-                const cong = grilla.congelada || (grilla.congelada===undefined && grilla.estado==='Cerrada');
-                const quienCuando = cong && (grilla.congeladaPor||grilla.congeladaEn)
-                  ? `<span style="font-size:9px;color:white;opacity:.7;display:block;margin-top:2px;">${grilla.congeladaPor||''}${grilla.congeladaEn?' · '+new Date(grilla.congeladaEn).toLocaleDateString('es-AR'):''}</span>` : '';
-                const btnVerifServicio=!cong?`<button class="btn btn-xs" style="background:#dce7fb;color:#1451a4;border:1px solid #b9c3dd;margin-left:6px;" onclick="event.stopPropagation();verificarServicioHastaHoy('${grilla.id}')">✔ Verificar hasta…</button>`:'';
-                return `<button class="btn btn-xs" style="background:${cong?'#fee2e2':'var(--verde-claro)'};color:${cong?'#b91c1c':'var(--verde)'};border:1px solid ${cong?'#fca5a5':'#9fdaba'};" onclick="event.stopPropagation();toggleCongelarGrilla('${grilla.id}')">${cong?'🔓 Descongelar':'🔒 Congelar'}</button>${btnVerifServicio}${quienCuando}`;
-              })()}
-            </td>
-            ${dias.map(dia=>{
-              // FIX (bug real reportado — mockup 16/09): este reduce no
-              // tenía NINGÚN guard — un solo F/AJ/AI en el día rompía la
-              // fila entera con NaN, para siempre (parseFloat('F')=NaN).
-              const tot=(grilla.asociados||[]).reduce((s,a)=>s+horasCobradasDia(a,dia.iso),0);
-              return`<td style="padding:4px 2px;border:1px solid var(--borde);text-align:center;font-size:11px;font-weight:700;color:white;">${tot||''}</td>`;
-            }).join('')}
-            <td style="padding:6px 8px;border:1px solid var(--borde);text-align:right;font-weight:700;color:var(--azul);">${grilla.totalHorasFacturables+(grilla.totalHorasNoFacturables||0)}hs</td>
-            <td style="border:1px solid var(--borde);"></td>
-            <td style="padding:6px 8px;border:1px solid var(--borde);text-align:right;">${grilla.totalHorasFacturables||0}hs</td>
-            <td style="padding:6px 8px;border:1px solid var(--borde);text-align:right;font-weight:700;color:var(--verde);">$${(grilla.totalAPagar||0).toLocaleString('es-AR')}</td>
-            <td style="border:1px solid var(--borde);"></td>
-          </tr>
-          <tr data-parent="${obj.codigo}" style="background:#f9fafb;">
-            <td colspan="4" style="padding:6px 12px 6px 28px;border:1px solid var(--borde);background:#f9fafb;position:sticky;left:0;z-index:1;">
-              <div style="display:flex;align-items:center;gap:6px;">
-                <span style="font-size:11px;color:var(--texto-suave);white-space:nowrap;">+ Agregar:</span>
-                <input type="text" id="busq-asoc-${grilla.id}"
-                  placeholder="Buscar asociado por nombre o N° socio..."
-                  style="width:260px;padding:3px 8px;border:1px solid var(--borde-fuerte);border-radius:5px;font-size:11px;outline:none;"
-                  oninput="buscarAsocGrilla('${grilla.id}',this.value)"
-                  onclick="event.stopPropagation()"
-                  onkeydown="handleBuscadorKeydown(event,'${grilla.id}')">
-              </div>
-              <div id="res-asoc-${grilla.id}" style="margin-top:4px;display:none;max-height:140px;overflow-y:auto;border:1px solid var(--borde);border-radius:5px;background:white;"></div>
-            </td>
-            <td colspan="100" style="border:1px solid var(--borde);background:#f9fafb;"></td>
-          </tr>`;
-        }
-      }
-    }
   });
 
   // Fila de TOTALES GENERALES al final
@@ -12669,6 +12450,245 @@ function renderGrillasLiq(){
   </tr>`;
 
   tbody.innerHTML=html;
+
+  // Si hay un servicio abierto en su propia pantalla (modal), lo refresca
+  // también — así cualquier función que ya llamaba a renderGrillasLiq()
+  // después de mutar una celda/fila (setHoraGrilla, verificarCeldaGrilla,
+  // observarCeldaGrilla, toggleCongelarGrilla, etc.) sigue funcionando sin
+  // tocar cada uno de esos call sites uno por uno.
+  if(_grillaAbiertaObjCodigo) renderDetalleGrillaServicio(_grillaAbiertaObjCodigo);
+}
+
+// ═══ Pantalla propia del servicio (GRILLAS_ajustes_v2 §1) ═══
+// Antes esto vivía inline en renderGrillasLiq(), como filas que aparecían
+// al expandir el acordeón. Ahora es su propio render, sobre el modal
+// modal-grilla-servicio — misma lógica de cálculo y las mismas celdas
+// editables de siempre, solo que dibujadas en otro contenedor.
+function abrirDetalleServicioGrilla(objCodigo){
+  const obj=DB.objetivos.find(o=>o.codigo===objCodigo);
+  if(!obj){ toast('Servicio no encontrado'); return; }
+  _grillaAbiertaObjCodigo=objCodigo;
+  renderDetalleGrillaServicio(objCodigo);
+  abrirModal('modal-grilla-servicio');
+}
+function cerrarDetalleServicioGrilla(){
+  _grillaAbiertaObjCodigo=null;
+  cerrarModal('modal-grilla-servicio');
+  renderGrillasLiq();
+}
+
+function renderDetalleGrillaServicio(objCodigo){
+  const obj=DB.objetivos.find(o=>o.codigo===objCodigo);
+  const theadEl=$('thead-grilla-servicio'), tbodyEl=$('tbody-grilla-servicio');
+  if(!obj||!theadEl||!tbodyEl) return;
+
+  const mes=$('liq-mes-sel')?.value||(new Date().toISOString().slice(0,7));
+  const params=DB.parametrosServicio[obj.codigo]||{diasSemana:[1,2,3,4,5],horasPorDia:8};
+  const dias=getDiasDelMes(mes);
+  const hoyISO=new Date().toISOString().slice(0,10);
+  const esMesActualParaHoy=mes===_mesActualISO();
+  const hoyEfectivoGrillas=mes<_mesActualISO()?(mes+'-31'):(mes>_mesActualISO()?(mes+'-00'):hoyISO);
+
+  let grilla=DB.grillasLiq.find(g=>g.periodo===mes&&g.objCodigo===obj.codigo);
+  if(!grilla){
+    crearGrillaDesdeObj(obj.codigo, mes);
+    grilla=DB.grillasLiq.find(g=>g.periodo===mes&&g.objCodigo===obj.codigo);
+  }
+  if(!grilla) return;
+
+  const [yy,mm]=mes.split('-');
+  const nombreMesLargo=new Date(parseInt(yy),parseInt(mm)-1,1).toLocaleDateString('es-AR',{month:'long',year:'numeric'}).toUpperCase();
+  $('mgs-nombre').textContent=`${obj.nombre} · ${obj.codigo}`;
+  $('mgs-sub').textContent=`Supervisor: ${obj.supervisorAsignado||'—'} · ${nombreMesLargo}`;
+
+  const statsVer=statsVerificacionServicio(grilla,hoyEfectivoGrillas,dias);
+  $('mgs-pend').innerHTML=statsVer.verificables===0?'':(statsVer.pendientes===0
+    ?'<span class="liq-badge-tipo" style="background:#dff2e1;color:#1e7b34;">✔ Todo verificado hasta hoy</span>'
+    :`<span class="liq-badge-tipo" style="background:#fdebd7;color:#b25b00;">${statsVer.pendientes} día(s) sin verificar</span>`);
+
+  theadEl.innerHTML=`<tr style="background:#374151;color:white;">
+    <th style="padding:8px 14px;border:1px solid #6b7280;text-align:left;min-width:220px;position:sticky;left:0;background:#374151;z-index:3;">Asociado</th>
+    <th style="padding:8px;border:1px solid #6b7280;min-width:110px;">Categoría</th>
+    <th style="padding:8px;border:1px solid #6b7280;min-width:120px;">Cat. alternativa</th>
+    <th style="padding:8px;border:1px solid #6b7280;min-width:90px;text-align:center;">Tipo hs</th>
+    ${dias.map(dia=>{
+      const esHoy=esMesActualParaHoy&&dia.iso===hoyISO;
+      const esFuturo=esMesActualParaHoy&&dia.iso>hoyISO;
+      const bg=esHoy?'background:#c96a00;color:white;font-weight:800;':dia.esFeriado?'background:#ffe4e6;color:#111;font-weight:800;':dia.esFinde?'background:#ffff00;color:#111;font-weight:700;':'';
+      return`<th style="padding:4px 2px;border:1px solid #6b7280;text-align:center;min-width:30px;font-size:10px;${bg}${esFuturo?'opacity:.55;':''}">${dia.d}</th>`;
+    }).join('')}
+    <th style="padding:8px;border:1px solid #6b7280;text-align:right;min-width:65px;">Total hs</th>
+    <th style="padding:8px;border:1px solid #6b7280;text-align:right;min-width:95px;">Valor hora</th>
+    <th style="padding:8px;border:1px solid #6b7280;text-align:right;min-width:65px;">Fact.</th>
+    <th style="padding:8px;border:1px solid #6b7280;text-align:right;min-width:95px;">A pagar $</th>
+    <th style="padding:8px;border:1px solid #6b7280;min-width:70px;"></th>
+  </tr>`;
+
+  let html='';
+  const asocs=grilla.asociados||[];
+  asocs.forEach((asoc,ai)=>{
+    let hsAsoc=0,hsFactAsoc=0,totalPagarAsoc=0,hsAJAsoc=0;
+    dias.forEach(dia=>{
+      const h=parseFloat(asoc.horas?.[dia.iso]);
+      const hPago=horasCobradasDia(asoc,dia.iso);
+      hsAsoc+=hPago;
+      if(asoc.horas?.[dia.iso]==='AJ') hsAJAsoc+=hPago;
+      if(!isNaN(h)&&esHoraFacturableReal(asoc,dia.iso))hsFactAsoc+=h;
+      if(hPago){const vhDia=valorHoraEfectivoAsoc(asoc,obj.nombre,dia.iso);totalPagarAsoc+=hPago*(vhDia?.valorHora||0);}
+    });
+    totalPagarAsoc=Math.round(totalPagarAsoc);
+    const legajoAsoc=(DB.legajos||[]).find(l=>String(l.nro)===String(asoc.nro));
+    const vhInfo=valorHoraEfectivoAsoc(asoc,obj.nombre,fechaRepresentativaMes(mes));
+    const tipoClass=asoc.esReten?'reten':asoc.esEspecial?'especial':asoc.esExtra?'extra':asoc.esEnfermedad?'enfermedad':'';
+    const tipoBadge=asoc.esReten?'<span class="liq-badge-tipo liq-badge-reten">Retén</span>':asoc.esEspecial?'<span class="liq-badge-tipo liq-badge-especial">T.Esp.</span>':asoc.esExtra?'<span class="liq-badge-tipo liq-badge-extra">Extra</span>':asoc.esEnfermedad?'<span class="liq-badge-tipo liq-badge-enf">Enf.</span>':'';
+    html+=`<tr class="liq-row-asociado ${tipoClass}">
+      <td style="padding:5px 12px 5px 12px;border:1px solid var(--borde);font-size:12px;position:sticky;left:0;background:inherit;z-index:1;">
+        <b style="font-family:'DM Mono',monospace;">${asoc.nro||'—'}</b> · ${asoc.nombre} ${tipoBadge}
+      </td>
+      <td style="padding:4px 8px;border:1px solid var(--borde);font-size:11px;">
+        ${(()=>{
+          const regP=registroPadronVigente(asoc.nro, fechaRepresentativaMes(grilla.periodo));
+          const catP=regP?getCategoriaById(regP.categoriaIdLocal):null;
+          if(catP) return `<div style="font-weight:600;color:var(--azul);">${catP.codigo} · ${catP.nombre}</div><div style="font-size:9px;color:var(--texto-suave);">padrón · desde ${String(regP.vigenciaDesde).slice(0,7)}</div>`;
+          const catL=legajoAsoc?.categoriaIdLocal?getCategoriaById(legajoAsoc.categoriaIdLocal):null;
+          if(catL) return `<div style="font-weight:500;color:var(--azul);">${catL.nombre}</div><div style="font-size:9px;color:var(--texto-suave);">legajo — falta en el padrón</div>`;
+          return `<div style="color:var(--rojo);font-weight:600;">⚠ sin categoría</div><div style="font-size:9px;color:var(--texto-suave);">cargala en Categorías → Asociados</div>`;
+        })()}
+      </td>
+      <td style="padding:2px 4px;border:1px solid var(--borde);font-size:11px;min-width:120px;">
+        ${asoc.catAltEstado==='Pendiente'
+          ? `<span style="background:#fef3c7;color:#92400e;font-size:10px;padding:2px 6px;border-radius:10px;font-weight:600;" title="Pendiente de aprobación de Operaciones — ver en Autorizaciones pendientes">⏳ ${asoc.catAltNombre}</span>`
+          : asoc.catAltEstado==='Aprobada'
+            ? `<span style="background:#d1fae5;color:#065f46;font-size:10px;padding:2px 6px;border-radius:10px;font-weight:600;" title="Compite por el valor más alto contra la categoría de legajo">✓ ${asoc.catAltNombre}</span>`
+            : `<select style="width:100%;font-size:10px;padding:2px 3px;border:1px solid var(--borde-fuerte);border-radius:4px;outline:none;background:white;"
+                 onchange="solicitarCatAlt('${grilla.id}',${ai},this.value)"
+                 ${_lockAttr(grilla)}>
+                 <option value="">— Sin alternativa —</option>
+                 ${(DB.categoriasBase||[]).filter(c=>c.activa).map(c=>`<option value="${c.id}">${c.nombre}</option>`).join('')}
+               </select>`
+        }
+      </td>
+      <td style="padding:2px 4px;border:1px solid var(--borde);min-width:90px;">
+        <select style="width:100%;font-size:10px;padding:2px 3px;border:1px solid var(--borde-fuerte);border-radius:4px;outline:none;background:white;"
+                onchange="setTipoHoraAsoc('${grilla.id}',${ai},this.value)"
+                ${_lockAttr(grilla)}>
+          <option value="facturable"   ${(!asoc.tipoHora||asoc.tipoHora==='facturable')?'selected':''}>✅ Facturable</option>
+          <option value="no_facturable" ${asoc.tipoHora==='no_facturable'?'selected':''}>❌ No facturable</option>
+          <option value="art42"         ${asoc.tipoHora==='art42'?'selected':''}>🏥 Art. 42</option>
+          <option value="reten"          ${asoc.tipoHora==='reten'?'selected':''}>🔄 Retén</option>
+        </select>
+        ${asoc.tipoHora==='no_facturable'&&asoc.motivoTipo?`<div style="font-size:9px;color:var(--rojo);margin-top:2px;">${asoc.motivoTipo}</div>`:''}
+        ${asoc.tipoHora==='art42'?`<div style="font-size:9px;color:#7c3aed;margin-top:2px;">Art.42</div>`:''}
+      </td>
+      ${dias.map(dia=>{
+        const rawVal=asoc.horas?.[dia.iso];
+        const esEsp=['F','AJ','AI'].includes(String(rawVal||'').toUpperCase());
+        const h=esEsp?0:parseFloat(rawVal||0);
+        const vacioReal=rawVal==null||rawVal==='';
+        const dispVal=esEsp?String(rawVal).toUpperCase():(vacioReal?'':h);
+        const noFact=asoc.facturable?.[dia.iso]===false;
+        const dow=new Date(dia.iso+'T12:00:00').getDay();
+        const esTrab=params.diasSemana?.includes(dow)&&(params.trabajaFeriados||!dia.esFeriado)&&(params.trabajaFinde||!dia.esFinde);
+        const dentroRango=(!asoc.rangoDesde||dia.iso>=asoc.rangoDesde)&&(!asoc.rangoHasta||dia.iso<=asoc.rangoHasta);
+        const pendAuth=(DB.pendientesAuth||[]).find(p=>p.grillaId===grilla.id&&p.asocIdx===ai)
+                     ||(DB.historialAuth||[]).find(p=>p.grillaId===grilla.id&&p.asocIdx===ai&&!p.supervisorNotificado);
+        const pendColor = pendAuth
+          ? pendAuth.estado==='Pendiente'
+            ? 'background:#fef3c7;'
+            : pendAuth.estado==='Rechazada'&&!pendAuth.supervisorNotificado
+              ? 'background:#dc2626;color:white;'
+              : ''
+          : '';
+        const verificado=diaEstaVerificado(asoc,dia.iso);
+        const franco=esEsp&&rawVal==='F', esAJ=esEsp&&rawVal==='AJ', esAI=esEsp&&rawVal==='AI';
+        const obsTexto=asoc.observaciones?.[dia.iso];
+        const obsEsc=obsTexto?String(obsTexto).replace(/"/g,'&quot;'):'';
+        // GRILLAS_ajustes_v2 §2/§4: con observación, el amarillo manda
+        // siempre (aunque esté verificada o sea AJ/AI).
+        const bgCell = obsTexto?'background:#fff3b0;'
+          :franco?'background:repeating-linear-gradient(135deg,#fff,#fff 3px,#eef1f7 3px,#eef1f7 6px);'
+          :esAJ?'background:#d7f0ee;'
+          :esAI?'background:#fbe0dc;'
+          :(h>0)
+            ?(pendColor||(dia.esFeriado?'background:#ffe4e6;':dia.esFinde?'background:#ffff00;':(verificado?'background:#1b2a5e;':'background:#dce7fb;')))
+            :(dentroRango&&!esTrab?'background:#f5f5f5;':'');
+        const colorVal=obsTexto?'color:#1a1a2e;font-weight:700;'
+          :franco?'color:#7c3aed;font-weight:700;'
+          :esAJ?'color:#0b6e66;font-weight:700;'
+          :esAI?'color:#b3261e;font-weight:700;'
+          :noFact?'color:var(--rojo);'
+          :h>0?(verificado?'color:white;font-weight:700;':'color:#1451a4;font-weight:600;')
+          :'color:var(--texto-muy-suave);';
+        const esHoyCelda=esMesActualParaHoy&&dia.iso===hoyISO;
+        const esFuturoCelda=esMesActualParaHoy&&dia.iso>hoyISO;
+        const verificable=!vacioReal&&diaEsVerificable(asoc,dia.iso,hoyEfectivoGrillas);
+        const titleBase=esFuturoCelda?'Día futuro — se verifica cuando pase':'Ingresá horas (ej: 8), F=Franco, AJ=Aus.Justificada, AI=Aus.Injustificada';
+        return`<td class="liq-celda-dia ${dia.esFeriado?'feriado':dia.esFinde?'finde':!esTrab?'no-laboral':''}"
+            style="border:1px solid var(--borde);position:relative;${bgCell}${esFuturoCelda?'opacity:.55;':''}${esHoyCelda?'outline:2px solid #c96a00;outline-offset:-2px;':''}"
+            ${obsTexto?`title="📝 ${obsEsc}"`:''}
+            oncontextmenu="event.preventDefault();observarCeldaGrilla('${grilla.id}',${ai},'${dia.iso}',event)">
+          ${verificable?`<span onclick="verificarCeldaGrilla('${grilla.id}',${ai},'${dia.iso}')"
+              title="${verificado?'Verificado — click para volver a proyectado':'Proyectado — click para verificar'}"
+              style="position:absolute;top:0;right:1px;font-size:7px;line-height:1;cursor:pointer;color:${verificado?'#4ade80':'#93a5c9'};z-index:1;">${verificado?'✓':'○'}</span>`:''}
+          ${obsTexto?`<span style="position:absolute;top:0;left:0;width:0;height:0;border-top:7px solid #c9a200;border-right:7px solid transparent;pointer-events:none;"></span>`:''}
+          <input type="text" value="${dispVal}"
+            placeholder="${esTrab&&dentroRango&&!h&&vacioReal?(params.horasPorDia||8):''}"
+            title="${titleBase}"
+            style="width:30px;${colorVal}border:none;background:transparent;text-align:center;font-size:11px;outline:none;padding:1px 0;text-transform:uppercase;"
+            ${_lockAttr(grilla)}
+            onchange="setHoraGrilla('${grilla.id}',${ai},'${dia.iso}',this.value.trim().toUpperCase())">
+        </td>`;
+      }).join('')}
+      <td style="padding:4px 8px;border:1px solid var(--borde);text-align:right;font-weight:700;color:var(--azul);">${hsAsoc}hs${hsAJAsoc>0?`<div style="font-size:9px;color:#0b6e66;font-weight:600;">(${hsAJAsoc} AJ no fact.)</div>`:''}</td>
+      <td style="padding:4px 8px;border:1px solid var(--borde);text-align:right;font-size:11px;${vhInfo?'color:var(--texto-suave);':'color:var(--rojo);font-weight:600;'}" title="${vhInfo?'Valor hora vigente ('+fechaRepresentativaMes(mes)+')':'Sin categoría vinculada o sin valor cargado en el módulo Categorías'}">${vhInfo?'$'+Math.round(vhInfo.valorHora).toLocaleString('es-AR'):'Sin valor'}</td>
+      <td style="padding:4px 8px;border:1px solid var(--borde);text-align:right;font-size:11px;">${hsFactAsoc}hs</td>
+      <td style="padding:4px 8px;border:1px solid var(--borde);text-align:right;font-weight:600;color:var(--verde);">$${totalPagarAsoc.toLocaleString('es-AR')}</td>
+      <td style="padding:4px 8px;border:1px solid var(--borde);white-space:nowrap;">
+        <button title="Verificar hasta…" style="background:none;border:none;cursor:pointer;font-size:11px;color:#1b2a5e;" onclick="verificarFilaHastaHoy('${grilla.id}',${ai})">✔</button>
+        <button style="background:none;border:none;cursor:pointer;font-size:11px;color:var(--rojo);" onclick="quitarAsociadoGrilla('${grilla.id}',${ai})">✕</button>
+      </td>
+    </tr>`;
+  });
+
+  // Fila de totales + Congelar/Descongelar/Verificar + buscador de agregar
+  html+=`<tr class="liq-row-totales">
+    <td colspan="4" style="padding:6px 14px;border:1px solid var(--borde);position:sticky;left:0;background:#6b7280;z-index:1;">
+      ${(() => {
+        if(_periodoCerradoLiq(grilla.periodo))
+          return '<span style="font-size:11px;color:white;opacity:.85;">🔒 Período cerrado (Finanzas)</span>';
+        const cong = grilla.congelada || (grilla.congelada===undefined && grilla.estado==='Cerrada');
+        const quienCuando = cong && (grilla.congeladaPor||grilla.congeladaEn)
+          ? `<span style="font-size:9px;color:white;opacity:.7;display:block;margin-top:2px;">${grilla.congeladaPor||''}${grilla.congeladaEn?' · '+new Date(grilla.congeladaEn).toLocaleDateString('es-AR'):''}</span>` : '';
+        const btnVerifServicio=!cong?`<button class="btn btn-xs" style="background:#dce7fb;color:#1451a4;border:1px solid #b9c3dd;margin-left:6px;" onclick="verificarServicioHastaHoy('${grilla.id}')">✔ Verificar hasta…</button>`:'';
+        return `<button class="btn btn-xs" style="background:${cong?'#fee2e2':'var(--verde-claro)'};color:${cong?'#b91c1c':'var(--verde)'};border:1px solid ${cong?'#fca5a5':'#9fdaba'};" onclick="toggleCongelarGrilla('${grilla.id}')">${cong?'🔓 Descongelar':'🔒 Congelar'}</button>${btnVerifServicio}${quienCuando}`;
+      })()}
+    </td>
+    ${dias.map(dia=>{
+      const tot=(grilla.asociados||[]).reduce((s,a)=>s+horasCobradasDia(a,dia.iso),0);
+      return`<td style="padding:4px 2px;border:1px solid var(--borde);text-align:center;font-size:11px;font-weight:700;color:white;">${tot||''}</td>`;
+    }).join('')}
+    <td style="padding:6px 8px;border:1px solid var(--borde);text-align:right;font-weight:700;color:var(--azul);">${grilla.totalHorasFacturables+(grilla.totalHorasNoFacturables||0)}hs</td>
+    <td style="border:1px solid var(--borde);"></td>
+    <td style="padding:6px 8px;border:1px solid var(--borde);text-align:right;">${grilla.totalHorasFacturables||0}hs</td>
+    <td style="padding:6px 8px;border:1px solid var(--borde);text-align:right;font-weight:700;color:var(--verde);">$${(grilla.totalAPagar||0).toLocaleString('es-AR')}</td>
+    <td style="border:1px solid var(--borde);"></td>
+  </tr>
+  <tr style="background:#f9fafb;">
+    <td colspan="4" style="padding:6px 12px;border:1px solid var(--borde);background:#f9fafb;position:sticky;left:0;z-index:1;">
+      <div style="display:flex;align-items:center;gap:6px;">
+        <span style="font-size:11px;color:var(--texto-suave);white-space:nowrap;">+ Agregar:</span>
+        <input type="text" id="busq-asoc-${grilla.id}"
+          placeholder="Buscar asociado por nombre o N° socio..."
+          style="width:260px;padding:3px 8px;border:1px solid var(--borde-fuerte);border-radius:5px;font-size:11px;outline:none;"
+          oninput="buscarAsocGrilla('${grilla.id}',this.value)"
+          onkeydown="handleBuscadorKeydown(event,'${grilla.id}')">
+      </div>
+      <div id="res-asoc-${grilla.id}" style="margin-top:4px;display:none;max-height:140px;overflow-y:auto;border:1px solid var(--borde);border-radius:5px;background:white;"></div>
+    </td>
+    <td colspan="100" style="border:1px solid var(--borde);background:#f9fafb;"></td>
+  </tr>`;
+
+  tbodyEl.innerHTML=html;
 }
 
 function buscarAsocGrilla(grillaId, query){
@@ -12726,26 +12746,6 @@ function seleccionarAsocSearch(el){
   agregarAsocDesdeSearch(grillaId, nombre, categoria, nro);
 }
 
-function toggleGrilla(objCodigo){
-  if(_grillasExpandidas.has(objCodigo)) _grillasExpandidas.delete(objCodigo);
-  else _grillasExpandidas.add(objCodigo);
-  renderGrillasLiq();
-}
-
-function expandirTodasGrillas(){
-  const mes=$('liq-mes-sel')?.value||(new Date().toISOString().slice(0,7));
-  const btn=$('btn-expandir-todo');
-  const hayExpandidas=_grillasExpandidas.size>0;
-  if(hayExpandidas){
-    _grillasExpandidas.clear();
-    if(btn) btn.textContent='↕ Expandir todo';
-  } else {
-    DB.objetivos.filter(o=>o.estado==='Operativo').forEach(o=>_grillasExpandidas.add(o.codigo));
-    if(btn) btn.textContent='↕ Comprimir todo';
-  }
-  renderGrillasLiq();
-}
-
 async function crearGrillaDesdeObj(objCodigo, mes){
   const obj=DB.objetivos.find(o=>o.codigo===objCodigo); if(!obj) return;
   const calc=calcularHorasMes(mes,objCodigo);
@@ -12780,7 +12780,6 @@ async function crearGrillaDesdeObj(objCodigo, mes){
     origenGrilla:'auto',
   };
   DB.grillasLiq.push(nueva);
-  _grillasExpandidas.add(objCodigo);
   // FIX 14/09 (ticket "planilla única — grillas duplicadas por usuario"):
   // origenGrilla/importadoDeCSV se mandaban sin columna en Supabase (ver
   // sql/v133) — TODO insert de grilla nueva fallaba en silencio desde el
@@ -14444,7 +14443,6 @@ window.eliminarItem = eliminarItem;
 window.eliminarMesLiq = eliminarMesLiq;
 window.eliminarMonotributo = eliminarMonotributo;
 window.eliminarPersonaArea = eliminarPersonaArea;
-window.expandirTodasGrillas = expandirTodasGrillas;
 window.exportarLiquidacion = exportarLiquidacion;
 window.exportarLiquidacionCSV = exportarLiquidacionCSV;
 window.filtrarAcciones = filtrarAcciones;
@@ -14595,6 +14593,9 @@ window.renderFeriados = renderFeriados;
 window.renderGrillaFuncionesUsuario = renderGrillaFuncionesUsuario;
 window.renderGrillaIndividual = renderGrillaIndividual;
 window.renderGrillasLiq = renderGrillasLiq;
+window.renderDetalleGrillaServicio = renderDetalleGrillaServicio;
+window.abrirDetalleServicioGrilla = abrirDetalleServicioGrilla;
+window.cerrarDetalleServicioGrilla = cerrarDetalleServicioGrilla;
 window.renderHistorialAuth = renderHistorialAuth;
 window.renderHistorialImportaciones = renderHistorialImportaciones;
 window.renderClientesSinCodigoTango = renderClientesSinCodigoTango;
@@ -14701,7 +14702,6 @@ window.toggleConceptoCalculo = toggleConceptoCalculo;
 window.toggleCongelarLiquidacion = toggleCongelarLiquidacion;
 window.toggleDescuentoBase = toggleDescuentoBase;
 window.toggleFueraEFT = toggleFueraEFT;
-window.toggleGrilla = toggleGrilla;
 window.toggleModeloPrecio = toggleModeloPrecio;
 window.recalcularPrecioObjetivo = recalcularPrecioObjetivo;
 window.poblarLocalidadesServicio = poblarLocalidadesServicio;
