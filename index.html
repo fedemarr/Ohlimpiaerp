@@ -6218,7 +6218,7 @@
       <div class="stat-card verde"><div class="stat-label">Total del pedido</div><div class="stat-valor" id="kpi-padl-pla-tot" style="font-size:16px;">$0</div><div class="stat-sub">Suma de montos cargados</div></div>
       <div class="stat-card acento"><div class="stat-label">Asociados a cargo</div><div class="stat-valor" id="kpi-padl-pla-equipo">0</div><div class="stat-sub">Tu equipo este período</div></div>
     </div>
-    <div class="card" style="border-radius:var(--radio-lg);">
+    <div class="card" style="border-radius:var(--radio-lg);margin-bottom:84px;">
       <div class="card-header">
         <h3 id="padl-pla-titulo">Pedido del período</h3>
         <div class="filtros-bar">
@@ -6234,7 +6234,13 @@
         <tbody id="tbody-padl-planilla"></tbody>
       </table></div>
     </div>
-    <div style="position:sticky;bottom:0;background:#1b2a5e;color:#fff;padding:12px 26px;display:flex;justify-content:space-between;align-items:center;border-radius:var(--radio);margin-top:12px;box-shadow:0 -3px 12px rgba(10,15,40,.15);flex-wrap:wrap;gap:10px;">
+    <!-- ADELANTOS_bugs_para_Fede.md, bug 1 (18/09): la barra sticky no
+         tenía z-index propio ni espacio reservado antes de ella, así que
+         al hacer scroll hasta el final tapaba la última tanda de filas
+         (y el totalizador quedaba ilegible). El margin-bottom de la .card
+         de arriba reserva ese espacio; el z-index asegura que la barra
+         siempre pinte por encima de la tabla. -->
+    <div style="position:sticky;bottom:0;z-index:15;background:#1b2a5e;color:#fff;padding:12px 26px;display:flex;justify-content:space-between;align-items:center;border-radius:var(--radio);margin-top:12px;box-shadow:0 -3px 12px rgba(10,15,40,.15);flex-wrap:wrap;gap:10px;">
       <div style="font-size:13.5px;"><b id="padl-pla-bar-tot" style="font-size:15px;">0 asociados · $0</b> <span style="opacity:.7;font-size:11.5px;" id="padl-pla-bar-det"></span></div>
       <div style="display:flex;gap:10px;">
         <button class="btn btn-secondary btn-sm" onclick="guardarBorradorPlanilla()">Guardar borrador</button>

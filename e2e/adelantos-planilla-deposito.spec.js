@@ -46,8 +46,13 @@ test('Adelantos — planilla del período, avisos, revisión RRHH y depósito po
     DB.grillasLiq = DB.grillasLiq || [];
     DB.grillasLiq.push({
       id: 'GRL-ADEL-E2E', periodo: mes, tipo: 'servicio', objCodigo: 'OBJ-ADEL-E2E', nombre: 'Servicio Adelanto E2E', supervisor: 'SUP TEST',
+      // ADELANTOS_bugs_para_Fede.md bug 2: la planilla ahora exige que el
+      // asociado tenga fila en la grilla de ESTE período (con nro, la
+      // identidad real — ver LIQ_HORAS_grillas_ajustes §1) para aparecer.
+      // Los dos legajos de este test necesitan su entrada acá.
       asociados: [
-        { nombre: 'ADELANTO TEST UNO', tipoHora: 'facturable', horas: { [diaVer]: 8 }, estadoDia: { [diaVer]: 'ver' } },
+        { nro: 778811, nombre: 'ADELANTO TEST UNO', tipoHora: 'facturable', horas: { [diaVer]: 8 }, estadoDia: { [diaVer]: 'ver' } },
+        { nro: 778822, nombre: 'ADELANTO TEST DOS', tipoHora: 'facturable', horas: { [diaVer]: 8 } },
       ],
     });
 

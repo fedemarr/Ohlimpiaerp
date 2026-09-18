@@ -32,6 +32,27 @@ function _nombreServicio(codigo) {
   return obj?.nombre || codigo;
 }
 
+// ADELANTOS_bugs_para_Fede.md, bug 2 (18/09): operariosParaSolicitante()
+// (compartida con Uniformes/Pedido de productos) solo filtra por
+// legajo.estado==='Activo' — no chequea si el SERVICIO sigue operativo
+// ni si el asociado tiene asignación vigente este período, así que
+// traía servicios ya dados de baja (CENARD, DEPOSITO.SELECT,
+// FO.HIT.PIRELLI...). No se toca esa función compartida (afectaría
+// Uniformes/Pedido de productos sin pedirlo) — se filtra acá, localmente,
+// contra la MISMA fuente que arma las grillas del período: si la grilla
+// de este mes no tiene ese servicio/asociado, la planilla de adelantos
+// tampoco lo muestra.
+function _serviciosOperativosVigentes() {
+  return new Set((DB.objetivos || []).filter(o => o.estado === 'Operativo' && !o.anulado).map(o => o.codigo));
+}
+function _asociadosConGrillaVigente(mes) {
+  const nros = new Set();
+  (DB.grillasLiq || []).filter(g => g.periodo === mes).forEach(g => {
+    (g.asociados || []).forEach(a => { if (a.nro != null) nros.add(String(a.nro)); });
+  });
+  return nros;
+}
+
 // HS verificadas del período — mismo criterio que Liquidación de horas
 // (estadoDia==='ver'), sumadas en TODAS las grillas donde la persona
 // tenga horas cargadas este mes. Reutiliza diaEstaVerificado/
@@ -70,7 +91,10 @@ let _planilla = null; // { mes, mesAnt, grupos:[{codigo,nombre,legajos:[{legajo,
 function _construirPlanilla() {
   const mes = _mesActual();
   const mesAnt = _mesAnterior(mes);
-  const equipo = operariosParaSolicitante();
+  const serviciosOperativos = _serviciosOperativosVigentes();
+  const asociadosConGrilla = _asociadosConGrillaVigente(mes);
+  const equipo = operariosParaSolicitante().filter(l =>
+    serviciosOperativos.has(l.servicio) && asociadosConGrilla.has(String(l.nro)));
   const porServicio = new Map();
   equipo.forEach(l => {
     const cod = l.servicio || '';
@@ -225,7 +249,7 @@ function ensureModalResumenPlanilla() {
       </div>
       <div class="modal-footer">
         <button class="btn btn-secondary" onclick="cerrarModal('modal-padl-resumen')">Volver a revisar</button>
-        <button class="btn btn-primary" onclick="confirmarElevarPlanilla()">Confirmar y elevar</button>
+        <button id="btn-padl-confirmar-elevar" class="btn btn-primary" onclick="confirmarElevarPlanilla()">Confirmar y elevar</button>
       </div>
     </div>`;
   document.body.appendChild(m);
@@ -239,25 +263,42 @@ export function guardarBorradorPlanilla() {
   toast('Los montos quedan cargados en pantalla — "Guardar y elevar" cuando estés listo.');
 }
 
+// ADELANTOS_bugs_para_Fede.md, bug 3 fix 1 (18/09): "Guardar y elevar"
+// seguía habilitado mientras guardaba — un segundo click (doble click
+// real, o el típico "no vi que ya había tocado el botón") disparaba un
+// segundo recorrido completo del for y duplicaba cada pedido. Guard de
+// idempotencia + botón deshabilitado con "Enviando…" hasta la respuesta.
+let _elevandoPlanilla = false;
+
 export async function confirmarElevarPlanilla() {
+  if (_elevandoPlanilla) return;
   const filas = _filasConMonto();
   if (!filas.length) return;
-  const fechaPedido = hoyISOLocal();
-  for (const { fila, monto } of filas) {
-    const avisos = _avisosFila(fila, monto);
-    const pedido = await crearPedidoAdelanto({
-      legajo: fila.legajo, monto, fechaPedido,
-      observaciones: 'Cargado desde Pedido del período',
-    });
-    if (avisos.length) {
-      pedido.avisos = avisos;
-      const { supaSync } = await import('@shared/supabase.js');
-      await supaSync('pedidosAdelantos', pedido);
+  _elevandoPlanilla = true;
+  const btn = $('btn-padl-confirmar-elevar');
+  const textoOriginal = btn ? btn.textContent : '';
+  if (btn) { btn.disabled = true; btn.textContent = 'Enviando…'; }
+  try {
+    const fechaPedido = hoyISOLocal();
+    for (const { fila, monto } of filas) {
+      const avisos = _avisosFila(fila, monto);
+      const pedido = await crearPedidoAdelanto({
+        legajo: fila.legajo, monto, fechaPedido,
+        observaciones: 'Cargado desde Pedido del período',
+      });
+      if (avisos.length) {
+        pedido.avisos = avisos;
+        const { supaSync } = await import('@shared/supabase.js');
+        await supaSync('pedidosAdelantos', pedido);
+      }
+      await elevarPedido('Adelanto', pedido.id);
     }
-    await elevarPedido('Adelanto', pedido.id);
+    cerrarModal('modal-padl-resumen');
+    toast(`✅ Pedido del período elevado a RRHH — ${filas.length} asociado(s)`);
+    renderPedidoPeriodo();
+    renderMisPedidos();
+  } finally {
+    _elevandoPlanilla = false;
+    if (btn) { btn.disabled = false; btn.textContent = textoOriginal; }
   }
-  cerrarModal('modal-padl-resumen');
-  toast(`✅ Pedido del período elevado a RRHH — ${filas.length} asociado(s)`);
-  renderPedidoPeriodo();
-  renderMisPedidos();
 }

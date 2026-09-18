@@ -134,8 +134,8 @@ function ensureModalNuevoPedido() {
       </div>
       <div class="modal-footer">
         <button class="btn btn-secondary" onclick="cerrarModal('modal-padl-nuevo')">Cancelar</button>
-        <button class="btn btn-secondary" onclick="confirmarNuevoPedido(false)">Guardar borrador</button>
-        <button class="btn btn-primary" onclick="confirmarNuevoPedido(true)">Guardar y elevar</button>
+        <button id="btn-npa-borrador" class="btn btn-secondary" onclick="confirmarNuevoPedido(false)">Guardar borrador</button>
+        <button id="btn-npa-elevar" class="btn btn-primary" onclick="confirmarNuevoPedido(true)">Guardar y elevar</button>
       </div>
     </div>`;
   document.body.appendChild(m);
@@ -212,7 +212,14 @@ export function abrirNuevoPedidoAdelanto() {
   abrirModal('modal-padl-nuevo');
 }
 
+// ADELANTOS_bugs_para_Fede.md, bug 3 fix 1 (18/09), mismo patrón que la
+// planilla del período: los dos botones de este modal quedaban activos
+// mientras guardaban — un doble click alcanzaba para crear el pedido dos
+// veces. Guard de idempotencia + botones deshabilitados con "Enviando…".
+let _guardandoNuevoPedido = false;
+
 export async function confirmarNuevoPedido(elevarAlGuardar) {
+  if (_guardandoNuevoPedido) return;
   const legajo = _legajoSeleccionadoNuevo;
   if (!legajo) { toast('⚠️ Elegí el asociado'); return; }
   if (legajo.estado !== 'Activo') { toast('❌ El asociado no está activo'); return; }
@@ -220,25 +227,43 @@ export async function confirmarNuevoPedido(elevarAlGuardar) {
   const fechaPedido = $('npa-fecha').value || hoyISOLocal();
   const observaciones = $('npa-obs').value.trim();
 
-  let pedido;
+  let monto;
   if (tipo === 'Adelanto') {
-    const monto = parseFloat($('npa-monto').value);
-    if (!monto || monto <= 0) { toast('⚠️ Ingresá un monto válido'); return; }
-    pedido = await crearPedidoAdelanto({ legajo, monto, fechaPedido, observaciones });
+    monto = parseFloat($('npa-monto').value);
   } else {
-    const monto = parseFloat($('npa-monto-prestamo').value);
-    if (!monto || monto <= 0) { toast('⚠️ Ingresá un monto válido'); return; }
-    pedido = await crearPedidoPrestamo({ legajo, montoSolicitado: monto, fechaPedido, observaciones });
+    monto = parseFloat($('npa-monto-prestamo').value);
   }
+  if (!monto || monto <= 0) { toast('⚠️ Ingresá un monto válido'); return; }
 
-  if (elevarAlGuardar) {
-    const r = await elevarPedido(tipo, pedido.id);
-    if (r.error) { toast('⚠️ ' + r.error); return; }
+  _guardandoNuevoPedido = true;
+  const btnBorrador = $('btn-npa-borrador'), btnElevar = $('btn-npa-elevar');
+  const txtBorrador = btnBorrador?.textContent, txtElevar = btnElevar?.textContent;
+  if (btnBorrador) btnBorrador.disabled = true;
+  if (btnElevar) btnElevar.disabled = true;
+  if (elevarAlGuardar && btnElevar) btnElevar.textContent = 'Enviando…';
+  else if (btnBorrador) btnBorrador.textContent = 'Guardando…';
+
+  try {
+    let pedido;
+    if (tipo === 'Adelanto') {
+      pedido = await crearPedidoAdelanto({ legajo, monto, fechaPedido, observaciones });
+    } else {
+      pedido = await crearPedidoPrestamo({ legajo, montoSolicitado: monto, fechaPedido, observaciones });
+    }
+
+    if (elevarAlGuardar) {
+      const r = await elevarPedido(tipo, pedido.id);
+      if (r.error) { toast('⚠️ ' + r.error); return; }
+    }
+
+    cerrarModal('modal-padl-nuevo');
+    renderMisPedidos();
+    toast(elevarAlGuardar ? '✅ Pedido elevado a RRHH' : '✅ Borrador guardado');
+  } finally {
+    _guardandoNuevoPedido = false;
+    if (btnBorrador) { btnBorrador.disabled = false; btnBorrador.textContent = txtBorrador; }
+    if (btnElevar) { btnElevar.disabled = false; btnElevar.textContent = txtElevar; }
   }
-
-  cerrarModal('modal-padl-nuevo');
-  renderMisPedidos();
-  toast(elevarAlGuardar ? '✅ Pedido elevado a RRHH' : '✅ Borrador guardado');
 }
 
 export function elevarPedidoPorId(tipo, id) {
