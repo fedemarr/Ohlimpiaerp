@@ -12542,18 +12542,31 @@ function renderGrillasLiq(){
                 // sin confirmar por el supervisor; azul oscuro = confirmado.
                 const verificado=diaEstaVerificado(asoc,dia.iso);
                 const franco=esEsp&&rawVal==='F', esAJ=esEsp&&rawVal==='AJ', esAI=esEsp&&rawVal==='AI';
-                // Color de fondo — F rayado / AJ verde-agua / AI rojo tienen
+                const obsTexto=asoc.observaciones?.[dia.iso];
+                const obsEsc=obsTexto?String(obsTexto).replace(/"/g,'&quot;'):'';
+                // Color de fondo — GRILLAS_ajustes_v2 §2/§4 (18/09): si la
+                // celda tiene observación, EL AMARILLO MANDA siempre (aunque
+                // esté verificada o sea AJ/AI) — una observación es un "mirá
+                // esto", no una esquinita de dos píxeles. La verificación
+                // sigue contándose con el ✓ chiquito de la esquina (abajo),
+                // que no depende de este color. Si no hay observación seguimos
+                // igual que antes: F rayado / AJ verde-agua / AI rojo tienen
                 // prioridad visual (son un hecho registrado); si no, feriado/
                 // finde/pendiente de autorización; si no, proyectado/verificado.
-                const bgCell = franco?'background:repeating-linear-gradient(135deg,#fff,#fff 3px,#eef1f7 3px,#eef1f7 6px);'
+                const bgCell = obsTexto?'background:#fff3b0;'
+                  :franco?'background:repeating-linear-gradient(135deg,#fff,#fff 3px,#eef1f7 3px,#eef1f7 6px);'
                   :esAJ?'background:#d7f0ee;'
                   :esAI?'background:#fbe0dc;'
                   :(h>0)
                     ?(pendColor||(dia.esFeriado?'background:#ffe4e6;':dia.esFinde?'background:#ffff00;':(verificado?'background:#1b2a5e;':'background:#dce7fb;')))
                     :(dentroRango&&!esTrab?'background:#f5f5f5;':'');
-                // Color del texto: F=violeta, AJ=verde azulado, AI=rojo,
-                // noFact=rojo, verificado=blanco (fondo oscuro), proyectado=azul
-                const colorVal=franco?'color:#7c3aed;font-weight:700;'
+                // Color del texto: con observación, SIEMPRE oscuro y legible
+                // (antes se conservaba el blanco del estado verificado y el
+                // número desaparecía sobre el amarillo — GRILLAS_ajustes_v2
+                // §2). Sin observación: F=violeta, AJ=verde azulado, AI=rojo,
+                // noFact=rojo, verificado=blanco (fondo oscuro), proyectado=azul.
+                const colorVal=obsTexto?'color:#1a1a2e;font-weight:700;'
+                  :franco?'color:#7c3aed;font-weight:700;'
                   :esAJ?'color:#0b6e66;font-weight:700;'
                   :esAI?'color:#b3261e;font-weight:700;'
                   :noFact?'color:var(--rojo);'
@@ -12563,8 +12576,6 @@ function renderGrillasLiq(){
                 const esHoyCelda=esMesActualParaHoy&&dia.iso===hoyISO;
                 const esFuturoCelda=esMesActualParaHoy&&dia.iso>hoyISO;
                 const verificable=!vacioReal&&diaEsVerificable(asoc,dia.iso,hoyEfectivoGrillas);
-                const obsTexto=asoc.observaciones?.[dia.iso];
-                const obsEsc=obsTexto?String(obsTexto).replace(/"/g,'&quot;'):'';
                 const titleBase=esFuturoCelda?'Día futuro — se verifica cuando pase':'Ingresá horas (ej: 8), F=Franco, AJ=Aus.Justificada, AI=Aus.Injustificada';
                 return`<td class="liq-celda-dia ${dia.esFeriado?'feriado':dia.esFinde?'finde':!esTrab?'no-laboral':''}"
                     style="border:1px solid var(--borde);position:relative;${bgCell}${esFuturoCelda?'opacity:.55;':''}${esHoyCelda?'outline:2px solid #c96a00;outline-offset:-2px;':''}"
@@ -12588,7 +12599,7 @@ function renderGrillasLiq(){
               <td style="padding:4px 8px;border:1px solid var(--borde);text-align:right;font-size:11px;">${hsFactAsoc}hs</td>
               <td style="padding:4px 8px;border:1px solid var(--borde);text-align:right;font-weight:600;color:var(--verde);">$${totalPagarAsoc.toLocaleString('es-AR')}</td>
               <td style="padding:4px 8px;border:1px solid var(--borde);white-space:nowrap;">
-                <button title="Verificar todo hasta hoy" style="background:none;border:none;cursor:pointer;font-size:11px;color:#1b2a5e;" onclick="event.stopPropagation();verificarFilaHastaHoy('${grilla.id}',${ai})">✔</button>
+                <button title="Verificar hasta…" style="background:none;border:none;cursor:pointer;font-size:11px;color:#1b2a5e;" onclick="event.stopPropagation();verificarFilaHastaHoy('${grilla.id}',${ai})">✔</button>
                 <button style="background:none;border:none;cursor:pointer;font-size:11px;color:var(--rojo);" onclick="event.stopPropagation();quitarAsociadoGrilla('${grilla.id}',${ai})">✕</button>
               </td>
             </tr>`;
@@ -12604,7 +12615,7 @@ function renderGrillasLiq(){
                 const cong = grilla.congelada || (grilla.congelada===undefined && grilla.estado==='Cerrada');
                 const quienCuando = cong && (grilla.congeladaPor||grilla.congeladaEn)
                   ? `<span style="font-size:9px;color:white;opacity:.7;display:block;margin-top:2px;">${grilla.congeladaPor||''}${grilla.congeladaEn?' · '+new Date(grilla.congeladaEn).toLocaleDateString('es-AR'):''}</span>` : '';
-                const btnVerifServicio=!cong?`<button class="btn btn-xs" style="background:#dce7fb;color:#1451a4;border:1px solid #b9c3dd;margin-left:6px;" onclick="event.stopPropagation();verificarServicioHastaHoy('${grilla.id}')">✔ Verificar todo hasta hoy</button>`:'';
+                const btnVerifServicio=!cong?`<button class="btn btn-xs" style="background:#dce7fb;color:#1451a4;border:1px solid #b9c3dd;margin-left:6px;" onclick="event.stopPropagation();verificarServicioHastaHoy('${grilla.id}')">✔ Verificar hasta…</button>`:'';
                 return `<button class="btn btn-xs" style="background:${cong?'#fee2e2':'var(--verde-claro)'};color:${cong?'#b91c1c':'var(--verde)'};border:1px solid ${cong?'#fca5a5':'#9fdaba'};" onclick="event.stopPropagation();toggleCongelarGrilla('${grilla.id}')">${cong?'🔓 Descongelar':'🔒 Congelar'}</button>${btnVerifServicio}${quienCuando}`;
               })()}
             </td>
@@ -12997,40 +13008,60 @@ function verificarCeldaGrilla(gId,aIdx,fechaISO){
   renderGrillasLiq();
 }
 
-// "Verificar todo hasta hoy" — el caso normal "pasó todo como estaba
-// proyectado" (§3). Por fila (un asociado) o por servicio (todos).
+// GRILLAS_ajustes_v2 §5 (18/09): "Verificar hasta…" — verificar es
+// declarar "constaté hasta acá", y eso no siempre coincide con hoy (ej.
+// hoy es 17 pero el supervisor tiene los partes hasta el 11). El sistema
+// PROPONE hoy (precargado) pero el humano puede retroceder la fecha —
+// nunca a futuro. Reutilizado por fila y por servicio.
+function pedirFechaVerificarHasta(hoyEfectivo){
+  const defaultDDMM=hoyEfectivo.split('-').reverse().join('/');
+  const r=prompt(`✔ Verificar hasta…\n\nEstándar: HOY = ${defaultDDMM}. Si tenés los partes solo hasta un día anterior, poné esa fecha — nunca una fecha futura.\n\nFormato DD/MM/AAAA`, defaultDDMM);
+  if(r===null) return null;
+  const m=r.trim().match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if(!m){ toast('⚠️ Formato inválido — usá DD/MM/AAAA'); return null; }
+  const iso=`${m[3]}-${m[2].padStart(2,'0')}-${m[1].padStart(2,'0')}`;
+  if(iso>hoyEfectivo){ toast('⚠️ No se puede verificar a futuro — hasta hoy como máximo.'); return null; }
+  return iso;
+}
+
+// "Verificar hasta…" — el caso normal "pasó todo como estaba proyectado
+// hasta tal fecha". Por fila (un asociado) o por servicio (todos).
 function verificarFilaHastaHoy(gId,aIdx){
   const g=DB.grillasLiq.find(x=>x.id===gId);if(!g)return;
   if(!_grillaEditable(g)){ toast(_periodoCerradoLiq(g.periodo)?'El período está cerrado.':'La grilla está congelada — descongelala para verificar.'); return; }
   const asoc=g.asociados[aIdx];if(!asoc)return;
   const hoyEfectivo=g.periodo<_mesActualISO()?(g.periodo+'-31'):(g.periodo>_mesActualISO()?(g.periodo+'-00'):new Date().toISOString().slice(0,10));
+  const hastaISO=pedirFechaVerificarHasta(hoyEfectivo);
+  if(!hastaISO) return;
   if(!confirmarEdicionFueraDeMes(g.periodo)) return;
   if(!asoc.estadoDia)asoc.estadoDia={};
   let n=0;
   Object.keys(asoc.horas||{}).forEach(iso=>{
-    if(!diaEsVerificable(asoc,iso,hoyEfectivo)) return;
+    if(!diaEsVerificable(asoc,iso,hastaISO)) return;
     if(!diaEstaVerificado(asoc,iso)){ asoc.estadoDia[iso]='ver'; n++; }
   });
   supaSync('grillasLiq', g);
   renderGrillasLiq();
-  toast(n?`✓ ${n} día(s) verificado(s) — ${asoc.nombre}`:'Ya estaba todo verificado hasta hoy');
+  toast(n?`✓ ${n} día(s) verificado(s) hasta ${hastaISO.split('-').reverse().join('/')} — ${asoc.nombre}`:'Ya estaba todo verificado hasta esa fecha');
 }
 function verificarServicioHastaHoy(gId){
   const g=DB.grillasLiq.find(x=>x.id===gId);if(!g)return;
   if(!_grillaEditable(g)){ toast(_periodoCerradoLiq(g.periodo)?'El período está cerrado.':'La grilla está congelada — descongelala para verificar.'); return; }
-  if(!confirmarEdicionFueraDeMes(g.periodo)) return;
   const hoyEfectivo=g.periodo<_mesActualISO()?(g.periodo+'-31'):(g.periodo>_mesActualISO()?(g.periodo+'-00'):new Date().toISOString().slice(0,10));
+  const hastaISO=pedirFechaVerificarHasta(hoyEfectivo);
+  if(!hastaISO) return;
+  if(!confirmarEdicionFueraDeMes(g.periodo)) return;
   let n=0;
   (g.asociados||[]).forEach(asoc=>{
     if(!asoc.estadoDia)asoc.estadoDia={};
     Object.keys(asoc.horas||{}).forEach(iso=>{
-      if(!diaEsVerificable(asoc,iso,hoyEfectivo)) return;
+      if(!diaEsVerificable(asoc,iso,hastaISO)) return;
       if(!diaEstaVerificado(asoc,iso)){ asoc.estadoDia[iso]='ver'; n++; }
     });
   });
   supaSync('grillasLiq', g);
   renderGrillasLiq();
-  toast(n?`✓ ${n} día(s) verificado(s) en "${g.nombre}"`:'Ya estaba todo verificado hasta hoy');
+  toast(n?`✓ ${n} día(s) verificado(s) en "${g.nombre}" hasta ${hastaISO.split('-').reverse().join('/')}`:'Ya estaba todo verificado hasta esa fecha');
 }
 
 // ── Observación por celda (click derecho) — texto libre sobre un día
