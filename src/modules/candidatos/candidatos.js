@@ -250,6 +250,7 @@ export function renderCandidatos(lista) {
   ).toLowerCase();
   const fZona = (($('cand-filtro-zona') || {}).value || '');
   const fEstado = (($('cand-filtro-estado') || {}).value || '');
+  const fPedido = (($('cand-filtro-pedido') || {}).value || '');
 
   const estadosHist = ['Rechazado', 'Psicotecnico', ...ESTADOS_BAJA];
   const esPrecandidato = c => c.estado === 'Precandidato';
@@ -264,6 +265,8 @@ export function renderCandidatos(lista) {
   });
   if (fZona) lista2 = lista2.filter(c => c.zona === fZona);
   if (fEstado) lista2 = lista2.filter(c => c.estado === fEstado);
+  if (fPedido === 'con') lista2 = lista2.filter(c => !!c.pedidoVinculadoIdLocal);
+  if (fPedido === 'sin') lista2 = lista2.filter(c => !c.pedidoVinculadoIdLocal);
 
   // Stats
   const ss = (id, v) => { const e = $(id); if (e) e.textContent = v; };
@@ -286,7 +289,7 @@ export function renderCandidatos(lista) {
   const tbody = $('tbody-candidatos');
   if (!tbody) return;
   if (!lista2.length) {
-    tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;padding:30px;color:#94a3b8;">Sin candidatos</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="10" style="text-align:center;padding:30px;color:#94a3b8;">Sin candidatos</td></tr>';
     return;
   }
   tbody.innerHTML = lista2.map(c => renderFilaCand(c)).join('');
@@ -356,6 +359,21 @@ function renderFilaCand(c) {
     motivoCell = '<span title="' + tooltip + '">🏷️ ' + c.tipoMotivoBaja + (fechaBajaDisplay ? ' · ' + fechaBajaDisplay : '') + '</span>';
   }
 
+  // Columna PEDIDO (18/09): mismo dato que el select "Pedido de personal
+  // vinculado" del modal de edición (candidato.pedidoVinculadoIdLocal) —
+  // una sola relación, dos ventanas. Clickeable → tab Seguimiento de
+  // Pedidos de personal, para no tener que ir a buscar el pedido a mano.
+  let pedidoCell = '<span style="color:#cbd5e1;">—</span>';
+  if (c.pedidoVinculadoIdLocal) {
+    const ped = (DB.pedidos || []).find(p => String(p.id) === String(c.pedidoVinculadoIdLocal));
+    if (ped) {
+      pedidoCell = '<span class="chip" style="cursor:pointer;" title="Ver en Seguimiento" onclick="event.stopPropagation();navTo(\'pedidos\');cambiarTabPedidos(\'seguimiento\');">'
+        + 'PP-' + ped.numero + ' · ' + ped.servicio + '</span>';
+    } else {
+      pedidoCell = '<span class="chip">PP-?</span>';
+    }
+  }
+
   return '<tr style="border-bottom:1px solid #e2e8f0;">'
     + '<td style="padding:8px 12px;font-size:13px;"><strong>' + nombreCompleto + '</strong></td>'
     + '<td style="padding:8px;font-size:12px;color:#64748b;">' + (c.dni || '—') + '</td>'
@@ -373,6 +391,7 @@ function renderFilaCand(c) {
       : (c.asistio === 'si' ? '✅' : c.asistio === 'no' ? '❌' : '—')) + '</td>'
     + '<td style="padding:8px;text-align:center;"><span style="font-size:11px;font-weight:600;color:' + ec + '">' + estadoDisplay + '</span></td>'
     + '<td style="padding:8px;font-size:12px;color:' + motivoColor + ';">' + motivoCell + '</td>'
+    + '<td style="padding:8px;text-align:center;">' + pedidoCell + '</td>'
     + '<td style="padding:8px;text-align:center;">' + btns + '</td>'
     + '</tr>';
 }

@@ -1,22 +1,31 @@
 // Módulo Pedidos de personal — Entry point
+// Incluye la tab "Seguimiento" (antes el módulo aparte
+// seguimiento_seleccion/, fusionado acá — ver seguimiento.js).
 
 export {
   renderPedidos, filtrarPedidos, guardarPedido, verDetallePedido, renderPerfilInputs,
   renderHorarioPedido, resetModalPedido, abrirEdicionPedido, onChangeSupervisorPedido,
   onChangeServicioPedido, abrirNuevoPedido, cambiarTabPedidos, renderHistorialPedidos,
-  tomarPedido, abrirModalCubierto, confirmarCubierto, abrirModalCancelar, confirmarCancelar,
+  renderPedidosScreen, tomarPedido, abrirModalCubierto, confirmarCubierto, abrirModalCancelar,
+  confirmarCancelar,
 } from './pedidos.js';
+
+export {
+  renderSeguimientoSeleccion, filtrarSeguimientoSeleccion, abrirDetallePedidoSeguimiento,
+  abrirCargaManualEtapaSeguimiento, guardarCargaManualEtapaSeguimiento, exportarSeguimientoCSV,
+  abrirVincularCandidato, filtrarVincularCandidatos, elegirCandidatoVincular, irACrearCandidatoDesdeVincular,
+} from './seguimiento.js';
 
 // ========== SCREEN CONFIG ==========
 
-import { renderPedidos, abrirNuevoPedido } from './pedidos.js';
+import { abrirNuevoPedido, renderPedidosScreen, renderPedidos } from './pedidos.js';
 
 export const pedidosScreenConfig = {
   pedidos: {
     title: 'Pedidos de personal',
     btn: '+ Nuevo pedido',
     fn: () => abrirNuevoPedido(),
-    render: () => renderPedidos(),
+    render: () => renderPedidosScreen(),
   },
 };
 
@@ -27,6 +36,11 @@ import {
   onChangeSupervisorPedido, onChangeServicioPedido, cambiarTabPedidos, renderHistorialPedidos,
   tomarPedido, abrirModalCubierto, confirmarCubierto, abrirModalCancelar, confirmarCancelar,
 } from './pedidos.js';
+import {
+  renderSeguimientoSeleccion, filtrarSeguimientoSeleccion, abrirDetallePedidoSeguimiento,
+  abrirCargaManualEtapaSeguimiento, guardarCargaManualEtapaSeguimiento, exportarSeguimientoCSV,
+  abrirVincularCandidato, filtrarVincularCandidatos, elegirCandidatoVincular, irACrearCandidatoDesdeVincular,
+} from './seguimiento.js';
 
 window.renderPedidos = renderPedidos;
 window.filtrarPedidos = filtrarPedidos;
@@ -44,3 +58,14 @@ window.abrirModalCubierto = abrirModalCubierto;
 window.confirmarCubierto = confirmarCubierto;
 window.abrirModalCancelar = abrirModalCancelar;
 window.confirmarCancelar = confirmarCancelar;
+
+window.renderSeguimientoSeleccion = renderSeguimientoSeleccion;
+window.filtrarSeguimientoSeleccion = filtrarSeguimientoSeleccion;
+window.abrirDetallePedidoSeguimiento = abrirDetallePedidoSeguimiento;
+window.abrirCargaManualEtapaSeguimiento = abrirCargaManualEtapaSeguimiento;
+window.guardarCargaManualEtapaSeguimiento = guardarCargaManualEtapaSeguimiento;
+window.exportarSeguimientoCSV = exportarSeguimientoCSV;
+window.abrirVincularCandidato = abrirVincularCandidato;
+window.filtrarVincularCandidatos = filtrarVincularCandidatos;
+window.elegirCandidatoVincular = elegirCandidatoVincular;
+window.irACrearCandidatoDesdeVincular = irACrearCandidatoDesdeVincular;

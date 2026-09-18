@@ -5,6 +5,7 @@ import { toast, cerrarModal, abrirModal } from '@shared/ui.js';
 import { supaSync, SUPA } from '@shared/supabase.js';
 import { checklistDiasHtml, formatearHorarioSemanal } from '@shared/horarioDias.js';
 import { getSupervisorDeCodigo, serviciosDeSupervisor, direccionDeServicio } from '@modules/servicios_supervisor/index.js';
+import { calcularKpisSeguimiento } from './seguimiento.js';
 
 // Estado del checklist de días/horario del modal (los onchange inline
 // escriben en scope global, mismo patrón que puestosObjTemp en legacy.js).
@@ -19,7 +20,7 @@ let _pedidoEditId = null;
 // modelo viejo y ya no se usa (no está en el mockup ni en las decisiones
 // confirmadas — se deja de ofrecer, no se borra de BADGE_MAP por si hay
 // algún dato residual).
-const ESTADOS_ACTIVOS = ['Pendiente', 'En búsqueda'];
+export const ESTADOS_ACTIVOS = ['Pendiente', 'En búsqueda'];
 
 // Pestaña activa de la pantalla ('activos' | 'historial').
 let tabPedidosActiva = 'activos';
@@ -31,7 +32,7 @@ let tabPedidosActiva = 'activos';
 // por si tiene algún legajo activo en ese servicio (cubre pedidos cuyo
 // campo "servicio" coincide con uno de los suyos aunque el nombre de
 // supervisor cargado no coincida exacto).
-function pedidosVisiblesParaUsuario(lista) {
+export function pedidosVisiblesParaUsuario(lista) {
   if (currentUser?.perfil !== 'Supervisor') return lista;
   return lista.filter(p =>
     esMismoSupervisor(p.supervisor, currentUser.nombre) ||
@@ -66,7 +67,7 @@ function diasAntiguedad(p) {
   return typeof d === 'number' ? d : 0;
 }
 
-function pedidoVencido(p) {
+export function pedidoVencido(p) {
   return ESTADOS_ACTIVOS.includes(p.estado) && diasAntiguedad(p) >= umbralDe(p.urgencia);
 }
 
@@ -78,7 +79,7 @@ function hoyHHMM() { return new Date().toLocaleTimeString('es-AR', { hour: '2-di
 function siguienteNumeroPedido() {
   return Math.max(0, ...(DB.pedidos || []).map(p => Number(p.numero) || 0)) + 1;
 }
-function numeroPedidoTxt(p) { return p?.numero ? `PP-${p.numero}` : '—'; }
+export function numeroPedidoTxt(p) { return p?.numero ? `PP-${p.numero}` : '—'; }
 
 // ========== TIMELINE (pedidos_eventos, v106) ==========
 
@@ -123,15 +124,20 @@ function timelineHtml(pedidoId) {
 
 // ========== KPIs ==========
 
+// Panel único de KPIs — vale para las 3 tabs (Activos/Seguimiento/
+// Historial), mismo criterio en todas: elimina la contradicción de
+// contadores que había entre esta pantalla y la vieja Seguimiento de
+// selección (ver seguimiento.js). Los primeros 5 números salen de
+// calcularKpisSeguimiento() (única fuente de verdad, con recuento real
+// por vacante) — "Tiempo promedio" sigue siendo propio de esta tabla
+// porque mide desde la CARGA del pedido, no desde la necesidad real del
+// servicio (eso requiere Prepedidos, todavía no construido).
 function renderKpisPedidos() {
   const cont = $('pedidos-kpis');
   if (!cont) return;
-  const propios = pedidosVisiblesParaUsuario(DB.pedidos || []);
-  const activos = propios.filter(p => ESTADOS_ACTIVOS.includes(p.estado));
-  const pendientes = activos.filter(p => p.estado === 'Pendiente').length;
-  const enBusqueda = activos.filter(p => p.estado === 'En búsqueda').length;
-  const vencidos = activos.filter(pedidoVencido).length;
+  const k = calcularKpisSeguimiento();
 
+  const propios = pedidosVisiblesParaUsuario(DB.pedidos || []);
   const hoy = new Date();
   const cubiertosEsteMes = propios.filter(p => {
     if (p.estado !== 'Cubierto' || !p.fechaInicio) return false;
@@ -146,14 +152,15 @@ function renderKpisPedidos() {
   const promedio = tiempos.length ? Math.round(tiempos.reduce((a, b) => a + b, 0) / tiempos.length) : null;
 
   cont.innerHTML = `
-    <div class="stat-card"><div class="stat-label">Pendientes</div><div class="stat-valor">${pendientes}</div></div>
-    <div class="stat-card azul"><div class="stat-label">En búsqueda</div><div class="stat-valor">${enBusqueda}</div></div>
-    <div class="stat-card rojo"><div class="stat-label">Vencidos ⚠</div><div class="stat-valor">${vencidos}</div></div>
-    <div class="stat-card verde"><div class="stat-label">Cubiertos este mes</div><div class="stat-valor">${cubiertosEsteMes.length}</div></div>
-    <div class="stat-card"><div class="stat-label">Tiempo promedio de cobertura</div><div class="stat-valor" style="font-size:18px;">${promedio != null ? promedio + ' días' : '—'}</div></div>`;
+    <div class="stat-card"><div class="stat-label">Pedidos activos</div><div class="stat-valor">${k.pedidosActivos}</div></div>
+    <div class="stat-card azul"><div class="stat-label">Vacantes en búsqueda</div><div class="stat-valor">${k.vacantesBusqueda}</div></div>
+    <div class="stat-card naranja"><div class="stat-label">Con candidato en proceso</div><div class="stat-valor">${k.conCandidatoProceso}</div></div>
+    <div class="stat-card verde"><div class="stat-label">Cubiertas este mes</div><div class="stat-valor">${k.cubiertasEsteMes}</div></div>
+    <div class="stat-card rojo"><div class="stat-label">Vencidos ⚠</div><div class="stat-valor">${k.vencidos}</div></div>
+    <div class="stat-card"><div class="stat-label">Tiempo promedio (desde la carga)</div><div class="stat-valor" style="font-size:18px;">${promedio != null ? promedio + ' días' : '—'}</div></div>`;
 
   const tabCount = $('pedidos-tab-count');
-  if (tabCount) tabCount.textContent = activos.length;
+  if (tabCount) tabCount.textContent = k.pedidosActivos;
 }
 
 // ========== TABS ==========
@@ -165,7 +172,17 @@ export function cambiarTabPedidos(tab, btn) {
   else document.querySelector(`#screen-pedidos .tab-btn[data-ped-tab="${tab}"]`)?.classList.add('active');
   $('pedidos-tab-' + tab)?.classList.add('active');
   tabPedidosActiva = tab;
-  if (tab === 'historial') renderHistorialPedidos();
+  renderPedidosScreen();
+}
+
+// Renderiza lo que corresponda según la tab activa — usado tanto por
+// cambiarTabPedidos() como por el screenConfig al entrar a la pantalla,
+// así "Seguimiento" (antes su propia pantalla) queda al día también
+// cuando se navega directo acá sin pasar por el click de la tab.
+export function renderPedidosScreen() {
+  renderKpisPedidos();
+  if (tabPedidosActiva === 'historial') renderHistorialPedidos();
+  else if (tabPedidosActiva === 'seguimiento') { if (window.renderSeguimientoSeleccion) window.renderSeguimientoSeleccion(); }
   else renderPedidos();
 }
 

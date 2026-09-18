@@ -1,46 +1,28 @@
-// Módulo Seguimiento de selección — vista transversal de solo lectura
-// (pedido de Jimena/RRHH, 14/09/2026, ver mockup_seguimiento_seleccion.html).
+// Sub-módulo "Seguimiento" de Pedidos de personal — antes vivía en
+// src/modules/seguimiento_seleccion/ como pantalla propia; el ticket
+// "Pedidos de personal completo" (18/09) lo convierte en una TAB más de
+// Pedidos (mockup_pedidos_personal_completo_2.html) con UN SOLO set de
+// KPIs compartido — el bug real que motiva esto: "Seguimiento decía 0
+// cubiertas y Pedidos 16 activos; 24 activos vs 9" porque cada pantalla
+// calculaba sus propios números con criterios distintos (¿qué es
+// "vencido"? ¿qué es "activo"?). Ahora se ACOPLA a pedidos.js a
+// propósito (ya no hay dos módulos separados que evitar acoplar) para
+// que haya una sola fuente de verdad: ESTADOS_ACTIVOS y pedidoVencido()
+// se importan de ahí en vez de reimplementarse acá.
 //
-// NO reemplaza ninguna pantalla existente (Pedidos de personal,
-// Candidatos, Psicotécnico, Preocupacional, Documentación de ingreso,
-// Altas) — esas siguen siendo donde se gestiona cada etapa. Esta vista
-// LEE de ahí y arma la cadena completa:
-//   PEDIDO → VACANTE → CANDIDATO ASIGNADO → ETAPA ACTUAL → INGRESO
-//
-// PRERREQUISITO ENCONTRADO EN LA INVESTIGACIÓN (confirmado con el
-// usuario antes de escribir esto): no existía NINGÚN vínculo entre un
-// Candidato y el Pedido de personal que cubre — Candidatos ni siquiera
-// tenía un campo de servicio. Se agregó candidato.pedidoVinculadoIdLocal
-// (mismo patrón que ya usaba Reasignaciones con
-// "Pedido de personal vinculado" — ver reasignaciones.js) como
-// prerrequisito de esta vista (sql/v127).
-//
-// "Vacantes cubiertas" NO es un campo que alguien tilde a mano — hoy
-// Pedidos de personal solo tiene un booleano global (confirmarCubierto()
-// pone TODO el pedido en 'Cubierto' con un solo nombre, y
-// ejecutarReasignacion() hace lo mismo) que no distingue "1 de 2". Acá
-// se recalcula la cobertura real contando:
-//   - candidatos vinculados a este pedido que ya tienen legajo (Alta
-//     completa) → 1 vacante cada uno.
-//   - reasignaciones vinculadas a este pedido con estado
-//     'Aprobada ejecutada' → 1 vacante cada una (cobertura sin pipeline
-//     de selección, agregado de integración del ticket §3.1).
-// Los estados EN BÚSQUEDA/EN PROCESO/CUBIERTO/VENCIDO de ESTA vista se
-// calculan solos a partir de esos números — no leen ni pisan
-// pedido.estado (ese sigue siendo el booleano viejo que ya usa Pedidos
-// de personal, no se toca para no romper esa pantalla).
+// PIPELINE DE SELECCIÓN (sin cambios de esta migración): Candidato →
+// Etapa actual → Ingreso, leído en vivo de Psicotécnico / Preocupacional
+// / Documentación de ingreso / Altas — ver la nota grande original en
+// el módulo viejo (git log) para el detalle de "vacantes cubiertas" no
+// es un campo tildado a mano, se recalcula contando altas completas +
+// reasignaciones ejecutadas vinculadas al pedido.
 
 import { DB, currentUser } from '@shared/state.js';
 import { $ } from '@shared/helpers.js';
 import { toast, abrirModal, cerrarModal } from '@shared/ui.js';
 import { supaSync } from '@shared/supabase.js';
+import { pedidosVisiblesParaUsuario, pedidoVencido, numeroPedidoTxt, ESTADOS_ACTIVOS, renderPedidosScreen } from './pedidos.js';
 
-// ========== HELPERS DE LECTURA (todo por DNI, con candidatoId como
-// atajo cuando está — mismo criterio de conciliación que ya usa el
-// resto del flujo de ingreso, ver CLAUDE.md "Conciliación entre etapas
-// por candidatoId truncado") ==========
-
-const numeroPedidoTxt = (p) => p?.numero ? `PP-${p.numero}` : '—';
 const ESTADOS_NO_CONTINUA = ['Rechazado', 'Baja', 'Caducado'];
 
 function getPsicoDe(c) { return (DB.psicos || []).find(p => (p.candidatoId && p.candidatoId === c.id) || (p.dni && p.dni === c.dni)); }
@@ -49,12 +31,8 @@ function getDocumDe(c) { return (DB.documentacionIngreso || []).find(p => (p.can
 function getAltaPendienteDe(c) { return (DB.catAltPendientes || []).find(a => a.dni === c.dni); }
 function getLegajoDe(c) { return (DB.legajos || []).find(l => l.dni === c.dni); }
 
-// Zona del servicio: la ficha de Objetivos YA tiene Jurisdicción +
-// Localidad (CABA / Provincia de Buenos Aires + partido-barrio) — es el
-// mismo dato que pide el ticket, no se inventa una columna "zona"
-// nueva y redundante (ver nota en sql/v127). Cuando el servicio no
-// tiene localidad cargada (el caso real que reporta el ticket), se
-// devuelve null y la vista muestra "zona sin cargar".
+// Zona del servicio: la ficha de Objetivos ya tiene Jurisdicción +
+// Localidad — no se inventa una columna "zona" nueva y redundante.
 function zonaDeServicio(codigoServicio) {
   const obj = (DB.objetivos || []).find(o => o.codigo === codigoServicio);
   return obj?.localidad || obj?.jurisdiccion || null;
@@ -63,11 +41,6 @@ function zonaDeServicio(codigoServicio) {
 const PASOS = ['entrevista', 'psico', 'preocup', 'documentacion', 'alta'];
 const PASO_LABEL = { entrevista: 'Entrevista', psico: 'Psico', preocup: 'Preocup.', documentacion: 'Doc. ingreso', alta: 'Alta' };
 
-// Devuelve el estado del candidato dentro del pipeline de selección.
-// - completo: ya tiene legajo (Alta hecha) → INGRESÓ.
-// - noContinua: rechazado/baja/caducado en cualquier etapa → historial.
-// - si no, el mini-pipeline de 5 pasos con cuál está 'ok'/'cur'/pendiente
-//   y si el paso actual se cargó MANUAL.
 function pipelineDe(c) {
   const legajo = getLegajoDe(c);
   if (legajo) return { completo: true, ingresoEfectivo: legajo.ingreso || null };
@@ -106,7 +79,6 @@ function pipelineDe(c) {
   return { pasos, etapaActualKey: actual.key, manual: actual.manual };
 }
 
-// Vacantes cubiertas del pedido — ver nota grande arriba del archivo.
 function candidatosVinculadosA(pedido) {
   return (DB.candidatos || []).filter(c => c.pedidoVinculadoIdLocal && String(c.pedidoVinculadoIdLocal) === String(pedido.id));
 }
@@ -121,30 +93,25 @@ function coberturaDePedido(pedido) {
   return { candidatos, reasigCubren, altasCompletas, cubiertas, total: pedido.cantidad || 1 };
 }
 
-// Estado calculado — SOLO esta vista, no toca pedido.estado (ver nota
-// grande arriba). Regla del ticket §4: EN BÚSQUEDA → EN PROCESO →
-// CUBIERTO | VENCIDO.
+// Estado calculado de ESTA vista — no toca pedido.estado (ese sigue
+// siendo el campo real que gestiona la tab Activos/Historial). "Vencido"
+// ahora usa el MISMO criterio parametrizable por urgencia que ya pinta
+// de rojo la fila en la tabla de Activos (pedidoVencido, pedidos.js) —
+// antes esta vista comparaba contra fechaLimite con su propia cuenta,
+// lo que producía un "vencidos" distinto entre las dos pantallas.
 function estadoCalculadoPedido(pedido, cobertura) {
   if (cobertura.cubiertas >= cobertura.total) return 'Cubierto';
-  const hoy = new Date();
-  const [dd, mm, aa] = (pedido.fechaLimite || '').split('/');
-  const limite = (dd && mm && aa) ? new Date(`${aa}-${mm}-${dd}`) : null;
-  if (limite && hoy > limite) return 'Vencido';
+  if (pedidoVencido(pedido)) return 'Vencido';
   const hayActivo = cobertura.candidatos.some(c => !ESTADOS_NO_CONTINUA.includes(c.estado) && !getLegajoDe(c));
   return hayActivo ? 'En proceso' : 'En búsqueda';
 }
 
 const ESTADO_CHIP = { 'En búsqueda': 'badge-azul', 'En proceso': 'badge-naranja', 'Cubierto': 'badge-verde', 'Vencido': 'badge-rojo' };
 
-// ========== FILA POR PEDIDO (view-model completo para el render) ==========
-
 function filaDePedido(pedido) {
   const cobertura = coberturaDePedido(pedido);
   const estado = estadoCalculadoPedido(pedido, cobertura);
   const zona = zonaDeServicio(pedido.servicio);
-  // Historial: todo vinculado que no sigue activo (rechazado/baja/caducado)
-  // o cuyo legajo ya se dio de alta — se muestra en la fila expandible,
-  // nunca se pierde aunque la vacante ya esté cubierta por otro candidato.
   const historial = cobertura.candidatos
     .map(c => ({ c, pipe: pipelineDe(c) }))
     .filter(x => x.pipe.noContinua || x.pipe.completo);
@@ -154,34 +121,43 @@ function filaDePedido(pedido) {
   return { pedido, cobertura, estado, zona, historial, activos };
 }
 
-function pedidosVisibles() {
-  // Igual que Pedidos de personal: un supervisor solo ve los suyos.
-  // Se reimplementa acá (no se importa pedidos.js) para no acoplar un
-  // módulo de solo lectura a las internas de otro — mismo criterio de
-  // "esMismoSupervisor" que ya usa el resto del proyecto.
-  const todos = (DB.pedidos || []).filter(p => p.estado !== 'Cancelado');
-  if (currentUser?.perfil !== 'Supervisor') return todos;
-  return todos.filter(p =>
-    p.supervisor === currentUser.nombre || p.supervisor === currentUser.funcion ||
-    (DB.legajos || []).some(l => l.servicio === p.servicio && l.supervisor === currentUser.nombre)
-  );
+// Pedidos "vivos" para el seguimiento: los mismos que la tab Activos
+// (Pendiente | En búsqueda) — un pedido Cubierto/Cancelado pasa a
+// Historial y deja de rastrearse acá. Antes esta vista incluía CUALQUIER
+// pedido no cancelado (incluidos los ya Cubiertos), otra causa de la
+// discrepancia de contadores entre pantallas.
+function pedidosVisiblesActivos() {
+  return pedidosVisiblesParaUsuario(DB.pedidos || []).filter(p => ESTADOS_ACTIVOS.includes(p.estado));
 }
 
-// ========== KPIs + FILTROS + RENDER ==========
+// ========== KPIs UNIFICADOS (usados por el panel superior de las 3 tabs) ==========
+
+function mesDeFechaAR(fecha) {
+  const [dd, mm, aa] = String(fecha || '').split('/');
+  return (dd && mm && aa) ? `${aa}-${mm.padStart(2, '0')}` : null;
+}
+
+export function calcularKpisSeguimiento() {
+  const filas = pedidosVisiblesActivos().map(filaDePedido);
+  const esteMes = new Date().toISOString().slice(0, 7);
+  const vacantesBusqueda = filas.reduce((s, f) => s + Math.max(0, f.cobertura.total - f.cobertura.cubiertas - f.activos.length), 0);
+  const conCandidatoProceso = filas.reduce((s, f) => s + f.activos.length, 0);
+  const cubiertasEsteMes = filas.reduce((s, f) => {
+    const altasMes = f.cobertura.altasCompletas.filter(c => mesDeFechaAR(getLegajoDe(c)?.ingreso) === esteMes).length;
+    const reasigMes = f.cobertura.reasigCubren.filter(r => mesDeFechaAR(r.fechaEjecucion) === esteMes).length;
+    return s + altasMes + reasigMes;
+  }, 0);
+  const vencidos = filas.filter(f => f.estado === 'Vencido').length;
+  return { pedidosActivos: filas.length, vacantesBusqueda, conCandidatoProceso, cubiertasEsteMes, vencidos };
+}
+
+// ========== RENDER DE LA TAB ==========
 
 let _expandido = new Set();
 
 export function renderSeguimientoSeleccion() {
   const tbody = $('tbody-seg-sel'); if (!tbody) return;
-  const filas = pedidosVisibles().map(filaDePedido);
-
-  const ss = (id, v) => { const e = $(id); if (e) e.textContent = v; };
-  ss('kpi-seg-activos', filas.length);
-  ss('kpi-seg-busqueda', filas.reduce((s, f) => s + Math.max(0, f.cobertura.total - f.cobertura.cubiertas - f.activos.length), 0));
-  ss('kpi-seg-proceso', filas.filter(f => f.estado === 'En proceso').length);
-  const esteMes = new Date().toISOString().slice(0, 7);
-  ss('kpi-seg-cubiertas-mes', filas.reduce((s, f) => s + f.cobertura.altasCompletas.filter(c => (getLegajoDe(c)?.ingreso || '').split('/').reverse().join('-').slice(0, 7) === esteMes).length, 0));
-  ss('kpi-seg-vencidos', filas.filter(f => f.estado === 'Vencido').length);
+  const filas = pedidosVisiblesActivos().map(filaDePedido);
 
   const q = ($('seg-buscar') || { value: '' }).value.toLowerCase();
   const fSup = ($('seg-filtro-sup') || { value: '' }).value;
@@ -215,6 +191,9 @@ export function renderSeguimientoSeleccion() {
   tbody.querySelectorAll('[data-ver-pedido]').forEach(el => {
     el.onclick = () => abrirDetallePedidoSeguimiento(el.dataset.verPedido);
   });
+  tbody.querySelectorAll('[data-vincular-pedido]').forEach(el => {
+    el.onclick = () => abrirVincularCandidato(el.dataset.vincularPedido);
+  });
 }
 
 function poblarFiltrosSeguimiento(filas) {
@@ -245,8 +224,6 @@ function pipeHtml(pipe) {
 
 function candidatoActivoHtml(a, avisaReemplazo) {
   const nombre = `${a.c.apellido}, ${a.c.nombre}`;
-  // "Cargar etapa manual" solo tiene sentido antes de Alta (una vez que
-  // llega a Alta, esa pantalla ya tiene su propio flujo real).
   const puedeCargarManual = a.pipe.etapaActualKey !== 'alta';
   return `<div class="seg-cand">
     <div><b>${nombre}</b><span class="seg-x"> DNI ${a.c.dni}${avisaReemplazo ? ' · reemplaza a un candidato que no continuó (ver historial ▸)' : ''}</span></div>
@@ -258,21 +235,13 @@ function candidatoActivoHtml(a, avisaReemplazo) {
 function filaHtml(f) {
   const p = f.pedido;
   const id = String(p.id);
-  // La flecha de historial solo aparece cuando hay algo que contar: un
-  // candidato que no continuó y cuya vacante se re-vinculó. Una
-  // cobertura directa (alta sin drama, o por reasignación) no necesita
-  // expandirse — ya se ve completa en la fila principal.
   const tieneHistorial = f.historial.some(h => h.pipe.noContinua);
   const expandido = _expandido.has(id);
   const zonaHtml = f.zona ? f.zona : '<span style="color:#b3261e;">zona sin cargar ⚠</span>';
 
-  // Columna de candidatos/avance: altas completas (✔ INGRESÓ) + cobertura
-  // por reasignación (chip violeta, sin pipeline) + activos en pipeline +
-  // placeholders "en búsqueda" para las vacantes que todavía no tienen a
-  // nadie vinculado.
   const bloques = [];
   f.cobertura.altasCompletas.forEach(c => {
-    bloques.push(`<div class="seg-vac"><div class="seg-cand">✔ ${c.apellido}, ${c.nombre} — <span class="badge badge-verde">INGRESÓ ${(c.pipe?.ingresoEfectivo || getLegajoDe(c)?.ingreso || '').slice(0, 5)}</span>
+    bloques.push(`<div class="seg-vac"><div class="seg-cand">✔ ${c.apellido}, ${c.nombre} — <span class="badge badge-verde">INGRESÓ ${(getLegajoDe(c)?.ingreso || '').slice(0, 5)}</span>
       <div class="seg-x">Alta completa → escribió su registro en el padrón de categorías (origen ALTA)</div></div></div>`);
   });
   f.cobertura.reasigCubren.forEach(r => {
@@ -283,7 +252,9 @@ function filaHtml(f) {
     bloques.push(`<div class="seg-vac">${candidatoActivoHtml(a, tieneHistorial)}</div>`);
   });
   const faltantes = Math.max(0, f.cobertura.total - f.cobertura.cubiertas - f.activos.length);
-  for (let i = 0; i < faltantes; i++) bloques.push(`<div class="seg-vac"><span class="seg-x">Vacante: en búsqueda</span></div>`);
+  for (let i = 0; i < faltantes; i++) {
+    bloques.push(`<div class="seg-vac"><span class="seg-x">Vacante: en búsqueda</span> <button class="btn btn-xs btn-primary" data-vincular-pedido="${id}">+ Vincular</button></div>`);
+  }
   const colCandidatos = bloques.length ? bloques.join('') : '<span class="seg-x">Sin candidato asignado</span>';
 
   const filaHist = expandido ? `<tr class="seg-hist" id="hist-${id}"><td colspan="10">${historialHtml(f)}</td></tr>` : '';
@@ -331,15 +302,8 @@ export function abrirDetallePedidoSeguimiento(id) {
   abrirModal('modal-seg-ver-pedido');
 }
 
-// ========== CARGA MANUAL DE UNA ETAPA (excepción, ticket §3.3) ==========
-// Jimena puede necesitar anotar una etapa hecha fuera del sistema. Crea
-// el registro MÍNIMO real en la tabla de esa etapa (para que el resto
-// del sistema —incluida esta vista— la vea como cualquier otra) pero
-// marcado origen:'manual' + quién la cargó, así nunca se confunde con
-// una etapa gestionada de verdad. No dispara la creación automática de
-// la etapa siguiente (eso sí es una acción real con sus propios
-// requisitos en cada módulo) — si corresponde avanzar, se hace desde
-// Psicotécnico/Preocupacional/Documentación como cualquier caso.
+// ========== CARGA MANUAL DE UNA ETAPA (excepción) ==========
+
 export function abrirCargaManualEtapaSeguimiento(candidatoId) {
   const c = (DB.candidatos || []).find(x => String(x.id) === String(candidatoId));
   if (!c) return;
@@ -369,15 +333,86 @@ export async function guardarCargaManualEtapaSeguimiento() {
   DB[TABLA].push(base);
   await supaSync(TABLA, base);
   cerrarModal('modal-seg-manual');
-  renderSeguimientoSeleccion();
+  renderPedidosScreen();
   toast(`✓ Etapa cargada como MANUAL — ${base.nombre}`);
 }
-window.abrirCargaManualEtapaSeguimiento = abrirCargaManualEtapaSeguimiento;
+
+// ========== "+VINCULAR" — candidato ↔ pedido (ticket §4) ==========
+// Antes el único punto de entrada era el <select> del modal de
+// Editar-candidato — no había forma de vincular DESDE Seguimiento
+// mirando la vacante. Abre el picker real de Candidatos (nombre+DNI+
+// zona+estado), avisa si el candidato ya está vinculado a otro pedido
+// (sigue siendo elegible, es solo un aviso) y ofrece crear uno nuevo
+// si no está en la lista. El dato vinculado (candidato.pedidoVinculadoIdLocal)
+// es EL MISMO que ya lee/escribe el select del modal de Candidatos — una
+// sola relación, dos ventanas (esta y la columna PEDIDO de Candidatos).
+let _vincularPedidoId = null;
+
+export function abrirVincularCandidato(pedidoId) {
+  const p = (DB.pedidos || []).find(x => String(x.id) === String(pedidoId));
+  if (!p) return;
+  _vincularPedidoId = pedidoId;
+  const t = $('vinc-pedido-titulo');
+  if (t) t.textContent = `Vincular candidato — ${numeroPedidoTxt(p)} · ${p.servicio}`;
+  const buscar = $('vinc-buscar'); if (buscar) buscar.value = '';
+  renderListaVincularCandidatos();
+  abrirModal('modal-ped-vincular');
+}
+
+// Elegibles: cualquiera que todavía esté "en carrera" (no cerrado ni de
+// baja) — un candidato ya vinculado a OTRO pedido sigue apareciendo,
+// solo con el aviso, tal como pide el ticket.
+function candidatosVinculablesFiltrados() {
+  const q = ($('vinc-buscar') || { value: '' }).value.toLowerCase();
+  const elegibles = (DB.candidatos || []).filter(c => !ESTADOS_NO_CONTINUA.includes(c.estado) && c.estado !== 'Precandidato');
+  if (!q) return elegibles;
+  return elegibles.filter(c => `${c.apellido} ${c.nombre} ${c.dni}`.toLowerCase().includes(q));
+}
+
+export function filtrarVincularCandidatos() { renderListaVincularCandidatos(); }
+
+function renderListaVincularCandidatos() {
+  const cont = $('vinc-lista'); if (!cont) return;
+  const lista = candidatosVinculablesFiltrados();
+  if (!lista.length) { cont.innerHTML = '<p class="text-muted" style="padding:10px;">Sin candidatos para mostrar.</p>'; return; }
+  cont.innerHTML = lista.map(c => {
+    const otroPedido = c.pedidoVinculadoIdLocal && String(c.pedidoVinculadoIdLocal) !== String(_vincularPedidoId)
+      ? (DB.pedidos || []).find(p => String(p.id) === String(c.pedidoVinculadoIdLocal)) : null;
+    const chip = otroPedido
+      ? `<span class="badge badge-naranja" style="font-size:10px;">⚠ ya vinculado a ${numeroPedidoTxt(otroPedido)}</span>`
+      : `<span class="badge badge-verde" style="font-size:10px;">disponible</span>`;
+    return `<div class="seg-vac" style="cursor:pointer;" data-elegir-cand="${c.id}">
+      <b>${c.apellido}, ${c.nombre}</b> <span class="seg-x">DNI ${c.dni} · ${c.zona || 'sin zona'} · ${c.estado}</span> ${chip}
+    </div>`;
+  }).join('');
+  cont.querySelectorAll('[data-elegir-cand]').forEach(el => { el.onclick = () => elegirCandidatoVincular(el.dataset.elegirCand); });
+}
+
+export async function elegirCandidatoVincular(candidatoId) {
+  const c = (DB.candidatos || []).find(x => String(x.id) === String(candidatoId));
+  const p = (DB.pedidos || []).find(x => String(x.id) === String(_vincularPedidoId));
+  if (!c || !p) return;
+  c.pedidoVinculadoIdLocal = p.id;
+  await supaSync('candidatos', c);
+  cerrarModal('modal-ped-vincular');
+  renderPedidosScreen();
+  if (window.renderCandidatos) window.renderCandidatos();
+  toast(`✓ ${c.apellido}, ${c.nombre} vinculado a ${numeroPedidoTxt(p)}`);
+}
+
+// "¿No está en la lista? → Crearlo en Candidatos": no duplica el alta acá,
+// linkea al módulo real (mismo patrón que ya usa el botón "+ Nuevo
+// pedido" de esta pantalla, que abre Pedidos en vez de reinventar un form).
+export function irACrearCandidatoDesdeVincular() {
+  cerrarModal('modal-ped-vincular');
+  if (window.navTo) window.navTo('candidatos');
+  if (window.abrirNuevoCandidato) window.abrirNuevoCandidato();
+}
 
 // ========== EXPORTAR CSV ==========
 
 export function exportarSeguimientoCSV() {
-  const filas = pedidosVisibles().map(filaDePedido);
+  const filas = pedidosVisiblesActivos().map(filaDePedido);
   const header = ['N° Pedido', 'Servicio', 'Zona', 'Supervisor', 'Puesto', 'Cubiertas', 'Total', 'F. límite', 'Estado'];
   const lineas = [header.join(',')];
   filas.forEach(f => {

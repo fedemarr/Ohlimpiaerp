@@ -20,7 +20,6 @@ import { documScreenConfig, filtrarDocum, poblarFiltrosColumnasDocum } from './m
 import { altasScreenConfig, filtrarAltas, poblarFiltrosColumnasAltas, renderAltas, poblarSelectsAltas } from './modules/altas/index.js';
 import { legajosScreenConfig, filtrarLegajos, renderLegajos } from './modules/legajos/index.js';
 import { pedidosScreenConfig, filtrarPedidos } from './modules/pedidos/index.js';
-import { seguimientoSeleccionScreenConfig, filtrarSeguimientoSeleccion } from './modules/seguimiento_seleccion/index.js';
 import { reasignacionesScreenConfig, sincronizarConfigReasignaciones, chequearEjecucionesPendientes } from './modules/reasignaciones/index.js';
 import { capacitacionesScreenConfig, filtrarCapacitaciones } from './modules/capacitaciones/index.js';
 import { uniformesScreenConfig } from './modules/uniformes/index.js';
@@ -105,7 +104,6 @@ registerScreens(retencionesScreenConfig);
 registerScreens(cuentasCbuScreenConfig);
 registerScreens(retenesScreenConfig);
 registerScreens(tareasEspecialesScreenConfig);
-registerScreens(seguimientoSeleccionScreenConfig);
 registerScreens(competenciaScreenConfig);
 registerScreens(developerScreenConfig);
 registerScreens(vacacionesScreenConfig);
@@ -140,7 +138,6 @@ registerSearchFilters({
   pedidos: filtrarPedidos,
   capacitaciones: filtrarCapacitaciones,
   retenciones: filtrarRetenciones,
-  seguimiento_seleccion: filtrarSeguimientoSeleccion,
   maquinas: filtrarMaquinas,
 });
 

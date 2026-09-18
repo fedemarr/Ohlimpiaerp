@@ -300,7 +300,7 @@ export const DB = {
 // ========== PERFILES Y ACCESOS ==========
 
 export const PERFILES = {
-  'Administrador total': { color: 'badge-rojo', modulos: ['inicio', 'candidatos', 'pedidos', 'psicotecnico', 'preocupacional', 'documentacion', 'altas', 'legajos', 'reasignaciones', 'legal', 'enfermos', 'capacitaciones', 'vacaciones', 'descansos', 'competencia', 'clientes', 'objetivos', 'precios', 'paritarias', 'categorias', 'crm', 'negociaciones', 'reclamos', 'cobros', 'comisiones', 'supervisores', 'supervision', 'liquidacion', 'resumen_horas', 'feriados', 'liq_admin', 'liquidaciones', 'retenes', 'tareas_especiales', 'mantenimiento', 'configuracion', 'smvm', 'monotributos', 'uniformes', 'stock', 'pedido_productos', 'retenciones', 'descuentos', 'sanciones', 'adelantos', 'pedidos_adelantos', 'gestion_adelantos', 'sugerencias', 'proveedores', 'maquinas', 'seguimiento_seleccion', 'cuentas_cbu'], desc: 'Acceso completo.' },
+  'Administrador total': { color: 'badge-rojo', modulos: ['inicio', 'candidatos', 'pedidos', 'psicotecnico', 'preocupacional', 'documentacion', 'altas', 'legajos', 'reasignaciones', 'legal', 'enfermos', 'capacitaciones', 'vacaciones', 'descansos', 'competencia', 'clientes', 'objetivos', 'precios', 'paritarias', 'categorias', 'crm', 'negociaciones', 'reclamos', 'cobros', 'comisiones', 'supervisores', 'supervision', 'liquidacion', 'resumen_horas', 'feriados', 'liq_admin', 'liquidaciones', 'retenes', 'tareas_especiales', 'mantenimiento', 'configuracion', 'smvm', 'monotributos', 'uniformes', 'stock', 'pedido_productos', 'retenciones', 'descuentos', 'sanciones', 'adelantos', 'pedidos_adelantos', 'gestion_adelantos', 'sugerencias', 'proveedores', 'maquinas', 'cuentas_cbu'], desc: 'Acceso completo.' },
   // Reorganización de menú/permisos (Lautaro, 12/08/2026): RRHH tiene que
   // VER toda el área Personal — antes no veía 'legal' ni 'enfermos' pese a
   // que esas 2 pantallas ya listaban 'RRHH' en su propio item.perfiles
@@ -308,7 +308,7 @@ export const PERFILES = {
   // este array .modulos). Monotributos/Retenciones quedan igual: RRHH ya
   // los tenía y los sigue teniendo aunque esos módulos ahora vivan en la
   // sección de menú Finanzas — la sección es organización, no permiso.
-  'RRHH': { color: 'badge-azul', modulos: ['inicio', 'candidatos', 'psicotecnico', 'preocupacional', 'documentacion', 'altas', 'legajos', 'reasignaciones', 'legal', 'enfermos', 'capacitaciones', 'vacaciones', 'descansos', 'competencia', 'reclamos', 'paritarias', 'categorias', 'liquidacion', 'liq_admin', 'liquidaciones', 'retenes', 'tareas_especiales', 'monotributos', 'uniformes', 'retenciones', 'descuentos', 'sanciones', 'adelantos', 'pedidos_adelantos', 'gestion_adelantos', 'sugerencias', 'seguimiento_seleccion', 'cuentas_cbu'], desc: 'RRHH, legajos, capacitaciones.' },
+  'RRHH': { color: 'badge-azul', modulos: ['inicio', 'candidatos', 'pedidos', 'psicotecnico', 'preocupacional', 'documentacion', 'altas', 'legajos', 'reasignaciones', 'legal', 'enfermos', 'capacitaciones', 'vacaciones', 'descansos', 'competencia', 'reclamos', 'paritarias', 'categorias', 'liquidacion', 'liq_admin', 'liquidaciones', 'retenes', 'tareas_especiales', 'monotributos', 'uniformes', 'retenciones', 'descuentos', 'sanciones', 'adelantos', 'pedidos_adelantos', 'gestion_adelantos', 'sugerencias', 'cuentas_cbu'], desc: 'RRHH, legajos, capacitaciones.' },
   'Operaciones': { color: 'badge-verde', modulos: ['inicio', 'pedidos', 'legajos', 'reasignaciones', 'capacitaciones', 'vacaciones', 'descansos', 'competencia', 'clientes', 'objetivos', 'precios', 'paritarias', 'crm', 'negociaciones', 'reclamos', 'cobros', 'comisiones', 'supervisores', 'supervision', 'liquidacion', 'resumen_horas', 'retenes', 'tareas_especiales', 'mantenimiento', 'feriados', 'uniformes', 'sanciones', 'pedidos_adelantos', 'sugerencias'], desc: 'Operaciones y ventas.' },
   'Finanzas': { color: 'badge-acento', modulos: ['inicio', 'legajos', 'smvm', 'cobros', 'comisiones', 'paritarias', 'supervision', 'liquidacion', 'resumen_horas', 'liq_admin', 'liquidaciones', 'retenes', 'tareas_especiales', 'mantenimiento', 'monotributos', 'retenciones', 'descuentos', 'adelantos', 'gestion_adelantos', 'sugerencias', 'proveedores', 'maquinas', 'cuentas_cbu'], desc: 'Finanzas y liquidación.' },
   'Supervisor': { color: 'badge-gris', modulos: ['inicio', 'pedidos', 'legajos', 'descansos', 'competencia', 'liquidacion', 'resumen_horas', 'liquidaciones', 'adelantos', 'pedidos_adelantos', 'uniformes', 'sanciones', 'sugerencias', 'retenciones', 'pedido_productos'], desc: 'Pedidos, legajos, descansos, competencia y liquidación de horas.' },
@@ -375,10 +375,9 @@ export const MENU = [
     // personal es la demanda del supervisor que dispara la búsqueda; después
     // Candidatos → Psicotécnico → Preocupacional → Documentación de ingreso
     // → Alta de asociado (etapas por las que pasa el postulante).
-    // Vista transversal de solo lectura (pedido de Jimena, 14/09) — arriba
-    // de Pedidos de personal porque es el punto de entrada para ver TODO
-    // el avance sin entrar pantalla por pantalla.
-    { key: 'seguimiento_seleccion', icon: '🧭', label: 'Seguimiento de selección', perfiles: ['Administrador total', 'RRHH'] },
+    // "Seguimiento de selección" (pedido de Jimena, 14/09) dejó de ser
+    // pantalla propia (18/09) — es la tab "🔭 Seguimiento" de este mismo
+    // módulo (ver seguimiento.js), con un solo set de KPIs para las 3 tabs.
     { key: 'pedidos', icon: '📋', label: 'Pedidos de personal', perfiles: ['Administrador total', 'RRHH', 'Operaciones', 'Supervisor'] },
     { key: 'candidatos', icon: '👥', label: 'Candidatos', perfiles: ['Administrador total', 'RRHH'] },
     { key: 'psicotecnico', icon: '🧠', label: 'Psicotécnico', perfiles: ['Administrador total', 'RRHH'] },
