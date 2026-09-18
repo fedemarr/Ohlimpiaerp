@@ -78,17 +78,24 @@ export function abrirRevisionRRHH(tipo, id) {
   const p = tipo === 'Préstamo' ? getPrestamoById(id) : getPedidoById(id);
   if (!p) return;
   const legajo = (DB.legajos || []).find(l => String(l.nro) === String(p.legajoIdLocal));
-  if (!legajo) { toast('⚠️ No se encontró el legajo del asociado'); return; }
+  // FIX (limpieza de pedidos de prueba/duplicados, ver Martinez Federico
+  // y Recalde Axel — legajoIdLocal 146/148, que no existen en el padrón
+  // actual): antes, sin legajo, la función cortaba acá con un toast y
+  // NUNCA abría el modal — RRHH no tenía forma de rechazar/cancelar ese
+  // pedido y quedaba trabado para siempre en la cola de revisión. Ahora
+  // el modal igual se abre, sin el panel de "Contexto del asociado"
+  // (no hay de dónde sacarlo), pero con Aprobar/Rechazar disponibles.
+  const ctx = legajo ? construirContextoAsociado(legajo, tipo === 'Adelanto' ? p : null) : null;
 
   _revisando = { tipo, id };
   ensureModalRevision();
   const nombre = tipo === 'Préstamo' ? p.nombre : p.nombreAsociado;
   $('gr-titulo').textContent = `Revisar — ${nombre}`;
 
-  const ctx = construirContextoAsociado(legajo, tipo === 'Adelanto' ? p : null);
   const devuelto = p.estado === 'Rechazada Finanzas';
 
   $('gr-cuerpo').innerHTML = `
+    ${!legajo ? `<div class="alerta alerta-danger" style="margin-bottom:12px;">⚠️ No se encontró el legajo N° ${p.legajoIdLocal || '—'} en el padrón actual — puede ser un registro de prueba o de un legajo dado de baja. No hay contexto del asociado para mostrar, pero se puede aprobar/rechazar igual.</div>` : ''}
     ${devuelto ? `<div class="alerta alerta-danger" style="margin-bottom:12px;"><strong>Devuelto por Finanzas:</strong> ${p.motivoRechazoFinanzas || '—'}</div>` : ''}
     <div class="info-grid" style="margin-bottom:14px;">
       <div class="info-item"><div class="key">Tipo</div><div class="val">${tipo}</div></div>
@@ -100,6 +107,7 @@ export function abrirRevisionRRHH(tipo, id) {
     ${(p.observaciones || p.obs) ? `<p style="font-size:13px;"><strong>Observaciones:</strong> ${p.observaciones || p.obs}</p>` : ''}
     ${(p.avisos || []).map(a => `<div class="alerta alerta-warning" style="margin-bottom:8px;font-size:12.5px;">⚠ ${a} <span style="color:var(--texto-suave);">(aviso del supervisor al cargar el pedido)</span></div>`).join('')}
 
+    ${ctx ? `
     <div class="form-section" style="margin-bottom:8px;">Contexto del asociado</div>
     <div class="info-grid" style="margin-bottom:10px;">
       <div class="info-item"><div class="key">Asociado</div><div class="val">${ctx.asociado.nombre} — N° ${ctx.asociado.nro}${ctx.asociado.antiguedadAnios != null ? ` (${ctx.asociado.antiguedadAnios} años)` : ''}</div></div>
@@ -111,7 +119,7 @@ export function abrirRevisionRRHH(tipo, id) {
     </div>
     <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:14px;">
       ${ctx.alertas.map(a => `<div style="padding:8px 10px;background:var(--fondo);border-radius:6px;font-size:12.5px;">${iconoAlerta(a.nivel)} ${a.mensaje}</div>`).join('')}
-    </div>
+    </div>` : ''}
 
     ${tipo === 'Préstamo' ? `
       <div class="form-section" style="margin-bottom:8px;">Definir cuotas aprobadas</div>
