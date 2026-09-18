@@ -8770,6 +8770,31 @@ function renderLiquidaciones(){
   // ningún lado desde que existe filasConsolidadas). El padrón/vista de
   // Retenes ahora es puramente informativo — ver src/modules/retenes/.
 
+  // Complemento convenio — Tareas Especiales (ticket "Módulo Tareas
+  // Especiales" 18/09, LA REGLA DE ORO §3): las horas REALES de este
+  // grupo ya llegan arriba por el punto 1 (Servicios), igual que
+  // Retenes — acá SOLO se suma el complemento (168hs − reales cuando
+  // reales < convenio), como una fila más para el mismo nombre, no
+  // facturable. Si se sumara el total se pagaría dos veces (mismo bug
+  // que ya se evitó arriba). Cálculo real en
+  // src/modules/tareas_especiales/consultas.js, expuesto en window
+  // porque este archivo no puede hacer `import` estático de un módulo ES.
+  if(window.complementosTareasEspecialesDelMes){
+    const complementos = window.complementosTareasEspecialesDelMes(mes);
+    Object.entries(complementos).forEach(([nombre, c])=>{
+      filas.push({
+        nombre,
+        categoria: 'Tareas Especiales',
+        area: 'Tareas Especiales',
+        fuente: 'Complemento convenio',
+        hsTotal: c.hs,
+        hsExtra: 0,
+        bruto: c.monto,
+        valorHora: c.valorHora,
+      });
+    });
+  }
+
   // 5. Mantenimiento — solo visible para Admin, RRHH, Finanzas, Operaciones
   if(!esSupervisor)
   (DB.mantPersonal||[]).filter(r=>r.activo).forEach(r=>{
@@ -9292,6 +9317,17 @@ function _getFilasConsolidadas(mes){
   // grilla ya se cuentan arriba junto con el resto de Servicios; este
   // bloque las volvía a sumar con un mínimo garantizado que ya no
   // corresponde, pagando doble.
+  // Complemento convenio — Tareas Especiales (ver comentario largo en
+  // renderLiquidaciones): SOLO el complemento, las reales ya están
+  // arriba como Servicio.
+  if(window.complementosTareasEspecialesDelMes){
+    const complementos=window.complementosTareasEspecialesDelMes(mes);
+    Object.entries(complementos).forEach(([nombre,c])=>{
+      const existing=filas.find(f=>f.nombre===nombre);
+      if(existing){existing.bruto+=c.monto;existing.neto+=c.monto;}
+      else filas.push({nombre,bruto:c.monto,neto:c.monto});
+    });
+  }
   // Mantenimiento
   (DB.mantPersonal||[]).filter(r=>r.activo).forEach(r=>{
     const diasM=getDiasDelMes(mes);
@@ -9508,21 +9544,40 @@ function verDetalleLqs(nombre, mes){
   // cualquier asociado, sin mínimo garantizado). Ver src/modules/retenes/
   // para el detalle de cobertura del mes.
 
+  // Complemento convenio — Tareas Especiales (ticket "Módulo Tareas
+  // Especiales" 18/09): línea propia en la ficha, como pide el
+  // documento ("Visible en la ficha 👁 y el recibo"). Las horas reales
+  // ya aparecen arriba como Servicio — esto es SOLO el complemento.
+  if(window.complementosTareasEspecialesDelMes){
+    const c = window.complementosTareasEspecialesDelMes(mes)[nombre];
+    if(c){
+      detalles.push({
+        fuente: 'Complemento convenio',
+        descripcion: 'Tareas Especiales — no facturable',
+        categoria: 'Tareas Especiales',
+        hs: c.hs,
+        valorHora: c.valorHora,
+        bruto: c.monto,
+      });
+    }
+  }
+
   if(!detalles.length){ toast('Sin detalle disponible para '+nombre); return; }
 
   // Construir el modal
-  const fuenteIcon = {Servicio:'🏢',Administración:'👔',Suplemento:'➕','Retén':'🔄','Mantenimiento':'🔧'};
-  const fuenteColor2 = {Servicio:'#1e40af',Administración:'#065f46',Suplemento:'#7c3aed','Retén':'#0369a1','Mantenimiento':'#0369a1'};
+  const fuenteIcon = {Servicio:'🏢',Administración:'👔',Suplemento:'➕','Retén':'🔄','Mantenimiento':'🔧','Complemento convenio':'🧰'};
+  const fuenteColor2 = {Servicio:'#1e40af',Administración:'#065f46',Suplemento:'#7c3aed','Retén':'#0369a1','Mantenimiento':'#0369a1','Complemento convenio':'#b25b00'};
   const totalBruto = detalles.reduce((s,d)=>s+d.bruto,0);
 
   const detalleHTML = detalles.map((d,di)=>{
     // Solo los servicios son clickeables para ver la grilla de días
     const esServicio = d.fuente === 'Servicio';
     const esMant = d.fuente === 'Mantenimiento';
-    const esClickeable = esServicio || esMant;
+    const esComplementoTE = d.fuente === 'Complemento convenio';
+    const esClickeable = esServicio || esMant || esComplementoTE;
     const clickStyle = esClickeable ? 'cursor:pointer;' : '';
-    const clickHandler = esMant ? `onclick="verGrillaMantDetalle('${nombre}','${mes}')"` : esServicio ? `onclick="verGrillaServicioDetalle('${nombre}','${mes}','${d.descripcion.replace(/'/g,"\\'")}',${di})"` : '';
-    const hint = esClickeable ? '<span style="font-size:10px;color:#93c5fd;margin-left:6px;">👁 Ver grilla de días</span>' : '';
+    const clickHandler = esMant ? `onclick="verGrillaMantDetalle('${nombre}','${mes}')"` : esServicio ? `onclick="verGrillaServicioDetalle('${nombre}','${mes}','${d.descripcion.replace(/'/g,"\\'")}',${di})"` : esComplementoTE ? `onclick="navTo('tareas_especiales')"` : '';
+    const hint = esComplementoTE ? '<span style="font-size:10px;color:#93c5fd;margin-left:6px;">🧰 Ir a Tareas Especiales</span>' : esClickeable ? '<span style="font-size:10px;color:#93c5fd;margin-left:6px;">👁 Ver grilla de días</span>' : '';
     return `
     <div style="background:#f8f9fd;border:1px solid var(--borde);border-radius:10px;padding:14px 16px;margin-bottom:10px;${clickStyle}"
          ${clickHandler}

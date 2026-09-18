@@ -40,6 +40,7 @@ import { supaSync, getLastSupaSyncError, SUPA } from '@shared/supabase.js';
 import { registroPadronVigente, obtenerValorHoraVigente, categoriaVigenteAsociado, idLocalTrunc } from '@modules/categorias/consultas.js';
 import { esMismoSupervisor } from '@modules/supervision/supervision.js';
 import { nombresSupervisoresReales, getSupervisorDeCodigo } from '@modules/servicios_supervisor/servicios_supervisor.js';
+import { complementosTareasEspecialesDelMes } from '@modules/tareas_especiales/consultas.js';
 
 // ========== RÉPLICAS PURAS DE legacy.js ==========
 // esHoraFacturableReal() y valorHoraEfectivoAsoc() viven en legacy.js sin
@@ -126,9 +127,19 @@ function _construirResumen(mes) {
     });
   });
 
+  // Complemento convenio — Tareas Especiales (ticket "Módulo Tareas
+  // Especiales" 18/09 §3b, regla simétrica a la de Liquidaciones): "el
+  // complemento no es una hora trabajada" — NUNCA suma en las columnas
+  // de horas (hsFact/hsNoFact/totalHs, que siguen siendo exactamente lo
+  // que hay en las grillas), pero SÍ suma en el retiro del período (si
+  // no lo incluyera, la columna mentiría por menos). Este resumen solo
+  // LEE lo que Tareas Especiales ya calculó — no lo recalcula acá.
+  const complementosTE = complementosTareasEspecialesDelMes(mes);
+
   const filasSinNombre = [];
   const asociados = Array.from(porAsoc.values()).map(a => {
     const cat = categoriaVigenteAsociado(a.nro, mes + '-01');
+    const comp = complementosTE[a.nombre] || null;
     return {
       ...a,
       categoria: cat ? (cat.codigo + ' · ' + cat.nombre) : null,
@@ -136,7 +147,8 @@ function _construirResumen(mes) {
       hsFact: a.filas.reduce((s, f) => s + f.hsFact, 0),
       hsNoFact: a.filas.reduce((s, f) => s + f.hsNoFact, 0),
       totalHs: a.filas.reduce((s, f) => s + f.totalHs, 0),
-      totalPagar: a.filas.reduce((s, f) => s + f.totalPagar, 0),
+      totalPagar: a.filas.reduce((s, f) => s + f.totalPagar, 0) + (comp?.monto || 0),
+      complementoTE: comp,
     };
   }).sort((x, y) => String(x.nombre || '').localeCompare(String(y.nombre || ''), 'es'));
 
@@ -274,7 +286,7 @@ export function renderResumenHoras() {
         <td style="text-align:right;">${fmtDecimal(a.hsFact, 0)}</td>
         <td style="text-align:right;">${a.hsNoFact ? fmtDecimal(a.hsNoFact, 0) : '—'}</td>
         <td style="text-align:right;"><b>${fmtDecimal(a.totalHs, 0)}</b></td>
-        <td style="text-align:right;font-weight:700;color:var(--verde);">$${a.totalPagar.toLocaleString('es-AR')}</td>
+        <td style="text-align:right;font-weight:700;color:var(--verde);">$${a.totalPagar.toLocaleString('es-AR')}${a.complementoTE ? `<div style="font-size:10px;font-weight:600;color:#b25b00;white-space:normal;">incluye complemento ${a.complementoTE.hs} hs (convenio ${a.complementoTE.convenioParam})</div>` : ''}</td>
       </tr>
       <tr style="${abierto ? '' : 'display:none;'}background:var(--fondo);">
         <td colspan="8" style="padding:0 0 10px 40px;width:0;">
@@ -320,6 +332,7 @@ export function renderResumenHoras() {
           </table>
           </div>
           <span style="font-size:11px;color:var(--texto-suave);">La corrección SIEMPRE se hace en la grilla del servicio (fuente única) — este resumen refleja al instante.</span>
+          ${a.complementoTE ? `<div class="alerta alerta-warn" style="font-size:11.5px;margin-top:8px;">+${a.complementoTE.hs} hs complemento (no facturable) — lo calcula <a href="#" onclick="event.stopPropagation();navTo('tareas_especiales');return false;" style="color:#7a6000;font-weight:700;">Tareas Especiales</a>, viaja a Liquidaciones como fila propia.</div>` : ''}
         </td>
       </tr>`;
   }).join('');

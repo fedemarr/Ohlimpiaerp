@@ -6422,6 +6422,119 @@
   </div>
 </div>
 
+<!-- TAREAS ESPECIALES -->
+<div class="screen" id="screen-tareas_especiales">
+  <div class="alerta alerta-info" style="font-size:12.5px;">
+    <strong>Convenio de 168 hs mensuales — este módulo no carga nada:</strong> la nómina sale del padrón (categoría Tareas Especiales) y las horas se leen en vivo de las grillas. Si trabajan menos del convenio, la cooperativa completa el complemento; si trabajan más, cobran las reales. La corrección de cualquier dato se hace siempre en la grilla del servicio.
+  </div>
+  <div class="stats-grid">
+    <div class="stat-card azul"><div class="stat-label">Asociados activos</div><div class="stat-valor" id="kpi-te-activos">0</div><div class="stat-sub">Categoría Tareas Especiales</div></div>
+    <div class="stat-card verde"><div class="stat-label">Total hs reales</div><div class="stat-valor" id="kpi-te-reales" style="font-size:16px;">0 hs</div><div class="stat-sub">Incluye AJ · todos los servicios</div></div>
+    <div class="stat-card acento"><div class="stat-label">Cobran mínimo</div><div class="stat-valor" id="kpi-te-minimo">0</div><div class="stat-sub">No llegan a su convenio del mes</div></div>
+    <div class="stat-card rojo"><div class="stat-label">Complemento del mes</div><div class="stat-valor" id="kpi-te-comp" style="font-size:16px;">$0</div><div class="stat-sub" id="kpi-te-comp-sub">Costo del convenio</div></div>
+  </div>
+
+  <div class="tabs" style="background:white;border-radius:var(--radio-lg) var(--radio-lg) 0 0;padding:0 20px;box-shadow:var(--sombra);border-bottom:none;">
+    <button class="tab-btn active" onclick="tabTareasEspeciales('planilla',this)">📋 Planilla del mes</button>
+    <button class="tab-btn" onclick="tabTareasEspeciales('pago',this)">📊 Resumen de pago</button>
+  </div>
+
+  <!-- TAB PLANILLA -->
+  <div id="te-tab-planilla" class="tab-content active" style="padding-top:0;">
+    <div class="card" style="margin-top:0;border-radius:0 var(--radio-lg) var(--radio-lg) var(--radio-lg);">
+      <div class="card-header">
+        <h3>🔧 Planilla de Tareas Especiales</h3>
+        <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+          <span id="te-chip-periodo"></span>
+          <select id="te-mes-sel" onchange="renderTareasEspeciales()" style="padding:6px 10px;border:1px solid var(--borde-fuerte);border-radius:var(--radio);font-size:13px;outline:none;"></select>
+          <span id="te-convenio-txt" style="font-size:12px;color:var(--texto-suave);"></span>
+        </div>
+      </div>
+      <div class="tabla-wrap" style="overflow-x:auto;">
+        <table style="border-collapse:collapse;font-size:12.5px;width:100%;min-width:1400px;">
+          <thead><tr id="te-fila-cab" style="background:var(--fondo);">
+            <th style="text-align:left;padding:8px 6px;position:sticky;left:0;background:var(--fondo);z-index:2;min-width:200px;">Asociado</th>
+            <th style="text-align:right;padding:8px 6px;">Hs reales</th><th style="text-align:right;padding:8px 6px;">Convenio</th>
+            <th style="text-align:right;padding:8px 6px;">Complemento</th><th style="text-align:right;padding:8px 6px;">Hs a cobrar</th>
+            <th style="text-align:right;padding:8px 6px;">Valor/h</th><th style="text-align:right;padding:8px 6px;">Total del mes</th>
+          </tr></thead>
+          <tbody id="tbody-tareas-especiales"></tbody>
+        </table>
+      </div>
+      <div class="alerta alerta-warn" style="font-size:12px;margin:0;border-radius:0;">
+        <b>Convenio — el sistema lo calcula solo:</b> SIN prorrateo (alta o baja a mitad de mes cobra el convenio completo igual) · cada día de AI descuenta 8 hs del convenio (168 − 8×AI) · las AJ pagan y CUENTAN para el convenio · las no facturables también cuentan. COMPLEMENTO = máx(0, convenio efectivo − hs reales) · HS A COBRAR = reales + complemento.
+      </div>
+      <div class="alerta alerta-danger" style="font-size:12px;margin:0;border-radius:0 0 var(--radio-lg) var(--radio-lg);">
+        ⚠ <b>A Liquidaciones viaja SOLO la fila "Complemento convenio" (no facturable).</b> Las horas reales ya llegan al retiro por las grillas — si este módulo mandara el total, se pagarían dos veces. El complemento no se factura a ningún cliente. Se congela y confirma con el cierre general del período.
+      </div>
+    </div>
+  </div>
+
+  <!-- TAB RESUMEN DE PAGO -->
+  <div id="te-tab-pago" class="tab-content" style="padding-top:0;">
+    <div class="card" style="margin-top:0;border-radius:0 var(--radio-lg) var(--radio-lg) var(--radio-lg);">
+      <div class="card-header"><h3 id="te-pago-titulo">📊 Resumen de pago — vista de control de Finanzas</h3></div>
+      <div class="tabla-wrap">
+        <table style="border-collapse:collapse;font-size:12.5px;width:100%;">
+          <thead><tr style="background:var(--fondo);">
+            <th style="text-align:left;padding:8px 6px;">Asociado</th><th style="padding:8px 6px;">Estado</th>
+            <th style="text-align:right;padding:8px 6px;">Hs reales</th><th style="text-align:right;padding:8px 6px;">Convenio</th>
+            <th style="text-align:right;padding:8px 6px;">Complemento</th><th style="text-align:right;padding:8px 6px;">Hs a cobrar</th>
+            <th style="text-align:right;padding:8px 6px;">Total del mes</th><th style="text-align:left;padding:8px 6px;">Qué viaja a Liquidaciones</th>
+          </tr></thead>
+          <tbody id="tbody-te-pago"></tbody>
+          <tfoot><tr style="background:var(--fondo);font-weight:700;">
+            <td style="padding:8px 6px;">TOTAL</td><td></td>
+            <td style="text-align:right;padding:8px 6px;" id="te-pago-tot-re"></td><td></td>
+            <td style="text-align:right;padding:8px 6px;color:#b25b00;" id="te-pago-tot-co"></td>
+            <td style="text-align:right;padding:8px 6px;" id="te-pago-tot-ac"></td>
+            <td style="text-align:right;padding:8px 6px;" id="te-pago-tot-to"></td><td></td>
+          </tr></tfoot>
+        </table>
+      </div>
+      <div class="alerta alerta-info" style="font-size:12px;margin:0;border-radius:0 0 var(--radio-lg) var(--radio-lg);">
+        Las columnas de totales son vista de control — lo único que este módulo aporta al retiro es el complemento (las reales ya viajan por las grillas). Sin cierre ni pago propio: se congela y confirma con el cierre general. Correcciones posteriores a la confirmación → Revisión de retiro (Anexo 075).
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL VER PLANILLA DE SERVICIO (Tareas Especiales) -->
+<div class="modal-overlay" id="modal-te-planilla">
+  <div class="modal" style="max-width:900px;">
+    <div class="modal-header"><h3 id="mp-tit"></h3><button class="btn-close" onclick="cerrarModal('modal-te-planilla')">×</button></div>
+    <div class="modal-body">
+      <div id="mp-sub" style="font-size:12px;color:var(--texto-suave);margin-bottom:10px;"></div>
+      <div id="mp-body"></div>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL CONFIGURACIÓN DEL CONVENIO (Tareas Especiales) -->
+<div class="modal-overlay" id="modal-te-config">
+  <div class="modal" style="max-width:520px;">
+    <div class="modal-header"><h3>⚙️ Configuración — Convenio de horas</h3><button class="btn-close" onclick="cerrarModal('modal-te-config')">×</button></div>
+    <div class="modal-body">
+      <div class="form-group"><label>Cantidad de horas del convenio *</label><input type="number" id="tec-horas" min="1" step="1"></div>
+      <div class="form-group">
+        <label>Tipo de cambio *</label>
+        <select id="tec-tipo" onchange="cambiarTipoConvenioTE()">
+          <option value="corregir">Corregir el valor vigente (mismo período)</option>
+          <option value="vigencia">Nueva vigencia desde una fecha</option>
+        </select>
+      </div>
+      <div class="form-group" id="tec-vigencia-wrap"><label>Vigente desde</label><input type="date" id="tec-vigencia" style="display:none;"></div>
+      <div class="form-group"><label>Motivo *</label><textarea id="tec-motivo" rows="2"></textarea></div>
+      <div class="form-section">Historial</div>
+      <div id="tec-historial" style="max-height:180px;overflow:auto;"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="cerrarModal('modal-te-config')">Cancelar</button>
+      <button class="btn btn-primary" onclick="confirmarConvenioTE()">Guardar</button>
+    </div>
+  </div>
+</div>
+
 <div class="screen" id="screen-mantenimiento">
   <div class="stats-grid">
     <div class="stat-card azul"><div class="stat-label">Técnicos activos</div><div class="stat-valor" id="st-mant-total">0</div><div class="stat-sub">En nómina</div></div>

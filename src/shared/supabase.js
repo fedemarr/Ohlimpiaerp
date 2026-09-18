@@ -80,6 +80,8 @@ export const _SM = {
   // v142 — Depósito de Adelantos por tandas (motor propio, ver src/modules/gestion_adelantos/deposito.js).
   lotesAdelantos: 'lotes_adelantos',
   lotesAdelantosItems: 'lotes_adelantos_items',
+  // v144 — Tareas Especiales: convenio 168hs versionado
+  tareasEspecialesConvenioVersiones: 'tareas_especiales_convenio_versiones',
   monotributos: 'monotributos',
   uniformes: 'uniformes',
   retenciones: 'retenciones',
@@ -608,6 +610,8 @@ export function _toSnake(obj) {
     loteIdLocal: 'lote_id_local', esExcepcion: 'es_excepcion', fechaAcreditacion: 'fecha_acreditacion',
     // v142 — Lotes de depósito de Adelantos (tabla propia, mismo patrón)
     fechaDeposito: 'fecha_deposito',
+    // v144 — Tareas Especiales: convenio versionado
+    horasConvenio: 'horas_convenio',
     grillaId: 'grilla_id_local', asocIdx: 'asoc_idx', resueltoPor: 'resuelto_por',
     fechaResolucion: 'fecha_resolucion', nroSocio: 'nro_socio', horasPorDia: 'horas_por_dia',
     catActual: 'cat_actual', catPropuesta: 'cat_propuesta', propuestoPor: 'propuesto_por',
@@ -1090,6 +1094,8 @@ export function _toCamel(obj) {
     lote_id_local: 'loteIdLocal', es_excepcion: 'esExcepcion', fecha_acreditacion: 'fechaAcreditacion',
     // v142 — Lotes de depósito de Adelantos (tabla propia, mismo patrón)
     fecha_deposito: 'fechaDeposito',
+    // v144 — Tareas Especiales: convenio versionado
+    horas_convenio: 'horasConvenio',
     grilla_id_local: 'grillaId', asoc_idx: 'asocIdx', resuelto_por: 'resueltoPor',
     fecha_resolucion: 'fechaResolucion', nro_socio: 'nroSocio', horas_por_dia: 'horasPorDia',
     cat_actual: 'catActual', cat_propuesta: 'catPropuesta', propuesto_por: 'propuestoPor',

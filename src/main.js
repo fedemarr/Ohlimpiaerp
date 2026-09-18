@@ -27,6 +27,7 @@ import { uniformesScreenConfig } from './modules/uniformes/index.js';
 import { retencionesScreenConfig, filtrarRetenciones } from './modules/retenciones/index.js';
 import { cuentasCbuScreenConfig } from './modules/cuentas_cbu/index.js';
 import { retenesScreenConfig } from './modules/retenes/index.js';
+import { tareasEspecialesScreenConfig } from './modules/tareas_especiales/index.js';
 // Pago de retiros: no es un screen propio, es un tab de screen-liquidaciones
 // (legacy.js). Se importa solo por sus window bindings (tabPago, etc.).
 import './modules/liquidaciones_pago/index.js';
@@ -103,6 +104,7 @@ registerScreens(uniformesScreenConfig);
 registerScreens(retencionesScreenConfig);
 registerScreens(cuentasCbuScreenConfig);
 registerScreens(retenesScreenConfig);
+registerScreens(tareasEspecialesScreenConfig);
 registerScreens(seguimientoSeleccionScreenConfig);
 registerScreens(competenciaScreenConfig);
 registerScreens(developerScreenConfig);
