@@ -6482,14 +6482,14 @@
           <thead><tr id="te-fila-cab" style="background:var(--fondo);">
             <th style="text-align:left;padding:8px 6px;position:sticky;left:0;background:var(--fondo);z-index:2;min-width:200px;">Asociado</th>
             <th style="text-align:right;padding:8px 6px;">Hs reales</th><th style="text-align:right;padding:8px 6px;">Convenio</th>
-            <th style="text-align:right;padding:8px 6px;">Complemento</th><th style="text-align:right;padding:8px 6px;">Hs a cobrar</th>
+            <th style="text-align:right;padding:8px 6px;">Complemento</th><th style="text-align:right;padding:8px 6px;">Hs a pagar</th>
             <th style="text-align:right;padding:8px 6px;">Valor/h</th><th style="text-align:right;padding:8px 6px;">Total del mes</th>
           </tr></thead>
           <tbody id="tbody-tareas-especiales"></tbody>
         </table>
       </div>
       <div class="alerta alerta-warn" style="font-size:12px;margin:0;border-radius:0;">
-        <b>Convenio — el sistema lo calcula solo:</b> SIN prorrateo (alta o baja a mitad de mes cobra el convenio completo igual) · cada día de AI descuenta 8 hs del convenio (168 − 8×AI) · las AJ pagan y CUENTAN para el convenio · las no facturables también cuentan. COMPLEMENTO = máx(0, convenio efectivo − hs reales) · HS A COBRAR = reales + complemento.
+        <b>Convenio — el sistema lo calcula solo:</b> SIN prorrateo (alta o baja a mitad de mes cobra el convenio completo igual) · cada día de AI descuenta 8 hs del convenio (168 − 8×AI) · las AJ pagan y CUENTAN para el convenio · las no facturables también cuentan. COMPLEMENTO = máx(0, convenio efectivo − hs reales) · HS A PAGAR = reales + complemento.
       </div>
       <div class="alerta alerta-danger" style="font-size:12px;margin:0;border-radius:0 0 var(--radio-lg) var(--radio-lg);">
         ⚠ <b>A Liquidaciones viaja SOLO la fila "Complemento convenio" (no facturable).</b> Las horas reales ya llegan al retiro por las grillas — si este módulo mandara el total, se pagarían dos veces. El complemento no se factura a ningún cliente. Se congela y confirma con el cierre general del período.
@@ -6506,7 +6506,7 @@
           <thead><tr style="background:var(--fondo);">
             <th style="text-align:left;padding:8px 6px;">Asociado</th><th style="padding:8px 6px;">Estado</th>
             <th style="text-align:right;padding:8px 6px;">Hs reales</th><th style="text-align:right;padding:8px 6px;">Convenio</th>
-            <th style="text-align:right;padding:8px 6px;">Complemento</th><th style="text-align:right;padding:8px 6px;">Hs a cobrar</th>
+            <th style="text-align:right;padding:8px 6px;">Complemento</th><th style="text-align:right;padding:8px 6px;">Hs a pagar</th>
             <th style="text-align:right;padding:8px 6px;">Total del mes</th><th style="text-align:left;padding:8px 6px;">Qué viaja a Liquidaciones</th>
           </tr></thead>
           <tbody id="tbody-te-pago"></tbody>
