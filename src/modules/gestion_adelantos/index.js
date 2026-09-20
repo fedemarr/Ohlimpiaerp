@@ -32,7 +32,7 @@ import { renderRevisionRRHH } from './revision.js';
 import { renderDeposito, renderLotesAdelantos } from './deposito.js';
 import { renderHistorialGestion } from './historico.js';
 import { renderConfiguracionAdelantos } from './configuracion.js';
-import { renderPrestamosCartera, abrirFichaPrestamo } from './prestamos_cartera.js';
+import { renderPrestamosCartera, abrirFichaPrestamo, postergarCuotaFicha, editarMontoCuotaFicha, guardarReprogramacionFicha } from './prestamos_cartera.js';
 
 const RENDER_POR_TAB = {
   rrhh: renderRevisionRRHH, deposito: renderDeposito, lotes: renderLotesAdelantos, prestamos: renderPrestamosCartera,
@@ -123,3 +123,13 @@ window.confirmarConfigSimple = confirmarConfigSimple;
 window.abrirModificarTasaInteres = abrirModificarTasaInteres;
 window.abrirModificarCuotasDefault = abrirModificarCuotasDefault;
 window.abrirFichaPrestamo = abrirFichaPrestamo;
+window.postergarCuotaFicha = postergarCuotaFicha;
+window.editarMontoCuotaFicha = editarMontoCuotaFicha;
+window.guardarReprogramacionFicha = guardarReprogramacionFicha;
+
+// Conexión con Liquidaciones (legacy.js, sin migrar): consulta la cuota
+// del período y la debita recién cuando el retiro se paga de verdad
+// (PRESTAMOS_para_Fede.md §5).
+import { cuotasPrestamoDelPeriodo, debitarCuotasPrestamo } from '../adelantos_prestamos_shared/flujo.js';
+window.cuotasPrestamoDelPeriodo = cuotasPrestamoDelPeriodo;
+window.debitarCuotasPrestamo = debitarCuotasPrestamo;

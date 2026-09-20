@@ -8507,7 +8507,7 @@ if(!DB.cuentaCorriente) DB.cuentaCorriente = {};  // DB.cuentaCorriente[nombre] 
 // devuelven en retencionesPct/retencionesTotal y el llamador los aplica
 // sobre f.bruto vía _resolverRetenciones().
 function descuentosAutomaticosLegajo(nro, mes){
-  const out = { uniforme:0, retenciones:0, retencionesPct:[], retencionesTotal:[], retencionesIds:[], adelantos:0, prestamo:0, monotributo:0, programado:0, uniformeIds:[], prestamoId:null, programados:[] };
+  const out = { uniforme:0, retenciones:0, retencionesPct:[], retencionesTotal:[], retencionesIds:[], adelantos:0, prestamo:0, monotributo:0, programado:0, uniformeIds:[], prestamoId:null, prestamoCuotas:[], programados:[] };
   if(!nro) return out;
   const nroStr = String(nro);
 
@@ -8562,6 +8562,14 @@ function descuentosAutomaticosLegajo(nro, mes){
   // Préstamo: 1 cuota mensual mientras tenga cuotas pendientes.
   const prestamo=(DB.prestamos||[]).find(p=>String(p.nroSocio)===nroStr && p.estado==='Activo' && (p.pagos||[]).length<p.cuotas);
   if(prestamo){ out.prestamo = prestamo.montoCuota||0; out.prestamoId = prestamo.id; }
+  // Préstamos del flujo nuevo (PRESTAMOS_para_Fede.md §5): la cuota que
+  // toca este período sale del plan de cuotas (Gestión de adelantos →
+  // 💳 Préstamos), solo si el préstamo ya está DEPOSITADO. Acá solo se
+  // LEE para descontarla del neto — no se marca debitada hasta que el
+  // retiro se pague de verdad (_registrarPagoAsociado).
+  const cuotasNuevas = window.cuotasPrestamoDelPeriodo ? window.cuotasPrestamoDelPeriodo(nroStr, mes) : [];
+  cuotasNuevas.forEach(c=>{ out.prestamo += c.monto||0; });
+  out.prestamoCuotas = cuotasNuevas;
 
   return out;
 }
@@ -9444,6 +9452,16 @@ function _registrarPagoAsociado(mes, nombre, bruto, netoCrudo, fecha, registrado
         if(p.pagos.length>=p.cuotas) p.estado='Pagado';
         supaSync('prestamos', p);
       }
+    }
+    // Préstamos del flujo nuevo: la cuota pasa a DEBITADA recién ahora,
+    // con el retiro efectivamente pagado (saldo baja, plan avanza n+1/m,
+    // movimiento con referencia al lote de pago).
+    if(auto.prestamoCuotas && auto.prestamoCuotas.length && window.debitarCuotasPrestamo){
+      const loteRef=extra?.loteIdLocal ? ((DB.lotesPago||[]).find(l=>String(l.id).slice(-9)===String(extra.loteIdLocal))?.nroLote) : null;
+      window.debitarCuotasPrestamo(auto.prestamoCuotas, {
+        fecha: new Date().toISOString().slice(0,10),
+        referencia: 'Liquidación '+mes+(loteRef?' + lote '+loteRef:''),
+      });
     }
     // Retenciones (v126): recién ahora, al pagar de verdad, se persiste
     // lo efectivamente retenido — montoAcumulado (usado por Retenciones

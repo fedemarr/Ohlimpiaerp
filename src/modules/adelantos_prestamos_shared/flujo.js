@@ -18,6 +18,8 @@ import { toast } from '@shared/ui.js';
 import { crearNotificacion } from '@shared/notificaciones.js';
 import { obtenerTopeVigente, obtenerTasaInteres } from './config.js';
 import { generarCompromisosDescuento } from './descuentos.js';
+import { mesSiguiente, saldoDelPrestamo, diferenciaDePlan, cuotaVigenteParaPeriodo } from './plan_prestamo.js';
+import { esFinanzasOAdmin } from './permisos.js';
 
 export const idLocalTrunc = (id) => String(id).slice(-9);
 
@@ -86,19 +88,14 @@ async function _registrarEvento(tipo, pedido, estadoDesde, estadoHasta, observac
 // muestra el mockup: aprobado en SEP → primera cuota OCT). El resto
 // (postergar/redistribuir con la invariante saldo=pendientes) queda
 // para la etapa del plan editable — acá solo se genera, en Pendiente.
-function _mesSiguiente(periodoISO) {
-  const [y, m] = periodoISO.split('-').map(Number);
-  const d = new Date(y, m, 1); // m ya es "el mes siguiente" en índice 0
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-}
 function _generarPlanCuotas(montoTotal, cuotasN) {
   const cuotaBase = Math.floor(montoTotal / cuotasN);
   const plan = [];
-  let periodo = _mesSiguiente(hoyISO().slice(0, 7));
+  let periodo = mesSiguiente(hoyISO().slice(0, 7));
   for (let i = 1; i <= cuotasN; i++) {
     const monto = i === cuotasN ? (montoTotal - cuotaBase * (cuotasN - 1)) : cuotaBase;
     plan.push({ numero: i, periodo, monto, estado: 'Pendiente' });
-    periodo = _mesSiguiente(periodo);
+    periodo = mesSiguiente(periodo);
   }
   return plan;
 }
@@ -269,7 +266,19 @@ export async function rechazarRRHH(tipo, id, motivo) {
   return { pedido: p };
 }
 
-export async function pagarFinanzas(tipo, id) {
+// Movimientos del préstamo (PRESTAMOS_para_Fede.md §6): cada evento queda
+// como asiento {fecha, tipo, monto, referencia} dentro del propio préstamo
+// (jsonb "movimientos") — hoy arman el saldo; la Cuenta Corriente del
+// asociado los va a consumir tal cual cuando exista. No se construye la CC.
+export function agregarMovimientoPrestamo(p, { tipo, monto = null, referencia = '', cuotaNro = null }) {
+  if (!Array.isArray(p.movimientos)) p.movimientos = [];
+  p.movimientos.push({
+    fecha: new Date().toISOString(), tipo, monto, referencia, cuotaNro,
+    por: currentUser?.nombre || '',
+  });
+}
+
+export async function pagarFinanzas(tipo, id, ref = {}) {
   const p = _getById(tipo, id);
   if (!p) return { error: 'No se encontró el pedido' };
   if (p.estado !== 'Aprobada RRHH') return { error: 'Este pedido no está esperando pago' };
@@ -277,16 +286,23 @@ export async function pagarFinanzas(tipo, id) {
   p.estado = 'Aprobada';
   p.pagadoPor = currentUser?.nombre || '';
   p.fechaPago = new Date().toISOString();
-  if (tipo === 'Préstamo') p.fechaOtorgamiento = hoyISO();
+  if (tipo === 'Préstamo') {
+    p.fechaOtorgamiento = hoyISO();
+    // Desembolso = plata que sale (capital); interés = lo que se suma a la deuda.
+    agregarMovimientoPrestamo(p, { tipo: 'Desembolso', monto: -Number(p.monto), referencia: ref.nroLote ? `lote ${ref.nroLote}` : 'depósito' });
+    if (p.montoTotal != null && p.montoTotal > p.monto) {
+      agregarMovimientoPrestamo(p, { tipo: 'Interés', monto: Number(p.montoTotal) - Number(p.monto), referencia: `tasa ${p.tasaInteres ?? 0}%` });
+    }
+  }
   await _guardar(tipo, p);
   await _registrarEvento(tipo, p, estadoDesde, p.estado);
   await generarCompromisosDescuento(p, tipo);
   return { pedido: p };
 }
 
-export async function pagarFinanzasBulk(tipo, ids) {
+export async function pagarFinanzasBulk(tipo, ids, ref = {}) {
   const resultados = [];
-  for (const id of ids) resultados.push(await pagarFinanzas(tipo, id));
+  for (const id of ids) resultados.push(await pagarFinanzas(tipo, id, ref));
   return resultados;
 }
 
@@ -360,4 +376,61 @@ export async function devolverASupervisorTrasRechazoFinanzas(tipo, id, motivo) {
     mensaje: `↩️ RRHH devolvió el ${tipo.toLowerCase()} de ${tipo === 'Préstamo' ? p.nombre : p.nombreAsociado} (rechazado antes por Finanzas). Motivo: ${motivo}`,
   });
   return { pedido: p };
+}
+
+// ========== DÉBITO DE CUOTAS (PRESTAMOS_para_Fede.md §5) ==========
+// "Ningún estado financiero cambia por un cálculo; cambia por un pago
+// confirmado." Liquidaciones (legacy.js) consulta qué cuota le toca a un
+// asociado en el período (solo lectura, para descontarla del neto) y
+// recién cuando el retiro se PAGA de verdad llama a debitarCuotasPrestamo.
+
+export function cuotasPrestamoDelPeriodo(nroSocio, mes) {
+  const out = [];
+  (DB.prestamos || []).filter(p => String(p.nroSocio) === String(nroSocio)).forEach(p => {
+    const c = cuotaVigenteParaPeriodo(p, mes);
+    if (c) out.push({ prestamoId: p.id, numero: c.numero, monto: Number(c.monto) });
+  });
+  return out;
+}
+
+// Idempotente: una cuota ya Debitada no se vuelve a debitar. Primero muta
+// todo en memoria (sincrónico) y después persiste.
+export async function debitarCuotasPrestamo(cuotas, { fecha, referencia }) {
+  const tocados = [];
+  for (const { prestamoId, numero } of cuotas || []) {
+    const p = (DB.prestamos || []).find(x => x.id === prestamoId);
+    const c = p?.planCuotas?.find(x => x.numero === numero);
+    if (!c || c.estado !== 'Pendiente') continue;
+    c.estado = 'Debitada';
+    c.fechaDebito = fecha || hoyISO();
+    agregarMovimientoPrestamo(p, { tipo: 'Débito cuota', monto: Number(c.monto), referencia, cuotaNro: numero });
+    if (p.planCuotas.every(x => x.estado === 'Debitada' || x.estado === 'Postergada')) p.estado = 'Aprobada'; // sigue DEPOSITADO; el plan queda saldado
+    tocados.push(p);
+  }
+  for (const p of tocados) await _guardar('Préstamo', p);
+  return tocados.length;
+}
+
+// ========== REPROGRAMACIÓN DEL PLAN (§4 — solo Finanzas) ==========
+// Guardar exige: rol Finanzas, motivo, y que la suma de las pendientes
+// coincida con el saldo. El plan anterior nunca se pisa: queda en el
+// historial (quién, cuándo, por qué).
+export async function reprogramarPlanPrestamo(id, nuevoPlan, motivo) {
+  if (!esFinanzasOAdmin()) return { error: 'Solo Finanzas puede reprogramar el plan de cuotas' };
+  const p = _getById('Préstamo', id);
+  if (!p || !Array.isArray(p.planCuotas)) return { error: 'No se encontró el préstamo' };
+  if (!motivo || !motivo.trim()) return { error: 'El motivo es obligatorio — la reprogramación queda en el historial' };
+  const dif = diferenciaDePlan(p, nuevoPlan);
+  if (Math.abs(dif) >= 1) return { error: `Plan desbalanceado: diferencia $${Math.abs(dif).toLocaleString('es-AR')} ${dif > 0 ? 'por encima' : 'por debajo'} del saldo` };
+  const anterior = JSON.parse(JSON.stringify(p.planCuotas));
+  const plan = nuevoPlan.map((c, i) => { const { nueva, ...resto } = c; return { ...resto, numero: i + 1 }; });
+  if (!Array.isArray(p.historialReprogramaciones)) p.historialReprogramaciones = [];
+  p.historialReprogramaciones.push({
+    fecha: new Date().toISOString(), por: currentUser?.nombre || '', motivo: motivo.trim(),
+    planAnterior: anterior, filasAntes: anterior.length, filasDespues: plan.length,
+  });
+  p.planCuotas = plan;
+  agregarMovimientoPrestamo(p, { tipo: 'Reprogramación', monto: null, referencia: `historial #${p.historialReprogramaciones.length}` });
+  await _guardar('Préstamo', p);
+  return { pedido: p, saldo: saldoDelPrestamo(p) };
 }

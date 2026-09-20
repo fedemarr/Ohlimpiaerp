@@ -254,8 +254,8 @@ export async function confirmarLoteAdelantos(modo) {
   // en pagarFinanzas/flujo.js).
   const porTipo = { Adelanto: [], Préstamo: [] };
   sel.forEach(p => porTipo[p.tipo].push(p.id));
-  if (porTipo.Adelanto.length) await pagarFinanzasBulk('Adelanto', porTipo.Adelanto);
-  if (porTipo.Préstamo.length) await pagarFinanzasBulk('Préstamo', porTipo.Préstamo);
+  if (porTipo.Adelanto.length) await pagarFinanzasBulk('Adelanto', porTipo.Adelanto, { nroLote: lote.nroLote });
+  if (porTipo.Préstamo.length) await pagarFinanzasBulk('Préstamo', porTipo.Préstamo, { nroLote: lote.nroLote });
 
   _seleccion.clear();
   cerrarModal('modal-gadl-modo-deposito');
