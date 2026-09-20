@@ -9,13 +9,16 @@ import { $, getDiasDelMes } from '@shared/helpers.js';
 import { toast, abrirModal, cerrarModal } from '@shared/ui.js';
 import { getTareasEspecialesActivos, resumenTareaEspecialMes } from './consultas.js';
 import { obtenerConvenioVigente, historialConvenio, guardarNuevoConvenio } from './config.js';
+import { mesActualLocal, estadoPeriodo, chipPeriodoHtml } from '@shared/periodo.js';
 
 const _expandidos = new Set();
 let _tabActual = 'planilla';
 
-function _mesActualISO() { return new Date().toISOString().slice(0, 7); }
+function _mesActualISO() { return mesActualLocal(); }
 function _hoyISO() { return new Date().toISOString().slice(0, 10); }
 function _fmtMonto(n) { return '$' + Math.round(n || 0).toLocaleString('es-AR'); }
+const _DASH = '<span style="color:#bbb;">—</span>';
+const _BADGE_SIN_VH = '<span class="badge badge-rojo" style="font-size:9.5px;" title="La categoría no tiene valor hora cargado en Categorías">⚠ sin valor hora</span>';
 
 function _poblarSelectorMes() {
   const sel = $('te-mes-sel');
@@ -143,9 +146,7 @@ function _renderTabPlanilla(mes, datos) {
   const congelado = (DB.periodosLiq || []).find(p => p.periodo === mes)?.congelado;
   const chipPer = $('te-chip-periodo');
   if (chipPer) {
-    chipPer.innerHTML = congelado
-      ? '<span class="badge badge-gris">🔒 PERÍODO ANTERIOR — congelado, solo lectura</span>'
-      : '<span class="badge badge-verde">● PERÍODO VIGENTE — carga en curso, se actualiza en vivo</span>';
+    chipPer.innerHTML = chipPeriodoHtml(estadoPeriodo(mes, congelado));
   }
 
   const convenioVigente = obtenerConvenioVigente(mes + '-01');
@@ -186,11 +187,11 @@ function _renderTabPlanilla(mes, datos) {
       </td>
       ${r.diasAgregados.map(_celdaDia).join('')}
       <td style="text-align:right;padding:8px 6px;"><b>${r.reales}</b></td>
-      <td style="text-align:right;padding:8px 6px;">${r.convenioEfectivo}${r.convenioEfectivo !== r.convenioParam ? ' <span class="badge badge-rojo" style="font-size:9px;">AI</span>' : ''}</td>
-      <td style="text-align:right;padding:8px 6px;${r.complemento ? 'color:#b25b00;font-weight:700;' : 'color:#bbb;'}">${r.complemento ? '+' + r.complemento : '0'}</td>
-      <td style="text-align:right;padding:8px 6px;"><b>${r.hsACobrar}</b>${r.complemento ? ' <span class="badge badge-naranja" style="font-size:9px;">mínimo</span>' : ''}</td>
-      <td style="text-align:right;padding:8px 6px;">${_fmtMonto(r.valorHora)}</td>
-      <td style="text-align:right;padding:8px 6px;font-weight:700;color:var(--verde);">${_fmtMonto(r.totalMes)}</td>
+      <td style="text-align:right;padding:8px 6px;">${r.futuro ? _DASH : r.convenioEfectivo + (r.convenioEfectivo !== r.convenioParam ? ' <span class="badge badge-rojo" style="font-size:9px;">AI</span>' : '')}</td>
+      <td style="text-align:right;padding:8px 6px;${r.complemento ? 'color:#b25b00;font-weight:700;' : 'color:#bbb;'}">${r.futuro ? _DASH : (r.complemento ? '+' + r.complemento : '0')}</td>
+      <td style="text-align:right;padding:8px 6px;">${r.futuro ? _DASH : `<b>${r.hsACobrar}</b>${r.complemento ? ' <span class="badge badge-naranja" style="font-size:9px;">mínimo</span>' : ''}`}</td>
+      <td style="text-align:right;padding:8px 6px;">${r.sinValorHora ? _BADGE_SIN_VH : _fmtMonto(r.valorHora)}</td>
+      <td style="text-align:right;padding:8px 6px;font-weight:700;color:var(--verde);">${r.futuro || r.sinValorHora ? _DASH : _fmtMonto(r.totalMes)}</td>
     </tr>`;
     const filaDetalle = expandido
       ? `<tr style="background:#f8fafd;"><td></td><td colspan="${dias.length + 6}" style="padding:10px 14px;">${_detalleServicios(legajo, r, mes)}</td></tr>`
@@ -211,24 +212,27 @@ function _renderTabResumenPago(mes, datos) {
   let tRe = 0, tCo = 0, tAc = 0, tTo = 0;
   tbody.innerHTML = datos.map(({ legajo, r }) => {
     tRe += r.reales; tCo += r.complemento; tAc += r.hsACobrar; tTo += r.totalMes;
-    const queViaja = r.complemento > 0
+    const queViaja = r.futuro
+      ? '<span style="color:var(--texto-suave);">período futuro — todavía no viaja nada</span>'
+      : r.complemento > 0
       ? `<span style="color:#b25b00;font-weight:600;">Complemento ${_fmtMonto(r.totalComplemento)} (no facturable)</span>`
       : '<span style="color:var(--texto-suave);">nada — las reales ya van por las grillas</span>';
     return `<tr>
       <td><b>${legajo.nro}</b> · ${legajo.nombre}</td>
       <td>${legajo.estado === 'Activo' ? '<span class="badge badge-verde">ACTIVO</span>' : '<span class="badge badge-rojo">BAJA</span>'}</td>
       <td style="text-align:right;">${r.reales}</td>
-      <td style="text-align:right;">${r.convenioEfectivo}</td>
-      <td style="text-align:right;${r.complemento ? 'color:#b25b00;font-weight:700;' : 'color:#bbb;'}">${r.complemento ? '+' + r.complemento : '0'}</td>
-      <td style="text-align:right;"><b>${r.hsACobrar}</b></td>
-      <td style="text-align:right;font-weight:700;">${_fmtMonto(r.totalMes)}</td>
+      <td style="text-align:right;">${r.futuro ? _DASH : r.convenioEfectivo}</td>
+      <td style="text-align:right;${r.complemento ? 'color:#b25b00;font-weight:700;' : 'color:#bbb;'}">${r.futuro ? _DASH : (r.complemento ? '+' + r.complemento : '0')}</td>
+      <td style="text-align:right;">${r.futuro ? _DASH : `<b>${r.hsACobrar}</b>`}</td>
+      <td style="text-align:right;font-weight:700;">${r.futuro ? _DASH : (r.sinValorHora ? _BADGE_SIN_VH : _fmtMonto(r.totalMes))}</td>
       <td style="font-size:11.5px;">${queViaja}</td>
     </tr>`;
   }).join('');
   if ($('te-pago-tot-re')) $('te-pago-tot-re').textContent = tRe.toLocaleString('es-AR');
-  if ($('te-pago-tot-co')) $('te-pago-tot-co').textContent = '+' + tCo.toLocaleString('es-AR');
-  if ($('te-pago-tot-ac')) $('te-pago-tot-ac').textContent = tAc.toLocaleString('es-AR');
-  if ($('te-pago-tot-to')) $('te-pago-tot-to').textContent = _fmtMonto(tTo);
+  const futuro = datos.some(({ r }) => r.futuro);
+  if ($('te-pago-tot-co')) $('te-pago-tot-co').textContent = futuro ? '—' : '+' + tCo.toLocaleString('es-AR');
+  if ($('te-pago-tot-ac')) $('te-pago-tot-ac').textContent = futuro ? '—' : tAc.toLocaleString('es-AR');
+  if ($('te-pago-tot-to')) $('te-pago-tot-to').textContent = futuro ? '—' : _fmtMonto(tTo);
   if ($('te-pago-titulo')) $('te-pago-titulo').textContent = `📊 Resumen de pago — vista de control de Finanzas (${datos.length} asociado${datos.length === 1 ? '' : 's'})`;
 }
 
@@ -248,9 +252,15 @@ export function renderTareasEspeciales() {
 
   if ($('kpi-te-activos')) $('kpi-te-activos').textContent = activos.length;
   if ($('kpi-te-reales')) $('kpi-te-reales').textContent = totReales.toLocaleString('es-AR') + ' hs';
-  if ($('kpi-te-minimo')) $('kpi-te-minimo').textContent = cobranMinimo;
-  if ($('kpi-te-comp')) $('kpi-te-comp').textContent = _fmtMonto(totComplementoMonto);
-  if ($('kpi-te-comp-sub')) $('kpi-te-comp-sub').textContent = `${totComplementoHs} hs pagadas por convenio sin trabajar`;
+  // Período futuro: sin convenio, los KPIs de mínimo/complemento muestran "—".
+  // Complemento con horas pero categoría sin valor hora: alerta, no $0 silencioso.
+  const futuro = estadoPeriodo(mes) === 'futuro';
+  const sinVH = datos.filter(({ r }) => r.complemento > 0 && r.sinValorHora).length;
+  if ($('kpi-te-minimo')) $('kpi-te-minimo').textContent = futuro ? '—' : cobranMinimo;
+  if ($('kpi-te-comp')) $('kpi-te-comp').textContent = futuro ? '—' : (sinVH ? '⚠ sin valor hora' : _fmtMonto(totComplementoMonto));
+  if ($('kpi-te-comp-sub')) $('kpi-te-comp-sub').textContent = futuro
+    ? 'Período futuro — el convenio se evalúa sobre el mes en curso o cerrado'
+    : (sinVH ? `${totComplementoHs} hs de complemento — ${sinVH} asociado(s) con categoría sin valor hora (cargarlo en Categorías)` : `${totComplementoHs} hs pagadas por convenio sin trabajar`);
 
   if (_tabActual === 'planilla') _renderTabPlanilla(mes, datos);
   else _renderTabResumenPago(mes, datos);

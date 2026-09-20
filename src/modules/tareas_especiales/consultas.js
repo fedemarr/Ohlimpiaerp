@@ -17,6 +17,7 @@
 import { DB } from '@shared/state.js';
 import { getDiasDelMes } from '@shared/helpers.js';
 import { categoriaVigenteAsociado, obtenerValorHoraVigente } from '@modules/categorias/consultas.js';
+import { estadoPeriodo } from '@shared/periodo.js';
 import { obtenerConvenioVigente } from './config.js';
 
 export const CODIGO_TAREAS_ESPECIALES = 'CAT-008';
@@ -100,12 +101,16 @@ function _diasAgregadosMes(servicios, dias) {
 // resuelve por la categoría REAL vigente de cada uno (normalmente
 // CAT-008) para no asumir que todos comparten exactamente la misma fila
 // de valores_hora_categoria si alguno tuviera una alternativa aprobada.
+// Devuelve null (no 0) si la categoría no existe o no tiene valor hora
+// cargado: PERIODO_FUTURO_bug_para_Fede.md (derivado 2) — un $0 silencioso
+// con horas de complemento es contradictorio; la UI tiene que poder avisar
+// "categoría sin valor hora" en vez de mostrar $0.
 function _valorHoraVigente(legajoNro, mes) {
   const fechaISO = mes + '-01';
   const cat = categoriaVigenteAsociado(legajoNro, fechaISO);
-  if (!cat) return 0;
+  if (!cat) return null;
   const v = obtenerValorHoraVigente(cat.id, null, fechaISO);
-  return v?.valorHora || 0;
+  return v?.valorHora || null;
 }
 
 // El cálculo completo del convenio para una persona en un mes — las 3
@@ -124,16 +129,24 @@ export function resumenTareaEspecialMes(legajo, mes) {
   });
 
   const convenioParam = obtenerConvenioVigente(mes + '-01');
-  const convenioEfectivo = Math.max(0, convenioParam - 8 * diasAI);
-  const complemento = Math.max(0, convenioEfectivo - reales);
+  // PERIODO_FUTURO_bug_para_Fede.md (derivado 1): el convenio se evalúa
+  // sobre el mes en curso o cerrado, NUNCA a futuro — un mes que no arrancó
+  // no adeuda complemento (antes octubre mostraba +168 por asociado). En
+  // futuro no hay convenio efectivo ni complemento; la UI muestra "—" y
+  // Liquidaciones (que solo toma complemento>0) no recibe nada.
+  const futuro = estadoPeriodo(mes) === 'futuro';
+  const convenioEfectivo = futuro ? 0 : Math.max(0, convenioParam - 8 * diasAI);
+  const complemento = futuro ? 0 : Math.max(0, convenioEfectivo - reales);
   const hsACobrar = reales + complemento;
-  const vh = _valorHoraVigente(legajo.nro, mes);
+  const vhCrudo = _valorHoraVigente(legajo.nro, mes);
+  const sinValorHora = vhCrudo === null;
+  const vh = vhCrudo || 0;
 
   return {
     servicios, diasAgregados,
     reales, ajHs, diasAI,
     convenioParam, convenioEfectivo, complemento, hsACobrar,
-    valorHora: vh,
+    valorHora: vh, sinValorHora, futuro,
     totalMes: Math.round(hsACobrar * vh),
     totalComplemento: Math.round(complemento * vh),
   };

@@ -7,10 +7,11 @@ import { DB } from '@shared/state.js';
 import { $ } from '@shared/helpers.js';
 import { getDiasDelMes } from '@shared/helpers.js';
 import { getRetenesActivos, resumenRetenMes } from './consultas.js';
+import { mesActualLocal, estadoPeriodo, chipPeriodoHtml } from '@shared/periodo.js';
 
 const _expandidos = new Set();
 
-function _mesActualISO() { return new Date().toISOString().slice(0, 7); }
+function _mesActualISO() { return mesActualLocal(); }
 function _hoyISO() { return new Date().toISOString().slice(0, 10); }
 
 function _poblarSelectorMes() {
@@ -129,9 +130,7 @@ export function renderRetenes() {
   const congelado = (DB.periodosLiq || []).find(p => p.periodo === mes)?.congelado;
   const chipPer = $('ret-chip-periodo');
   if (chipPer) {
-    chipPer.innerHTML = congelado
-      ? '<span class="badge badge-gris">🔒 PERÍODO ANTERIOR — congelado, solo lectura</span>'
-      : '<span class="badge badge-verde">● PERÍODO VIGENTE — carga en curso, se actualiza en vivo</span>';
+    chipPer.innerHTML = chipPeriodoHtml(estadoPeriodo(mes, congelado));
   }
 
   const retenes = getRetenesActivos();
