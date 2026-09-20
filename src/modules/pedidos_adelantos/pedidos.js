@@ -10,7 +10,7 @@ import {
   getPedidoById, getPrestamoById, crearPedidoAdelanto, crearPedidoPrestamo,
   cancelarPedido, elevarPedido, eventosDePedido,
 } from '../adelantos_prestamos_shared/flujo.js';
-import { obtenerTopeVigente } from '../adelantos_prestamos_shared/config.js';
+import { obtenerTopeVigente, obtenerTasaInteres, obtenerCuotasDefault } from '../adelantos_prestamos_shared/config.js';
 import { esSupervisor, esCentralOperaciones } from '../adelantos_prestamos_shared/permisos.js';
 import { badgeEstado } from '../adelantos_prestamos_shared/estados.js';
 
@@ -125,8 +125,18 @@ function ensureModalNuevoPedido() {
           <div id="npa-aviso-tope" class="alerta alerta-warn" style="display:none;font-size:12px;"></div>
         </div>
         <div id="npa-seccion-prestamo" style="display:none;">
-          <div class="form-group"><label>Monto solicitado *</label><input type="number" id="npa-monto-prestamo" min="0" step="100"></div>
-          <p style="font-size:12px;color:var(--texto-suave);margin-top:-6px;">La cantidad de cuotas la define RRHH al revisar el pedido.</p>
+          <div class="form-group"><label>Monto solicitado *</label><input type="number" id="npa-monto-prestamo" min="0" step="100" oninput="simularPrestamoModal()"></div>
+          <div id="npa-simulacion" style="background:#eef4fd;border:1px solid #c9dcf5;border-radius:10px;padding:12px 14px;margin-bottom:8px;">
+            <div id="npa-sim-titulo" style="font-size:11px;text-transform:uppercase;letter-spacing:.4px;color:#1b4ea0;font-weight:700;margin-bottom:8px;"></div>
+            <div style="display:flex;gap:18px;flex-wrap:wrap;font-size:12px;">
+              <div><div style="color:#6a7080;">Monto solicitado</div><b id="npa-sim-cap" style="font-size:15px;">—</b></div>
+              <div><div style="color:#6a7080;" id="npa-sim-int-lbl">Interés</div><b id="npa-sim-int" style="font-size:15px;">—</b></div>
+              <div><div style="color:#6a7080;">TOTAL a devolver</div><b id="npa-sim-tot" style="font-size:15px;color:#1e7b34;">—</b></div>
+              <div><div style="color:#6a7080;">Débito mensual estimado</div><b id="npa-sim-cuota" style="font-size:15px;">—</b></div>
+              <div><div style="color:#6a7080;">Primer débito</div><b id="npa-sim-prim" style="font-size:15px;">—</b></div>
+            </div>
+            <p style="font-size:11.5px;color:#556;margin-top:8px;">El supervisor no define cuotas: la simulación usa el predeterminado — la definición final la hace RRHH/Finanzas al aprobar.</p>
+          </div>
         </div>
 
         <div class="form-group"><label>Fecha del pedido</label><input type="date" id="npa-fecha"></div>
@@ -141,10 +151,33 @@ function ensureModalNuevoPedido() {
   document.body.appendChild(m);
 }
 
+// PRESTAMOS_para_Fede.md §2: simulación en vivo dentro del modal. Interés
+// simple (total = capital × (1+tasa)), tasa y cuotas vigentes de
+// Configuración. El primer débito es el mes siguiente a la fecha del pedido.
+export function simularPrestamoModal() {
+  const cap = parseFloat(($('npa-monto-prestamo') || {}).value) || 0;
+  const tasa = obtenerTasaInteres();
+  const n = obtenerCuotasDefault();
+  const fmt = v => '$' + Math.round(v).toLocaleString('es-AR');
+  if ($('npa-sim-titulo')) $('npa-sim-titulo').textContent = `📊 Simulación con los parámetros vigentes — tasa ${tasa}% · ${n} cuotas (predeterminado)`;
+  if ($('npa-sim-int-lbl')) $('npa-sim-int-lbl').textContent = `Interés (${tasa}%)`;
+  const total = cap * (1 + tasa / 100);
+  $('npa-sim-cap').textContent = cap ? fmt(cap) : '—';
+  $('npa-sim-int').textContent = cap ? fmt(cap * tasa / 100) : '—';
+  $('npa-sim-tot').textContent = cap ? fmt(total) : '—';
+  $('npa-sim-cuota').textContent = cap ? `${n} × ${fmt(total / n)}` : '—';
+  const fecha = ($('npa-fecha') || {}).value || hoyISOLocal();
+  const [y, m] = fecha.split('-').map(Number);
+  const MES = ['ENE', 'FEB', 'MAR', 'ABR', 'MAY', 'JUN', 'JUL', 'AGO', 'SEP', 'OCT', 'NOV', 'DIC'];
+  const sig = new Date(y, m, 1);
+  $('npa-sim-prim').textContent = `${MES[sig.getMonth()]} ${sig.getFullYear()}`;
+}
+
 export function cambiarTipoPedidoModal() {
   const tipo = document.querySelector('input[name="npa-tipo"]:checked')?.value;
   $('npa-seccion-adelanto').style.display = tipo === 'Adelanto' ? 'block' : 'none';
   $('npa-seccion-prestamo').style.display = tipo === 'Préstamo' ? 'block' : 'none';
+  if (tipo === 'Préstamo') simularPrestamoModal();
 }
 
 function legajoPorMatch(texto) {

@@ -76,6 +76,18 @@ export function obtenerUmbralAlertaPedidos() {
   return parseInt(obtenerConfigVigente('umbral_alerta_pedidos'), 10) || 3;
 }
 
+// PRESTAMOS_para_Fede.md §1: mismos parámetros administrables que ya
+// existen (tope, max_cuotas), sin tabla nueva — usan la misma
+// configuracionAdelantosPrestamos con clave/valor/vigencia.
+// obtenerTasaInteres() devuelve el % (10 = 10%), no la fracción.
+export function obtenerTasaInteres() {
+  return parseFloat(obtenerConfigVigente('tasa_interes')) || 10;
+}
+
+export function obtenerCuotasDefault() {
+  return parseInt(obtenerConfigVigente('cuotas_default'), 10) || 6;
+}
+
 export async function guardarConfig(clave, valor, motivo) {
   const hoy = hoyISO();
   const vigente = (DB.configuracionAdelantosPrestamos || [])

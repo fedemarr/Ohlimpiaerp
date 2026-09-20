@@ -32,9 +32,10 @@ import { renderRevisionRRHH } from './revision.js';
 import { renderDeposito, renderLotesAdelantos } from './deposito.js';
 import { renderHistorialGestion } from './historico.js';
 import { renderConfiguracionAdelantos } from './configuracion.js';
+import { renderPrestamosCartera, abrirFichaPrestamo } from './prestamos_cartera.js';
 
 const RENDER_POR_TAB = {
-  rrhh: renderRevisionRRHH, deposito: renderDeposito, lotes: renderLotesAdelantos,
+  rrhh: renderRevisionRRHH, deposito: renderDeposito, lotes: renderLotesAdelantos, prestamos: renderPrestamosCartera,
   historial: renderHistorialGestion, configuracion: renderConfiguracionAdelantos,
 };
 
@@ -42,10 +43,12 @@ function aplicarPermisosTabs() {
   const btnRrhh = document.querySelector('#screen-gestion_adelantos .tab-btn[data-gadl-tab="rrhh"]');
   const btnDeposito = document.querySelector('#screen-gestion_adelantos .tab-btn[data-gadl-tab="deposito"]');
   const btnLotes = document.querySelector('#screen-gestion_adelantos .tab-btn[data-gadl-tab="lotes"]');
+  const btnPrestamos = document.querySelector('#screen-gestion_adelantos .tab-btn[data-gadl-tab="prestamos"]');
   const btnConfig = document.querySelector('#screen-gestion_adelantos .tab-btn[data-gadl-tab="configuracion"]');
   if (btnRrhh) btnRrhh.style.display = esRRHHoAdmin() ? '' : 'none';
   if (btnDeposito) btnDeposito.style.display = esFinanzasOAdmin() ? '' : 'none';
   if (btnLotes) btnLotes.style.display = esFinanzasOAdmin() ? '' : 'none';
+  if (btnPrestamos) btnPrestamos.style.display = (esFinanzasOAdmin() || esRRHHoAdmin()) ? '' : 'none';
   if (btnConfig) btnConfig.style.display = esRRHHoAdmin() ? '' : 'none';
 }
 
@@ -86,6 +89,7 @@ import { filtrarHistorialGestion, exportarHistorialGestionExcel } from './histor
 import {
   cambiarTipoCambioTope, abrirModificarTope, confirmarModificarTope, abrirHistorialTope,
   abrirModificarMaxCuotas, abrirModificarUmbral, confirmarConfigSimple,
+  abrirModificarTasaInteres, abrirModificarCuotasDefault,
 } from './configuracion.js';
 
 window.tabGestAdl = tabGestAdl;
@@ -116,3 +120,6 @@ window.abrirHistorialTope = abrirHistorialTope;
 window.abrirModificarMaxCuotas = abrirModificarMaxCuotas;
 window.abrirModificarUmbral = abrirModificarUmbral;
 window.confirmarConfigSimple = confirmarConfigSimple;
+window.abrirModificarTasaInteres = abrirModificarTasaInteres;
+window.abrirModificarCuotasDefault = abrirModificarCuotasDefault;
+window.abrirFichaPrestamo = abrirFichaPrestamo;

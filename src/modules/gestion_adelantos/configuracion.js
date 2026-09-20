@@ -7,6 +7,7 @@ import { toast, abrirModal, cerrarModal } from '@shared/ui.js';
 import {
   obtenerTopeVigente, historialTopes, guardarNuevoTope,
   obtenerMaxCuotas, obtenerUmbralAlertaPedidos, guardarConfig,
+  obtenerTasaInteres, obtenerCuotasDefault,
 } from '../adelantos_prestamos_shared/config.js';
 
 export function renderConfiguracionAdelantos() {
@@ -14,6 +15,9 @@ export function renderConfiguracionAdelantos() {
   if ($('cfg-tope-actual')) $('cfg-tope-actual').textContent = tope != null ? '$' + tope.toLocaleString('es-AR') : 'Sin cargar';
   if ($('cfg-max-cuotas-actual')) $('cfg-max-cuotas-actual').textContent = obtenerMaxCuotas();
   if ($('cfg-umbral-actual')) $('cfg-umbral-actual').textContent = obtenerUmbralAlertaPedidos();
+  // PRESTAMOS_para_Fede.md §1: mismo patrón (valor + Modificar + historial).
+  if ($('cfg-tasa-actual')) $('cfg-tasa-actual').textContent = obtenerTasaInteres() + '%';
+  if ($('cfg-cuotas-default-actual')) $('cfg-cuotas-default-actual').textContent = obtenerCuotasDefault();
 }
 
 // ========== MODAL — MODIFICAR TOPE ==========
@@ -144,12 +148,39 @@ export function abrirModificarUmbral() {
   $('cfs-titulo').textContent = 'Umbral de alerta de pedidos';
   $('cfs-label').textContent = 'Cantidad de pedidos por mes que gatilla alerta *';
   $('cfs-valor').value = obtenerUmbralAlertaPedidos();
+  $('cfs-valor').step = '1';
+  $('cfs-motivo').value = '';
+  abrirModal('modal-cfg-simple');
+}
+
+// PRESTAMOS_para_Fede.md §1: mismo patrón que max_cuotas/umbral — valor
+// + Modificar + historial (el historial de config genérico ya existe
+// en Supabase por vigencia, solo faltaba la UI de estos 2 parámetros).
+export function abrirModificarCuotasDefault() {
+  _configEditando = 'cuotas_default';
+  ensureModalConfigSimple();
+  $('cfs-titulo').textContent = 'Cuotas predeterminadas (préstamos)';
+  $('cfs-label').textContent = 'Cantidad de cuotas por defecto en la simulación *';
+  $('cfs-valor').value = obtenerCuotasDefault();
+  $('cfs-valor').step = '1';
+  $('cfs-motivo').value = '';
+  abrirModal('modal-cfg-simple');
+}
+
+export function abrirModificarTasaInteres() {
+  _configEditando = 'tasa_interes';
+  ensureModalConfigSimple();
+  $('cfs-titulo').textContent = 'Tasa de interés de préstamos';
+  $('cfs-label').textContent = 'Tasa de interés (%) *';
+  $('cfs-valor').value = obtenerTasaInteres();
+  $('cfs-valor').step = '0.1';
   $('cfs-motivo').value = '';
   abrirModal('modal-cfg-simple');
 }
 
 export async function confirmarConfigSimple() {
-  const valor = parseInt($('cfs-valor').value, 10);
+  // tasa_interes admite decimales (10.5%); el resto sigue siendo entero.
+  const valor = _configEditando === 'tasa_interes' ? parseFloat($('cfs-valor').value) : parseInt($('cfs-valor').value, 10);
   if (!valor || valor <= 0) { toast('⚠️ Ingresá un valor válido'); return; }
   await guardarConfig(_configEditando, valor, ($('cfs-motivo').value || '').trim());
   cerrarModal('modal-cfg-simple');

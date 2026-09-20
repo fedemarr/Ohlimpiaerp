@@ -441,6 +441,8 @@ export function _toSnake(obj) {
     montoTotal: 'monto_total', cuotasTotales: 'cuotas_totales', cuotasCobradas: 'cuotas_cobradas', montoCuota: 'monto_cuota',
     fechaGenerado: 'fecha_generado', fechaPrimeraCuota: 'fecha_primera_cuota', fechaUltimaCuota: 'fecha_ultima_cuota',
     motivoGeneracion: 'motivo_generacion',
+    // PRESTAMOS_para_Fede.md (18/09) — interés + plan de cuotas del préstamo
+    tasaInteres: 'tasa_interes', planCuotas: 'plan_cuotas',
     // v084 — Descuentos por asociado
     conceptoIdLocal: 'concepto_id_local', periodoInicio: 'periodo_inicio',
     cuotasMaximas: 'cuotas_maximas', activo: 'activo',
@@ -956,6 +958,8 @@ export function _toCamel(obj) {
     cargado_manual_por: 'cargadoManualPor',
     monto_total: 'montoTotal', cuotas_totales: 'cuotasTotales', cuotas_cobradas: 'cuotasCobradas', monto_cuota: 'montoCuota',
     fecha_generado: 'fechaGenerado', fecha_primera_cuota: 'fechaPrimeraCuota', fecha_ultima_cuota: 'fechaUltimaCuota',
+    // PRESTAMOS_para_Fede.md (18/09) — interés + plan de cuotas del préstamo
+    tasa_interes: 'tasaInteres', plan_cuotas: 'planCuotas',
     // v084 — Descuentos por asociado
     concepto_id_local: 'conceptoIdLocal', periodo_inicio: 'periodoInicio',
     cuotas_maximas: 'cuotasMaximas', activo: 'activo',

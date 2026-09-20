@@ -16,7 +16,7 @@ import { DB, currentUser } from '@shared/state.js';
 import { supaSync, getLastSupaSyncError } from '@shared/supabase.js';
 import { toast } from '@shared/ui.js';
 import { crearNotificacion } from '@shared/notificaciones.js';
-import { obtenerTopeVigente } from './config.js';
+import { obtenerTopeVigente, obtenerTasaInteres } from './config.js';
 import { generarCompromisosDescuento } from './descuentos.js';
 
 export const idLocalTrunc = (id) => String(id).slice(-9);
@@ -77,6 +77,30 @@ async function _registrarEvento(tipo, pedido, estadoDesde, estadoHasta, observac
   if (!DB.pedidosAdelantosEventos) DB.pedidosAdelantosEventos = [];
   DB.pedidosAdelantosEventos.push(ev);
   await supaSync('pedidosAdelantosEventos', ev);
+}
+
+// PRESTAMOS_para_Fede.md §3/§7: plan de cuotas generado al aprobar —
+// interés simple sobre el capital (SUPUESTO confirmado: total = capital
+// × (1+tasa), postergar una cuota no genera interés extra). El primer
+// débito cae el mes siguiente al de la aprobación (mismo criterio que
+// muestra el mockup: aprobado en SEP → primera cuota OCT). El resto
+// (postergar/redistribuir con la invariante saldo=pendientes) queda
+// para la etapa del plan editable — acá solo se genera, en Pendiente.
+function _mesSiguiente(periodoISO) {
+  const [y, m] = periodoISO.split('-').map(Number);
+  const d = new Date(y, m, 1); // m ya es "el mes siguiente" en índice 0
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+}
+function _generarPlanCuotas(montoTotal, cuotasN) {
+  const cuotaBase = Math.floor(montoTotal / cuotasN);
+  const plan = [];
+  let periodo = _mesSiguiente(hoyISO().slice(0, 7));
+  for (let i = 1; i <= cuotasN; i++) {
+    const monto = i === cuotasN ? (montoTotal - cuotaBase * (cuotasN - 1)) : cuotaBase;
+    plan.push({ numero: i, periodo, monto, estado: 'Pendiente' });
+    periodo = _mesSiguiente(periodo);
+  }
+  return plan;
 }
 
 export function eventosDePedido(pedidoIdLocal) {
@@ -202,9 +226,17 @@ export async function aprobarRRHH(tipo, id, extra = {}) {
     const monto = extra.montoAprobado != null ? Number(extra.montoAprobado) : p.montoSolicitado;
     if (!cuotas || cuotas <= 0) return { error: 'Definí la cantidad de cuotas antes de aprobar' };
     if (!monto || monto <= 0) return { error: 'Definí un monto válido antes de aprobar' };
+    // PRESTAMOS_para_Fede.md §3: "monto" sigue siendo el CAPITAL (lo que
+    // se deposita — Depósito no cambia); "montoTotal" es capital+interés
+    // (lo que hay que devolver, base del plan de cuotas).
+    const tasa = extra.tasaInteres != null ? Number(extra.tasaInteres) : obtenerTasaInteres();
+    const montoTotal = Math.round(monto * (1 + tasa / 100));
     p.cuotas = cuotas;
     p.monto = monto;
-    p.montoCuota = Math.round(monto / cuotas);
+    p.tasaInteres = tasa;
+    p.montoTotal = montoTotal;
+    p.montoCuota = Math.round(montoTotal / cuotas);
+    p.planCuotas = _generarPlanCuotas(montoTotal, cuotas);
   }
   p.estado = 'Aprobada RRHH';
   p.aprobadoPorRrhh = currentUser?.nombre || '';
@@ -286,7 +318,14 @@ export async function reAprobarTrasRechazoFinanzas(tipo, id, cambios = {}) {
   if (tipo === 'Préstamo') {
     if (cambios.cuotasAprobadas != null) p.cuotas = parseInt(cambios.cuotasAprobadas, 10);
     if (cambios.montoAprobado != null) p.monto = Number(cambios.montoAprobado);
-    if (cambios.cuotasAprobadas != null || cambios.montoAprobado != null) p.montoCuota = Math.round(p.monto / p.cuotas);
+    if (cambios.tasaInteres != null) p.tasaInteres = Number(cambios.tasaInteres);
+    // El plan de cuotas se regenera con las condiciones ajustadas (antes de
+    // depositar todavía no hay cuotas debitadas que preservar).
+    const tasa = p.tasaInteres != null ? p.tasaInteres : obtenerTasaInteres();
+    p.tasaInteres = tasa;
+    p.montoTotal = Math.round(p.monto * (1 + tasa / 100));
+    p.montoCuota = Math.round(p.montoTotal / p.cuotas);
+    p.planCuotas = _generarPlanCuotas(p.montoTotal, p.cuotas);
   }
   p.estado = 'Aprobada RRHH';
   p.aprobadoPorRrhh = currentUser?.nombre || '';

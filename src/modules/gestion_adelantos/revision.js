@@ -6,7 +6,7 @@ import { DB } from '@shared/state.js';
 import { $ } from '@shared/helpers.js';
 import { toast, abrirModal, cerrarModal } from '@shared/ui.js';
 import { getPedidoById, getPrestamoById, aprobarRRHH, rechazarRRHH, reAprobarTrasRechazoFinanzas, devolverASupervisorTrasRechazoFinanzas } from '../adelantos_prestamos_shared/flujo.js';
-import { obtenerTopeVigente, obtenerUmbralAlertaPedidos, obtenerMaxCuotas } from '../adelantos_prestamos_shared/config.js';
+import { obtenerTopeVigente, obtenerUmbralAlertaPedidos, obtenerMaxCuotas, obtenerTasaInteres, obtenerCuotasDefault } from '../adelantos_prestamos_shared/config.js';
 import { construirContextoAsociado } from '../adelantos_prestamos_shared/contexto.js';
 
 function pedidosEnRevision() {
@@ -122,12 +122,14 @@ export function abrirRevisionRRHH(tipo, id) {
     </div>` : ''}
 
     ${tipo === 'Préstamo' ? `
-      <div class="form-section" style="margin-bottom:8px;">Definir cuotas aprobadas</div>
+      <div class="form-section" style="margin-bottom:8px;">Definir condiciones del préstamo (tasa y cuotas)</div>
       <div class="form-grid form-grid-2">
-        <div class="form-group"><label>Monto a aprobar</label><input type="number" id="gr-monto-aprobado" min="0" value="${p.montoSolicitado ?? p.monto ?? ''}"></div>
-        <div class="form-group"><label>Cuotas a aprobar</label><input type="number" id="gr-cuotas-aprobadas" min="1" value="${p.cuotasSolicitadas ?? p.cuotas ?? ''}" oninput="chequearCuotasModal()"></div>
+        <div class="form-group"><label>Monto a aprobar (capital)</label><input type="number" id="gr-monto-aprobado" min="0" value="${p.montoSolicitado ?? p.monto ?? ''}" oninput="chequearCuotasModal()"></div>
+        <div class="form-group"><label>Cuotas a aprobar</label><input type="number" id="gr-cuotas-aprobadas" min="1" value="${p.cuotasSolicitadas ?? p.cuotas ?? obtenerCuotasDefault()}" oninput="chequearCuotasModal()"></div>
+        <div class="form-group"><label>Tasa de interés (%)</label><input type="number" id="gr-tasa-interes" min="0" step="0.1" value="${p.tasaInteres ?? obtenerTasaInteres()}" oninput="chequearCuotasModal()"></div>
       </div>
       <div id="gr-aviso-cuotas" class="alerta alerta-warning" style="display:none;font-size:12px;margin-bottom:10px;"></div>
+      <div id="gr-resumen-prestamo" class="alerta alerta-info" style="font-size:12.5px;margin-bottom:10px;"></div>
     ` : ''}
     <div class="form-group"><label>Motivo ${devuelto ? '(obligatorio para devolver al supervisor)' : '(obligatorio si rechaza)'}</label><textarea id="gr-motivo" rows="2" placeholder="${devuelto ? 'Ej: Monto muy elevado, solicitar menos / El asociado ya solicitó demasiados adelantos este mes' : ''}"></textarea></div>
   `;
@@ -149,6 +151,7 @@ export function chequearCuotasModal() {
   const cuotas = parseInt(($('gr-cuotas-aprobadas') || {}).value, 10) || 0;
   const max = obtenerMaxCuotas();
   const aviso = $('gr-aviso-cuotas');
+  _actualizarResumenPrestamo();
   if (!aviso) return;
   if (cuotas > max) {
     aviso.style.display = 'block';
@@ -158,12 +161,29 @@ export function chequearCuotasModal() {
   }
 }
 
+// PRESTAMOS_para_Fede.md §2/§3: mismo cálculo que la simulación del pedido
+// (interés simple: total = capital × (1+tasa)) — RRHH/Finanzas ven cuánto
+// se devuelve y cuánto se debita por mes antes de aprobar.
+function _actualizarResumenPrestamo() {
+  const el = $('gr-resumen-prestamo');
+  if (!el) return;
+  const cap = parseFloat($('gr-monto-aprobado')?.value) || 0;
+  const n = parseInt($('gr-cuotas-aprobadas')?.value, 10) || 0;
+  const tasa = parseFloat($('gr-tasa-interes')?.value);
+  const t = isNaN(tasa) ? 0 : tasa;
+  if (!cap || !n) { el.textContent = 'Completá monto y cuotas para ver el plan.'; return; }
+  const total = Math.round(cap * (1 + t / 100));
+  const fmt = v => '$' + Math.round(v).toLocaleString('es-AR');
+  el.innerHTML = `Capital <b>${fmt(cap)}</b> · Interés (${t}%) <b>${fmt(total - cap)}</b> · TOTAL a devolver <b>${fmt(total)}</b> · Débito mensual: <b>${n} × ${fmt(total / n)}</b>`;
+}
+
 export async function aprobarRevisionRRHH() {
   const { tipo, id } = _revisando;
   const extra = {};
   if (tipo === 'Préstamo') {
     extra.montoAprobado = $('gr-monto-aprobado')?.value;
     extra.cuotasAprobadas = $('gr-cuotas-aprobadas')?.value;
+    extra.tasaInteres = $('gr-tasa-interes')?.value;
     if (!extra.montoAprobado || Number(extra.montoAprobado) <= 0) { toast('⚠️ Ingresá el monto a aprobar'); return; }
     if (!extra.cuotasAprobadas || parseInt(extra.cuotasAprobadas, 10) <= 0) { toast('⚠️ Definí la cantidad de cuotas antes de aprobar'); return; }
   }

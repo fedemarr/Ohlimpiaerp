@@ -7,7 +7,7 @@ import { $ } from '@shared/helpers.js';
 
 export {
   renderMisPedidos, filtrarMisPedidos, renderHistorialEquipo, filtrarHistorialEquipo,
-  abrirNuevoPedidoAdelanto, cambiarTipoPedidoModal, seleccionarAsociadoPedido, buscarAsociadoPedidoPorNro, chequearTopeModal,
+  abrirNuevoPedidoAdelanto, cambiarTipoPedidoModal, simularPrestamoModal, seleccionarAsociadoPedido, buscarAsociadoPedidoPorNro, chequearTopeModal,
   confirmarNuevoPedido, elevarPedidoPorId, abrirDetallePedidoAdelanto, cancelarPedidoPorId,
 } from './pedidos.js';
 
@@ -52,7 +52,7 @@ export const pedidosAdelantosScreenConfig = {
 // ========== WINDOW BINDINGS ==========
 
 import {
-  filtrarMisPedidos, filtrarHistorialEquipo, cambiarTipoPedidoModal, seleccionarAsociadoPedido, buscarAsociadoPedidoPorNro,
+  filtrarMisPedidos, filtrarHistorialEquipo, cambiarTipoPedidoModal, simularPrestamoModal, seleccionarAsociadoPedido, buscarAsociadoPedidoPorNro,
   chequearTopeModal, confirmarNuevoPedido, elevarPedidoPorId, abrirDetallePedidoAdelanto, cancelarPedidoPorId,
 } from './pedidos.js';
 import {
@@ -64,6 +64,7 @@ window.abrirNuevoPedidoAdelanto = abrirNuevoPedidoAdelanto;
 window.filtrarMisPedidos = filtrarMisPedidos;
 window.filtrarHistorialEquipo = filtrarHistorialEquipo;
 window.cambiarTipoPedidoModal = cambiarTipoPedidoModal;
+window.simularPrestamoModal = simularPrestamoModal;
 window.seleccionarAsociadoPedido = seleccionarAsociadoPedido;
 window.buscarAsociadoPedidoPorNro = buscarAsociadoPedidoPorNro;
 window.chequearTopeModal = chequearTopeModal;
