@@ -91,6 +91,7 @@ export const _SM = {
   itemsLogisticaServicio: 'items_logistica_servicio',
   monoCambios: 'mono_cambios',
   monoPagosMes: 'mono_pagos_mes',
+  monoTramites: 'mono_tramites',
   // v117: renombrado de monoTablas → monoTablasOrg. El DB.monoTablas viejo
   // (objeto {vigencia: [fila ARCA]}, hardcodeado en legacy.js) sigue en uso
   // por getTablaVigente/getCURPersona/etc. — si esta clave se llamara

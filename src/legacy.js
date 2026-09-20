@@ -11723,6 +11723,7 @@ function tabMonotributos(tab, btn){
   if(tab==='historial')  renderHistorialMono();
   if(tab==='pagos')      renderMonoPagos();
   if(tab==='casos')      renderCasosImport();
+  if(tab==='pendientes' && window.renderMonoPendientes) window.renderMonoPendientes();
 }
 
 function renderTablasCategorias(){
@@ -11942,9 +11943,16 @@ function guardarNuevaVigencia(){
 // sobre la persona equivocada apenas se aplicaba un filtro. Se pasa todo
 // a operar por id real, con guardia String===String.
 function getMonoById(id){ return (DB.monotributos||[]).find(x=>String(x.id)===String(id)); }
-function abrirModalNuevoMonotributo(id=null){
-  const r=id!==null?getMonoById(id):{};
-  if($('mono-modal-title')) $('mono-modal-title').textContent=id!==null?'Editar monotributista':'Nuevo monotributista';
+// MONOTRIBUTO_bandeja_para_Fede.md §4: "Iniciar trámite" abre este mismo modal
+// PRECARGADO desde el alta (pre = {nro,nombre,cuit,fechaAlta}): nombre, CUIT y
+// fecha quedan bloqueados (una sola fuente de verdad — si el CUIT está mal se
+// corrige en el legajo, no acá) y RRHH solo carga lo que sale del trámite.
+let _monoPre=null;
+function abrirModalNuevoMonotributo(id=null, pre=null){
+  _monoPre=pre;
+  const r=id!==null?getMonoById(id):(pre?{nombre:pre.nombre,cuit:pre.cuit,fechaAlta:pre.fechaAlta}:{});
+  ['mono-nombre','mono-cuit','mono-fechaAlta'].forEach(k=>{ const el=$(k); if(el){ el.readOnly=!!pre; el.style.background=pre?'#f3f4f6':''; } });
+  if($('mono-modal-title')) $('mono-modal-title').textContent=id!==null?'Editar monotributista':(pre?'Cargar monotributo — desde el alta':'Nuevo monotributista');
   if($('mono-idx'))         $('mono-idx').value=id!==null?id:'';
   if($('mono-nombre'))      $('mono-nombre').value=r.nombre||'';
   if($('mono-cuit'))        $('mono-cuit').value=r.cuit||'';
@@ -12027,7 +12035,7 @@ function eliminarMonotributo(id){
 function guardarMonotributo(){
   const idVal=$('mono-idx')?.value;
   const existing=idVal?getMonoById(idVal):null;
-  const nroSocioMatch=(DB.legajos||[]).find(l=>l.nombre===($('mono-nombre')?.value||'').trim())?.nro;
+  const nroSocioMatch=_monoPre?.nro||(DB.legajos||[]).find(l=>l.nombre===($('mono-nombre')?.value||'').trim())?.nro;
   const obj={
     nombre:$('mono-nombre')?.value.trim(),
     nroSocio:existing?.nroSocio||nroSocioMatch||null,
@@ -12065,6 +12073,10 @@ function guardarMonotributo(){
   cerrarModal('modal-monotributo');
   supaSync('monotributos', registro); toast('✅ Monotributista guardado');
   renderMonotributos();
+  // Desde la bandeja: pasa a ACTIVO → sale de Pendientes y entra al Padrón.
+  if(_monoPre && window.cerrarTramiteMono){ window.cerrarTramiteMono(_monoPre.nro); toast('✅ '+registro.nombre+' → monotributo ACTIVO — salió de la bandeja y entró al Padrón'); }
+  _monoPre=null;
+  if(window.renderMonoPendientes) window.renderMonoPendientes();
 }
 
 

@@ -26,6 +26,7 @@ import { uniformesScreenConfig } from './modules/uniformes/index.js';
 import { retencionesScreenConfig, filtrarRetenciones } from './modules/retenciones/index.js';
 import { cuentasCbuScreenConfig } from './modules/cuentas_cbu/index.js';
 import { retenesScreenConfig } from './modules/retenes/index.js';
+import './modules/monotributo_bandeja/index.js';
 import { tareasEspecialesScreenConfig } from './modules/tareas_especiales/index.js';
 // Pago de retiros: no es un screen propio, es un tab de screen-liquidaciones
 // (legacy.js). Se importa solo por sus window bindings (tabPago, etc.).
@@ -183,7 +184,7 @@ async function loadLegacy() {
         render: () => { if (window.renderLiqAdmin) window.renderLiqAdmin(); },
       },
       mantenimiento: { title: 'Mantenimiento', btn: '+ Nuevo técnico', fn: () => { if (window.abrirModalNuevoMant) window.abrirModalNuevoMant(); }, render: () => { if (window.renderMantenimiento) window.renderMantenimiento(); } },
-      monotributos: { title: 'Monotributos', btn: '+ Nuevo monotributista', fn: () => { if (window.abrirModalNuevoMonotributo) window.abrirModalNuevoMonotributo(); }, render: () => { if (window.renderMonotributos) window.renderMonotributos(); } },
+      monotributos: { title: 'Monotributos', btn: '+ Nuevo monotributista', fn: () => { if (window.abrirModalNuevoMonotributo) window.abrirModalNuevoMonotributo(); }, render: () => { if (window.renderMonotributos) window.renderMonotributos(); if (window.renderMonoPendientes) window.renderMonoPendientes(); } },
       paritarias: { title: 'Paritarias', btn: '', fn: null, render: () => { if (window.renderParitarias) window.renderParitarias(); } },
       liquidaciones: { title: 'Liquidaciones', btn: '', fn: null, render: () => { if (window.renderLiquidaciones) window.renderLiquidaciones(); } },
     });
