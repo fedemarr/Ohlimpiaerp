@@ -746,7 +746,6 @@ export function _toSnake(obj) {
     datosNuevos: 'datos_nuevos', auditoriaId: 'auditoria_id',
     precioAntes: 'precio_antes', precioDespues: 'precio_despues',
     pdfPath: 'pdf_path', pdfNombre: 'pdf_nombre', pdfSubidoEn: 'pdf_subido_en',
-    claveFiscal: 'claveFiscal', // already exists above, dedup handled by object literal
     // v106 — Pedidos de personal: ajustes de mockup (workflow, timeline, config)
     ingresoTipo: 'ingreso_tipo', nombreCandidato: 'nombre_candidato',
     nroSocioCandidato: 'nro_socio_candidato', motivoDetalle: 'motivo_detalle',
