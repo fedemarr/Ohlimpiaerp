@@ -29,7 +29,11 @@
 -- (se relacionan por dni y por candidato_id), así que no hay cascada: el
 -- orden de abajo va de hijos a padres.
 -- Ojo: psicos.candidato_id de Carlos tiene 13 dígitos (1782393165104) y no el
--- id_local de 9 de candidatos — por eso se borra por DNI Y por candidato_id.
+-- id_local de 9 de candidatos — por eso se borra por DNI Y por candidato_id
+-- (en psicos, cat_alt_pendientes y turnos, donde candidato_id es text). En
+-- documentacion_ingreso y preocupacionales candidato_id es BIGINT (pierde los
+-- ceros a la izquierda del id_local), así que ahí se borra solo por DNI: todas
+-- sus filas tienen DNI cargado (verificado).
 
 -- =====================================================================
 -- PASO 1 — VERIFICACIÓN (solo lectura). Un renglón por tabla y grupo.
@@ -105,9 +109,9 @@ BEGIN
   -- Cadena de ingreso, de hijos a padres.
   DELETE FROM public.turnos WHERE candidato_id = ANY(cids);
     GET DIAGNOSTICS n = ROW_COUNT; RAISE NOTICE 'turnos borrados: %', n;
-  DELETE FROM public.documentacion_ingreso WHERE btrim(dni) = ANY(todos) OR candidato_id = ANY(cids);
+  DELETE FROM public.documentacion_ingreso WHERE btrim(dni) = ANY(todos);   -- candidato_id es bigint: solo por DNI
     GET DIAGNOSTICS n = ROW_COUNT; RAISE NOTICE 'documentacion_ingreso borradas: %', n;
-  DELETE FROM public.preocupacionales WHERE btrim(dni) = ANY(todos) OR candidato_id = ANY(cids);
+  DELETE FROM public.preocupacionales WHERE btrim(dni) = ANY(todos);   -- candidato_id es bigint: solo por DNI
     GET DIAGNOSTICS n = ROW_COUNT; RAISE NOTICE 'preocupacionales borradas: %', n;
   DELETE FROM public.psicos WHERE btrim(dni) = ANY(todos) OR candidato_id = ANY(cids);
     GET DIAGNOSTICS n = ROW_COUNT; RAISE NOTICE 'psicos borrados: %', n;
