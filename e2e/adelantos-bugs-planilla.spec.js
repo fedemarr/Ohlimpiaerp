@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test';
 
 async function loginComoSupervisor(page, nombre) {
   await page.goto('/');
-  await page.waitForFunction(() => typeof window.verLegajo === 'function', { timeout: 20000 });
+  await page.waitForFunction(() => typeof window.verLegajo === 'function' && typeof window.verObjetivo === 'function', { timeout: 20000 });
   await page.evaluate(async (nombre) => {
     const { setCurrentUser } = await import('/src/shared/state.js');
     setCurrentUser({ nombre, perfil: 'Supervisor' });

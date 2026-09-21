@@ -368,12 +368,23 @@
 </div>
 
 <div class="screen" id="screen-pedidos">
-  <div class="stats-grid" style="grid-template-columns:repeat(6,1fr);" id="pedidos-kpis"></div>
+  <div class="stats-grid" style="grid-template-columns:repeat(auto-fit,minmax(150px,1fr));" id="pedidos-kpis"></div>
 
   <div class="tabs" style="background:white;border-radius:var(--radio-lg) var(--radio-lg) 0 0;padding:0 20px;box-shadow:var(--sombra);border-bottom:none;">
+    <button class="tab-btn" data-ped-tab="prepedidos" onclick="cambiarTabPedidos('prepedidos',this)">📥 Prepedidos <span id="prepedidos-tab-count" style="display:none;background:#7c3aed;color:#fff;border-radius:10px;font-size:10.5px;padding:1px 7px;margin-left:4px;">0</span></button>
     <button class="tab-btn active" data-ped-tab="activos" onclick="cambiarTabPedidos('activos',this)">📋 Activos <span id="pedidos-tab-count" style="background:var(--naranja,#e0a010);color:#fff;border-radius:10px;font-size:10.5px;padding:1px 7px;margin-left:4px;">0</span></button>
     <button class="tab-btn" data-ped-tab="seguimiento" onclick="cambiarTabPedidos('seguimiento',this)">🔭 Seguimiento</button>
     <button class="tab-btn" data-ped-tab="historial" onclick="cambiarTabPedidos('historial',this)">🕘 Historial</button>
+  </div>
+
+  <!-- TAB PREPEDIDOS (ALTA_CLIENTE_SERVICIO bloque 5): servicios nuevos en
+       Pendiente asignación esperando decisión de dotación, por vacante -->
+  <div id="pedidos-tab-prepedidos" class="tab-content">
+  <div class="card" style="border-radius:0 var(--radio-lg) var(--radio-lg) var(--radio-lg);">
+    <div class="card-header"><h3>📥 Bandeja de prepedidos — servicios nuevos esperando decisión de dotación</h3></div>
+    <div id="prepedidos-body"></div>
+    <div class="text-muted" style="padding:10px 16px;font-size:11.5px;">El prepedido nace solo cuando el servicio entra a <b>Pendiente asignación</b> (con la dotación que cargó Comercial). Por vacante: <b>↔ Cubrir con interno</b> abre Reasignaciones precargado; <b>🔎 Incorporar</b> la pasa a Activos y RRHH busca. Con todas las vacantes resueltas, el prepedido pasa a Historial.</div>
+  </div>
   </div>
 
   <!-- TAB ACTIVOS -->
@@ -2165,7 +2176,7 @@
 <div class="modal-overlay" id="modal-reasignacion">
   <div class="modal" style="max-width:860px;">
     <div class="modal-header">
-      <h3>🔄 Nueva reasignación</h3>
+      <h3 id="reas-modal-title">🔄 Nueva reasignación</h3>
       <button class="btn-close" onclick="cerrarModal('modal-reasignacion')">×</button>
     </div>
     <div class="modal-body">

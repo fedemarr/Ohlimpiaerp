@@ -20,6 +20,7 @@ import { documScreenConfig, filtrarDocum, poblarFiltrosColumnasDocum } from './m
 import { altasScreenConfig, filtrarAltas, poblarFiltrosColumnasAltas, renderAltas, poblarSelectsAltas } from './modules/altas/index.js';
 import { legajosScreenConfig, filtrarLegajos, renderLegajos } from './modules/legajos/index.js';
 import { pedidosScreenConfig, filtrarPedidos } from './modules/pedidos/index.js';
+import { sincronizarPrepedidos } from './modules/prepedidos/index.js';
 import { reasignacionesScreenConfig, sincronizarConfigReasignaciones, chequearEjecucionesPendientes } from './modules/reasignaciones/index.js';
 import { capacitacionesScreenConfig, filtrarCapacitaciones } from './modules/capacitaciones/index.js';
 import { uniformesScreenConfig } from './modules/uniformes/index.js';
@@ -358,6 +359,9 @@ registerAuthCallbacks({
     // también acá, apenas se loguea alguien, antes de que abra cualquier
     // pantalla.
     chequearEjecucionesPendientes();
+    // Todo servicio ya pendiente de asignación tiene su prepedido (backfill
+    // silencioso; el alta nueva lo siembra en guardarObjetivo).
+    sincronizarPrepedidos();
     // Refresca DB.servicios (array plano de códigos) desde
     // DB.serviciosSupervisor recién cargado — mismo motivo que la línea de
     // arriba: los 9+ consumidores de obtenerServiciosActivos() (legacy.js)

@@ -1542,7 +1542,7 @@ function renderObjetivos(lista){
     const esperando7=o.estado==='Pendiente asignación operativa'&&diasDesde(o.fechaCarga)>=7;
     return `<tr>
       <td style="font-family:'DM Mono',monospace;font-size:11px;color:var(--azul);">${o.codigo}</td>
-      <td style="font-weight:500;">${o.nombre}${esperando7?' <span title="7+ días esperando asignación">🟠</span>':''}</td>
+      <td style="font-weight:500;">${o.nombre}${esperando7?' <span title="7+ días esperando asignación">🟠</span>':''}${o.estado==='Pendiente asignación operativa'&&window.chipDotacionObjetivo?window.chipDotacionObjetivo(o):''}</td>
       <td style="font-size:12px;">${cli?cli.nombre:'—'}</td>
       <td><span class="chip" style="font-size:11px;">${o.tipo}</span></td>
       <td style="font-size:12px;color:var(--texto-suave);">${o.tipoSitio||'—'}</td>
@@ -1624,7 +1624,7 @@ function verObjetivo(idLocal){
   ${(o.puestos||[]).length?o.puestos.map(p=>{
     const diasTxt=DIAS_PUESTO.filter(([d])=>p.dias?.[d]).map(([,l])=>l).join(', ')||'—';
     return `<div style="padding:8px;background:var(--fondo);border-radius:var(--radio);margin-bottom:5px;border:1px solid var(--borde);font-size:12px;">
-    <strong>${p.cantidad||1}</strong> persona(s)${p.perfil?' — '+p.perfil:''} · ${p.horarioDesde||'?'} a ${p.horarioHasta||'?'} · ${diasTxt}
+    <strong>${p.cantidad||1}</strong> ${p.puesto?p.puesto:'persona(s)'}${p.perfil?' — '+p.perfil:''} · ${p.horarioDesde||'?'} a ${p.horarioHasta||'?'} · ${diasTxt}
     <span class="badge ${p.tipoHorario==='rotativo'?'badge-naranja':'badge-azul'}" style="font-size:10px;">${p.tipoHorario==='rotativo'?'Rotativo':'Fijo'}</span>
     ${p.obs?`<div style="color:var(--texto-suave);margin-top:2px;">${p.obs}</div>`:''}
   </div>`;}).join(''):'<p class="text-muted" style="font-size:12px;">Sin puestos cargados</p>'}
@@ -1981,6 +1981,7 @@ async function guardarObjetivo(){
     if(!datos.dir) faltantes.push('Dirección');
     if(!datos.fechaInicio) faltantes.push('Fecha de inicio');
     if(!datos.puestos.length) faltantes.push('Personal necesario (agregá al menos un puesto)');
+    else if(!existente&&datos.puestos.some(p=>!p.puesto)) faltantes.push('Puesto / categoría en cada línea de Personal necesario');
     if(!datos.modeloPrecio) faltantes.push('Modelo de precio');
     else if(esHoras){
       if(!efts||!valorHora) faltantes.push('Cantidad de horas y valor hora');
@@ -2036,6 +2037,9 @@ async function guardarObjetivo(){
     return;
   }
   persistirRelacionadosObjetivo(objetivo);
+  // El alta siembra el pedido de personal (ALTA_CLIENTE_SERVICIO bloque 5):
+  // el servicio recién entrado a Pendiente asignación genera su prepedido.
+  if(!existente&&objetivo.estado==='Pendiente asignación operativa'&&window.sembrarPrepedido) window.sembrarPrepedido(objetivo,{notificar:true});
   toast(existente?'✓ Servicio actualizado':'✓ Servicio guardado');
 }
 function tabObjModal(idx,btn){
@@ -2117,15 +2121,16 @@ const DIAS_PUESTO=DIAS_SEMANA;
 let puestosObjTemp=[];
 window.puestosObjTemp=puestosObjTemp;
 function agregarPuestoObj(){
-  puestosObjTemp.push({cantidad:1,perfil:'',horarioDesde:'',horarioHasta:'',tipoHorario:'fijo',dias:{},obs:''});
+  puestosObjTemp.push({cantidad:1,puesto:'',perfil:'',horarioDesde:'',horarioHasta:'',tipoHorario:'fijo',dias:{},obs:''});
   renderPuestosObj();
 }
 function renderPuestosObj(){
   const el=$('obj-puestos-lista');if(!el)return;
   el.innerHTML=puestosObjTemp.map((p,i)=>`
     <div style="background:var(--fondo);border:1px solid var(--borde);border-radius:var(--radio);padding:10px 12px;margin-bottom:8px;">
-      <div style="display:grid;grid-template-columns:85px 1fr 100px 100px 100px auto;gap:8px;align-items:end;">
+      <div style="display:grid;grid-template-columns:85px 1fr 1fr 100px 100px 100px auto;gap:8px;align-items:end;">
         <div class="form-group" style="margin:0;"><label style="font-size:10px;">Cantidad *</label><input type="number" min="1" value="${p.cantidad||''}" style="${inputStyle}" oninput="puestosObjTemp[${i}].cantidad=parseInt(this.value)||0"></div>
+        <div class="form-group" style="margin:0;"><label style="font-size:10px;">Puesto / categoría *</label><select style="${inputStyle}" onchange="puestosObjTemp[${i}].puesto=this.value"><option value="">— Elegir —</option>${[...new Set([...(DB.categorias||[]),'Runner','Franquero',p.puesto].filter(Boolean))].map(c=>`<option${c===p.puesto?' selected':''}>${c}</option>`).join('')}</select></div>
         <div class="form-group" style="margin:0;"><label style="font-size:10px;">Perfil (opcional)</label><input type="text" value="${p.perfil||''}" placeholder="Ej: H, 25 a 40 años" style="${inputStyle}" oninput="puestosObjTemp[${i}].perfil=this.value"></div>
         <div class="form-group" style="margin:0;"><label style="font-size:10px;">Desde</label><input type="time" value="${p.horarioDesde||''}" style="${inputStyle}" onchange="puestosObjTemp[${i}].horarioDesde=this.value"></div>
         <div class="form-group" style="margin:0;"><label style="font-size:10px;">Hasta</label><input type="time" value="${p.horarioHasta||''}" style="${inputStyle}" onchange="puestosObjTemp[${i}].horarioHasta=this.value"></div>
@@ -2361,6 +2366,13 @@ async function confirmarSupervisorObjetivo(){
   if(!elegido){toast('Elegí un supervisor');return;}
   const esCambio=!!o.supervisorAsignado;
   const anterior=o.supervisorAsignado;
+  // Activar con dotación incompleta: alerta, no bloqueo (ALTA_CLIENTE_SERVICIO §5).
+  if(!esCambio&&window.avisoDotacionIncompleta){
+    const av=window.avisoDotacionIncompleta(o);
+    if(av&&!confirm(`⚠ Quedan ${av.faltan} vacante${av.faltan!==1?'s':''} sin cubrir (${av.pend} sin decidir, ${av.act} en búsqueda).
+
+¿Activar el servicio igual?`)) return;
+  }
   if(esCambio){
     const abierto=(DB.objetivoSupervisoresHistorial||[]).find(h=>h.objetivoIdLocal===idLocalTrunc(o.id)&&!h.vigenciaHasta&&!h.anulado);
     if(abierto){abierto.vigenciaHasta=hoyStr();supaSync('objetivoSupervisoresHistorial', abierto);}

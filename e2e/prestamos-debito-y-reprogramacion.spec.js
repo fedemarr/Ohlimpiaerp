@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test';
 
 async function loginComo(page, nombre, perfil) {
   await page.goto('/');
-  await page.waitForFunction(() => typeof window.verLegajo === 'function', { timeout: 20000 });
+  await page.waitForFunction(() => typeof window.verLegajo === 'function' && typeof window.verObjetivo === 'function', { timeout: 20000 });
   await cambiarRol(page, nombre, perfil);
   await page.evaluate(() => {
     document.getElementById('login-screen').style.display = 'none';

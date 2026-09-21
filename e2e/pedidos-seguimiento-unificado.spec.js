@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test';
 
 async function loginComoAdmin(page) {
   await page.goto('/');
-  await page.waitForFunction(() => typeof window.verLegajo === 'function', { timeout: 20000 });
+  await page.waitForFunction(() => typeof window.verLegajo === 'function' && typeof window.verObjetivo === 'function', { timeout: 20000 });
   await page.evaluate(async () => {
     const { setCurrentUser } = await import('/src/shared/state.js');
     setCurrentUser({ nombre: 'Test E2E', perfil: 'Administrador total' });
@@ -52,7 +52,11 @@ test('Pedidos + Seguimiento — KPIs unificados y +Vincular candidato', async ({
 
   // --- KPIs unificados en la tab Activos (2 vacantes, 0 en proceso) ---
   const leerKpis = () => page.evaluate(() => {
-    const cards = [...document.querySelectorAll('#pedidos-kpis .stat-valor')].map(el => el.textContent.trim());
+    // La tarjeta "Prepedidos s/decisión" (solo Operaciones/RRHH/Admin) es la
+    // primera: se ignora acá para que los índices sigan siendo los del ticket.
+    const cards = [...document.querySelectorAll('#pedidos-kpis .stat-card')]
+      .filter(c => !c.textContent.includes('Prepedidos'))
+      .map(c => c.querySelector('.stat-valor').textContent.trim());
     return cards; // [activos, vacantesBusqueda, conCandidatoProceso, cubiertasMes, vencidos, tiempoPromedio]
   });
 

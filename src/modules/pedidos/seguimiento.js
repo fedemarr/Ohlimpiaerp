@@ -22,6 +22,7 @@ import { $ } from '@shared/helpers.js';
 import { toast, abrirModal, cerrarModal } from '@shared/ui.js';
 import { supaSync } from '@shared/supabase.js';
 import { pedidosVisiblesParaUsuario, pedidoVencido, numeroPedidoTxt, ESTADOS_ACTIVOS, renderPedidosScreen } from './pedidos.js';
+import { chipOrigenPrepedido } from '@modules/prepedidos/prepedidos.js';
 
 const ESTADOS_NO_CONTINUA = ['Rechazado', 'Baja', 'Caducado'];
 
@@ -104,6 +105,13 @@ function estadoCalculadoPedido(pedido, cobertura) {
   if (pedidoVencido(pedido)) return 'Vencido';
   const hayActivo = cobertura.candidatos.some(c => !ESTADOS_NO_CONTINUA.includes(c.estado) && !getLegajoDe(c));
   return hayActivo ? 'En proceso' : 'En búsqueda';
+}
+
+// Un pedido está cubierto si se cerró a mano o si las altas/reasignaciones
+// vinculadas ya completan sus vacantes. Lo usa la bandeja de Prepedidos para
+// contar la dotación "cubierta".
+export function pedidoEstaCubierto(pedido) {
+  return pedido.estado === 'Cubierto' || coberturaDePedido(pedido).cubiertas >= (pedido.cantidad || 1);
 }
 
 const ESTADO_CHIP = { 'En búsqueda': 'badge-azul', 'En proceso': 'badge-naranja', 'Cubierto': 'badge-verde', 'Vencido': 'badge-rojo' };
@@ -261,7 +269,7 @@ function filaHtml(f) {
 
   return `<tr>
     <td>${tieneHistorial ? `<span class="seg-flecha" data-toggle-hist="${id}">${expandido ? '▾' : '▸'}</span>` : ''}</td>
-    <td class="seg-ped">${numeroPedidoTxt(p)}</td>
+    <td class="seg-ped">${numeroPedidoTxt(p)}${chipOrigenPrepedido(p)}</td>
     <td class="seg-srv">${p.servicio}<small>${zonaHtml}</small></td>
     <td>${p.supervisor || '—'}</td>
     <td>${p.puesto || '—'}</td>

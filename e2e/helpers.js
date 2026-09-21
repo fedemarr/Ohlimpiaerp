@@ -6,7 +6,7 @@
 
 export async function loginComoAdmin(page, perfil = 'Administrador total') {
   await page.goto('/');
-  await page.waitForFunction(() => typeof window.verLegajo === 'function', { timeout: 20000 });
+  await page.waitForFunction(() => typeof window.verLegajo === 'function' && typeof window.verObjetivo === 'function', { timeout: 20000 });
   await page.evaluate(async (perfil) => {
     const { setCurrentUser } = await import('/src/shared/state.js');
     setCurrentUser({ nombre: 'Test E2E', perfil });

@@ -92,6 +92,7 @@ export const _SM = {
   monoCambios: 'mono_cambios',
   monoPagosMes: 'mono_pagos_mes',
   monoTramites: 'mono_tramites',
+  prepedidos: 'prepedidos',
   // v117: renombrado de monoTablas → monoTablasOrg. El DB.monoTablas viejo
   // (objeto {vigencia: [fila ARCA]}, hardcodeado en legacy.js) sigue en uso
   // por getTablaVigente/getCURPersona/etc. — si esta clave se llamara
@@ -312,6 +313,7 @@ export function _toSnake(obj) {
     fechaSolicitud: 'fecha_solicitud', fechaEfectiva: 'fecha_efectiva',
     fechaEjecucion: 'fecha_ejecucion', elevadoPor: 'elevado_por',
     originadaPor: 'originada_por', pedidoVinculadoIdLocal: 'pedido_vinculado_id_local',
+    prepedidoIdLocal: 'prepedido_id_local', prepedidoVacante: 'prepedido_vacante',
     requiereAltura: 'requiere_altura', requierePolizaEsp: 'requiere_poliza_esp',
     aprobadoPor: 'aprobado_por', editadoPor: 'editado_por', editadoEn: 'editado_en',
     fechaAnulacion: 'fecha_anulacion', historialMovimientos: 'historial_movimientos',
@@ -835,6 +837,7 @@ export function _toCamel(obj) {
     fecha_solicitud: 'fechaSolicitud', fecha_efectiva: 'fechaEfectiva',
     fecha_ejecucion: 'fechaEjecucion', elevado_por: 'elevadoPor',
     originada_por: 'originadaPor', pedido_vinculado_id_local: 'pedidoVinculadoIdLocal',
+    prepedido_id_local: 'prepedidoIdLocal', prepedido_vacante: 'prepedidoVacante',
     requiere_altura: 'requiereAltura', requiere_poliza_esp: 'requierePolizaEsp',
     aprobado_por: 'aprobadoPor', editado_por: 'editadoPor', editado_en: 'editadoEn',
     fecha_anulacion: 'fechaAnulacion', historial_movimientos: 'historialMovimientos',

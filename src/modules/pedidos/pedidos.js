@@ -6,6 +6,10 @@ import { supaSync, SUPA } from '@shared/supabase.js';
 import { checklistDiasHtml, formatearHorarioSemanal } from '@shared/horarioDias.js';
 import { getSupervisorDeCodigo, serviciosDeSupervisor, direccionDeServicio } from '@modules/servicios_supervisor/index.js';
 import { calcularKpisSeguimiento } from './seguimiento.js';
+import {
+  renderPrepedidos, contarVacantesPendientes, puedeVerPrepedidos, actualizarBadgePrepedidos,
+  fechaOrigenPedido, chipOrigenPrepedido, filasHistorialPrepedidos,
+} from '@modules/prepedidos/prepedidos.js';
 
 // Estado del checklist de días/horario del modal (los onchange inline
 // escriben en scope global, mismo patrón que puestosObjTemp en legacy.js).
@@ -130,8 +134,8 @@ function timelineHtml(pedidoId) {
 // selección (ver seguimiento.js). Los primeros 5 números salen de
 // calcularKpisSeguimiento() (única fuente de verdad, con recuento real
 // por vacante) — "Tiempo promedio" sigue siendo propio de esta tabla
-// porque mide desde la CARGA del pedido, no desde la necesidad real del
-// servicio (eso requiere Prepedidos, todavía no construido).
+// porque mide desde el nacimiento REAL de la necesidad: el alta del servicio
+// si el pedido salió de un prepedido, la carga del pedido si no.
 function renderKpisPedidos() {
   const cont = $('pedidos-kpis');
   if (!cont) return;
@@ -147,20 +151,25 @@ function renderKpisPedidos() {
     return (m - 1) === hoy.getMonth() && a === hoy.getFullYear();
   });
   const tiempos = cubiertosEsteMes
-    .map(p => calcularDiasEntre(p.fecha, p.fechaInicio))
+    .map(p => calcularDiasEntre(fechaOrigenPedido(p), p.fechaInicio))
     .filter(d => typeof d === 'number');
   const promedio = tiempos.length ? Math.round(tiempos.reduce((a, b) => a + b, 0) / tiempos.length) : null;
 
+  const cardPre = puedeVerPrepedidos()
+    ? `<div class="stat-card" style="border-left:4px solid #7c3aed;"><div class="stat-label">Prepedidos s/decisión</div><div class="stat-valor" id="kpi-prepedidos">${contarVacantesPendientes()}</div></div>`
+    : '';
   cont.innerHTML = `
+    ${cardPre}
     <div class="stat-card"><div class="stat-label">Pedidos activos</div><div class="stat-valor">${k.pedidosActivos}</div></div>
     <div class="stat-card azul"><div class="stat-label">Vacantes en búsqueda</div><div class="stat-valor">${k.vacantesBusqueda}</div></div>
     <div class="stat-card naranja"><div class="stat-label">Con candidato en proceso</div><div class="stat-valor">${k.conCandidatoProceso}</div></div>
     <div class="stat-card verde"><div class="stat-label">Cubiertas este mes</div><div class="stat-valor">${k.cubiertasEsteMes}</div></div>
     <div class="stat-card rojo"><div class="stat-label">Vencidos ⚠</div><div class="stat-valor">${k.vencidos}</div></div>
-    <div class="stat-card"><div class="stat-label">Tiempo promedio (desde la carga)</div><div class="stat-valor" style="font-size:18px;">${promedio != null ? promedio + ' días' : '—'}</div></div>`;
+    <div class="stat-card"><div class="stat-label">Tiempo promedio (desde el alta)</div><div class="stat-valor" style="font-size:18px;">${promedio != null ? promedio + ' días' : '—'}</div></div>`;
 
   const tabCount = $('pedidos-tab-count');
   if (tabCount) tabCount.textContent = k.pedidosActivos;
+  actualizarBadgePrepedidos();
 }
 
 // ========== TABS ==========
@@ -181,7 +190,8 @@ export function cambiarTabPedidos(tab, btn) {
 // cuando se navega directo acá sin pasar por el click de la tab.
 export function renderPedidosScreen() {
   renderKpisPedidos();
-  if (tabPedidosActiva === 'historial') renderHistorialPedidos();
+  if (tabPedidosActiva === 'prepedidos') renderPrepedidos();
+  else if (tabPedidosActiva === 'historial') renderHistorialPedidos();
   else if (tabPedidosActiva === 'seguimiento') { if (window.renderSeguimientoSeleccion) window.renderSeguimientoSeleccion(); }
   else renderPedidos();
 }
@@ -205,7 +215,7 @@ export async function renderPedidos(lista) {
     <td style="font-size:12px;color:var(--texto-suave);">${numeroPedidoTxt(p)}</td>
     <td style="font-size:12px;color:var(--texto-suave);">${p.fecha}</td>
     <td style="font-size:12px;color:var(--texto-suave);">${p.cargadoPor || '—'}</td>
-    <td style="font-weight:500;">${p.servicio}</td>
+    <td style="font-weight:500;">${p.servicio}${chipOrigenPrepedido(p)}</td>
     <td style="font-weight:500;">${p.supervisor}</td>
     <td><span class="chip">${p.puesto}</span></td>
     <td style="text-align:right;">${p.cantidad || 1}</td>
@@ -229,11 +239,12 @@ export function renderHistorialPedidos() {
     .filter(p => ['Cubierto', 'Cancelado'].includes(p.estado))
     .filter(p => !resultado || p.estado === resultado)
     .filter(p => !buscar || p.servicio?.toLowerCase().includes(buscar) || p.supervisor?.toLowerCase().includes(buscar) || (p.nombreCandidato || '').toLowerCase().includes(buscar));
-  if (!base.length) {
+  const filasPre = filasHistorialPrepedidos({ buscar, resultado });
+  if (!base.length && !filasPre) {
     tbody.innerHTML = `<tr><td colspan="8" class="text-muted" style="text-align:center;padding:18px;">Sin pedidos en el historial.</td></tr>`;
     return;
   }
-  tbody.innerHTML = base.map(p => {
+  tbody.innerHTML = filasPre + base.map(p => {
     const cerroEv = eventosDePedido(p.id).find(e => e.tipo === 'cubierto' || e.tipo === 'cancelado');
     const dias = p.estado === 'Cubierto' && p.fechaInicio ? calcularDiasEntre(p.fecha, p.fechaInicio) : '—';
     const resultadoHtml = p.estado === 'Cubierto'
@@ -245,7 +256,7 @@ export function renderHistorialPedidos() {
     return `<tr onclick="verDetallePedido(${p.id})">
       <td style="font-size:12px;color:var(--texto-suave);">${numeroPedidoTxt(p)}</td>
       <td style="font-size:12px;color:var(--texto-suave);">${p.fecha} · ${p.cargadoPor || '—'}</td>
-      <td style="font-weight:500;">${p.servicio}</td>
+      <td style="font-weight:500;">${p.servicio}${chipOrigenPrepedido(p)}</td>
       <td><span class="chip">${p.puesto}</span></td>
       <td>${resultadoHtml}</td>
       <td style="font-size:12.5px;">${personaHtml}</td>
@@ -387,6 +398,23 @@ export function filtrarPedidos() {
     (!estado || p.estado === estado) &&
     (!bg || p.supervisor.toLowerCase().includes(bg) || p.servicio.toLowerCase().includes(bg))
   ));
+}
+
+// Alta de un pedido que nace de una vacante de prepedido ("Incorporar"):
+// mismo pedido de siempre, con el vínculo prepedidoIdLocal/prepedidoVacante.
+export function crearPedidoDesdePrepedido(datos, origenTxt) {
+  const nuevo = {
+    id: Date.now(),
+    numero: siguienteNumeroPedido(),
+    fecha: hoyDDMMAAAA(),
+    cargadoPor: currentUser?.nombre || 'Sistema',
+    ...datos,
+    estado: 'Pendiente',
+  };
+  DB.pedidos.push(nuevo);
+  supaSync('pedidos', nuevo);
+  agregarEvento(nuevo, 'creado', `Desde ${origenTxt}`);
+  return nuevo;
 }
 
 // ========== ALTA ==========

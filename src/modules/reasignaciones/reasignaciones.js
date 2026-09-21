@@ -42,6 +42,7 @@ const ss = (id, v) => { const e = $(id); if (e) e.textContent = v; };
 
 // ========== HELPER — BUSCAR POR ID (nunca por índice) ==========
 
+const chipPre = (r) => (typeof window.chipOrigenPrepedido === 'function' ? window.chipOrigenPrepedido(r) : '');
 const getReasById = (id) => (DB.reasignaciones || []).find(r => String(r.id) === String(id));
 
 // ========== SINCRONIZAR CONFIG (compat legacy.js) ==========
@@ -176,7 +177,7 @@ export function renderReasPend(lista) {
       <td style="font-family:'DM Mono',monospace;font-size:12px;color:var(--azul);">${r.nroSocio}</td>
       <td style="font-size:12px;">${r.servicioOrigen}</td>
       <td style="font-size:12px;">${r.supervisorOrigen}</td>
-      <td style="font-size:12px;font-weight:500;color:var(--azul);">${r.servicioDestino}</td>
+      <td style="font-size:12px;font-weight:500;color:var(--azul);">${r.servicioDestino}${chipPre(r)}</td>
       <td style="font-size:12px;">${r.supervisorDestino}</td>
       <td><span class="chip" style="font-size:10px;">${r.motivo || '—'}</span></td>
       <td style="font-size:12px;color:var(--texto-suave);">${ddmm(r.fechaSolicitud)}</td>
@@ -215,7 +216,7 @@ export function renderReasHist(lista) {
       <td style="font-weight:500;">${r.nombreAsociado}</td>
       <td style="font-family:'DM Mono',monospace;font-size:12px;color:var(--azul);">${r.nroSocio}</td>
       <td style="font-size:12px;">${r.servicioOrigen}</td>
-      <td style="font-size:12px;font-weight:500;color:var(--azul);">${r.servicioDestino}</td>
+      <td style="font-size:12px;font-weight:500;color:var(--azul);">${r.servicioDestino}${chipPre(r)}</td>
       <td><span class="chip" style="font-size:10px;">${r.motivo || '—'}</span></td>
       <td style="font-size:12px;color:var(--texto-suave);">${ddmm(r.fechaEfectiva)}</td>
       <td style="font-size:12px;">${r.elevadoPor}</td>
@@ -505,7 +506,36 @@ export function elegirSugerenciaDestino(idx) {
 
 // ========== ABRIR MODAL — NUEVA / RETOMAR BORRADOR ==========
 
+// Contexto de "Cubrir con interno" desde la bandeja de Prepedidos: la
+// reasignación es una reasignación normal (vive acá), solo lleva el vínculo
+// prepedidoIdLocal/prepedidoVacante y el destino precargado.
+let _prepCtx = null;
+
+function aplicarModoPrepedido(ctx) {
+  _prepCtx = ctx ? { prepedidoIdLocal: ctx.prepedidoIdLocal, prepedidoVacante: ctx.prepedidoVacante } : null;
+  const dest = $('reas-serv-dest');
+  if (dest) dest.readOnly = !!ctx;
+  const tit = $('reas-modal-title');
+  if (tit) tit.textContent = ctx ? `🔄 Nueva reasignación — desde prepedido ${ctx.etiqueta || ''}` : '🔄 Nueva reasignación';
+}
+
+function refrescarPrepedidos() {
+  if (typeof window.actualizarBadgePrepedidos === 'function') window.actualizarBadgePrepedidos();
+  const body = $('prepedidos-body');
+  if (body && body.offsetParent && typeof window.renderPrepedidos === 'function') window.renderPrepedidos();
+}
+
+export function abrirReasignacionDesdePrepedido(ctx) {
+  abrirNuevaReasignacion();
+  aplicarModoPrepedido(ctx);
+  if ($('reas-serv-dest')) $('reas-serv-dest').value = ctx.servicioDestino || '';
+  if ($('reas-sup-dest')) $('reas-sup-dest').value = ctx.supervisorDestino || '';
+  if ($('reas-originada-por')) $('reas-originada-por').value = 'Central de Operaciones';
+  if ($('reas-desc')) $('reas-desc').value = ctx.descripcion || '';
+}
+
 export function abrirNuevaReasignacion() {
+  aplicarModoPrepedido(null);
   ['reas-asociado', 'reas-nro', 'reas-serv-orig', 'reas-sup-orig', 'reas-categoria', 'reas-serv-dest', 'reas-sup-dest', 'reas-desc'].forEach(id => {
     const el = $(id); if (el) el.value = '';
   });
@@ -558,6 +588,10 @@ export function abrirBorradorReasignacionPorId(id) {
   if ($('reas-elevado-por')) $('reas-elevado-por').value = r.elevadoPor || '';
   if ($('btn-sugerir-destino')) $('btn-sugerir-destino').disabled = false;
   $('modal-reasignacion').dataset.editId = r.id;
+  if (r.prepedidoIdLocal) {
+    const pre = (DB.prepedidos || []).find(p => String(p.id).slice(-9) === String(r.prepedidoIdLocal));
+    aplicarModoPrepedido({ prepedidoIdLocal: r.prepedidoIdLocal, prepedidoVacante: r.prepedidoVacante, etiqueta: pre ? `PRE-${pre.numero}` : '' });
+  } else aplicarModoPrepedido(null);
   abrirModal('modal-reasignacion');
 }
 
@@ -612,6 +646,7 @@ export function guardarReasignacion(estadoDestino) {
   r.descripcion = descripcion;
   r.originadaPor = originadaPor;
   r.pedidoVinculadoIdLocal = ($('reas-pedido-vinculado') || { value: '' }).value || null;
+  if (_prepCtx) { r.prepedidoIdLocal = _prepCtx.prepedidoIdLocal; r.prepedidoVacante = _prepCtx.prepedidoVacante; }
   r.requiereAltura = (($('reas-altura') || { value: 'No' }).value || 'No') !== 'No';
   r.requierePolizaEsp = (($('reas-poliza') || { value: 'No' }).value || 'No') !== 'No';
   r.estado = estadoDestino;
@@ -622,7 +657,8 @@ export function guardarReasignacion(estadoDestino) {
 
   supaSync('reasignaciones', r);
   cerrarModal('modal-reasignacion');
-  construirMenu(); renderReasignaciones();
+  aplicarModoPrepedido(null);
+  construirMenu(); renderReasignaciones(); refrescarPrepedidos();
   toast(estadoDestino === 'Borrador' ? '✓ Borrador guardado' : '✓ Reasignación elevada para aprobación');
 }
 
@@ -661,7 +697,7 @@ export function aprobarReasignacionPorId(id) {
     ejecutarReasignacion(r);
   }
   supaSync('reasignaciones', r);
-  construirMenu(); renderReasignaciones();
+  construirMenu(); renderReasignaciones(); refrescarPrepedidos();
   toast(ejecutaYa
     ? `✅ Aprobada y ejecutada — ${r.nombreAsociado} → ${r.servicioDestino}`
     : `✅ Aprobada — se ejecutará el ${ddmm(r.fechaEfectiva)}`, 5000);
@@ -682,7 +718,7 @@ export function rechazarReasignacionPorId(id) {
     r.aprobadoPor = currentUser?.nombre || 'Administrador';
     r.fechaRechazo = new Date().toISOString();
     supaSync('reasignaciones', r);
-    construirMenu(); renderReasignaciones();
+    construirMenu(); renderReasignaciones(); refrescarPrepedidos();
     toast(`❌ Reasignación de ${r.nombreAsociado} rechazada`);
   });
 }
@@ -699,7 +735,7 @@ export function anularReasignacionPorId(id) {
   r.anuladoPor = currentUser?.nombre || 'Administrador';
   r.fechaAnulacion = new Date().toISOString();
   supaSync('reasignaciones', r);
-  construirMenu(); renderReasignaciones();
+  construirMenu(); renderReasignaciones(); refrescarPrepedidos();
   toast('✓ Reasignación anulada');
 }
 

@@ -7,7 +7,7 @@ export {
   renderHorarioPedido, resetModalPedido, abrirEdicionPedido, onChangeSupervisorPedido,
   onChangeServicioPedido, abrirNuevoPedido, cambiarTabPedidos, renderHistorialPedidos,
   renderPedidosScreen, tomarPedido, abrirModalCubierto, confirmarCubierto, abrirModalCancelar,
-  confirmarCancelar,
+  confirmarCancelar, crearPedidoDesdePrepedido,
 } from './pedidos.js';
 
 export {
@@ -32,6 +32,7 @@ export const pedidosScreenConfig = {
 // ========== WINDOW BINDINGS ==========
 
 import {
+  crearPedidoDesdePrepedido,
   filtrarPedidos, guardarPedido, verDetallePedido, renderPerfilInputs, abrirEdicionPedido,
   onChangeSupervisorPedido, onChangeServicioPedido, cambiarTabPedidos, renderHistorialPedidos,
   tomarPedido, abrirModalCubierto, confirmarCubierto, abrirModalCancelar, confirmarCancelar,
@@ -40,8 +41,12 @@ import {
   renderSeguimientoSeleccion, filtrarSeguimientoSeleccion, abrirDetallePedidoSeguimiento,
   abrirCargaManualEtapaSeguimiento, guardarCargaManualEtapaSeguimiento, exportarSeguimientoCSV,
   abrirVincularCandidato, filtrarVincularCandidatos, elegirCandidatoVincular, irACrearCandidatoDesdeVincular,
+  pedidoEstaCubierto,
 } from './seguimiento.js';
 
+window.crearPedidoDesdePrepedido = crearPedidoDesdePrepedido;
+window.pedidoEstaCubierto = pedidoEstaCubierto;
+window.renderPedidosScreen = renderPedidosScreen;
 window.renderPedidos = renderPedidos;
 window.filtrarPedidos = filtrarPedidos;
 window.guardarPedido = guardarPedido;
