@@ -9,6 +9,7 @@ import { leerHorizonteDesdeIndices, generateMonthKeys } from '@/shared/finflow/f
 import { confirmar } from '@/shared/finflow/confirmar.js';
 import { wireAltoTabla } from '@/shared/finflow/alto-tabla.js';
 import { abrirDocStorage } from '@/shared/finflow/ver-doc.js';
+import { planificarSemillas } from './valor_hora_inicio.js';
 
 const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 
@@ -4493,11 +4494,20 @@ function wireBackupRestore() {
 // filas nuevas) para que el resto de init() ya las vea sin recargar.
 // El match es por codigo_objetivo=objetivos.codigo — es el único
 // identificador estable compartido entre las dos tablas.
-async function sincronizarSucursalesDesdeObjetivos(suc, clientes) {
+//
+// Además siembra el valor hora pactado del MES DE INICIO de los servicios
+// nuevos (ver valor_hora_inicio.js): un servicio recién dado de alta no tiene
+// ninguna fila en objetivo_precios y su primer precio se cargaba a mano. Se
+// hace acá porque es el único punto por donde TODO servicio activo llega a
+// esta pantalla, sin importar por qué camino se dio de alta. Muta también
+// `precios` (agrega las filas sembradas) para que init() las vea sin recargar.
+// Devuelve { sembrados, sinValorHora } para avisarlo en pantalla.
+async function sincronizarSucursalesDesdeObjetivos(suc, clientes, precios) {
+  const resumen = { sembrados: [], sinValorHora: [] };
   try {
     const objetivosActivos = await fetchAllRows(
       "objetivos",
-      "codigo, nombre, tipo, cliente_id_local",
+      "codigo, nombre, tipo, cliente_id_local, modelo_precio, valor, valor_hora, efts, fecha_inicio",
       (q) => q.eq("estado", "Operativo").or("anulado.is.null,anulado.eq.false")
     );
     const codigosExistentes = new Set(suc.map((s) => s.codigo_objetivo).filter(Boolean));
@@ -4505,7 +4515,6 @@ async function sincronizarSucursalesDesdeObjetivos(suc, clientes) {
     const clientePorIdLocal = new Map(clientes.map((c) => [c.id_local, c.id]));
 
     const faltantes = objetivosActivos.filter((o) => o.codigo && !codigosExistentes.has(o.codigo));
-    if (!faltantes.length) return;
 
     const filasNuevas = [];
     for (const o of faltantes) {
@@ -4519,11 +4528,44 @@ async function sincronizarSucursalesDesdeObjetivos(suc, clientes) {
       filasNuevas.push(data);
     }
     if (filasNuevas.length) suc.push(...filasNuevas);
+
+    // Valor hora pactado del mes de inicio (servicios sin ningún precio cargado).
+    const { filas, sinValorHora } = planificarSemillas({ objetivos: objetivosActivos, suc, precios, mesActual: mesActualISO() });
+    resumen.sinValorHora = sinValorHora;
+    if (filas.length) {
+      // ignoreDuplicates: si el mes ya existe (otra pestaña, otro usuario a la
+      // vez) no se pisa ni se duplica — la unicidad (sucursal_id, mes,
+      // tipo_servicio) lo resuelve en la base.
+      const { data, error } = await supabase.from("objetivo_precios")
+        .upsert(filas, { onConflict: "sucursal_id,mes,tipo_servicio", ignoreDuplicates: true })
+        .select("sucursal_id, codigo_objetivo, mes, precio_hora, precio_hora_b, tipo_precio, tipo, tipo_servicio, paritaria_id, escala_id");
+      if (error) console.error("valor hora del mes de inicio:", error.message);
+      else if (data?.length) {
+        precios.push(...data);
+        resumen.sembrados = data.map((r) => ({ codigo: r.codigo_objetivo, mes: String(r.mes).slice(0, 10), precio: r.precio_hora }));
+      }
+    }
   } catch (e) {
     // No bloquea la carga de la pantalla por esto — peor es peor sincronizado
     // que no cargar nada. Queda en consola para diagnosticar.
     console.error("sincronizarSucursalesDesdeObjetivos falló:", e);
   }
+  return resumen;
+}
+
+function mesActualISO() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-01`;
+}
+
+const MES_ES = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"];
+const mesLegible = (iso) => `${MES_ES[Number(iso.slice(5, 7)) - 1]}-${iso.slice(0, 4)}`;
+
+function avisoAltasNuevas({ sembrados, sinValorHora }) {
+  const partes = [];
+  if (sembrados.length) partes.push("✔ Valor hora pactado cargado automáticamente en el mes de inicio: " + sembrados.map((s) => `${s.codigo} (${mesLegible(s.mes)}: ${fmtMoney(s.precio)})`).join(", ") + ".");
+  if (sinValorHora.length) partes.push("⚠ Sin valor hora pactado en el alta (cargalo a mano): " + sinValorHora.map((s) => `${s.codigo} (${mesLegible(s.mes)})`).join(", ") + ".");
+  return partes.join("  ");
 }
 
 async function init() {
@@ -4554,7 +4596,7 @@ async function init() {
     // de "activo" que usa el módulo Objetivos/Servicios (renderObjetivos,
     // legacy.js) — antes acá no se filtraba por nada, sucursales.activo ni
     // se leía.
-    await sincronizarSucursalesDesdeObjetivos(suc, clientes);
+    const resumenAltas = await sincronizarSucursalesDesdeObjetivos(suc, clientes, precios);
 
     const horizonte = leerHorizonteDesdeIndices(indices);
     const MESES = calcularMeses(horizonte);
@@ -4610,6 +4652,7 @@ async function init() {
     wireAltoTablaPrecios();   // altura medida del contenedor + recálculo por resize/ResizeObserver
     // dejar el mes en curso a la vista (tras aplicar estilos/layout)
     requestAnimationFrame(() => requestAnimationFrame(scrollAlMesEnCurso));
+    mostrarMsgEdicion(avisoAltasNuevas(resumenAltas));
   } catch (e) {
     console.error(e);
     if (status) status.textContent = "No se pudo cargar la pantalla. " + humanizarError(e);
