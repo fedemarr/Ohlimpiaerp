@@ -67,14 +67,20 @@ describe('nivelAcceso — precedencia override > plantilla > fallback', () => {
     expect(nivelAcceso('liquidacion', 'Comercial')).toBe(0); // no está
   });
 
-  it('módulo FUERA de la matriz ignora overrides y plantillas — rige PERFILES', () => {
+  it('módulo FUERA de la matriz ignora las plantillas de perfil — rige PERFILES', () => {
     seed();
-    // candidatos no está en la planilla; un override huérfano no debe aplicarse
-    DB.usuarioAccesos.push({ usuarioId: 'uuid-1', moduloKey: 'candidatos', nivel: 2 });
-    expect(nivelAcceso('candidatos', 'RRHH', 'uuid-1')).toBe(2); // por PERFILES
+    // candidatos no está en la planilla: una fila huérfana de perfil_accesos no se aplica.
+    expect(nivelAcceso('candidatos', 'RRHH')).toBe(2); // por PERFILES
     DB.perfilAccesos.push({ perfil: 'RRHH', moduloKey: 'candidatos', nivel: 0 });
-    expect(nivelAcceso('candidatos', 'RRHH', 'uuid-1')).toBe(2); // sigue por PERFILES
-    expect(nivelAcceso('candidatos', 'Supervisor', 'uuid-1')).toBe(0); // Supervisor no lo tiene
+    expect(nivelAcceso('candidatos', 'RRHH')).toBe(2); // sigue por PERFILES
+    expect(nivelAcceso('candidatos', 'Supervisor')).toBe(0); // Supervisor no lo tiene
+  });
+
+  it('el override individual SÍ aplica aunque el módulo esté fuera de la matriz (fix a289e2c: módulos "Otros")', () => {
+    seed();
+    DB.usuarioAccesos.push({ usuarioId: 'uuid-1', moduloKey: 'candidatos', nivel: 2 });
+    expect(nivelAcceso('candidatos', 'Supervisor', 'uuid-1')).toBe(2); // acceso puntual concedido
+    expect(nivelAcceso('candidatos', 'Supervisor', 'otro-uuid')).toBe(0); // solo a ese usuario
   });
 });
 

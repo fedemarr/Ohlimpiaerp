@@ -158,17 +158,28 @@ describe('Préstamo — cuotas las define RRHH, no el supervisor', () => {
   it('aprobarRRHH con cuotas y monto definidos calcula montoCuota correctamente', async () => {
     const p = await crearPedidoPrestamo({ legajo, montoSolicitado: 90000, fechaPedido: '2026-07-01' });
     await elevarPedido('Préstamo', p.id);
-    const r = await aprobarRRHH('Préstamo', p.id, { cuotasAprobadas: 6, montoAprobado: 90000 });
+    // tasaInteres: 0 aísla el cálculo de la cuota; el interés tiene su test abajo.
+    const r = await aprobarRRHH('Préstamo', p.id, { cuotasAprobadas: 6, montoAprobado: 90000, tasaInteres: 0 });
     expect(r.error).toBeUndefined();
     expect(r.pedido.estado).toBe('Aprobada RRHH');
     expect(r.pedido.cuotas).toBe(6);
     expect(r.pedido.montoCuota).toBe(15000);
   });
 
+  it('sin tasa explícita rige la tasa de configuración (10%): cuota = (capital + interés) / cuotas', async () => {
+    const p = await crearPedidoPrestamo({ legajo, montoSolicitado: 90000, fechaPedido: '2026-07-01' });
+    await elevarPedido('Préstamo', p.id);
+    const r = await aprobarRRHH('Préstamo', p.id, { cuotasAprobadas: 6, montoAprobado: 90000 });
+    expect(r.pedido.tasaInteres).toBe(10);
+    expect(r.pedido.monto).toBe(90000); // el capital (lo que se deposita) no cambia
+    expect(r.pedido.montoTotal).toBe(99000);
+    expect(r.pedido.montoCuota).toBe(16500);
+  });
+
   it('ciclo completo hasta Pagado, con compromisos de descuento generados por cuota', async () => {
     const p = await crearPedidoPrestamo({ legajo, montoSolicitado: 60000, fechaPedido: '2026-07-01' });
     await elevarPedido('Préstamo', p.id);
-    await aprobarRRHH('Préstamo', p.id, { cuotasAprobadas: 3, montoAprobado: 60000 });
+    await aprobarRRHH('Préstamo', p.id, { cuotasAprobadas: 3, montoAprobado: 60000, tasaInteres: 0 });
     const r = await pagarFinanzas('Préstamo', p.id);
     expect(r.pedido.estado).toBe('Aprobada');
     expect(r.pedido.fechaOtorgamiento).toBeTruthy();
@@ -181,7 +192,7 @@ describe('Rechazo de Finanzas — dos caminos para RRHH', () => {
   async function prestamoRechazadoPorFinanzas() {
     const p = await crearPedidoPrestamo({ legajo, montoSolicitado: 90000, fechaPedido: '2026-07-01' });
     await elevarPedido('Préstamo', p.id);
-    await aprobarRRHH('Préstamo', p.id, { cuotasAprobadas: 6, montoAprobado: 90000 });
+    await aprobarRRHH('Préstamo', p.id, { cuotasAprobadas: 6, montoAprobado: 90000, tasaInteres: 0 });
     const motivo = 'Necesitamos aprobación del área contable primero';
     const r = await rechazarFinanzas('Préstamo', p.id, motivo);
     return { id: p.id, motivo, pedido: r.pedido };
