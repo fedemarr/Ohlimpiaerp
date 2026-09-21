@@ -1476,21 +1476,94 @@ function tabCliModal(idx,btn){
   document.querySelectorAll('#modal-cliente .tab-content').forEach(t=>t.classList.remove('active'));
   btn.classList.add('active');$('cli-tab-'+idx).classList.add('active');
 }
+// Baja de cliente. Antes usaba window.prompt(): un diálogo nativo BLOQUEA el
+// hilo del navegador (la pestaña queda congelada, incluidos los timers de
+// refresco de sesión de Supabase) y la persistencia era fire-and-forget, así
+// que un fallo del servidor dejaba la baja solo en memoria sin avisar nada.
+// Ahora es un modal con motivo obligatorio y estado de carga, y la baja solo
+// se da por hecha cuando el servidor confirmó. NADA acá toca la sesión: un
+// error de red/permisos muestra un aviso y deja todo como estaba.
+let _bajaClienteIdLocal=null;
+let _bajaClienteEnCurso=false;
+function ensureModalBajaCliente(){
+  if($('modal-baja-cliente')) return;
+  const m=document.createElement('div');
+  m.className='modal-overlay';
+  m.id='modal-baja-cliente';
+  m.innerHTML=`
+    <div class="modal" style="max-width:460px;">
+      <div class="modal-header"><h3 id="baja-cli-titulo">Dar de baja al cliente</h3><button class="btn-close" onclick="cerrarBajaCliente()">×</button></div>
+      <div class="modal-body">
+        <div id="baja-cli-aviso" style="display:none;margin-bottom:12px;padding:9px 12px;border-radius:6px;background:#fff4e0;border:1px solid #f0c987;color:#8a5a00;font-size:12.5px;"></div>
+        <div class="form-group"><label>Motivo de la baja del cliente *</label>
+          <textarea id="baja-cli-motivo" rows="3" placeholder="Explicá por qué se da de baja..." style="width:100%;padding:8px;border:1px solid var(--borde-fuerte);border-radius:6px;font-family:inherit;font-size:13px;" oninput="$('baja-cli-error').style.display='none'"></textarea>
+          <div id="baja-cli-error" style="display:none;color:var(--rojo);font-size:12px;margin-top:4px;"></div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" id="baja-cli-cancelar" onclick="cerrarBajaCliente()">Cancelar</button>
+        <button class="btn btn-danger" id="baja-cli-confirmar" onclick="confirmarBajaCliente()">Dar de baja</button>
+      </div>
+    </div>`;
+  document.body.appendChild(m);
+}
+function _bajaClienteCargando(cargando){
+  _bajaClienteEnCurso=cargando;
+  const b=$('baja-cli-confirmar'),c=$('baja-cli-cancelar');
+  if(b){b.disabled=cargando;b.textContent=cargando?'⏳ Guardando…':'Dar de baja';}
+  if(c) c.disabled=cargando;
+}
+function cerrarBajaCliente(){
+  if(_bajaClienteEnCurso) return;
+  cerrarModal('modal-baja-cliente');
+}
 function abrirBajaCliente(idLocal){
   const c=getClienteByIdLocal(idLocal);if(!c)return;
+  ensureModalBajaCliente();
+  _bajaClienteIdLocal=idLocal;
   const objActivos=DB.objetivos.filter(o=>o.clienteId===c.id&&!o.anulado&&o.estado!=='Baja');
-  const aviso=objActivos.length?`Este cliente tiene ${objActivos.length} objetivo(s) activo(s). Dar de baja también dará de baja los objetivos. `:'';
-  const motivo=prompt(aviso+'Motivo de la baja del cliente:');
-  if(motivo===null) return;
-  if(!motivo.trim()){toast('La baja requiere un motivo');return;}
-  c.estado='Inactivo';
-  supaSync('clientes', c);
-  objActivos.forEach(o=>{
-    const desde=o.estado;
-    o.estado='Baja';o.fechaBaja=hoyStr();o.dadoDeBajaPor=currentUser?.nombre||'';o.motivoBaja='Baja de cliente: '+motivo.trim();
-    supaSync('objetivos', objetivoParaGuardar(o));
-    registrarEventoObjetivo(o,desde,'Baja','Baja de cliente: '+motivo.trim());
-  });
+  $('baja-cli-titulo').textContent=`Dar de baja a "${c.nombre}"`;
+  const aviso=$('baja-cli-aviso');
+  aviso.style.display=objActivos.length?'block':'none';
+  aviso.textContent=objActivos.length?`Este cliente tiene ${objActivos.length} servicio(s) activo(s). Dar de baja al cliente también da de baja sus servicios.`:'';
+  $('baja-cli-motivo').value='';
+  $('baja-cli-error').style.display='none';
+  _bajaClienteCargando(false);
+  abrirModal('modal-baja-cliente');
+  setTimeout(()=>$('baja-cli-motivo')?.focus(),50);
+}
+async function confirmarBajaCliente(){
+  if(_bajaClienteEnCurso) return;   // doble click: una sola petición
+  const c=getClienteByIdLocal(_bajaClienteIdLocal);
+  const errEl=$('baja-cli-error');
+  if(!c){cerrarBajaCliente();return;}
+  const motivo=($('baja-cli-motivo')?.value||'').trim();
+  if(!motivo){errEl.textContent='La baja requiere un motivo.';errEl.style.display='block';$('baja-cli-motivo').focus();return;}
+  _bajaClienteCargando(true);
+  const objActivos=DB.objetivos.filter(o=>o.clienteId===c.id&&!o.anulado&&o.estado!=='Baja');
+  const snapCli={...c};
+  const snapObjs=objActivos.map(o=>({o,copia:{...o}}));
+  const revertir=()=>{Object.assign(c,snapCli);snapObjs.forEach(({o,copia})=>Object.assign(o,copia));};
+  try{
+    // Primero los servicios y por último el cliente: si algo falla en el
+    // medio el cliente sigue Activo (visible) y se puede reintentar.
+    for(const o of objActivos){
+      o.estado='Baja';o.fechaBaja=hoyStr();o.dadoDeBajaPor=currentUser?.nombre||'';o.motivoBaja='Baja de cliente: '+motivo;
+      if(!await supaSync('objetivos', objetivoParaGuardar(o))) throw new Error('servicio '+(o.codigo||''));
+    }
+    c.estado='Inactivo';
+    if(!await supaSync('clientes', c)) throw new Error('cliente');
+  }catch(e){
+    revertir();
+    const err=getLastSupaSyncError();
+    toast('⚠️ No se pudo dar de baja el cliente ('+(err?.message||e.message)+'). No se hizo ningún cambio — reintentá.',6000);
+    _bajaClienteCargando(false);
+    renderClientes();
+    return;
+  }
+  snapObjs.forEach(({o,copia})=>registrarEventoObjetivo(o,copia.estado,'Baja','Baja de cliente: '+motivo));
+  _bajaClienteCargando(false);
+  cerrarModal('modal-baja-cliente');
   renderClientes();if(document.getElementById('screen-objetivos')?.classList.contains('active')) filtrarObjetivos();
   toast('✓ Cliente dado de baja');
 }
@@ -14349,6 +14422,8 @@ window.abrirModalCategoriaSind = abrirModalCategoriaSind;
 window.abrirModalCliente = abrirModalCliente;
 window.abrirModalObjetivo = abrirModalObjetivo;
 window.abrirBajaCliente = abrirBajaCliente;
+window.confirmarBajaCliente = confirmarBajaCliente;
+window.cerrarBajaCliente = cerrarBajaCliente;
 window.abrirBajaObjetivo = abrirBajaObjetivo;
 window.abrirAsignarSupervisor = abrirAsignarSupervisor;
 window.abrirGestionarSupervisoresMulti = abrirGestionarSupervisoresMulti;
