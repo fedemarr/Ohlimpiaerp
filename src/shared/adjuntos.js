@@ -27,6 +27,7 @@ export const TIPO_LEGIBLE = {
   'proceso':       'Documento del proceso',
   'certificado-mipyme': 'Certificado MiPyME',
   'nc-firmada': 'NC Firmada',
+  'respaldo-baja': 'Respaldo de baja',
 };
 
 // Límite de tamaño (10 MB, igual que el bucket) y MIME types permitidos.
@@ -46,6 +47,11 @@ function _nombreArchivo(tipo, dni, ext) {
     const fecha = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
     return `Antecedente ${fecha} - DNI ${dni}.${ext}`;
   }
+  if (tipo === 'respaldo-baja') {
+    // Varios por baja (carta documento, acuse, acta): se distinguen por fecha.
+    const fecha = new Date().toISOString().slice(0, 10);
+    return `Respaldo de baja ${fecha} - DNI ${dni}.${ext}`;
+  }
   return `${TIPO_LEGIBLE[tipo]} - DNI ${dni}.${ext}`;
 }
 
@@ -54,7 +60,7 @@ function _nombreArchivo(tipo, dni, ext) {
 /**
  * Sube un archivo a Storage y crea el registro en la tabla adjuntos.
  * Invalida (vigente=false) los adjuntos previos del mismo (dni, tipo),
- * EXCEPTO tipo='antecedente' que conserva historial.
+ * EXCEPTO tipo='antecedente' y 'respaldo-baja' que conservan historial.
  * Devuelve el registro creado (camelCase, con id). Lanza Error en cualquier fallo.
  *
  * LIMITACIÓN CONOCIDA (deuda anotada):
@@ -97,7 +103,9 @@ export async function subirAdjunto({ dni, etapa, tipo, file, fechaVencimiento = 
 
   // 6. Invalidar vigentes previos del mismo (dni, tipo) — salvo antecedentes.
   //    Si la UPDATE falla, abortamos: no podemos quedar con 2 vigentes.
-  if (tipo !== 'antecedente') {
+  //    'respaldo-baja' también conserva historial: una baja puede tener
+  //    varios documentos (CD, acuse de recibo, acta).
+  if (tipo !== 'antecedente' && tipo !== 'respaldo-baja') {
     const { error: invErr } = await SUPA.from('adjuntos')
       .update({ vigente: false })
       .eq('dni', dni).eq('tipo', tipo)

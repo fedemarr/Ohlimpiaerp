@@ -7262,7 +7262,7 @@
         </div>
         <div class="form-grid form-grid-2">
           <div class="form-group"><label>Supervisor</label><input type="text" id="edit-supervisor"></div>
-          <div class="form-group"><label>Estado</label><select id="edit-estado"><option>Activo</option><option>Baja</option></select></div>
+          <div class="form-group"><label>Estado</label><select id="edit-estado" onchange="toggleBajaDetalleLegajo()"><option>Activo</option><option>Baja</option></select></div>
         </div>
         <div class="form-grid form-grid-2">
           <div class="form-group"><label>Fecha de baja</label><input type="date" id="edit-fecha-baja"></div>
@@ -7274,6 +7274,14 @@
               <option>1CD</option><option>2CD</option><option>Exclusión</option>
             </select>
           </div>
+        </div>
+        <div id="edit-baja-detalle" style="display:none;background:#fff5f4;border:1px solid #f5c6c0;border-radius:8px;padding:12px 14px;margin:4px 0 10px;">
+          <div class="form-group"><label>Motivo de la baja * <span style="font-weight:400;color:var(--texto-suave);">(obligatorio al dar de baja)</span></label>
+            <textarea id="edit-motivo-baja" rows="3" placeholder="Ej.: expulsión por Acta N° 526 — art. 13 inc. D y 15 inc. C y D del Estatuto…"></textarea></div>
+          <div class="form-group" style="margin-bottom:0;"><label>Respaldo de la baja (carta documento, acta, acuse…) <span style="font-weight:400;color:var(--texto-suave);">— opcional</span></label>
+            <input type="file" id="edit-baja-archivo" accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png" multiple>
+            <div class="form-hint">PDF, JPG o PNG, hasta 10 MB cada uno. Quedan también en la pestaña Adjuntos del legajo.</div>
+            <div id="edit-baja-existentes" style="margin-top:6px;"></div></div>
         </div>
         <div class="form-grid form-grid-3">
           <div class="form-group"><label>Calzado</label><input type="number" id="edit-calzado" min="34" max="48"></div>

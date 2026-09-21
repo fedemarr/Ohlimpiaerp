@@ -4,7 +4,7 @@ import { toast, abrirModal, cerrarModal } from '@shared/ui.js';
 import { supaSync, supaDel, getLastSupaSyncError } from '@shared/supabase.js';
 import { TALLES_POR_PRENDA } from '@modules/uniformes/catalogos.js';
 import { calcularFechaAltaObraSocial, formatearMesAnio } from '@shared/obraSocial.js';
-import { listarAdjuntos, obtenerUrlFirmada, subirAdjunto, borrarAdjunto, MAX_SIZE, TIPO_LEGIBLE } from '@shared/adjuntos.js';
+import { listarAdjuntos, obtenerUrlFirmada, subirAdjunto, borrarAdjunto, MAX_SIZE, TIPOS_PERMITIDOS, TIPO_LEGIBLE } from '@shared/adjuntos.js';
 import { calcularEstadoVencimiento } from '../documentacion/documentacion.js';
 import { crearNotificacion } from '@shared/notificaciones.js';
 import { getSupervisorDeCodigo } from '@modules/servicios_supervisor/index.js';
@@ -373,6 +373,7 @@ export function verLegajo(nro) {
       <div class="info-item"><div class="key">Período prueba</div><div class="val">${l.periodoPrueba} meses</div></div>
       <div class="info-item"><div class="key">Fecha baja</div><div class="val">${l.fechaBaja || '—'}</div></div>
       <div class="info-item"><div class="key">Estado legal</div><div class="val">${l.estadoLegal ? badge(l.estadoLegal) : 'Sin situación legal'}</div></div>
+      ${(l.estado === 'Baja' || l.motivoBaja) ? `<div class="info-item" style="grid-column:1/-1;"><div class="key">Motivo de la baja</div><div class="val" style="white-space:pre-wrap;">${escHtml(l.motivoBaja) || '—'}</div><div id="leg-baja-respaldo" style="margin-top:6px;"></div></div>` : ''}
       <div class="info-item"><div class="key">Seguro</div><div class="val">${badge(l.seguro === 'Completo' ? 'Completo' : 'Pendiente')}</div></div>
       <div class="info-item"><div class="key">Ambo / Calzado</div><div class="val">${l.ambo || '—'} / ${l.calzado || '—'}</div></div>
       <div class="info-item"><div class="key">Uniforme (chomba/grafa/buzo/campera/gorra)</div><div class="val">${['chomba', 'grafa', 'buzo', 'campera', 'gorra'].map(k => (l.tallesUniforme || {})[k] || '—').join(' / ')}</div></div>
@@ -424,7 +425,7 @@ export function verLegajo(nro) {
       ${puedeVerCC ? adelantosDelAsoc.map(a => `<div class="tl-item"><div class="tl-dot" style="background:var(--verde);"></div><div class="tl-content"><h4>${a.tipo}: $${(a.monto || 0).toLocaleString('es-AR')}</h4><p>${a.fecha || '—'}</p></div></div>`).join('') : ''}
       ${puedeVerCC ? prestamosDelAsoc.map(p => `<div class="tl-item"><div class="tl-dot" style="background:var(--verde);"></div><div class="tl-content"><h4>Préstamo otorgado: $${(p.monto || 0).toLocaleString('es-AR')} en ${p.cuotas} cuotas</h4><p>${p.fechaOtorgamiento || '—'} · ${p.estado}</p></div></div>`).join('') : ''}
       ${l.estadoLegal ? `<div class="tl-item"><div class="tl-dot rojo"></div><div class="tl-content"><h4>Situación legal: ${l.estadoLegal}</h4><p>Registrada en el sistema</p></div></div>` : ''}
-      ${l.fechaBaja ? `<div class="tl-item"><div class="tl-dot rojo"></div><div class="tl-content"><h4>Baja registrada</h4><p>${l.fechaBaja}</p></div></div>` : ''}
+      ${l.fechaBaja ? `<div class="tl-item"><div class="tl-dot rojo"></div><div class="tl-content"><h4>Baja registrada</h4><p>${l.fechaBaja}${l.motivoBaja ? ' — ' + escHtml(l.motivoBaja) : ''}</p></div></div>` : ''}
       ${l.fechaReincorp ? `<div class="tl-item"><div class="tl-dot" style="background:var(--verde);"></div><div class="tl-content"><h4>Reincorporación</h4><p>${l.fechaReincorp}${l.legajoAnteriorNro ? ' · Legajo anterior N° ' + l.legajoAnteriorNro : ''}</p></div></div>` : ''}
     </div></div>
     <div id="leg-tab-4" class="tab-content"><div id="leg-adjuntos-lista" style="color:var(--texto-suave);">Cargando…</div></div>
@@ -654,8 +655,12 @@ async function cargarAdjuntosLegajo(dni) {
   const adjuntos = await listarAdjuntos({ dni });
   if (!adjuntos.length) {
     cont.innerHTML = '<div class="empty-state"><div class="icon">📎</div><p>Sin adjuntos cargados</p></div>';
+    const r0 = $('leg-baja-respaldo');
+    if (r0) r0.innerHTML = _respaldosBajaHtml([]);
     return;
   }
+  const respaldo = $('leg-baja-respaldo');
+  if (respaldo) respaldo.innerHTML = _respaldosBajaHtml(adjuntos.filter(a => a.tipo === 'respaldo-baja'));
   cont.innerHTML = adjuntos.map(a => `
     <div style="display:flex;align-items:center;gap:10px;background:var(--fondo);border:1px solid var(--borde);border-radius:var(--radio);padding:10px 14px;margin-bottom:8px;">
       <span class="chip">${TIPO_LEGIBLE[a.tipo] || a.tipo}</span>
@@ -664,6 +669,32 @@ async function cargarAdjuntosLegajo(dni) {
       <button type="button" class="btn btn-secondary btn-sm" onclick="verAdjuntoLegajo('${a.url}')">👁️ Ver</button>
     </div>
   `).join('');
+}
+
+// Links de los documentos que respaldan la baja (carta documento, acta…).
+function _respaldosBajaHtml(lista) {
+  if (!lista.length) return '<span style="font-size:12px;color:var(--texto-suave);">Sin documento de respaldo adjunto</span>';
+  return lista.map(a => `<div style="display:flex;align-items:center;gap:8px;font-size:12.5px;margin-top:3px;">📎 <span>${escHtml(a.nombreArchivo || 'Archivo')}</span>
+    <button type="button" class="btn btn-secondary btn-xs" onclick="verAdjuntoLegajo('${a.url}')">👁️ Ver</button></div>`).join('');
+}
+
+function escHtml(s) {
+  return String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+}
+
+// Sección "Datos de la baja" del modal de edición: solo con Estado = Baja.
+export function toggleBajaDetalleLegajo() {
+  const sec = $('edit-baja-detalle');
+  if (sec) sec.style.display = ($('edit-estado') || { value: '' }).value === 'Baja' ? 'block' : 'none';
+}
+
+async function _cargarRespaldosBajaEdicion(dni) {
+  const cont = $('edit-baja-existentes');
+  if (!cont) return;
+  cont.innerHTML = '';
+  if (!dni) return;
+  const lista = await listarAdjuntos({ dni, tipo: 'respaldo-baja' });
+  cont.innerHTML = lista.length ? '<div style="font-size:11px;font-weight:700;color:var(--texto-suave);text-transform:uppercase;margin-bottom:2px;">Ya adjuntados</div>' + _respaldosBajaHtml(lista) : '';
 }
 
 export async function verAdjuntoLegajo(path) {
@@ -766,6 +797,10 @@ export function editarLegajoActual() {
   if (fechaBajaEl) fechaBajaEl.value = l.fechaBaja ? l.fechaBaja.split('/').reverse().join('-') : '';
   const estLegalEl = $('edit-estado-legal');
   if (estLegalEl) estLegalEl.value = l.estadoLegal || '';
+  if ($('edit-motivo-baja')) $('edit-motivo-baja').value = l.motivoBaja || '';
+  if ($('edit-baja-archivo')) $('edit-baja-archivo').value = '';
+  toggleBajaDetalleLegajo();
+  _cargarRespaldosBajaEdicion(l.dni);
   fillSelect('edit-funcion', DB.categorias);
   const ef = $('edit-funcion');
   for (let i = 0; i < ef.options.length; i++) {
@@ -845,7 +880,10 @@ async function _renombrarNroSocioEnCascada(nroViejo, nroNuevo) {
   return filas;
 }
 
+let _guardandoLegajo = false;
+
 export async function guardarEdicionLegajo() {
+  if (_guardandoLegajo) return;   // doble click mientras se sube un archivo
   const l = DB.legajos.find(x => x.nro === legajoActualNro);
   if (!l) return;
   const a = $('edit-apellido').value.trim();
@@ -888,6 +926,36 @@ export async function guardarEdicionLegajo() {
     $('edit-dni').focus();
     return;
   }
+  // Datos de la baja: motivo (obligatorio al PASAR a Baja — editar una baja
+  // histórica no lo exige) y documentos de respaldo (opcionales, PDF/JPG/PNG
+  // hasta 10 MB, mismo bucket/tabla que el resto de los adjuntos). Se sube
+  // ANTES de tocar el legajo: si falla, no queda nada a medias.
+  const motivoBaja = ($('edit-motivo-baja') || { value: l.motivoBaja || '' }).value.trim();
+  if ($('edit-estado').value === 'Baja') {
+    if (l.estado !== 'Baja' && !motivoBaja) {
+      toast('⚠️ Indicá el motivo de la baja');
+      $('edit-motivo-baja')?.focus();
+      return;
+    }
+    const archivos = [...((($('edit-baja-archivo') || {}).files) || [])];
+    for (const f of archivos) {
+      if (f.size > MAX_SIZE) { toast(`⚠️ "${f.name}" supera el límite de 10 MB`); return; }
+      if (!TIPOS_PERMITIDOS.includes(f.type)) { toast(`⚠️ "${f.name}": formato no permitido (solo PDF, JPG o PNG)`); return; }
+    }
+    if (archivos.length && !dni) { toast('⚠️ Para adjuntar el respaldo de la baja el legajo necesita DNI'); return; }
+    if (archivos.length) {
+      _guardandoLegajo = true;
+      toast(`⏳ Subiendo ${archivos.length} archivo(s)…`);
+      try {
+        for (const f of archivos) await subirAdjunto({ dni, etapa: 'baja', tipo: 'respaldo-baja', file: f });
+      } catch (e) {
+        toast(`⚠️ No se pudo subir el respaldo de la baja (${e.message}) — no se guardaron cambios`, 6000);
+        return;
+      } finally {
+        _guardandoLegajo = false;
+      }
+    }
+  }
   const estadoPrevio = l.estado;
   l.nombre = `${a} ${n}`;
   l.dni = dni;
@@ -929,6 +997,7 @@ export async function guardarEdicionLegajo() {
   l.servicio = $('edit-servicio').value;
   l.supervisor = $('edit-supervisor').value;
   l.estado = $('edit-estado').value;
+  if (l.estado === 'Baja') l.motivoBaja = motivoBaja;   // al reactivar queda como historia
   l.calzado = parseInt($('edit-calzado').value) || l.calzado;
   l.ambo = $('edit-ambo').value;
   // Chomba/Grafa(pantalón)/Buzo/Campera/Gorra — a diferencia de
