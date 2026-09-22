@@ -25,7 +25,7 @@
 //     confirmada con Fede, no una suposición.
 
 import { DB } from '@shared/state.js';
-import { $, toTitleCase, cleanText } from '@shared/helpers.js';
+import { $, toTitleCase, cleanText, nombreClaveComparacion } from '@shared/helpers.js';
 import { toast, abrirModal, cerrarModal } from '@shared/ui.js';
 import { supaSync, getLastSupaSyncError } from '@shared/supabase.js';
 import { renderLegajos } from './legajos.js';
@@ -337,6 +337,21 @@ function renderPreviewImportacion() {
   const nrosVistos = new Set();
   let validos = 0, invalidos = 0;
 
+  // Cruce con Altas de asociados (caso real "Luque Balmaceda", 22/09): este
+  // importador es un camino de alta TOTALMENTE aparte del flujo normal
+  // (Candidatos → Psicotécnico → ... → Altas) y antes no sabía nada de él —
+  // alguien podía terminar cargado acá por CSV y seguir viéndose "Pendiente
+  // de alta" en Altas para siempre, porque esta importación nunca tocaba
+  // cat_alt_pendientes. Si además el DNI venía tipeado distinto en cada lado
+  // (pasó en este caso real), el guard por DNI de Altas tampoco lo detectaba
+  // y terminaba en un legajo duplicado de la misma persona. Cruza por DNI Y
+  // por nombre (normalizado, ver nombreClaveComparacion) para no depender de
+  // que el DNI esté bien tipeado en los dos lados. No bloquea — RRHH decide,
+  // solo avisa; si importa esa fila, marca la alta pendiente como completada.
+  const pendientes = (DB.catAltPendientes || []).filter(a => a.estado === "Pendiente de alta");
+  const pendientesPorDni = new Map(pendientes.filter(a => a.dni).map(a => [a.dni, a]));
+  const pendientesPorNombre = new Map(pendientes.filter(a => a.nombre).map(a => [nombreClaveComparacion(a.nombre), a]));
+
   const filasHtml = _filasParseadas.map(f => {
     const problemas = [];
     const avisos = [];
@@ -358,10 +373,17 @@ function renderPreviewImportacion() {
     if (f.fecha_nac && !fecNacRazonable(f.fecha_nac)) avisos.push('fecha de nacimiento no reconocida o inválida, se importa sin ella');
     if (f.fecha_ingreso && !fechaCsvADisplay(f.fecha_ingreso)) avisos.push('fecha de ingreso "' + f.fecha_ingreso + '" no reconocida');
 
+    const pendienteAlta = (f.dni && pendientesPorDni.get(f.dni)) || pendientesPorNombre.get(nombreClaveComparacion(nombreCompleto));
+    if (pendienteAlta) {
+      avisos.push(`sigue "Pendiente de alta" en Altas de asociados (${pendienteAlta.nombre}, DNI ${pendienteAlta.dni || "sin DNI"}) — al importar se marca como completada ahí`);
+      f._pendienteAltaId = pendienteAlta.id;
+    }
+
     const ok = problemas.length === 0;
     if (ok) validos++; else invalidos++;
     f._valido = ok;
     f._nombreCompleto = nombreCompleto;
+
 
     return '<tr style="' + (ok ? '' : 'background:#fef2f2;') + '">'
       + '<td style="padding:5px 8px;font-size:12px;">' + (nro || '—') + '</td>'
@@ -478,6 +500,20 @@ export async function confirmarImportacionLegajos() {
       DB.legajos.push(legajo);
       f._yaImportado = true;
       importados++;
+      // Si esta fila venía de un alta que seguía "Pendiente de alta" (ver el
+      // aviso en el preview), se marca completada — sin esto la persona
+      // aparecía dada de alta acá y a la vez pendiente en Altas para siempre.
+      // Best-effort: si falla, el legajo YA se guardó bien (lo que importa),
+      // solo queda a mano de alguien anular esa fila vieja de Altas.
+      if (f._pendienteAltaId) {
+        const pend = (DB.catAltPendientes || []).find(a => a.id === f._pendienteAltaId);
+        if (pend && pend.estado === 'Pendiente de alta') {
+          pend.estado = 'Alta completada';
+          pend.operativo = { ...(pend.operativo || {}), notaImportacion: `Completada por importación masiva de Legajos — N° ${legajo.nro}, ${new Date().toLocaleDateString('es-AR')}` };
+          const okPend = await supaSync('catAltPendientes', pend);
+          if (!okPend) console.warn('Importador de legajos: no se pudo marcar como completada la alta pendiente de', f._nombreCompleto, '— el legajo sí se importó bien, revisar a mano en Altas.');
+        }
+      }
     } else {
       const err = getLastSupaSyncError();
       console.error('Import legajos — falló N° ' + f.nro_socio + ' / DNI ' + f.dni + ' (' + f._nombreCompleto + '):', err);

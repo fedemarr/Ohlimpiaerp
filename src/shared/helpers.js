@@ -19,6 +19,21 @@ export const toTitleCase = s =>
 
 export const cleanText = s => (s || '').trim();
 
+// Clave de comparación "difusa" para detectar la misma persona escrita
+// distinto entre módulos — sin acentos, sin tabs/espacios de más, y sin
+// depender del orden apellido/nombre (candidatos guarda "Balmaceda" +
+// "Marcelo Daniel Luque" por separado; legajos guarda "Luque Balmaceda
+// Marcelo Daniel" junto). NO reemplaza al DNI como identificador: es una
+// señal de "puede ser la misma persona", no una igualdad — dos personas
+// distintas pueden compartir nombre y apellido.
+export const nombreClaveComparacion = s =>
+  (s || '')
+    .normalize('NFD').replace(/[̀-ͯ]/g, '')
+    .toLowerCase()
+    .split(/[^a-z]+/).filter(Boolean)
+    .sort()
+    .join(' ');
+
 // Formatea un número con coma decimal (es-AR), redondeado a una cantidad
 // fija de decimales — SOLO para mostrar. No usar sobre el valor que se
 // persiste o se usa para liquidar: mantiene la precisión completa en el

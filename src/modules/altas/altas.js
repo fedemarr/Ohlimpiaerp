@@ -1,6 +1,6 @@
 import { DB, LOCALIDADES_BA, BARRIOS_CABA, PARTIDOS_LOCALIDADES, LOCALIDAD_A_PARTIDO } from '@shared/state.js';
 import { getSupervisorDeCodigo } from '@modules/servicios_supervisor/index.js';
-import { $, avatarEl, badge, cleanText, toTitleCase, validarCampos, fillSelect, applyTitleCase, cbuValido } from '@shared/helpers.js';
+import { $, avatarEl, badge, cleanText, toTitleCase, validarCampos, fillSelect, applyTitleCase, cbuValido, nombreClaveComparacion } from '@shared/helpers.js';
 import { toast, abrirModal, cerrarModal } from '@shared/ui.js';
 import { supaSync, getLastSupaSyncError } from '@shared/supabase.js';
 import { subirAdjunto, listarAdjuntos, obtenerUrlFirmada, borrarAdjunto, MAX_SIZE } from '@shared/adjuntos.js';
@@ -781,6 +781,8 @@ export function recalcularInicioObraSocial() {
 
 // ========== CONFIRMAR ALTA ==========
 
+let _confirmandoAlta = false;
+
 export async function confirmarAlta() {
   // Campos obligatorios por tab
   const tabs = [
@@ -922,6 +924,35 @@ export async function confirmarAlta() {
     tabAlta(0);
     return;
   }
+
+  // Guard por NOMBRE (caso real "Luque Balmaceda", 22/09): el guard de arriba
+  // solo bloquea si el DNI coincide exacto. Cuando el mismo asociado ya
+  // entró a legajos por otro camino (el importador de CSV de RRHH, que no
+  // conoce esta cadena de Altas) con el DNI mal tipeado en cualquiera de los
+  // dos lados, el DNI no matchea y este punto no se alcanzaba nunca — el
+  // resultado era un legajo duplicado para la misma persona con dos DNI y dos
+  // N° de socio distintos. Acá el nombre SÍ puede coincidir por azar (dos
+  // personas distintas), así que es aviso con confirmación, no bloqueo.
+  const activoMismoNombre = (DB.legajos || []).find(l =>
+    l.estado === 'Activo' && l.dni !== dni && nombreClaveComparacion(l.nombre) === nombreClaveComparacion(nombre));
+  if (activoMismoNombre && !confirm(
+    `⚠️ Ya existe un legajo activo con un nombre muy parecido: N° ${activoMismoNombre.nro} — ${activoMismoNombre.nombre} (DNI ${activoMismoNombre.dni}).\n\n`
+    + `Este alta usa el DNI ${dni}. Si es la MISMA persona (DNI mal tipeado en algún lado), cancelá y corregilo antes de crear un legajo duplicado.\n\n`
+    + '¿Confirmás que es una persona distinta y continuás con el alta?'
+  )) {
+    tabAlta(0);
+    return;
+  }
+  // Doble envío (mismo patrón que el importador de CSV y guardarEdicionLegajo):
+  // a partir de acá ya no hay más validaciones que puedan cortar con un
+  // return temprano — es el punto sin retorno, así que recién ahora se
+  // bloquea el botón. Todo lo de arriba es sincrónico (sin await), un doble
+  // click ahí no alcanza a duplicar nada.
+  if (_confirmandoAlta) return;
+  _confirmandoAlta = true;
+  const btnCta = $('alta-btn-cta');
+  if (btnCta) { btnCta.disabled = true; btnCta.textContent = '⏳ Guardando…'; }
+  try {
 
   // Generar número de socio (max + 1)
   const maxNro = (DB.legajos || []).reduce((m, l) => Math.max(m, l.nro || 0), 0);
@@ -1073,4 +1104,8 @@ export async function confirmarAlta() {
   cerrarModal('modal-alta-nuevo');
   renderAltas();
   toast('✅ Alta confirmada — Legajo N°' + nro + ' creado para ' + nombre);
+  } finally {
+    _confirmandoAlta = false;
+    if (btnCta) { btnCta.disabled = false; btnCta.textContent = '✅ Confirmar Alta'; }
+  }
 }
