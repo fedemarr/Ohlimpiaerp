@@ -209,9 +209,24 @@ export async function renderPedidos(lista) {
     return;
   }
   tbody.innerHTML = base.map(p => {
-    const dias = diasAntiguedad(p);
-    const vencido = pedidoVencido(p);
-    return `<tr onclick="verDetallePedido(${p.id})"${vencido ? ' style="background:var(--rojo-suave);"' : ''}>
+    // BUG real (ticket "Del PP 29 al PP 31 no me permite tocar Ver", 22/09):
+    // pedidos.id en Supabase es un uuid (con guiones) — la fila nace con un
+    // id numérico (Date.now()) mientras dura la sesión que la creó, pero
+    // apenas hay un reload/login nuevo, supaInit() la vuelve a traer con el
+    // uuid real de Postgres (_toCamel no toca la columna "id"). El onclick
+    // interpolaba ${p.id} SIN comillas: con un uuid ("cea8363a-...") eso es
+    // JS inválido (los guiones se leen como resta de identificadores
+    // inexistentes) y el navegador tira ese handler puntual en silencio —
+    // el botón queda ahí pero no hace nada, sin ningún error visible para
+    // quien lo usa. No es un problema de 3 pedidos puntuales: afecta a
+    // CUALQUIER pedido ya recargado desde Supabase, cada vez que alguien
+    // entra de nuevo — 29/30/31 son solo los que este usuario probó a
+    // tocar. Con el id entre comillas simples el uuid viaja como texto,
+    // igual que ya hace seguimiento.js con los candidatos.
+    try {
+      const dias = diasAntiguedad(p);
+      const vencido = pedidoVencido(p);
+      return `<tr onclick="verDetallePedido('${p.id}')"${vencido ? ' style="background:var(--rojo-suave);"' : ''}>
     <td style="font-size:12px;color:var(--texto-suave);">${numeroPedidoTxt(p)}</td>
     <td style="font-size:12px;color:var(--texto-suave);">${p.fecha}</td>
     <td style="font-size:12px;color:var(--texto-suave);">${p.cargadoPor || '—'}</td>
@@ -223,8 +238,16 @@ export async function renderPedidos(lista) {
     <td style="text-align:right;font-weight:${vencido ? '700' : '400'};color:${vencido ? 'var(--rojo)' : 'inherit'};">${dias}</td>
     <td>${badge(p.urgencia)}</td>
     <td>${vencido ? '<span class="badge badge-rojo">VENCIDO ⚠</span>' : badge(p.estado)}</td>
-    <td><button class="btn btn-secondary btn-sm" onclick="event.stopPropagation();verDetallePedido(${p.id})">Ver</button></td>
+    <td><button class="btn btn-secondary btn-sm" onclick="event.stopPropagation();verDetallePedido('${p.id}')">Ver</button></td>
   </tr>`;
+    } catch (e) {
+      // Un dato inesperado en ESTE pedido no puede tirar abajo la lista
+      // entera (Array.prototype.map corta todo ante la primera excepción):
+      // se loguea y se muestra una fila de error puntual, el resto sigue
+      // renderizando normal.
+      console.error('renderPedidos: error mostrando el pedido', p?.id, p?.numero, e);
+      return `<tr><td colspan="12" style="color:var(--rojo);font-size:12px;padding:8px;">⚠ Error al mostrar el pedido ${numeroPedidoTxt(p) || '(sin número)'} — avisá a Sistemas.</td></tr>`;
+    }
   }).join('');
 }
 
@@ -245,15 +268,19 @@ export function renderHistorialPedidos() {
     return;
   }
   tbody.innerHTML = filasPre + base.map(p => {
-    const cerroEv = eventosDePedido(p.id).find(e => e.tipo === 'cubierto' || e.tipo === 'cancelado');
-    const dias = p.estado === 'Cubierto' && p.fechaInicio ? calcularDiasEntre(p.fecha, p.fechaInicio) : '—';
-    const resultadoHtml = p.estado === 'Cubierto'
-      ? `<span class="badge badge-verde">CUBIERTO ✔</span>`
-      : `<span class="badge badge-gris">CANCELADO</span>`;
-    const personaHtml = p.estado === 'Cubierto'
-      ? `<b>${p.nombreCandidato || '—'}</b> ${p.ingresoTipo === 'interno' ? '<span class="badge badge-acento" style="font-size:9.5px;">INTERNO</span>' : '<span class="badge badge-verde" style="font-size:9.5px;">INGRESO NUEVO</span>'}${p.nroSocioCandidato ? ` <span class="text-muted">socio ${p.nroSocioCandidato}</span>` : ''}`
-      : `<span class="text-muted">motivo: ${p.motivoCancelacion || '—'}</span>`;
-    return `<tr onclick="verDetallePedido(${p.id})">
+    try {
+      const cerroEv = eventosDePedido(p.id).find(e => e.tipo === 'cubierto' || e.tipo === 'cancelado');
+      const dias = p.estado === 'Cubierto' && p.fechaInicio ? calcularDiasEntre(p.fecha, p.fechaInicio) : '—';
+      const resultadoHtml = p.estado === 'Cubierto'
+        ? `<span class="badge badge-verde">CUBIERTO ✔</span>`
+        : `<span class="badge badge-gris">CANCELADO</span>`;
+      const personaHtml = p.estado === 'Cubierto'
+        ? `<b>${p.nombreCandidato || '—'}</b> ${p.ingresoTipo === 'interno' ? '<span class="badge badge-acento" style="font-size:9.5px;">INTERNO</span>' : '<span class="badge badge-verde" style="font-size:9.5px;">INGRESO NUEVO</span>'}${p.nroSocioCandidato ? ` <span class="text-muted">socio ${p.nroSocioCandidato}</span>` : ''}`
+        : `<span class="text-muted">motivo: ${p.motivoCancelacion || '—'}</span>`;
+      // El id de Supabase es un uuid (con guiones) — sin comillas acá el
+      // onclick queda sintácticamente inválido y "Ver" no responde (mismo
+      // bug real de renderPedidos, ver el comentario de más arriba).
+      return `<tr onclick="verDetallePedido('${p.id}')">
       <td style="font-size:12px;color:var(--texto-suave);">${numeroPedidoTxt(p)}</td>
       <td style="font-size:12px;color:var(--texto-suave);">${p.fecha} · ${p.cargadoPor || '—'}</td>
       <td style="font-weight:500;">${p.servicio}${chipOrigenPrepedido(p)}</td>
@@ -263,6 +290,10 @@ export function renderHistorialPedidos() {
       <td style="text-align:right;">${dias}</td>
       <td style="font-size:12px;color:var(--texto-suave);">${cerroEv ? `${cerroEv.fecha} · ${cerroEv.usuario}` : '—'}</td>
     </tr>`;
+    } catch (e) {
+      console.error('renderHistorialPedidos: error mostrando el pedido', p?.id, p?.numero, e);
+      return `<tr><td colspan="8" style="color:var(--rojo);font-size:12px;padding:8px;">⚠ Error al mostrar el pedido ${numeroPedidoTxt(p) || '(sin número)'} — avisá a Sistemas.</td></tr>`;
+    }
   }).join('');
 }
 
@@ -286,17 +317,19 @@ function nombrePerfil(codigo) {
 // en búsqueda"; En búsqueda ofrece "Cubierto"/"Cancelar"; Cubierto y
 // Cancelado quedan de solo lectura (ya está resuelto el flujo).
 function footerDetallePedido(p) {
+  // p.id entre comillas: es el uuid de Postgres, mismo motivo que en las
+  // filas de la tabla (ver el comentario grande en renderPedidos).
   const cerrar = `<button class="btn btn-secondary" onclick="cerrarModal('modal-ver-pedido')">Cerrar</button>`;
-  const editar = `<button class="btn btn-secondary" onclick="abrirEdicionPedido(${p.id})">✏️ Editar</button>`;
+  const editar = `<button class="btn btn-secondary" onclick="abrirEdicionPedido('${p.id}')">✏️ Editar</button>`;
   if (p.estado === 'Pendiente') {
     return `${cerrar}${editar}
-      <button class="btn btn-danger" onclick="abrirModalCancelar(${p.id})">✕ Cancelar pedido</button>
-      <button class="btn btn-primary" onclick="tomarPedido(${p.id})">🔍 En búsqueda</button>`;
+      <button class="btn btn-danger" onclick="abrirModalCancelar('${p.id}')">✕ Cancelar pedido</button>
+      <button class="btn btn-primary" onclick="tomarPedido('${p.id}')">🔍 En búsqueda</button>`;
   }
   if (p.estado === 'En búsqueda') {
     return `${cerrar}${editar}
-      <button class="btn btn-danger" onclick="abrirModalCancelar(${p.id})">✕ Cancelar pedido</button>
-      <button class="btn btn-primary" style="background:var(--verde);" onclick="abrirModalCubierto(${p.id})">✔ Pedido cubierto</button>`;
+      <button class="btn btn-danger" onclick="abrirModalCancelar('${p.id}')">✕ Cancelar pedido</button>
+      <button class="btn btn-primary" style="background:var(--verde);" onclick="abrirModalCubierto('${p.id}')">✔ Pedido cubierto</button>`;
   }
   return cerrar;   // Cubierto / Cancelado: solo lectura
 }
@@ -304,41 +337,50 @@ function footerDetallePedido(p) {
 export function verDetallePedido(id) {
   const p = DB.pedidos.find(x => String(x.id) === String(id));
   if (!p) return;
-  const horarioTxt = formatearHorarioSemanal(p.horarioSemanal) || p.horario || '—';
-  const vencido = pedidoVencido(p);
-  const body = `<div class="info-grid" style="margin-bottom:16px;">
-    <div class="info-item"><div class="key">N° de pedido</div><div class="val">${numeroPedidoTxt(p)}</div></div>
-    <div class="info-item"><div class="key">Estado</div><div class="val">${vencido ? '<span class="badge badge-rojo">VENCIDO ⚠</span>' : badge(p.estado)}</div></div>
-    <div class="info-item"><div class="key">Servicio / Cliente</div><div class="val">${p.servicio}</div></div>
-    <div class="info-item"><div class="key">Dirección del servicio</div><div class="val">${direccionDeServicio(p.servicio) || '—'}</div></div>
-    <div class="info-item"><div class="key">Supervisor</div><div class="val">${p.supervisor}</div></div>
-    <div class="info-item"><div class="key">Zona</div><div class="val">${p.zona || '—'}</div></div>
-    <div class="info-item"><div class="key">Puesto</div><div class="val">${p.puesto}</div></div>
-    <div class="info-item"><div class="key">Cantidad</div><div class="val">${p.cantidad || 1}</div></div>
-    <div class="info-item"><div class="key">Horario</div><div class="val">${horarioTxt}</div></div>
-    <div class="info-item"><div class="key">Urgencia</div><div class="val">${badge(p.urgencia)}</div></div>
-    <div class="info-item"><div class="key">Fecha del pedido</div><div class="val">${p.fecha}</div></div>
-    <div class="info-item"><div class="key">Fecha límite</div><div class="val">${p.fechaLimite || '—'}</div></div>
-    <div class="info-item"><div class="key">Cargado por</div><div class="val">${p.cargadoPor || '—'}</div></div>
-  </div>
-  ${perfilDetalle(p)}
-  <div class="form-section" style="margin-bottom:8px;">Observaciones</div>
-  <p style="font-size:13px;color:var(--texto-suave);margin-bottom:16px;">${p.obs || 'Sin observaciones'}</p>
-  ${p.estado === 'Cubierto' ? `<div class="form-section" style="margin-bottom:8px;">Cobertura</div>
-  <div class="info-grid" style="margin-bottom:16px;">
-    <div class="info-item"><div class="key">Persona</div><div class="val">${p.nombreCandidato || '—'} (${p.ingresoTipo === 'interno' ? 'asociado interno' : 'ingreso nuevo'})</div></div>
-    <div class="info-item"><div class="key">N° de socio</div><div class="val">${p.nroSocioCandidato || '—'}</div></div>
-    <div class="info-item"><div class="key">Fecha de inicio</div><div class="val">${p.fechaInicio || '—'}</div></div>
-  </div>` : ''}
-  ${p.estado === 'Cancelado' ? `<div class="form-section" style="margin-bottom:8px;">Motivo de cancelación</div>
-  <p style="font-size:13px;color:var(--texto-suave);margin-bottom:16px;">${p.motivoCancelacion || '—'}${p.motivoDetalle ? ' — ' + p.motivoDetalle : ''}</p>` : ''}
-  <div class="form-section" style="margin-bottom:8px;">Historial del pedido</div>
-  ${timelineHtml(p.id)}`;
-  $('pedido-title').textContent = `📋 Pedido ${numeroPedidoTxt(p)} — ${p.servicio}`;
-  $('pedido-body').innerHTML = body;
-  const foot = $('pedido-footer-extra');
-  if (foot) foot.innerHTML = footerDetallePedido(p);
-  abrirModal('modal-ver-pedido');
+  // Un dato inesperado en ESTE pedido (perfil mal formado, etc.) no puede
+  // dejar el modal a medio pintar ni tirar una excepción sin aviso — se
+  // muestra lo que se pudo y se avisa, en vez de que "Ver" parezca que no
+  // hizo nada (mismo espíritu que el fix de los onclick sin comillas).
+  try {
+    const horarioTxt = formatearHorarioSemanal(p.horarioSemanal) || p.horario || '—';
+    const vencido = pedidoVencido(p);
+    const body = `<div class="info-grid" style="margin-bottom:16px;">
+      <div class="info-item"><div class="key">N° de pedido</div><div class="val">${numeroPedidoTxt(p)}</div></div>
+      <div class="info-item"><div class="key">Estado</div><div class="val">${vencido ? '<span class="badge badge-rojo">VENCIDO ⚠</span>' : badge(p.estado)}</div></div>
+      <div class="info-item"><div class="key">Servicio / Cliente</div><div class="val">${p.servicio}</div></div>
+      <div class="info-item"><div class="key">Dirección del servicio</div><div class="val">${direccionDeServicio(p.servicio) || '—'}</div></div>
+      <div class="info-item"><div class="key">Supervisor</div><div class="val">${p.supervisor}</div></div>
+      <div class="info-item"><div class="key">Zona</div><div class="val">${p.zona || '—'}</div></div>
+      <div class="info-item"><div class="key">Puesto</div><div class="val">${p.puesto}</div></div>
+      <div class="info-item"><div class="key">Cantidad</div><div class="val">${p.cantidad || 1}</div></div>
+      <div class="info-item"><div class="key">Horario</div><div class="val">${horarioTxt}</div></div>
+      <div class="info-item"><div class="key">Urgencia</div><div class="val">${badge(p.urgencia)}</div></div>
+      <div class="info-item"><div class="key">Fecha del pedido</div><div class="val">${p.fecha}</div></div>
+      <div class="info-item"><div class="key">Fecha límite</div><div class="val">${p.fechaLimite || '—'}</div></div>
+      <div class="info-item"><div class="key">Cargado por</div><div class="val">${p.cargadoPor || '—'}</div></div>
+    </div>
+    ${perfilDetalle(p)}
+    <div class="form-section" style="margin-bottom:8px;">Observaciones</div>
+    <p style="font-size:13px;color:var(--texto-suave);margin-bottom:16px;">${p.obs || 'Sin observaciones'}</p>
+    ${p.estado === 'Cubierto' ? `<div class="form-section" style="margin-bottom:8px;">Cobertura</div>
+    <div class="info-grid" style="margin-bottom:16px;">
+      <div class="info-item"><div class="key">Persona</div><div class="val">${p.nombreCandidato || '—'} (${p.ingresoTipo === 'interno' ? 'asociado interno' : 'ingreso nuevo'})</div></div>
+      <div class="info-item"><div class="key">N° de socio</div><div class="val">${p.nroSocioCandidato || '—'}</div></div>
+      <div class="info-item"><div class="key">Fecha de inicio</div><div class="val">${p.fechaInicio || '—'}</div></div>
+    </div>` : ''}
+    ${p.estado === 'Cancelado' ? `<div class="form-section" style="margin-bottom:8px;">Motivo de cancelación</div>
+    <p style="font-size:13px;color:var(--texto-suave);margin-bottom:16px;">${p.motivoCancelacion || '—'}${p.motivoDetalle ? ' — ' + p.motivoDetalle : ''}</p>` : ''}
+    <div class="form-section" style="margin-bottom:8px;">Historial del pedido</div>
+    ${timelineHtml(p.id)}`;
+    $('pedido-title').textContent = `📋 Pedido ${numeroPedidoTxt(p)} — ${p.servicio}`;
+    $('pedido-body').innerHTML = body;
+    const foot = $('pedido-footer-extra');
+    if (foot) foot.innerHTML = footerDetallePedido(p);
+    abrirModal('modal-ver-pedido');
+  } catch (e) {
+    console.error('verDetallePedido: error mostrando el pedido', p?.id, p?.numero, e);
+    toast('⚠️ No se pudo mostrar el detalle de este pedido — avisá a Sistemas (' + (e?.message || 'error desconocido') + ')');
+  }
 }
 
 // Abre el modal de alta precargado con los datos del pedido, en modo
