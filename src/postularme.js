@@ -15,7 +15,7 @@
 import './styles/main.css';
 import './styles/postularme.css';
 
-import { LOCALIDADES_BA, BARRIOS_CABA } from '@shared/state.js';
+import { LOCALIDADES_BA, BARRIOS_CABA, PARTIDOS_LOCALIDADES, LOCALIDAD_A_PARTIDO } from '@shared/state.js';
 import { $, toTitleCase, cleanText, validarCampos } from '@shared/helpers.js';
 import { toast } from '@shared/ui.js';
 import { EMPRESA_NOMBRE } from '@shared/branding.js';
@@ -30,21 +30,61 @@ if (EMPRESA_NOMBRE !== 'Ohlimpia') {
   if (marca) marca.textContent = EMPRESA_NOMBRE;
 }
 
-// ========== PROVINCIA / LOCALIDAD ==========
+// ========== PROVINCIA / PARTIDO / LOCALIDAD ==========
+// Bug real (ticket "Formulario de solicitud de empleo", 22/09): el campo
+// Localidad mostraba LOCALIDADES_BA — que pese al nombre es la lista de
+// PARTIDOS de la provincia (ver el comentario en state.js) — así que
+// "Merlo", "La Matanza", etc. eran en realidad partidos, no localidades.
+// Mismo patrón que ya usa Candidatos (onChangeZonaCand/onChangePartidoCand/
+// onChangeLocalidadCand, candidatos.js): LOCALIDADES_BA alimenta el
+// selector de PARTIDO, y Localidad sale de PARTIDOS_LOCALIDADES (angostada
+// al partido elegido, o todas juntas si todavía no se eligió partido).
+// Elegir la Localidad directa autocompleta el Partido solo, vía
+// LOCALIDAD_A_PARTIDO — no hace falta saber antes a qué partido pertenece.
+const TODAS_LAS_LOCALIDADES = Object.keys(LOCALIDAD_A_PARTIDO).sort((a, b) => a.localeCompare(b, 'es'));
 
 function onChangeZona() {
   const zona = $('pm-zona');
+  const part = $('pm-partido');
   const loc = $('pm-localidad');
   if (zona.value === 'CABA') {
+    part.innerHTML = '<option value="">No aplica (CABA)</option>';
+    part.disabled = true;
     loc.disabled = false;
     loc.innerHTML = '<option value="">Seleccionar barrio...</option>' + BARRIOS_CABA.map(b => '<option>' + b + '</option>').join('');
   } else if (zona.value === 'Buenos Aires') {
+    part.disabled = false;
+    part.innerHTML = '<option value="">Seleccionar...</option>' + LOCALIDADES_BA.map(l => '<option>' + l + '</option>').join('');
     loc.disabled = false;
-    loc.innerHTML = '<option value="">Seleccionar...</option>' + LOCALIDADES_BA.map(l => '<option>' + l + '</option>').join('');
+    loc.innerHTML = '<option value="">Seleccionar...</option>' + TODAS_LAS_LOCALIDADES.map(l => '<option>' + l + '</option>').join('');
   } else {
+    part.innerHTML = '<option value="">Seleccioná la provincia primero</option>';
+    part.disabled = true;
     loc.innerHTML = '<option value="">Seleccioná la provincia primero</option>';
     loc.disabled = true;
   }
+}
+
+// Elegiste el Partido: angosta Localidad a las de ese partido. Sin partido
+// elegido (volvió a "Seleccionar..."), vuelve a mostrar todas juntas — se
+// puede elegir la Localidad directa sin pasar por Partido.
+function onChangePartido() {
+  const part = $('pm-partido');
+  const loc = $('pm-localidad');
+  const localidades = PARTIDOS_LOCALIDADES[part.value];
+  loc.disabled = false;
+  loc.innerHTML = '<option value="">Seleccionar...</option>' + (localidades || TODAS_LAS_LOCALIDADES).map(l => '<option>' + l + '</option>').join('');
+}
+
+// Elegiste la Localidad directa: autocompleta el Partido. Se asigna por
+// .value (no dispara el onchange de Partido), así no re-angosta ni resetea
+// la Localidad recién elegida.
+function onChangeLocalidad() {
+  const part = $('pm-partido');
+  const loc = $('pm-localidad');
+  if (part.disabled) return; // CABA: no hay partido que completar
+  const partido = LOCALIDAD_A_PARTIDO[loc.value];
+  if (partido) part.value = partido;
 }
 
 // ========== ENVÍO ==========
@@ -84,6 +124,9 @@ async function enviarPostulacion(e) {
     calle: cleanText($('pm-calle').value),
     piso: cleanText($('pm-piso').value),
     zona: $('pm-zona').value,
+    // CABA "no aplica" (el select queda disabled) — mismo criterio que el
+    // formulario interno de Candidatos (ver partEl.disabled en candidatos.js).
+    partido: $('pm-partido').disabled ? '' : cleanText($('pm-partido').value),
     localidad: $('pm-localidad').value,
     nacionalidad: $('pm-nacionalidad').value,
     genero: $('pm-genero').value,
@@ -120,4 +163,6 @@ async function enviarPostulacion(e) {
 // ========== INIT ==========
 
 $('pm-zona').onchange = onChangeZona;
+$('pm-partido').onchange = onChangePartido;
+$('pm-localidad').onchange = onChangeLocalidad;
 $('form-postular').addEventListener('submit', enviarPostulacion);

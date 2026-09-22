@@ -70,6 +70,7 @@ export default async function handler(req, res) {
   const nacionalidad = limpiar(body.nacionalidad) || null;
   const email = limpiar(body.email) || null;
   const piso = limpiar(body.piso) || null;
+  const partido = limpiar(body.partido) || null;
   const localidad = limpiar(body.localidad) || null;
 
   try {
@@ -99,6 +100,7 @@ export default async function handler(req, res) {
       calle,
       piso,
       zona,
+      partido,
       localidad,
       medio: 'Formulario web',
       estado: 'Precandidato',
