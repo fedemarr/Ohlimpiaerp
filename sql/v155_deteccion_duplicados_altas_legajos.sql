@@ -44,7 +44,7 @@
 WITH clave AS (
   SELECT id_local, nombre,
          array_to_string(
-           array(SELECT unnest(regexp_split_to_array(lower(nombre), '[^a-z]+')) x WHERE x <> '' ORDER BY x),
+           array(SELECT x FROM unnest(regexp_split_to_array(lower(nombre), '[^a-z]+')) x WHERE x <> '' ORDER BY x),
            ' '
          ) AS k
   FROM public.cat_alt_pendientes
@@ -52,7 +52,7 @@ WITH clave AS (
 ), clave_legajo AS (
   SELECT nro, nombre, dni, estado,
          array_to_string(
-           array(SELECT unnest(regexp_split_to_array(lower(nombre), '[^a-z]+')) x WHERE x <> '' ORDER BY x),
+           array(SELECT x FROM unnest(regexp_split_to_array(lower(nombre), '[^a-z]+')) x WHERE x <> '' ORDER BY x),
            ' '
          ) AS k
   FROM public.legajos
