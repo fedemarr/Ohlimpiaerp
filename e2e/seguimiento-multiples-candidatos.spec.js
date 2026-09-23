@@ -53,7 +53,7 @@ test('Pedido con 1 vacante y 1 candidato ya en proceso — ahora SÍ se puede su
 
   const fila = page.locator('#tbody-seg-sel tr', { hasText: 'PP-902' });
   await expect(fila).toContainText('Primero, Candidato'); // el primero se sigue viendo
-  await expect(fila).toContainText('1 en proceso para 1 vacante — se puede sumar un candidato de respaldo');
+  await expect(fila).toContainText('V1'); // chip de la vacante puntual (v158)
   const btnRespaldo = fila.locator('button:has-text("+ Vincular otro candidato")');
   await expect(btnRespaldo).toBeVisible();
 
@@ -64,7 +64,7 @@ test('Pedido con 1 vacante y 1 candidato ya en proceso — ahora SÍ se puede su
 
   await btnRespaldo.click();
   await expect(page.locator('#modal-ped-vincular')).toBeVisible();
-  await expect(page.locator('#vinc-pedido-titulo')).toContainText('ya hay 1 en proceso — este se suma como respaldo');
+  await expect(page.locator('#vinc-pedido-titulo')).toContainText('ya hay 1 en proceso para esta vacante — este se suma como respaldo');
   await page.fill('#vinc-buscar', 'Segundo');
   await page.click('[data-elegir-cand]');
 

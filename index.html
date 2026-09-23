@@ -7011,20 +7011,20 @@
         <div class="form-grid form-grid-2">
           <div class="form-group"><label>Dirección del servicio</label><input type="text" id="p-servicio-direccion" disabled placeholder="—"></div>
         </div>
-        <div class="form-grid form-grid-3">
+        <div class="form-grid form-grid-2">
           <div class="form-group"><label>Zona</label><select id="p-zona"></select></div>
-          <div class="form-group"><label>Puesto *</label><select id="p-puesto"></select></div>
-          <div class="form-group"><label>Cantidad *</label><input type="number" id="p-cantidad" min="1" value="1"></div>
+          <div class="form-group"><label>Urgencia</label><select id="p-urgencia"><option>Alta</option><option>Media</option><option>Baja</option></select></div>
         </div>
         <div class="form-grid form-grid-2">
-          <div class="form-group"><label>Urgencia</label><select id="p-urgencia"><option>Alta</option><option>Media</option><option>Baja</option></select></div>
           <div class="form-group"><label>Fecha límite</label><input type="text" id="p-fecha-limite" placeholder="DD/MM/AAAA"></div>
         </div>
-        <div class="form-section" style="margin-bottom:4px;">Horario y días</div>
-        <div id="p-horario"></div>
-        <div class="form-section" style="margin-bottom:4px;">Perfil del personal</div>
-        <div id="p-perfil" class="form-grid form-grid-3"></div>
-        <div class="form-group"><label>Observaciones</label><textarea id="p-obs"></textarea></div>
+        <div class="form-section" style="margin-bottom:4px;">Líneas de puesto — cada una con su horario, sus días y su perfil</div>
+        <div id="p-lineas"></div>
+        <div style="display:flex;gap:8px;margin-bottom:14px;">
+          <button type="button" class="btn btn-secondary btn-sm" onclick="agregarLineaPedido(false)">+ Agregar línea de puesto</button>
+          <button type="button" class="btn btn-secondary btn-sm" onclick="agregarLineaPedido(true)">⧉ Agregar copiando la última</button>
+        </div>
+        <div class="form-group"><label>Observaciones generales del pedido</label><textarea id="p-obs"></textarea></div>
       </div>
     </div>
     <div class="modal-footer">

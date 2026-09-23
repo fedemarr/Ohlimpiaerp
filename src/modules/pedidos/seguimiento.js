@@ -21,7 +21,11 @@ import { DB, currentUser } from '@shared/state.js';
 import { $ } from '@shared/helpers.js';
 import { toast, abrirModal, cerrarModal } from '@shared/ui.js';
 import { supaSync } from '@shared/supabase.js';
-import { pedidosVisiblesParaUsuario, pedidoVencido, numeroPedidoTxt, ESTADOS_ACTIVOS, renderPedidosScreen } from './pedidos.js';
+import { diasMarcadosTexto } from '@shared/horarioDias.js';
+import {
+  pedidosVisiblesParaUsuario, pedidoVencido, numeroPedidoTxt, ESTADOS_ACTIVOS, renderPedidosScreen,
+  lineasDePedido, expandirVacantesPedido,
+} from './pedidos.js';
 import { chipOrigenPrepedido } from '@modules/prepedidos/prepedidos.js';
 
 const ESTADOS_NO_CONTINUA = ['Rechazado', 'Baja', 'Caducado'];
@@ -91,7 +95,11 @@ function coberturaDePedido(pedido) {
   const reasigCubren = reasignacionesVinculadasA(pedido).filter(r => r.estado === 'Aprobada ejecutada');
   const altasCompletas = candidatos.filter(c => !!getLegajoDe(c));
   const cubiertas = altasCompletas.length + reasigCubren.length;
-  return { candidatos, reasigCubren, altasCompletas, cubiertas, total: pedido.cantidad || 1 };
+  // Una vacante por persona (PEDIDOS_LINEAS_PERFIL_para_Fede.md, v158):
+  // cada línea de puesto expande en tantas vacantes como su cantidad, cada
+  // una con su propio horario/perfil — "total" ya no es un número plano.
+  const vacantes = expandirVacantesPedido(pedido);
+  return { candidatos, reasigCubren, altasCompletas, cubiertas, total: vacantes.length || 1, vacantes };
 }
 
 // Estado calculado de ESTA vista — no toca pedido.estado (ese sigue
@@ -111,7 +119,8 @@ function estadoCalculadoPedido(pedido, cobertura) {
 // vinculadas ya completan sus vacantes. Lo usa la bandeja de Prepedidos para
 // contar la dotación "cubierta".
 export function pedidoEstaCubierto(pedido) {
-  return pedido.estado === 'Cubierto' || coberturaDePedido(pedido).cubiertas >= (pedido.cantidad || 1);
+  const cobertura = coberturaDePedido(pedido);
+  return pedido.estado === 'Cubierto' || cobertura.cubiertas >= cobertura.total;
 }
 
 const ESTADO_CHIP = { 'En búsqueda': 'badge-azul', 'En proceso': 'badge-naranja', 'Cubierto': 'badge-verde', 'Vencido': 'badge-rojo' };
@@ -200,7 +209,7 @@ export function renderSeguimientoSeleccion() {
     el.onclick = () => abrirDetallePedidoSeguimiento(el.dataset.verPedido);
   });
   tbody.querySelectorAll('[data-vincular-pedido]').forEach(el => {
-    el.onclick = () => abrirVincularCandidato(el.dataset.vincularPedido);
+    el.onclick = () => abrirVincularCandidato(el.dataset.vincularPedido, el.dataset.vincularVacante);
   });
 }
 
@@ -243,44 +252,59 @@ function candidatoActivoHtml(a, avisaReemplazo) {
   </div>`;
 }
 
+// Chips de la vacante puntual (PEDIDOS_LINEAS_PERFIL_para_Fede.md, v158):
+// "V1 · Operario A · L a V · 06:00–14:00 · línea 1" — antes las vacantes
+// del mismo pedido eran indistinguibles entre sí (el bug real de las 2
+// Perez de PP-29), ahora cada una muestra QUÉ cubre.
+function chipsDeVacante(v, idx, multiLinea) {
+  const horario = v.horarioDesde || v.horarioHasta ? `${v.horarioDesde || '?'}–${v.horarioHasta || '?'}` : 'sin horario';
+  return `<span class="chip" style="font-size:10px;background:var(--azul-claro);color:var(--azul);">V${idx + 1}</span> `
+    + (v.puesto ? `<span class="chip" style="font-size:10px;">${v.puesto}</span> ` : '')
+    + `<span class="chip" style="font-size:10px;">${diasMarcadosTexto(v.dias)} · ${horario}</span>`
+    + (multiLinea ? ` <span class="chip" style="font-size:10px;background:var(--acento-suave);">línea ${v.lineaIdx + 1}</span>` : '');
+}
+
 function filaHtml(f) {
   const p = f.pedido;
   const id = String(p.id);
   const tieneHistorial = f.historial.some(h => h.pipe.noContinua);
   const expandido = _expandido.has(id);
   const zonaHtml = f.zona ? f.zona : '<span style="color:#b3261e;">zona sin cargar ⚠</span>';
+  const multiLinea = lineasDePedido(p).length > 1;
 
+  // Recorre las vacantes YA EXPANDIDAS (una por persona) y, para cada una,
+  // muestra qué la cubre — alta completa, reasignación (reservada en orden,
+  // no hay tracking de vacante puntual para ese camino todavía) o
+  // candidato(s) en proceso vinculados a ESE índice puntual
+  // (candidato.pedidoVacanteIdx). Antes esto era una lista plana de
+  // "cubiertas/en proceso/faltantes" sin decir a cuál vacante correspondía
+  // cada una.
+  const altaPorIdx = new Map(f.cobertura.altasCompletas.map(c => [(c.pedidoVacanteIdx ?? 0), c]));
+  let reasigRestantes = f.cobertura.reasigCubren.length;
   const bloques = [];
-  f.cobertura.altasCompletas.forEach(c => {
-    bloques.push(`<div class="seg-vac"><div class="seg-cand">✔ ${c.apellido}, ${c.nombre} — <span class="badge badge-verde">INGRESÓ ${(getLegajoDe(c)?.ingreso || '').slice(0, 5)}</span>
-      <div class="seg-x">Alta completa → escribió su registro en el padrón de categorías (origen ALTA)</div></div></div>`);
+  f.cobertura.vacantes.forEach((v, idx) => {
+    const chipVac = chipsDeVacante(v, idx, multiLinea);
+    const alta = altaPorIdx.get(idx);
+    if (alta) {
+      bloques.push(`<div class="seg-vac">${chipVac}<div class="seg-cand">✔ ${alta.apellido}, ${alta.nombre} — <span class="badge badge-verde">INGRESÓ ${(getLegajoDe(alta)?.ingreso || '').slice(0, 5)}</span>
+        <div class="seg-x">Alta completa → escribió su registro en el padrón de categorías (origen ALTA)</div></div></div>`);
+      return;
+    }
+    if (reasigRestantes > 0) {
+      const r = f.cobertura.reasigCubren[f.cobertura.reasigCubren.length - reasigRestantes];
+      reasigRestantes--;
+      bloques.push(`<div class="seg-vac">${chipVac}<div class="seg-cand">${r.nombreAsociado || r.nroSocio || '—'} — <span class="badge badge-viol">CUBIERTO POR REASIGNACIÓN</span>
+        <div class="seg-x">Vino de ${r.servicioOrigen || '—'} vía Reasignaciones — sin pipeline de selección</div></div></div>`);
+      return;
+    }
+    const activosAqui = f.activos.filter(a => (a.c.pedidoVacanteIdx ?? 0) === idx);
+    if (activosAqui.length) {
+      bloques.push(`<div class="seg-vac">${chipVac}${activosAqui.map(a => candidatoActivoHtml(a, tieneHistorial)).join('')}
+        <button class="btn btn-xs btn-secondary" data-vincular-pedido="${id}" data-vincular-vacante="${idx}">+ Vincular otro candidato</button></div>`);
+    } else {
+      bloques.push(`<div class="seg-vac">${chipVac}<span class="seg-x">Vacante: en búsqueda</span> <button class="btn btn-xs btn-primary" data-vincular-pedido="${id}" data-vincular-vacante="${idx}">+ Vincular</button></div>`);
+    }
   });
-  f.cobertura.reasigCubren.forEach(r => {
-    bloques.push(`<div class="seg-vac"><div class="seg-cand">${r.nombreAsociado || r.nroSocio || '—'} — <span class="badge badge-viol">CUBIERTO POR REASIGNACIÓN</span>
-      <div class="seg-x">Vino de ${r.servicioOrigen || '—'} vía Reasignaciones — sin pipeline de selección</div></div></div>`);
-  });
-  f.activos.forEach(a => {
-    bloques.push(`<div class="seg-vac">${candidatoActivoHtml(a, tieneHistorial)}</div>`);
-  });
-  const faltantes = Math.max(0, f.cobertura.total - f.cobertura.cubiertas - f.activos.length);
-  for (let i = 0; i < faltantes; i++) {
-    bloques.push(`<div class="seg-vac"><span class="seg-x">Vacante: en búsqueda</span> <button class="btn btn-xs btn-primary" data-vincular-pedido="${id}">+ Vincular</button></div>`);
-  }
-  // Candidato de respaldo (ticket "vincular más de una persona al pedido",
-  // 23/09): el modelo YA soporta varios candidatos por pedido
-  // (candidato.pedidoVinculadoIdLocal es un campo simple sin UNIQUE, sql/v127
-  // — candidatosVinculadosA() filtra un array, no busca uno solo). Lo único
-  // que bloqueaba un segundo candidato era este botón: "+Vincular" dejaba de
-  // ofrecerse en cuanto activos.length alcanzaba las vacantes libres, aunque
-  // esos candidatos sigan en proceso (nadie hizo el alta todavía) — en la
-  // práctica a veces conviene correr un candidato de respaldo en paralelo
-  // para la misma vacante. Se ofrece siempre que el pedido no esté
-  // REALMENTE cubierto (altas + reasignaciones < total), sin importar
-  // cuántos ya estén en curso.
-  if (faltantes === 0 && f.cobertura.cubiertas < f.cobertura.total) {
-    const vacantesAbiertas = f.cobertura.total - f.cobertura.cubiertas;
-    bloques.push(`<div class="seg-vac"><span class="seg-x">${f.activos.length} en proceso para ${vacantesAbiertas} vacante${vacantesAbiertas !== 1 ? 's' : ''} — se puede sumar un candidato de respaldo</span> <button class="btn btn-xs btn-secondary" data-vincular-pedido="${id}">+ Vincular otro candidato</button></div>`);
-  }
   const colCandidatos = bloques.length ? bloques.join('') : '<span class="seg-x">Sin candidato asignado</span>';
 
   const filaHist = expandido ? `<tr class="seg-hist" id="hist-${id}"><td colspan="10">${historialHtml(f)}</td></tr>` : '';
@@ -317,12 +341,13 @@ export function abrirDetallePedidoSeguimiento(id) {
   $('seg-ver-titulo').textContent = `Pedido ${numeroPedidoTxt(p)} — ${p.servicio} · ${cobertura.total} vacante${cobertura.total !== 1 ? 's' : ''}`;
   $('seg-ver-resumen').innerHTML = `<b>Supervisor:</b> ${p.supervisor || '—'} · <b>Puesto:</b> ${p.puesto || '—'} · <b>F. límite:</b> ${p.fechaLimite || '—'} ·
     <span class="badge ${ESTADO_CHIP[estadoCalculadoPedido(p, cobertura)] || 'badge-gris'}">${cobertura.cubiertas} DE ${cobertura.total} CUBIERTAS</span>`;
+  const vTxt = (c) => `V${(c.pedidoVacanteIdx ?? 0) + 1} · `;
   const filas = [];
-  cobertura.altasCompletas.forEach(c => filas.push(`<tr><td>${c.apellido}, ${c.nombre}</td><td><span class="badge badge-verde">ALTA COMPLETA</span></td><td>${getLegajoDe(c)?.ingreso || '—'} (efectivo)</td></tr>`));
+  cobertura.altasCompletas.forEach(c => filas.push(`<tr><td>${vTxt(c)}${c.apellido}, ${c.nombre}</td><td><span class="badge badge-verde">ALTA COMPLETA</span></td><td>${getLegajoDe(c)?.ingreso || '—'} (efectivo)</td></tr>`));
   cobertura.reasigCubren.forEach(r => filas.push(`<tr><td>${r.nombreAsociado || '—'}</td><td><span class="badge badge-viol">REASIGNACIÓN</span></td><td>${r.fechaEjecucion || '—'} (efectivo)</td></tr>`));
   candidatosVinculadosA(p).filter(c => !getLegajoDe(c) && !ESTADOS_NO_CONTINUA.includes(c.estado)).forEach(c => {
     const pipe = pipelineDe(c);
-    filas.push(`<tr><td>${c.apellido}, ${c.nombre}</td><td><span class="badge badge-naranja">${(PASO_LABEL[pipe.etapaActualKey] || '—').toUpperCase()}</span></td><td>— (en curso)</td></tr>`);
+    filas.push(`<tr><td>${vTxt(c)}${c.apellido}, ${c.nombre}</td><td><span class="badge badge-naranja">${(PASO_LABEL[pipe.etapaActualKey] || '—').toUpperCase()}</span></td><td>— (en curso)</td></tr>`);
   });
   $('tbody-seg-ver').innerHTML = filas.length ? filas.join('') : '<tr><td colspan="3" style="text-align:center;color:var(--texto-muy-suave);">Sin candidatos vinculados todavía.</td></tr>';
   abrirModal('modal-seg-ver-pedido');
@@ -373,16 +398,19 @@ export async function guardarCargaManualEtapaSeguimiento() {
 // es EL MISMO que ya lee/escribe el select del modal de Candidatos — una
 // sola relación, dos ventanas (esta y la columna PEDIDO de Candidatos).
 let _vincularPedidoId = null;
+let _vincularVacanteIdx = 0;
 
-export function abrirVincularCandidato(pedidoId) {
+export function abrirVincularCandidato(pedidoId, vacanteIdx) {
   const p = (DB.pedidos || []).find(x => String(x.id) === String(pedidoId));
   if (!p) return;
   _vincularPedidoId = pedidoId;
+  _vincularVacanteIdx = Number(vacanteIdx) || 0;
+  const vac = expandirVacantesPedido(p)[_vincularVacanteIdx];
   const t = $('vinc-pedido-titulo');
-  // Si ya hay gente en proceso para este pedido, lo aclara en el título —
-  // vincular acá no reemplaza a nadie, se suma como candidato de respaldo.
-  const yaEnProceso = candidatosVinculadosA(p).filter(c => !getLegajoDe(c) && !ESTADOS_NO_CONTINUA.includes(c.estado)).length;
-  if (t) t.textContent = `Vincular candidato — ${numeroPedidoTxt(p)} · ${p.servicio}` + (yaEnProceso ? ` (ya hay ${yaEnProceso} en proceso — este se suma como respaldo)` : '');
+  // Si ya hay gente en proceso para ESTA vacante puntual, lo aclara en el
+  // título — vincular acá no reemplaza a nadie, se suma como respaldo.
+  const yaEnProceso = candidatosVinculadosA(p).filter(c => (c.pedidoVacanteIdx ?? 0) === _vincularVacanteIdx && !getLegajoDe(c) && !ESTADOS_NO_CONTINUA.includes(c.estado)).length;
+  if (t) t.textContent = `Vincular candidato — ${numeroPedidoTxt(p)} · ${p.servicio}${vac ? ` · V${_vincularVacanteIdx + 1}${vac.puesto ? ' ' + vac.puesto : ''}` : ''}` + (yaEnProceso ? ` (ya hay ${yaEnProceso} en proceso para esta vacante — este se suma como respaldo)` : '');
   const buscar = $('vinc-buscar'); if (buscar) buscar.value = '';
   renderListaVincularCandidatos();
   abrirModal('modal-ped-vincular');
@@ -433,10 +461,13 @@ export async function desvincularCandidatoPorId(candidatoId) {
     + 'No es un rechazo ni una baja: sigue activo en su etapa actual, solo deja de contar para esta vacante y queda libre para vincularse a otro pedido.'
   )) return;
   const idAnterior = c.pedidoVinculadoIdLocal;
+  const idxAnterior = c.pedidoVacanteIdx;
   c.pedidoVinculadoIdLocal = null;
+  c.pedidoVacanteIdx = null;
   const ok = await supaSync('candidatos', c);
   if (!ok) {
     c.pedidoVinculadoIdLocal = idAnterior;
+    c.pedidoVacanteIdx = idxAnterior;
     toast('⚠️ No se pudo desvincular — no se guardó ningún cambio, reintentá');
     return;
   }
@@ -450,11 +481,12 @@ export async function elegirCandidatoVincular(candidatoId) {
   const p = (DB.pedidos || []).find(x => String(x.id) === String(_vincularPedidoId));
   if (!c || !p) return;
   c.pedidoVinculadoIdLocal = p.id;
+  c.pedidoVacanteIdx = _vincularVacanteIdx;
   await supaSync('candidatos', c);
   cerrarModal('modal-ped-vincular');
   renderPedidosScreen();
   if (window.renderCandidatos) window.renderCandidatos();
-  toast(`✓ ${c.apellido}, ${c.nombre} vinculado a ${numeroPedidoTxt(p)}`);
+  toast(`✓ ${c.apellido}, ${c.nombre} vinculado a ${numeroPedidoTxt(p)} (V${_vincularVacanteIdx + 1})`);
 }
 
 // "¿No está en la lista? → Crearlo en Candidatos": no duplica el alta acá,

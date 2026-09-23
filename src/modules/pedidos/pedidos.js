@@ -11,13 +11,179 @@ import {
   fechaOrigenPedido, chipOrigenPrepedido, filasHistorialPrepedidos,
 } from '@modules/prepedidos/prepedidos.js';
 
-// Estado del checklist de días/horario del modal (los onchange inline
-// escriben en scope global, mismo patrón que puestosObjTemp en legacy.js).
-let horarioPedidoTemp = { dias: {}, horarioDesde: '', horarioHasta: '', tipoHorario: 'fijo' };
-window.horarioPedidoTemp = horarioPedidoTemp;
-
 // id del pedido en edición (null = alta nueva).
 let _pedidoEditId = null;
+
+// ========== LÍNEAS DE PUESTO (PEDIDOS_LINEAS_PERFIL_para_Fede.md, v158) ==========
+// El pedido pasa de "un puesto × cantidad × un horario × un perfil" a
+// CABECERA + N líneas de puesto, cada una con su propio puesto, cantidad,
+// horario/días y perfil — misma estructura que ya usan
+// objetivos.puestos_necesarios y prepedidos.vacantes. Caso real que motiva
+// esto: PP-29 pedía "2× Operario A" en un solo horario/perfil cuando en
+// verdad era una de mañana de semana part-time y una franquera de finde
+// rotativa — las dos candidatas quedaban indistinguibles.
+//
+// Estado temporal del form: mismo patrón que puestosObjTemp en legacy.js
+// (Personal necesario del alta de servicio) — un array que los onchange
+// inline mutan directo, con re-render manual solo al agregar/quitar línea.
+let lineasPedidoTemp = [];
+window.lineasPedidoTemp = lineasPedidoTemp;
+
+function lineaVacia() {
+  return { puesto: '', cantidad: 1, dias: {}, horarioDesde: '', horarioHasta: '', tipoHorario: 'fijo', perfil: [] };
+}
+
+// Toda lectura de líneas pasa por acá: pedidos cargados antes de v158 (o
+// creados desde un prepedido, que arma solo los campos planos) no tienen
+// `lineas` todavía — se envuelven en una única línea con lo que ya
+// tenían, para no romper ningún pedido existente (mismo backfill que hizo
+// sql/v158 en la base, acá como red de seguridad en el cliente).
+export function lineasDePedido(p) {
+  if (Array.isArray(p?.lineas) && p.lineas.length) return p.lineas;
+  return [{
+    puesto: p?.puesto || '', cantidad: p?.cantidad || 1,
+    dias: { ...(p?.horarioSemanal?.dias || {}) },
+    horarioDesde: p?.horarioSemanal?.horarioDesde || '', horarioHasta: p?.horarioSemanal?.horarioHasta || '',
+    tipoHorario: p?.horarioSemanal?.tipoHorario || 'fijo', perfil: p?.perfil || [],
+  }];
+}
+
+// Expande las líneas en UNA vacante por persona (mismo criterio que
+// expandirVacantes() en prepedidos.js) — el índice de este array es lo
+// que candidato.pedidoVacanteIdx referencia: "V1, V2…" en Seguimiento.
+export function expandirVacantesPedido(p) {
+  const vac = [];
+  lineasDePedido(p).forEach((l, lineaIdx) => {
+    const cant = Math.max(0, parseInt(l.cantidad, 10) || 0);
+    for (let i = 0; i < cant; i++) {
+      vac.push({ puesto: l.puesto || '', dias: l.dias || {}, horarioDesde: l.horarioDesde || '', horarioHasta: l.horarioHasta || '', tipoHorario: l.tipoHorario || 'fijo', perfil: l.perfil || [], lineaIdx });
+    }
+  });
+  return vac;
+}
+
+export function cantidadTotalPedido(p) { return expandirVacantesPedido(p).length || 1; }
+
+// Puesto agregado para las vistas que muestran UN valor por pedido (tabla
+// Activos, filtro por puesto, CSV de Seguimiento): el puesto si hay una
+// sola línea, o "N líneas" si hay más — la ficha del pedido (👁) es donde
+// se ve el detalle línea por línea.
+export function puestoAgregadoPedido(p) {
+  const lineas = lineasDePedido(p);
+  if (lineas.length <= 1) return lineas[0]?.puesto || '—';
+  return `${lineas.length} líneas`;
+}
+
+export function agregarLineaPedido(copiar) {
+  const base = copiar && lineasPedidoTemp.length
+    ? JSON.parse(JSON.stringify(lineasPedidoTemp[lineasPedidoTemp.length - 1]))
+    : lineaVacia();
+  lineasPedidoTemp.push(base);
+  renderLineasPedido();
+}
+
+export function quitarLineaPedido(i) {
+  if (lineasPedidoTemp.length <= 1) { toast('El pedido necesita al menos una línea de puesto'); return; }
+  lineasPedidoTemp.splice(i, 1);
+  renderLineasPedido();
+}
+
+// Perfil por línea: mismo catálogo parametrizable que antes usaba el
+// pedido entero (DB.perfilPersonalAtributos, v073) — ahora una instancia
+// propia por línea en vez de una sola para todo el pedido.
+export function setLineaPerfil(i, codigo, valor) {
+  const perfil = lineasPedidoTemp[i].perfil || (lineasPedidoTemp[i].perfil = []);
+  const ix = perfil.findIndex(x => x.codigo === codigo);
+  if (!valor) { if (ix > -1) perfil.splice(ix, 1); return; }
+  if (ix > -1) perfil[ix].valor = valor; else perfil.push({ codigo, valor });
+}
+
+export function togLineaPerfilMulti(i, codigo, opcion, on) {
+  const perfil = lineasPedidoTemp[i].perfil || (lineasPedidoTemp[i].perfil = []);
+  let entry = perfil.find(x => x.codigo === codigo);
+  if (!entry) { entry = { codigo, valor: [] }; perfil.push(entry); }
+  if (!Array.isArray(entry.valor)) entry.valor = [];
+  const ix = entry.valor.indexOf(opcion);
+  if (on && ix === -1) entry.valor.push(opcion);
+  if (!on && ix > -1) entry.valor.splice(ix, 1);
+  if (!entry.valor.length) perfil.splice(perfil.indexOf(entry), 1);
+}
+
+function nombrePerfil(codigo) {
+  const a = (DB.perfilPersonalAtributos || []).find(x => x.codigo === codigo);
+  return a ? a.nombre : codigo;
+}
+
+function perfilInputsLineaHtml(i, perfil) {
+  const valorDe = (codigo) => (perfil || []).find(x => x.codigo === codigo);
+  const atrs = (DB.perfilPersonalAtributos || []).filter(a => a.activo !== false).sort((a, b) => (a.orden || 0) - (b.orden || 0));
+  return atrs.map(a => {
+    const opciones = a.opciones || [];
+    const pv = valorDe(a.codigo);
+    if (a.tipo === 'multi') {
+      const marcados = Array.isArray(pv?.valor) ? pv.valor : [];
+      return `<div class="form-group">
+        <label>${a.nombre}</label>
+        <div style="display:flex;flex-wrap:wrap;gap:4px 14px;padding-top:2px;">
+          ${opciones.map(o => `<label style="display:flex;align-items:center;gap:5px;font-size:12px;font-weight:400;"><input type="checkbox" ${marcados.includes(o) ? 'checked' : ''} onchange="togLineaPerfilMulti(${i},'${a.codigo}','${o}',this.checked)"> ${o}</label>`).join('')}
+        </div>
+      </div>`;
+    }
+    if (a.tipo === 'text') {
+      return `<div class="form-group"><label>${a.nombre}</label><input type="text" value="${pv?.valor || ''}" placeholder="${a.nombre}" oninput="setLineaPerfil(${i},'${a.codigo}',this.value)"></div>`;
+    }
+    return `<div class="form-group"><label>${a.nombre}</label>
+      <select onchange="setLineaPerfil(${i},'${a.codigo}',this.value)"><option value="">—</option>
+        ${opciones.map(o => `<option ${pv?.valor === o ? 'selected' : ''}>${o}</option>`).join('')}
+      </select>
+    </div>`;
+  }).join('');
+}
+
+// Layout de la tarjeta de línea siguiendo mockup_pedido_multilinea_1.html
+// (agregar/quitar línea, copiar la última, horario/días/perfil propios de
+// cada línea) adaptado a los componentes/estilos ya existentes del form
+// de Pedidos en vez del CSS standalone del mockup.
+export function renderLineasPedido() {
+  const cont = $('p-lineas');
+  if (!cont) return;
+  const puestos = [...new Set([...(DB.categorias || []), 'Runner', 'Franquero'])];
+  cont.innerHTML = lineasPedidoTemp.map((l, i) => `
+    <div style="border:1px solid var(--borde-fuerte);border-radius:8px;margin-bottom:12px;overflow:hidden;">
+      <div style="background:var(--fondo);padding:8px 12px;display:flex;align-items:center;gap:8px;border-bottom:1px solid var(--borde);">
+        <b style="font-size:12px;color:var(--azul);">LÍNEA ${i + 1}</b>
+        <span style="margin-left:auto;"></span>
+        ${lineasPedidoTemp.length > 1 ? `<button type="button" class="btn btn-danger btn-xs" onclick="quitarLineaPedido(${i})">✕ Quitar</button>` : ''}
+      </div>
+      <div style="padding:12px;">
+        <div class="form-grid form-grid-3">
+          <div class="form-group"><label>Puesto *</label>
+            <select onchange="lineasPedidoTemp[${i}].puesto=this.value">
+              <option value="">— Elegir —</option>
+              ${puestos.map(c => `<option ${c === l.puesto ? 'selected' : ''}>${c}</option>`).join('')}
+            </select>
+          </div>
+          <div class="form-group"><label>Cantidad *</label><input type="number" min="1" value="${l.cantidad || 1}" oninput="lineasPedidoTemp[${i}].cantidad=parseInt(this.value,10)||1"></div>
+          <div class="form-group"><label>Tipo de horario</label>
+            <select onchange="lineasPedidoTemp[${i}].tipoHorario=this.value">
+              <option value="fijo" ${(l.tipoHorario || 'fijo') === 'fijo' ? 'selected' : ''}>Fijo</option>
+              <option value="rotativo" ${l.tipoHorario === 'rotativo' ? 'selected' : ''}>Rotativo</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-group"><label>Días</label>
+          <div style="display:flex;gap:10px;flex-wrap:wrap;">${checklistDiasHtml(l.dias, (d) => `lineasPedidoTemp[${i}].dias.${d}=this.checked`)}</div>
+        </div>
+        <div class="form-grid form-grid-3">
+          <div class="form-group"><label>Desde</label><input type="time" value="${l.horarioDesde || ''}" onchange="lineasPedidoTemp[${i}].horarioDesde=this.value"></div>
+          <div class="form-group"><label>Hasta</label><input type="time" value="${l.horarioHasta || ''}" onchange="lineasPedidoTemp[${i}].horarioHasta=this.value"></div>
+          <div></div>
+        </div>
+        <div class="form-section" style="margin:10px 0 4px;">Perfil del personal — propio de esta línea</div>
+        <div class="form-grid form-grid-3">${perfilInputsLineaHtml(i, l.perfil)}</div>
+      </div>
+    </div>`).join('');
+}
 
 // v106 (ticket "AJUSTES", mockup v1.5): workflow completo. Estados vigentes:
 // Pendiente → En búsqueda → Cubierto | Cancelado. "Pausado" quedó del
@@ -232,8 +398,8 @@ export async function renderPedidos(lista) {
     <td style="font-size:12px;color:var(--texto-suave);">${p.cargadoPor || '—'}</td>
     <td style="font-weight:500;">${p.servicio}${chipOrigenPrepedido(p)}</td>
     <td style="font-weight:500;">${p.supervisor}</td>
-    <td><span class="chip">${p.puesto}</span></td>
-    <td style="text-align:right;">${p.cantidad || 1}</td>
+    <td><span class="chip">${puestoAgregadoPedido(p)}</span></td>
+    <td style="text-align:right;">${cantidadTotalPedido(p)}</td>
     <td style="font-size:12px;color:var(--texto-suave);">${p.fechaLimite || '—'}</td>
     <td style="text-align:right;font-weight:${vencido ? '700' : '400'};color:${vencido ? 'var(--rojo)' : 'inherit'};">${dias}</td>
     <td>${badge(p.urgencia)}</td>
@@ -284,7 +450,7 @@ export function renderHistorialPedidos() {
       <td style="font-size:12px;color:var(--texto-suave);">${numeroPedidoTxt(p)}</td>
       <td style="font-size:12px;color:var(--texto-suave);">${p.fecha} · ${p.cargadoPor || '—'}</td>
       <td style="font-weight:500;">${p.servicio}${chipOrigenPrepedido(p)}</td>
-      <td><span class="chip">${p.puesto}</span></td>
+      <td><span class="chip">${puestoAgregadoPedido(p)}</span></td>
       <td>${resultadoHtml}</td>
       <td style="font-size:12.5px;">${personaHtml}</td>
       <td style="text-align:right;">${dias}</td>
@@ -304,11 +470,6 @@ function perfilChips(p) {
     const valor = Array.isArray(x.valor) ? x.valor.join(' · ') : x.valor;
     return `<span class="chip">${nombrePerfil(x.codigo)}: ${valor}</span>`;
   }).join(' ');
-}
-
-function nombrePerfil(codigo) {
-  const a = (DB.perfilPersonalAtributos || []).find(x => x.codigo === codigo);
-  return a ? a.nombre : codigo;
 }
 
 // ========== DETALLE ==========
@@ -342,7 +503,6 @@ export function verDetallePedido(id) {
   // muestra lo que se pudo y se avisa, en vez de que "Ver" parezca que no
   // hizo nada (mismo espíritu que el fix de los onclick sin comillas).
   try {
-    const horarioTxt = formatearHorarioSemanal(p.horarioSemanal) || p.horario || '—';
     const vencido = pedidoVencido(p);
     const body = `<div class="info-grid" style="margin-bottom:16px;">
       <div class="info-item"><div class="key">N° de pedido</div><div class="val">${numeroPedidoTxt(p)}</div></div>
@@ -351,15 +511,12 @@ export function verDetallePedido(id) {
       <div class="info-item"><div class="key">Dirección del servicio</div><div class="val">${direccionDeServicio(p.servicio) || '—'}</div></div>
       <div class="info-item"><div class="key">Supervisor</div><div class="val">${p.supervisor}</div></div>
       <div class="info-item"><div class="key">Zona</div><div class="val">${p.zona || '—'}</div></div>
-      <div class="info-item"><div class="key">Puesto</div><div class="val">${p.puesto}</div></div>
-      <div class="info-item"><div class="key">Cantidad</div><div class="val">${p.cantidad || 1}</div></div>
-      <div class="info-item"><div class="key">Horario</div><div class="val">${horarioTxt}</div></div>
       <div class="info-item"><div class="key">Urgencia</div><div class="val">${badge(p.urgencia)}</div></div>
       <div class="info-item"><div class="key">Fecha del pedido</div><div class="val">${p.fecha}</div></div>
       <div class="info-item"><div class="key">Fecha límite</div><div class="val">${p.fechaLimite || '—'}</div></div>
       <div class="info-item"><div class="key">Cargado por</div><div class="val">${p.cargadoPor || '—'}</div></div>
     </div>
-    ${perfilDetalle(p)}
+    ${lineasDetalleHtml(p)}
     <div class="form-section" style="margin-bottom:8px;">Observaciones</div>
     <p style="font-size:13px;color:var(--texto-suave);margin-bottom:16px;">${p.obs || 'Sin observaciones'}</p>
     ${p.estado === 'Cubierto' ? `<div class="form-section" style="margin-bottom:8px;">Cobertura</div>
@@ -395,13 +552,12 @@ export function abrirEdicionPedido(id) {
   $('p-numero').value = numeroPedidoTxt(p);
   $('p-supervisor').value = p.supervisor || '';
   $('p-zona').value = p.zona || '';
-  $('p-puesto').value = p.puesto || '';
-  $('p-cantidad').value = p.cantidad || 1;
   $('p-urgencia').value = p.urgencia || 'Media';
   $('p-fecha-limite').value = p.fechaLimite || '';
   $('p-obs').value = p.obs || '';
-  renderPerfilInputs(p.perfil || []);
-  renderHorarioPedido(p.horarioSemanal);
+  lineasPedidoTemp.length = 0;
+  lineasPedidoTemp.push(...lineasDePedido(p).map(l => ({ ...l, dias: { ...(l.dias || {}) }, perfil: (l.perfil || []).map(x => ({ ...x })) })));
+  renderLineasPedido();
   // Puebla el <select> de servicio con los del supervisor YA cargado y
   // conserva el servicio guardado (orden importa: un <select> ignora un
   // .value que todavía no tiene su <option>).
@@ -409,16 +565,24 @@ export function abrirEdicionPedido(id) {
   abrirModal('modal-pedido');
 }
 
-function perfilDetalle(p) {
-  const perfil = p.perfil || [];
-  if (!perfil.length) return '';
-  return `<div class="form-section" style="margin-bottom:8px;">Perfil solicitado</div>
-  <div class="info-grid" style="margin-bottom:16px;">
-    ${perfil.map(x => {
-      const valor = Array.isArray(x.valor) ? x.valor.join(', ') : x.valor;
-      return `<div class="info-item"><div class="key">${nombrePerfil(x.codigo)}</div><div class="val">${valor}</div></div>`;
-    }).join('')}
-  </div>`;
+// Detalle de líneas para la ficha del pedido (👁): puesto/cantidad/horario
+// y el perfil propio de cada línea. Siempre por línea, incluso cuando hay
+// una sola — el pedido deja de tener un Puesto/Cantidad/Horario "planos".
+function lineasDetalleHtml(p) {
+  const lineas = lineasDePedido(p);
+  const totalVac = cantidadTotalPedido(p);
+  return `<div class="form-section" style="margin-bottom:8px;">Líneas de puesto (${lineas.length} línea${lineas.length !== 1 ? 's' : ''} · ${totalVac} vacante${totalVac !== 1 ? 's' : ''})</div>`
+    + lineas.map((l, i) => {
+      const horarioTxt = formatearHorarioSemanal(l) || '—';
+      const perfilTxt = (l.perfil || []).map(x => {
+        const valor = Array.isArray(x.valor) ? x.valor.join(', ') : x.valor;
+        return `<span class="chip" style="font-size:11px;">${nombrePerfil(x.codigo)}: ${valor}</span>`;
+      }).join(' ') || '<span class="text-muted" style="font-size:11.5px;">Sin perfil especificado</span>';
+      return `<div style="background:var(--fondo);border:1px solid var(--borde);border-radius:var(--radio);padding:9px 12px;margin-bottom:8px;font-size:12.5px;">
+        <b>Línea ${i + 1}:</b> ${l.cantidad || 1}× ${l.puesto || '—'} · ${horarioTxt}
+        <div style="margin-top:4px;display:flex;gap:6px;flex-wrap:wrap;">${perfilTxt}</div>
+      </div>`;
+    }).join('');
 }
 
 // ========== FILTROS ==========
@@ -435,7 +599,7 @@ export function filtrarPedidos() {
     (!fecha || p.fecha.includes(fecha)) &&
     (!sup || p.supervisor.toLowerCase().includes(sup)) &&
     (!serv || p.servicio.toLowerCase().includes(serv)) &&
-    (!puesto || p.puesto === puesto) &&
+    (!puesto || lineasDePedido(p).some(l => l.puesto === puesto)) &&
     (!urg || p.urgencia === urg) &&
     (!estado || p.estado === estado) &&
     (!bg || p.supervisor.toLowerCase().includes(bg) || p.servicio.toLowerCase().includes(bg))
@@ -445,12 +609,23 @@ export function filtrarPedidos() {
 // Alta de un pedido que nace de una vacante de prepedido ("Incorporar"):
 // mismo pedido de siempre, con el vínculo prepedidoIdLocal/prepedidoVacante.
 export function crearPedidoDesdePrepedido(datos, origenTxt) {
+  // Sigue llegando con los campos planos de siempre (puesto/cantidad/
+  // horarioSemanal/perfil: una vacante de prepedido = un puesto) —
+  // prepedidos.js no cambió, se envuelve acá en una línea (v158) para que
+  // todo pedido, sea cual sea su origen, tenga `lineas`.
+  const lineas = datos.lineas || [{
+    puesto: datos.puesto || '', cantidad: datos.cantidad || 1,
+    dias: { ...(datos.horarioSemanal?.dias || {}) },
+    horarioDesde: datos.horarioSemanal?.horarioDesde || '', horarioHasta: datos.horarioSemanal?.horarioHasta || '',
+    tipoHorario: datos.horarioSemanal?.tipoHorario || 'fijo', perfil: datos.perfil || [],
+  }];
   const nuevo = {
     id: Date.now(),
     numero: siguienteNumeroPedido(),
     fecha: hoyDDMMAAAA(),
     cargadoPor: currentUser?.nombre || 'Sistema',
     ...datos,
+    lineas,
     estado: 'Pendiente',
   };
   DB.pedidos.push(nuevo);
@@ -471,18 +646,27 @@ export function abrirNuevoPedido() {
 export function guardarPedido() {
   const s = $('p-servicio').value.trim();
   if (!s) { toast('Ingresá el servicio'); return; }
-  const cantidad = Math.max(1, parseInt($('p-cantidad').value, 10) || 1);
+  if (!lineasPedidoTemp.length) { toast('Agregá al menos una línea de puesto'); return; }
+  for (const l of lineasPedidoTemp) {
+    if (!l.puesto) { toast('Elegí el puesto en todas las líneas de puesto'); return; }
+  }
+  const lineas = lineasPedidoTemp.map(l => ({ ...l, cantidad: Math.max(1, parseInt(l.cantidad, 10) || 1) }));
+  const primera = lineas[0];
   const datos = {
     supervisor: $('p-supervisor').value,
     servicio: s,
     zona: $('p-zona').value,
-    puesto: $('p-puesto').value,
-    cantidad,
+    lineas,
+    // Campos planos agregados (compat hacia atrás — ver sql/v158): el
+    // puesto/cantidad de la tabla y filtros, horario/perfil de la
+    // primera línea para el <select> "pedido vinculado" en Reasignaciones.
+    puesto: lineas.length > 1 ? `${lineas.length} líneas` : primera.puesto,
+    cantidad: lineas.reduce((acc, l) => acc + l.cantidad, 0),
+    horarioSemanal: { dias: { ...primera.dias }, horarioDesde: primera.horarioDesde, horarioHasta: primera.horarioHasta, tipoHorario: primera.tipoHorario },
+    horario: formatearHorarioSemanal(primera),
+    perfil: primera.perfil || [],
     fechaLimite: $('p-fecha-limite').value.trim(),
-    horarioSemanal: { ...horarioPedidoTemp },
-    horario: formatearHorarioSemanal(horarioPedidoTemp),
     urgencia: $('p-urgencia').value,
-    perfil: recolectarPerfil(),
     obs: $('p-obs').value,
   };
   if (_pedidoEditId) {
@@ -513,48 +697,20 @@ export function guardarPedido() {
   toast(`✓ Pedido ${numeroPedidoTxt(nuevo)} guardado`);
 }
 
-// Renderiza el checklist de días + horario dentro de #p-horario. prefill:
-// objeto horarioSemanal de un pedido existente (para edición) o null.
-export function renderHorarioPedido(prefill) {
-  const el = $('p-horario');
-  if (!el) return;
-  horarioPedidoTemp = {
-    dias: { ...(prefill?.dias || {}) },
-    horarioDesde: prefill?.horarioDesde || '',
-    horarioHasta: prefill?.horarioHasta || '',
-    tipoHorario: prefill?.tipoHorario || 'fijo',
-  };
-  window.horarioPedidoTemp = horarioPedidoTemp;
-  el.innerHTML = `
-    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:8px;">
-      ${checklistDiasHtml(horarioPedidoTemp.dias, (d) => `horarioPedidoTemp.dias.${d}=this.checked`)}
-    </div>
-    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;">
-      <div class="form-group"><label>Desde</label><input type="time" value="${horarioPedidoTemp.horarioDesde}" style="padding:9px 12px;" onchange="horarioPedidoTemp.horarioDesde=this.value"></div>
-      <div class="form-group"><label>Hasta</label><input type="time" value="${horarioPedidoTemp.horarioHasta}" style="padding:9px 12px;" onchange="horarioPedidoTemp.horarioHasta=this.value"></div>
-      <div class="form-group"><label>Tipo de horario</label>
-        <select style="padding:9px 12px;" onchange="horarioPedidoTemp.tipoHorario=this.value">
-          <option value="fijo" ${(horarioPedidoTemp.tipoHorario || 'fijo') === 'fijo' ? 'selected' : ''}>Fijo</option>
-          <option value="rotativo" ${horarioPedidoTemp.tipoHorario === 'rotativo' ? 'selected' : ''}>Rotativo</option>
-        </select>
-      </div>
-    </div>`;
-}
-
 // Reinicia el estado del modal para un alta nueva (botón "+ Nuevo pedido").
 export function resetModalPedido() {
   _pedidoEditId = null;
   $('pedido-modal-title').textContent = 'Nuevo pedido de personal';
   const cp = $('p-cargado-por'); if (cp) cp.value = currentUser?.nombre || '';
   const num = $('p-numero'); if (num) num.value = `PP-${siguienteNumeroPedido()} (auto)`;
-  const cant = $('p-cantidad'); if (cant) cant.value = 1;
   const fl = $('p-fecha-limite'); if (fl) fl.value = '';
   const sup = $('p-supervisor'); if (sup) sup.value = '';
   const obs = $('p-obs'); if (obs) obs.value = '';
   const zona = $('p-zona'); if (zona) zona.value = '';
   onChangeSupervisorPedido();   // limpia el <select> de servicio (y la dirección) al estado "sin supervisor"
-  renderPerfilInputs([]);
-  renderHorarioPedido(null);
+  lineasPedidoTemp.length = 0;
+  lineasPedidoTemp.push(lineaVacia());
+  renderLineasPedido();
 }
 
 // ========== MATCHER SERVICIO ↔ SUPERVISOR (08/2026) ==========
@@ -604,60 +760,6 @@ export function onChangeServicioPedido() {
 function actualizarDireccionServicioPedido(codigo) {
   const el = $('p-servicio-direccion');
   if (el) el.value = direccionDeServicio(codigo) || '—';
-}
-
-// ========== PERFIL DEL PERSONAL (catálogo parametrizable, v073) ==========
-
-// Renderiza los controles del perfil solicitado dentro de #p-perfil,
-// leyendo los atributos activos de DB.perfilPersonalAtributos (orden).
-// prefill: array [{codigo, valor}] con los valores guardados (edición).
-export function renderPerfilInputs(prefill) {
-  const cont = $('p-perfil');
-  if (!cont) return;
-  const pref = (prefill || []);
-  const valorDe = (codigo) => pref.find(x => x.codigo === codigo);
-  const atrs = (DB.perfilPersonalAtributos || [])
-    .filter(a => a.activo !== false)
-    .sort((a, b) => (a.orden || 0) - (b.orden || 0));
-  cont.innerHTML = atrs.map(a => {
-    const opciones = a.opciones || [];
-    const pv = valorDe(a.codigo);
-    if (a.tipo === 'multi') {
-      const marcados = Array.isArray(pv?.valor) ? pv.valor : [];
-      return `<div class="form-group">
-        <label>${a.nombre}</label>
-        <div style="display:flex;flex-direction:column;gap:4px;padding-top:2px;">
-          ${opciones.map(o => `<label style="display:flex;align-items:center;gap:6px;font-size:12px;"><input type="checkbox" data-perfil="${a.codigo}" value="${o}" ${marcados.includes(o) ? 'checked' : ''}> ${o}</label>`).join('')}
-        </div>
-      </div>`;
-    }
-    if (a.tipo === 'text') {
-      return `<div class="form-group"><label>${a.nombre}</label><input type="text" id="perfil-${a.codigo}" value="${pv?.valor || ''}" placeholder="${a.nombre}"></div>`;
-    }
-    return `<div class="form-group"><label>${a.nombre}</label>
-      <select id="perfil-${a.codigo}"><option value="">—</option>
-        ${opciones.map(o => `<option ${pv?.valor === o ? 'selected' : ''}>${o}</option>`).join('')}
-      </select>
-    </div>`;
-  }).join('');
-}
-
-// Recolecta los valores elegidos → array [{codigo, valor}] que se persiste
-// en pedidos.perfil. 'multi' agrupa los checkbox marcados como array.
-export function recolectarPerfil() {
-  const perfil = [];
-  const atrs = (DB.perfilPersonalAtributos || []).filter(a => a.activo !== false);
-  for (const a of atrs) {
-    if (a.tipo === 'multi') {
-      const marcados = [...document.querySelectorAll(`#p-perfil input[data-perfil="${a.codigo}"]:checked`)].map(c => c.value);
-      if (marcados.length) perfil.push({ codigo: a.codigo, valor: marcados });
-    } else {
-      const el = $(`perfil-${a.codigo}`);
-      const v = el && el.value ? el.value.trim() : '';
-      if (v) perfil.push({ codigo: a.codigo, valor: v });
-    }
-  }
-  return perfil;
 }
 
 // ========== WORKFLOW (v106): tomar / cubrir / cancelar ==========

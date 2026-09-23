@@ -3,11 +3,13 @@
 // seguimiento_seleccion/, fusionado acá — ver seguimiento.js).
 
 export {
-  renderPedidos, filtrarPedidos, guardarPedido, verDetallePedido, renderPerfilInputs,
-  renderHorarioPedido, resetModalPedido, abrirEdicionPedido, onChangeSupervisorPedido,
+  renderPedidos, filtrarPedidos, guardarPedido, verDetallePedido,
+  resetModalPedido, abrirEdicionPedido, onChangeSupervisorPedido,
   onChangeServicioPedido, abrirNuevoPedido, cambiarTabPedidos, renderHistorialPedidos,
   renderPedidosScreen, tomarPedido, abrirModalCubierto, confirmarCubierto, abrirModalCancelar,
   confirmarCancelar, crearPedidoDesdePrepedido,
+  lineasDePedido, expandirVacantesPedido, cantidadTotalPedido, puestoAgregadoPedido,
+  agregarLineaPedido, quitarLineaPedido, setLineaPerfil, togLineaPerfilMulti, renderLineasPedido,
 } from './pedidos.js';
 
 export {
@@ -34,9 +36,10 @@ export const pedidosScreenConfig = {
 
 import {
   crearPedidoDesdePrepedido,
-  filtrarPedidos, guardarPedido, verDetallePedido, renderPerfilInputs, abrirEdicionPedido,
+  filtrarPedidos, guardarPedido, verDetallePedido, abrirEdicionPedido,
   onChangeSupervisorPedido, onChangeServicioPedido, cambiarTabPedidos, renderHistorialPedidos,
   tomarPedido, abrirModalCubierto, confirmarCubierto, abrirModalCancelar, confirmarCancelar,
+  agregarLineaPedido, quitarLineaPedido, setLineaPerfil, togLineaPerfilMulti, renderLineasPedido,
 } from './pedidos.js';
 import {
   renderSeguimientoSeleccion, filtrarSeguimientoSeleccion, abrirDetallePedidoSeguimiento,
@@ -53,7 +56,11 @@ window.filtrarPedidos = filtrarPedidos;
 window.guardarPedido = guardarPedido;
 window.verDetallePedido = verDetallePedido;
 window.abrirEdicionPedido = abrirEdicionPedido;
-window.renderPerfilInputs = renderPerfilInputs;
+window.agregarLineaPedido = agregarLineaPedido;
+window.quitarLineaPedido = quitarLineaPedido;
+window.setLineaPerfil = setLineaPerfil;
+window.togLineaPerfilMulti = togLineaPerfilMulti;
+window.renderLineasPedido = renderLineasPedido;
 window.onChangeSupervisorPedido = onChangeSupervisorPedido;
 window.onChangeServicioPedido = onChangeServicioPedido;
 window.abrirNuevoPedido = abrirNuevoPedido;
