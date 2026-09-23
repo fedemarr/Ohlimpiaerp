@@ -1155,6 +1155,28 @@ DB.comisionesPagos = [];
 if(!DB.comisionesConfig) DB.comisionesConfig = { topeAlertaPct: 10 };
 
 // ========== RENDER CLIENTES ==========
+// Causa raíz real (ticket "Baja se ve verde", 23/09): el <td> de Estado
+// pasaba el LABEL ya traducido ('Activo'/'Baja'/'Pendiente') al badge()
+// genérico de helpers.js, que busca el color en BADGE_MAP (state.js) — un
+// objeto COMPARTIDO por todo el proyecto. BADGE_MAP tiene la clave 'Baja'
+// declarada DOS VECES: una para "estado dado de baja" (badge-rojo, línea
+// del bloque de Psicotécnico/Ingreso) y otra para "urgencia Baja" de
+// Pedidos de personal (badge-verde, urgencia baja = prioridad baja = OK).
+// En un object literal la clave repetida se pisa — gana la ÚLTIMA
+// declarada (urgencia, verde) — así que CUALQUIER badge('Baja') del
+// proyecto entero terminaba en verde, sin que nadie lo pidiera así. No se
+// toca BADGE_MAP (arreglarlo ahí volvería roja la urgencia "Baja" de
+// Pedidos de personal, que hoy es verde a propósito: prioridad baja no es
+// una alarma). Clientes usa su PROPIO mapa, mismo patrón ya probado que
+// badgeEstadoObjetivo() más abajo — así queda desacoplado del dominio de
+// Urgencia. Normalizado (trim + minúsculas) para no depender de mayúsculas
+// o espacios exactos en el dato real.
+function badgeEstadoCliente(estadoCliente){
+  const norm=String(estadoCliente||'').trim().toLowerCase();
+  const MAPA={activo:['Activo','badge-verde'],inactivo:['Baja','badge-rojo'],borrador:['Pendiente','badge-naranja']};
+  const [label,clase]=MAPA[norm]||['Pendiente','badge-naranja'];
+  return `<span class="badge ${clase}">${label}</span>`;
+}
 function renderClientes(lista){
   reconciliarClienteIdObjetivos();
   const base=(lista||DB.clientes).filter(c=>!c.anulado);
@@ -1184,7 +1206,7 @@ function renderClientes(lista){
       <td style="font-size:12px;">${c.condPago||'—'}</td>
       <td style="font-size:12px;">${c.formaPago||'—'}</td>
       <td style="font-family:'DM Mono',monospace;font-size:11px;color:var(--texto-suave);">${c.codigo||'—'}</td>
-      <td>${badge(c.estado==='Activo'?'Activo':c.estado==='Inactivo'?'Baja':'Pendiente')}</td>
+      <td>${badgeEstadoCliente(c.estado)}</td>
       <td>
         <div style="display:flex;gap:4px;flex-wrap:wrap;">
           <button class="btn btn-secondary btn-xs" onclick="verCliente('${idl}')">Ver</button>
@@ -1216,7 +1238,7 @@ function verCliente(idLocal){
   let html=`<div style="display:flex;gap:14px;align-items:flex-start;margin-bottom:18px;">
     <div style="width:48px;height:48px;border-radius:10px;background:var(--azul-claro);display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:700;color:var(--azul);">${c.nombre[0]}</div>
     <div><div style="font-size:17px;font-weight:700;">${c.nombre}</div><div style="font-size:12px;color:var(--texto-suave);">${c.razon} · CUIT: ${c.cuit}</div>
-    <div style="display:flex;gap:6px;margin-top:6px;">${badge(c.estado==='Activo'?'Activo':c.estado==='Borrador'?'Pendiente':'Baja')}<span class="chip" style="font-size:11px;">${c.tipo}</span></div>
+    <div style="display:flex;gap:6px;margin-top:6px;">${badgeEstadoCliente(c.estado)}<span class="chip" style="font-size:11px;">${c.tipo}</span></div>
     </div>
   </div>
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:16px;">
