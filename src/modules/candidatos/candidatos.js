@@ -198,6 +198,15 @@ export function tabCandidatos(tab) {
       btn.style.color = t === tab ? 'white' : '#64748b';
     }
   });
+  // Ticket "Sacar un filtro de ACTIVOS" (23/09): la columna "Motivo rechazo"
+  // vive en el <thead> ÚNICO que comparten las 3 sub-tabs (Precandidatos/
+  // Activos/Histórico apuntan al mismo <table>, solo cambia el <tbody> vía
+  // JS) — en Activos ningún candidato puede tener motivoRechazo (ese estado
+  // queda excluido del filtro `activos`, ver renderCandidatos), así que la
+  // columna se veía siempre vacía ("—") en la solapa principal. Solo tiene
+  // sentido en Histórico, que es donde vive Rechazado/Baja/Caducado/etc.
+  const thMotivo = $('th-cand-motivo');
+  if (thMotivo) thMotivo.style.display = tab === 'historico' ? '' : 'none';
   renderCandidatos();
 }
 
@@ -350,6 +359,9 @@ function renderFilaCand(c) {
   // 2") en vez del texto libre crudo — el detalle aclaratorio (motivoRechazo)
   // queda como tooltip al pasar el mouse, así no satura la tabla ni rompe el
   // layout con textos largos. Para los demás estados sigue igual que antes.
+  // Solo se agrega la celda en Histórico (ver tabCandidatos: ahí se oculta
+  // también el <th>) — en Precandidatos/Activos ningún candidato tiene
+  // motivoRechazo, así que la columna quedaba siempre en "—".
   let motivoColor = '#dc2626';
   let motivoCell = c.motivoRechazo || '—';
   if (c.estado === 'Baja' && c.tipoMotivoBaja) {
@@ -390,7 +402,7 @@ function renderFilaCand(c) {
         + '</select>'
       : (c.asistio === 'si' ? '✅' : c.asistio === 'no' ? '❌' : '—')) + '</td>'
     + '<td style="padding:8px;text-align:center;"><span style="font-size:11px;font-weight:600;color:' + ec + '">' + estadoDisplay + '</span></td>'
-    + '<td style="padding:8px;font-size:12px;color:' + motivoColor + ';">' + motivoCell + '</td>'
+    + (_candTab === 'historico' ? '<td style="padding:8px;font-size:12px;color:' + motivoColor + ';">' + motivoCell + '</td>' : '')
     + '<td style="padding:8px;text-align:center;">' + pedidoCell + '</td>'
     + '<td style="padding:8px;text-align:center;">' + btns + '</td>'
     + '</tr>';
