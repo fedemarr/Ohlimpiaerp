@@ -236,7 +236,10 @@ function candidatoActivoHtml(a, avisaReemplazo) {
   return `<div class="seg-cand">
     <div><b>${nombre}</b><span class="seg-x"> DNI ${a.c.dni}${avisaReemplazo ? ' · reemplaza a un candidato que no continuó (ver historial ▸)' : ''}</span></div>
     ${pipeHtml(a.pipe)}
-    ${puedeCargarManual ? `<button class="btn btn-xs btn-secondary" style="margin-top:4px;" onclick="abrirCargaManualEtapaSeguimiento('${a.c.id}')">✏️ Cargar etapa manual</button>` : ''}
+    <div style="margin-top:4px;display:flex;gap:6px;flex-wrap:wrap;">
+      ${puedeCargarManual ? `<button class="btn btn-xs btn-secondary" onclick="abrirCargaManualEtapaSeguimiento('${a.c.id}')">✏️ Cargar etapa manual</button>` : ''}
+      <button class="btn btn-xs btn-secondary" title="Sigue en su etapa actual, pero deja de contar para este pedido — queda libre para vincularse a otro" onclick="desvincularCandidatoPorId('${a.c.id}')">🔗 Desvincular</button>
+    </div>
   </div>`;
 }
 
@@ -412,6 +415,34 @@ function renderListaVincularCandidatos() {
     </div>`;
   }).join('');
   cont.querySelectorAll('[data-elegir-cand]').forEach(el => { el.onclick = () => elegirCandidatoVincular(el.dataset.elegirCand); });
+}
+
+// Desvincular sin rechazar/dar de baja (ticket real 23/09: "la tengo que
+// colocar en otra vacante y no me permite reemplazarla" — el candidato
+// sigue activo y en su etapa actual, solo deja de estar atado a ESTE
+// pedido). Antes la única forma era Candidatos → Editar → select "Sin
+// vincular" (no siempre a mano/visible desde donde se está mirando el
+// pedido) — se agrega la acción directa acá, en la misma fila donde ya se
+// ve al candidato "en proceso".
+export async function desvincularCandidatoPorId(candidatoId) {
+  const c = (DB.candidatos || []).find(x => String(x.id) === String(candidatoId));
+  if (!c) return;
+  const pedidoActual = (DB.pedidos || []).find(p => String(p.id) === String(c.pedidoVinculadoIdLocal));
+  if (!confirm(
+    `¿Desvincular a ${c.apellido}, ${c.nombre} de ${pedidoActual ? numeroPedidoTxt(pedidoActual) + ' — ' + pedidoActual.servicio : 'este pedido'}?\n\n`
+    + 'No es un rechazo ni una baja: sigue activo en su etapa actual, solo deja de contar para esta vacante y queda libre para vincularse a otro pedido.'
+  )) return;
+  const idAnterior = c.pedidoVinculadoIdLocal;
+  c.pedidoVinculadoIdLocal = null;
+  const ok = await supaSync('candidatos', c);
+  if (!ok) {
+    c.pedidoVinculadoIdLocal = idAnterior;
+    toast('⚠️ No se pudo desvincular — no se guardó ningún cambio, reintentá');
+    return;
+  }
+  renderPedidosScreen();
+  if (window.renderCandidatos) window.renderCandidatos();
+  toast(`✓ ${c.apellido}, ${c.nombre} desvinculado${pedidoActual ? ' de ' + numeroPedidoTxt(pedidoActual) : ''} — ya se puede vincular a otro pedido`);
 }
 
 export async function elegirCandidatoVincular(candidatoId) {
