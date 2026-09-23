@@ -263,6 +263,21 @@ function filaHtml(f) {
   for (let i = 0; i < faltantes; i++) {
     bloques.push(`<div class="seg-vac"><span class="seg-x">Vacante: en búsqueda</span> <button class="btn btn-xs btn-primary" data-vincular-pedido="${id}">+ Vincular</button></div>`);
   }
+  // Candidato de respaldo (ticket "vincular más de una persona al pedido",
+  // 23/09): el modelo YA soporta varios candidatos por pedido
+  // (candidato.pedidoVinculadoIdLocal es un campo simple sin UNIQUE, sql/v127
+  // — candidatosVinculadosA() filtra un array, no busca uno solo). Lo único
+  // que bloqueaba un segundo candidato era este botón: "+Vincular" dejaba de
+  // ofrecerse en cuanto activos.length alcanzaba las vacantes libres, aunque
+  // esos candidatos sigan en proceso (nadie hizo el alta todavía) — en la
+  // práctica a veces conviene correr un candidato de respaldo en paralelo
+  // para la misma vacante. Se ofrece siempre que el pedido no esté
+  // REALMENTE cubierto (altas + reasignaciones < total), sin importar
+  // cuántos ya estén en curso.
+  if (faltantes === 0 && f.cobertura.cubiertas < f.cobertura.total) {
+    const vacantesAbiertas = f.cobertura.total - f.cobertura.cubiertas;
+    bloques.push(`<div class="seg-vac"><span class="seg-x">${f.activos.length} en proceso para ${vacantesAbiertas} vacante${vacantesAbiertas !== 1 ? 's' : ''} — se puede sumar un candidato de respaldo</span> <button class="btn btn-xs btn-secondary" data-vincular-pedido="${id}">+ Vincular otro candidato</button></div>`);
+  }
   const colCandidatos = bloques.length ? bloques.join('') : '<span class="seg-x">Sin candidato asignado</span>';
 
   const filaHist = expandido ? `<tr class="seg-hist" id="hist-${id}"><td colspan="10">${historialHtml(f)}</td></tr>` : '';
@@ -361,7 +376,10 @@ export function abrirVincularCandidato(pedidoId) {
   if (!p) return;
   _vincularPedidoId = pedidoId;
   const t = $('vinc-pedido-titulo');
-  if (t) t.textContent = `Vincular candidato — ${numeroPedidoTxt(p)} · ${p.servicio}`;
+  // Si ya hay gente en proceso para este pedido, lo aclara en el título —
+  // vincular acá no reemplaza a nadie, se suma como candidato de respaldo.
+  const yaEnProceso = candidatosVinculadosA(p).filter(c => !getLegajoDe(c) && !ESTADOS_NO_CONTINUA.includes(c.estado)).length;
+  if (t) t.textContent = `Vincular candidato — ${numeroPedidoTxt(p)} · ${p.servicio}` + (yaEnProceso ? ` (ya hay ${yaEnProceso} en proceso — este se suma como respaldo)` : '');
   const buscar = $('vinc-buscar'); if (buscar) buscar.value = '';
   renderListaVincularCandidatos();
   abrirModal('modal-ped-vincular');
