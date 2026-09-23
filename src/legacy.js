@@ -1476,6 +1476,24 @@ function tabCliModal(idx,btn){
   document.querySelectorAll('#modal-cliente .tab-content').forEach(t=>t.classList.remove('active'));
   btn.classList.add('active');$('cli-tab-'+idx).classList.add('active');
 }
+// Traduce un error de Supabase al dar de baja un cliente/servicio a un
+// mensaje claro y accionable (ticket "Error al Eliminar Clientes/Servicios",
+// 23/09). El choque más común acá es 23505 contra un índice único
+// (idx_clientes_codigo_unico en clientes, o el UNIQUE de objetivos.codigo,
+// v039): en este sistema eso casi nunca es "el usuario cargó algo mal" —
+// pasa cuando la pantalla quedó desactualizada (otra persona ya creó o
+// cambió un registro con ese mismo código mientras esta pestaña seguía
+// abierta) y conviene decirlo así en vez de mostrar el texto crudo de
+// Postgres. La transacción de Postgres es atómica: un 23505 en el UPDATE
+// nunca deja nada a medio escribir, así que "no se hizo ningún cambio"
+// sigue siendo cierto en cualquier caso.
+function humanizarErrorBaja(err,fallbackMsg){
+  const msg=(err&&err.message)||fallbackMsg||'error desconocido';
+  if((err&&err.code==='23505')||/duplicate key|violates unique constraint/i.test(msg)){
+    return 'ya existe otro registro con ese mismo código — es probable que esta pantalla haya quedado desactualizada. Recargá la página y volvé a intentar';
+  }
+  return msg;
+}
 // Baja de cliente. Antes usaba window.prompt(): un diálogo nativo BLOQUEA el
 // hilo del navegador (la pestaña queda congelada, incluidos los timers de
 // refresco de sesión de Supabase) y la persistencia era fire-and-forget, así
@@ -1556,7 +1574,7 @@ async function confirmarBajaCliente(){
   }catch(e){
     revertir();
     const err=getLastSupaSyncError();
-    toast('⚠️ No se pudo dar de baja el cliente ('+(err?.message||e.message)+'). No se hizo ningún cambio — reintentá.',6000);
+    toast('⚠️ No se pudo dar de baja el cliente ('+humanizarErrorBaja(err,e.message)+'). No se hizo ningún cambio — reintentá.',6000);
     _bajaClienteCargando(false);
     renderClientes();
     return;
@@ -2649,16 +2667,42 @@ function abrirBajaObjetivo(idLocal){
   $('baja-obj-motivo').value='';$('baja-obj-detalle').value='';
   abrirModal('modal-baja-objetivo');
 }
-function confirmarBajaObjetivo(){
+let _bajaObjetivoEnCurso=false;
+// FIX real (ticket "Error al Eliminar Clientes/Servicios", 23/09): esto era
+// fire-and-forget — ni esperaba supaSync ni chequeaba el resultado, mismo
+// bug ya encontrado y arreglado en confirmarAlta()/confirmarBajaCliente().
+// Si el guardado fallaba (ej. un choque contra un índice único), el
+// servicio quedaba "Baja" SOLO en memoria y el usuario igual veía
+// "✓ Servicio dado de baja" — la baja real nunca llegaba a Supabase y
+// nadie se enteraba hasta el próximo reload. Ahora se espera la
+// confirmación del servidor y, si falla, se revierte todo y se avisa.
+async function confirmarBajaObjetivo(){
+  if(_bajaObjetivoEnCurso) return;   // doble click: una sola petición
   const o=getObjetivoByIdLocal(_bajaObjetivoIdLocal);if(!o)return;
   const razon=$('baja-obj-motivo')?.value||'';
   if(!razon){toast('Elegí un motivo');return;}
   const detalle=$('baja-obj-detalle')?.value.trim()||'';
   const motivoCompleto=razon+(detalle?' — '+detalle:'');
+  _bajaObjetivoEnCurso=true;
+  const btn=document.querySelector('#modal-baja-objetivo .btn-danger');
+  const cancelarBtn=document.querySelector('#modal-baja-objetivo .btn-secondary');
+  if(btn){btn.disabled=true;btn.textContent='⏳ Guardando…';}
+  if(cancelarBtn) cancelarBtn.disabled=true;
+  const snapshot={...o};
   const estadoDesde=o.estado;
   o.estado='Baja';o.fechaBaja=hoyStr();o.dadoDeBajaPor=currentUser?.nombre||'';
   o.motivoBajaRazon=razon;o.motivoBajaDetalle=detalle;o.motivoBaja=motivoCompleto;
-  supaSync('objetivos', objetivoParaGuardar(o));
+  const ok=await supaSync('objetivos', objetivoParaGuardar(o));
+  _bajaObjetivoEnCurso=false;
+  if(btn){btn.disabled=false;btn.textContent='Dar de baja';}
+  if(cancelarBtn) cancelarBtn.disabled=false;
+  if(!ok){
+    Object.assign(o,snapshot);
+    const err=getLastSupaSyncError();
+    toast('⚠️ No se pudo dar de baja el servicio ('+humanizarErrorBaja(err)+'). No se hizo ningún cambio — reintentá.',6000);
+    filtrarObjetivos();
+    return;
+  }
   registrarEventoObjetivo(o,estadoDesde,'Baja',motivoCompleto);
   const asocAsignados=(DB.legajos||[]).filter(l=>l.servicio===o.codigo&&l.estado==='Activo').map(l=>l.nombre);
   const detalleAsoc=asocAsignados.length?` Asociados asignados al servicio: ${asocAsignados.join(', ')}. Sugerencia: reasignar vía Reasignaciones.`:'';
@@ -2859,8 +2903,20 @@ function confirmarCambioEtapa(){
 // datos del lead. El guard por clienteBorradorId evita duplicar el cliente
 // si el lead vuelve a pasar por acá (ej. reconciliación tras recarga).
 function crearClienteBorradorDesdeLead(lead){
+  // FIX (ticket "Error al Eliminar Clientes/Servicios", 23/09, hallazgo
+  // colateral): este guard comparaba lead.clienteBorradorId (el Date.now()
+  // COMPLETO del cliente al crearlo) contra c.id — pero tras cualquier
+  // reload, c.id pasa a ser c.idLocal (los últimos 9 dígitos; _toCamel en
+  // supabase.js restaura "id" desde "id_local" porque el uuid real de
+  // Postgres no se usa como clave de relación en este proyecto). La
+  // comparación completa-vs-truncada nunca daba igual después de un
+  // reload, así que "reconciliación tras recarga" (el comentario de abajo)
+  // en realidad NUNCA encontraba al cliente ya creado y craba uno
+  // duplicado cada vez que el lead volvía a pasar por acá. Se compara
+  // truncado en los dos lados, como hace el resto del proyecto
+  // (getClienteByIdLocal, idLocalTrunc).
   if(lead.clienteBorradorId){
-    const existente=DB.clientes.find(c=>c.id===lead.clienteBorradorId);
+    const existente=DB.clientes.find(c=>idLocalTrunc(c.id)===idLocalTrunc(lead.clienteBorradorId));
     if(existente)return existente;
   }
   const cliente={
@@ -14534,6 +14590,8 @@ window.confirmarNuevoMant = confirmarNuevoMant;
 window.confirmarNuevoSuplemento = confirmarNuevoSuplemento;
 window.confirmarBajaObjetivo = confirmarBajaObjetivo;
 window.confirmarSolicitudAsociado = confirmarSolicitudAsociado;
+// Testabilidad (sin UI de kanban de por medio) — ver fix de crearClienteBorradorDesdeLead.
+window.ofrecerCrearClienteDesdeLead = ofrecerCrearClienteDesdeLead;
 window.confirmarSupervisorObjetivo = confirmarSupervisorObjetivo;
 window.contactarAsociadosIA = contactarAsociadosIA;
 window.crearGrilla = crearGrilla;
