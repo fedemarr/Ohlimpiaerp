@@ -82,11 +82,18 @@ test('Prepedidos — siembra idempotente, decisión por vacante, historial y chi
   await expect(page.locator('#reas-serv-dest')).toHaveValue('GYM.PRETEST');
   await expect(page.locator('#reas-serv-dest')).toHaveJSProperty('readOnly', true);
   await expect(page.locator('#reas-modal-title')).toContainText('desde prepedido PRE-');
+  // REUBICACION_SUMA_SERVICIO_para_Fede.md: con destino fijo (desde un
+  // prepedido) no hay "Sugerir servicios destino" — el destino ya está dado.
+  await expect(page.locator('#reas-sugeridor-wrap')).toBeHidden();
+  await expect(page.locator('#reas-prep-chip')).toContainText('PRE-');
   await page.fill('#reas-asociado', 'INTERNO PRETEST (N°990201)');
   await page.evaluate(() => window.autocompletarReas());
+  await page.evaluate(() => window.setModoReas('reub'));
   await page.selectOption('#reas-motivo', 'Necesidad operativa');
   const manana = new Date(Date.now() + 5 * 86400000).toISOString().slice(0, 10);
   await page.fill('#reas-fecha', manana);
+  await page.check('#reas-consultado');
+  await page.fill('#reas-consultado-por', 'Supervisor E2E');
   await page.evaluate(() => window.guardarReasignacion('Pendiente'));
   await page.waitForTimeout(250);
 

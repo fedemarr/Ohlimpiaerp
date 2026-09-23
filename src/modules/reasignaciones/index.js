@@ -13,6 +13,7 @@ export {
   renderConfigMotivosReas, agregarMotivoReas, eliminarMotivoReasPorId,
   renderConfigAprobadoresReas, agregarAprobadorReas, eliminarAprobadorReasPorId,
   abrirSugeridorDestino, elegirSugerenciaDestino, abrirReasignacionDesdePrepedido,
+  setModoReas,
 } from './reasignaciones.js';
 
 // ========== SCREEN CONFIG ==========
@@ -21,8 +22,8 @@ import { renderReasignacionesInicial, abrirNuevaReasignacion, abrirReasignacionD
 
 export const reasignacionesScreenConfig = {
   reasignaciones: {
-    title: 'Reasignaciones',
-    btn: '+ Nueva reasignación',
+    title: 'Reubicación',
+    btn: '+ Nueva reubicación',
     fn: () => abrirNuevaReasignacion(),
     render: renderReasignacionesInicial,
   },
@@ -41,10 +42,11 @@ import {
   abrirDetalleReasignacionPorId, abrirDetalleRotacionPorNro,
   renderConfigMotivosReas, agregarMotivoReas, eliminarMotivoReasPorId,
   renderConfigAprobadoresReas, agregarAprobadorReas, eliminarAprobadorReasPorId,
-  abrirSugeridorDestino, elegirSugerenciaDestino,
+  abrirSugeridorDestino, elegirSugerenciaDestino, setModoReas,
 } from './reasignaciones.js';
 
 window.tabReas = tabReas;
+window.setModoReas = setModoReas;
 window.abrirReasignacionDesdePrepedido = abrirReasignacionDesdePrepedido;
 window.abrirSugeridorDestino = abrirSugeridorDestino;
 window.elegirSugerenciaDestino = elegirSugerenciaDestino;

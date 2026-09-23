@@ -384,7 +384,7 @@
   <div class="card" style="border-radius:0 var(--radio-lg) var(--radio-lg) var(--radio-lg);">
     <div class="card-header"><h3>📥 Bandeja de prepedidos — servicios nuevos esperando decisión de dotación</h3></div>
     <div id="prepedidos-body"></div>
-    <div class="text-muted" style="padding:10px 16px;font-size:11.5px;">El prepedido nace solo cuando el servicio entra a <b>Pendiente asignación</b> (con la dotación que cargó Comercial). Por vacante: <b>↔ Cubrir con interno</b> abre Reasignaciones precargado; <b>🔎 Incorporar</b> la pasa a Activos y RRHH busca. Con todas las vacantes resueltas, el prepedido pasa a Historial.</div>
+    <div class="text-muted" style="padding:10px 16px;font-size:11.5px;">El prepedido nace solo cuando el servicio entra a <b>Pendiente asignación</b> (con la dotación que cargó Comercial). Por vacante: <b>↔ Cubrir con interno</b> abre Reubicación precargado; <b>🔎 Incorporar</b> la pasa a Activos y RRHH busca. Con todas las vacantes resueltas, el prepedido pasa a Historial.</div>
   </div>
   </div>
 
@@ -461,7 +461,7 @@
   </div>
 
   <div class="alerta alerta-info" style="margin-top:14px;">
-    <b>De dónde sale cada dato (nada se carga dos veces):</b> pedido, vacantes y fecha límite → <b>Pedidos de personal</b> · candidato y entrevista → <b>Candidatos</b> · etapas → <b>Psicotécnico / Preocupacional / Documentación de ingreso</b> · ingreso → <b>Altas de asociados</b> (que además escribe el primer registro del padrón de categorías, origen ALTA) · cobertura por reasignación → <b>Reasignaciones</b> ("Pedido de personal vinculado") · zona → <b>ficha del servicio</b> (Jurisdicción/Localidad). La carga manual existe pero es la excepción: queda con chip MANUAL y quién la hizo.
+    <b>De dónde sale cada dato (nada se carga dos veces):</b> pedido, vacantes y fecha límite → <b>Pedidos de personal</b> · candidato y entrevista → <b>Candidatos</b> · etapas → <b>Psicotécnico / Preocupacional / Documentación de ingreso</b> · ingreso → <b>Altas de asociados</b> (que además escribe el primer registro del padrón de categorías, origen ALTA) · cobertura por reasignación → <b>Reubicación</b> ("Pedido de personal vinculado") · zona → <b>ficha del servicio</b> (Jurisdicción/Localidad). La carga manual existe pero es la excepción: queda con chip MANUAL y quién la hizo.
   </div>
   </div>
 
@@ -851,7 +851,7 @@
     <button class="tab-btn" onclick="cfgTab('personal-rrhh',this)" style="padding:12px 18px;">👥 Personal RRHH</button>
     <button class="tab-btn" onclick="cfgTab('geografia',this)" style="padding:12px 18px;">📍 Geografía</button>
     <button class="tab-btn" onclick="cfgTab('puestos',this)" style="padding:12px 18px;">📊 Puestos</button>
-    <button class="tab-btn" onclick="cfgTab('reas-cfg',this)" style="padding:12px 18px;">🔄 Reasignaciones</button>
+    <button class="tab-btn" onclick="cfgTab('reas-cfg',this)" style="padding:12px 18px;">🔄 Reubicación</button>
     <button class="tab-btn" onclick="cfgTab('ventas-cfg',this)" style="padding:12px 18px;">🏢 Comercial</button>
     <button class="tab-btn" onclick="cfgTab('legal-cfg',this)" style="padding:12px 18px;">⚖️ Situaciones legales</button>
     <button class="tab-btn" onclick="cfgTab('medico-cfg',this)" style="padding:12px 18px;">🏥 Médico</button>
@@ -927,7 +927,7 @@
             <button class="btn btn-primary btn-sm" onclick="agregarFuncionUsuario()">+ Agregar función</button>
           </div>
           <div class="alerta alerta-info" style="margin-top:12px;font-size:12px;">
-            💡 <strong>Tip:</strong> Una vez creadas las funciones, asignálas a cada usuario en la tabla de Accesos y perfiles (columna "Función en la org."). Luego podés usar la función como condición de autorización — por ejemplo, en Reasignaciones → Configuración podés poner "Gerente" como aprobador en lugar de un rol genérico.
+            💡 <strong>Tip:</strong> Una vez creadas las funciones, asignálas a cada usuario en la tabla de Accesos y perfiles (columna "Función en la org."). Luego podés usar la función como condición de autorización — por ejemplo, en Reubicación → Configuración podés poner "Gerente" como aprobador en lugar de un rol genérico.
           </div>
         </div>
       </div>
@@ -1290,7 +1290,7 @@
         <div>
           <h3>🏢 Servicios (código → supervisor)</h3>
           <div style="font-size:12px;color:var(--texto-suave);margin-top:2px;">
-            Lista puente para códigos que todavía no tienen un objetivo comercial cargado (Comercial → Servicios). Se usa para autocompletar el supervisor en Altas y Reasignaciones.
+            Lista puente para códigos que todavía no tienen un objetivo comercial cargado (Comercial → Servicios). Se usa para autocompletar el supervisor en Altas y Reubicación.
           </div>
         </div>
         <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
@@ -2176,15 +2176,29 @@
 <!-- MODAL NUEVA REASIGNACIÓN -->
 <div class="modal-overlay" id="modal-reasignacion">
   <div class="modal" style="max-width:860px;">
-    <div class="modal-header">
-      <h3 id="reas-modal-title">🔄 Nueva reasignación</h3>
+    <div class="modal-header" style="flex-wrap:wrap;gap:6px;">
+      <h3 id="reas-modal-title">🔄 Nueva reubicación</h3>
+      <span id="reas-prep-chip" style="display:none;font-size:11px;padding:3px 9px;border-radius:20px;background:var(--acento-suave);color:#7a6000;font-weight:600;"></span>
       <button class="btn-close" onclick="cerrarModal('modal-reasignacion')">×</button>
     </div>
     <div class="modal-body">
       <div class="form-grid gap-12">
 
+        <!-- Modalidad (REUBICACION_SUMA_SERVICIO_para_Fede.md) -->
+        <div class="form-section">1 · Modalidad</div>
+        <div id="reas-modo-cards" style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:8px;">
+          <div id="reas-modo-reub" class="reas-modo-opt" onclick="setModoReas('reub')" style="border:2px solid var(--borde-fuerte);border-radius:10px;padding:11px 14px;cursor:pointer;">
+            <b style="display:block;font-size:13.5px;margin-bottom:3px;">🔁 Reubicación</b>
+            <span style="color:var(--texto-suave);font-size:12.5px;">Deja su servicio actual y pasa a éste.</span>
+          </div>
+          <div id="reas-modo-suma" class="reas-modo-opt" onclick="setModoReas('suma')" style="border:2px solid var(--borde-fuerte);border-radius:10px;padding:11px 14px;cursor:pointer;">
+            <b style="display:block;font-size:13.5px;margin-bottom:3px;">➕ Suma de servicio</b>
+            <span style="color:var(--texto-suave);font-size:12.5px;">Mantiene su servicio actual y agrega éste (pide más horas).</span>
+          </div>
+        </div>
+
         <!-- Asociado -->
-        <div class="form-section">Asociado a reasignar</div>
+        <div class="form-section">2 · Asociado a reasignar</div>
         <div class="form-grid form-grid-2">
           <div class="form-group">
             <label>Asociado *</label>
@@ -2198,9 +2212,10 @@
           <div class="form-group"><label>Supervisor actual</label><input type="text" id="reas-sup-orig" readonly style="background:var(--fondo);"></div>
           <div class="form-group"><label>Categoría</label><input type="text" id="reas-categoria" readonly style="background:var(--fondo);"></div>
         </div>
+        <div id="reas-panorama"></div>
 
         <!-- Destino -->
-        <div class="form-section">Servicio destino</div>
+        <div class="form-section">3 · Servicio destino</div>
         <div class="form-grid form-grid-2">
           <div class="form-group">
             <label>Servicio destino *</label>
@@ -2212,19 +2227,19 @@
             <input type="text" id="reas-sup-dest" readonly style="background:var(--fondo);" placeholder="Se completa solo al elegir el servicio destino">
           </div>
         </div>
-        <div style="margin:4px 0 12px;">
+        <div id="reas-sugeridor-wrap" style="margin:4px 0 12px;">
           <button type="button" id="btn-sugerir-destino" class="btn btn-sm" style="background:#7c3aed;color:white;" disabled onclick="abrirSugeridorDestino()">🤖 Sugerir servicios destino</button>
           <div class="form-hint">Cruza localidad, capacitaciones e historial del asociado con los servicios activos. Elegí primero el asociado.</div>
           <div id="reas-sugerencias" style="margin-top:8px;"></div>
         </div>
 
         <!-- Motivo — ahora desde configuración -->
-        <div class="form-section">Motivo y solicitante</div>
+        <div class="form-section">4 · Motivo y solicitante</div>
         <div class="form-grid form-grid-2">
           <div class="form-group">
             <label>Motivo de la reasignación *</label>
             <select id="reas-motivo"><option value="">— Seleccionar —</option></select>
-            <span class="form-hint">Los motivos se configuran en Configuración → Reasignaciones</span>
+            <span class="form-hint">Los motivos se configuran en Configuración → Reubicación</span>
           </div>
           <div class="form-group">
             <label>Fecha efectiva del cambio *</label>
@@ -2250,6 +2265,10 @@
           <span class="form-hint">Si la reasignación cubre un pedido existente, vincularlo acá — se marca "Cubierto" al ejecutarse</span>
         </div>
         <div class="form-group"><label>Descripción / contexto *</label><textarea id="reas-desc" placeholder="Explicá el motivo y el contexto del movimiento..."></textarea></div>
+        <div class="form-group" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+          <label style="margin:0;display:flex;gap:7px;align-items:center;font-size:13px;font-weight:600;"><input type="checkbox" id="reas-consultado" style="width:15px;height:15px;"> ✔ Asociado consultado — acepta *</label>
+          <input type="text" id="reas-consultado-por" placeholder="Consultado por (ej.: supervisor L. Unzain)" style="flex:1;min-width:220px;padding:7px 10px;border:1px solid var(--borde-fuerte);border-radius:7px;font-size:12.5px;">
+        </div>
 
         <!-- Seguros -->
         <div class="form-section">Impacto en seguros</div>

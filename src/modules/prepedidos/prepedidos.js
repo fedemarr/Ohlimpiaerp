@@ -369,6 +369,10 @@ export function cubrirVacanteConInterno(preId, idx) {
     prepedidoIdLocal: idLocal(pre.id), prepedidoVacante: idx, etiqueta: numeroPreTxt(pre),
     servicioDestino: o.codigo, supervisorDestino: o.supervisorAsignado || '',
     descripcion: `Cubre la vacante "${v.puesto || 'sin categoría'}" (${v.horarioDesde || '?'}–${v.horarioHasta || '?'}) del servicio nuevo ${o.nombre}, prepedido ${numeroPreTxt(pre)}.`,
+    puesto: v.puesto || '', horarioDesde: v.horarioDesde || null, horarioHasta: v.horarioHasta || null,
+    dias: v.dias || null, tipoHorario: v.tipoHorario || null,
+    direccion: [o.dir, o.localidad, o.jurisdiccion].filter(Boolean).join(' · ') || null,
+    hsMes: o.efts || null, servicioNombre: o.nombre || '',
   });
 }
 

@@ -21,8 +21,10 @@ import { $, avatarEl, badge, cleanText } from '@shared/helpers.js';
 import { toast, abrirModal, cerrarModal, abrirModalInput } from '@shared/ui.js';
 import { supaSync } from '@shared/supabase.js';
 import { construirMenu } from '@shared/nav.js';
+import { crearNotificacion } from '@shared/notificaciones.js';
 import { sugerirServicioDestino } from './sugeridor.js';
 import { getSupervisorDeCodigo } from '@modules/servicios_supervisor/index.js';
+import { diasMarcadosTexto } from '@shared/horarioDias.js';
 
 // ========== HELPERS DE FECHA ==========
 
@@ -44,6 +46,15 @@ const ss = (id, v) => { const e = $(id); if (e) e.textContent = v; };
 
 const chipPre = (r) => (typeof window.chipOrigenPrepedido === 'function' ? window.chipOrigenPrepedido(r) : '');
 const getReasById = (id) => (DB.reasignaciones || []).find(r => String(r.id) === String(id));
+const idLocal = (x) => String(x).slice(-9);
+// Chip visible del tipo de movimiento (REUBICACION_SUMA_SERVICIO_para_Fede.md).
+// Lo viejo (cargado antes de v156) no tiene r.tipo — cae en Reubicación por
+// default de la propia columna, así que acá también, para que listados
+// históricos no queden con un chip vacío.
+function chipTipoReas(r) {
+  const suma = r.tipo === 'Suma de servicio';
+  return `<span class="badge ${suma ? 'badge-acento' : 'badge-azul'}" style="font-size:9.5px;">${suma ? '➕ SUMA' : '🔁 REUBICACIÓN'}</span>`;
+}
 
 // ========== SINCRONIZAR CONFIG (compat legacy.js) ==========
 
@@ -97,23 +108,50 @@ export function chequearEjecucionesPendientes() {
   });
 }
 
-// Aplica el cambio real al legajo (servicio/supervisor/función/zona +
-// historial) y marca el pedido vinculado como Cubierto, si corresponde.
+// Aplica el cambio real al legajo y marca el pedido vinculado como
+// Cubierto, si corresponde. Bifurca según r.tipo
+// (REUBICACION_SUMA_SERVICIO_para_Fede.md, v156):
+//   Reubicación      — deja el servicio actual (cascada de siempre: se
+//                       pisa servicio/supervisor/función/zona) y avisa al
+//                       supervisor de origen que la dotación quedó corta.
+//   Suma de servicio — el legajo NO se toca (sigue en su servicio de
+//                       siempre) — solo queda el registro en
+//                       historialMovimientos y en esta tabla, que es lo
+//                       que lee "Rotación por asociado". No se tocan
+//                       grillas_liq en ninguno de los dos casos (decisión
+//                       explícita: Liq. de horas/Resumen no tienen hoy un
+//                       modelo multi-servicio por persona — ver el propio
+//                       archivo .md, que da esto por construido y no lo
+//                       está; abrir/cerrar la fila de grilla lo sigue
+//                       haciendo a mano quien carga las horas).
 function ejecutarReasignacion(r) {
+  const esSuma = r.tipo === 'Suma de servicio';
   const leg = (DB.legajos || []).find(l => String(l.nro) === String(r.nroSocio));
   if (leg) {
     if (!leg.historialMovimientos) leg.historialMovimientos = [];
     leg.historialMovimientos.push({
+      tipo: r.tipo || 'Reubicación',
       fecha: r.fechaEfectiva, servicioOrigen: r.servicioOrigen, supervisorOrigen: r.supervisorOrigen,
       servicioDestino: r.servicioDestino, supervisorDestino: r.supervisorDestino,
       motivo: r.motivo, descripcion: r.descripcion,
     });
-    leg.servicio = r.servicioDestino;
-    leg.supervisor = r.supervisorDestino;
-    if (r.funcionDestino) leg.funcion = r.funcionDestino;
-    if (r.zonaDestino) leg.zona = r.zonaDestino;
+    if (!esSuma) {
+      leg.servicio = r.servicioDestino;
+      leg.supervisor = r.supervisorDestino;
+      if (r.funcionDestino) leg.funcion = r.funcionDestino;
+      if (r.zonaDestino) leg.zona = r.zonaDestino;
+    }
     supaSync('legajos', leg);
     if (window.renderLegajos) window.renderLegajos();
+  }
+  // Dotación de origen incompleta: solo aplica a Reubicación — Suma no
+  // vacía el servicio de origen, nadie queda corto ahí.
+  if (!esSuma && r.supervisorOrigen) {
+    crearNotificacion({
+      tipo: 'reubicacion_dotacion_origen', entidadTipo: 'reasignacion', entidadIdLocal: idLocal(r.id),
+      destinatarioNombre: r.supervisorOrigen,
+      mensaje: `${r.nombreAsociado} deja ${r.servicioOrigen} el ${ddmm(r.fechaEfectiva)} (reubicación a ${r.servicioDestino}) — la dotación de ${r.servicioOrigen} queda incompleta.`,
+    });
   }
   if (r.pedidoVinculadoIdLocal) {
     const ped = (DB.pedidos || []).find(p => String(p.id) === String(r.pedidoVinculadoIdLocal));
@@ -173,7 +211,7 @@ export function renderReasPend(lista) {
     const dias = Math.max(0, Math.floor((hoy - new Date(r.fechaSolicitud + 'T00:00:00')) / 86400000));
     const colorDias = dias >= 7 ? 'var(--rojo)' : dias >= 3 ? 'var(--naranja)' : 'var(--verde)';
     return `<tr>
-      <td style="font-weight:500;">${r.nombreAsociado}</td>
+      <td style="font-weight:500;">${r.nombreAsociado} ${chipTipoReas(r)}</td>
       <td style="font-family:'DM Mono',monospace;font-size:12px;color:var(--azul);">${r.nroSocio}</td>
       <td style="font-size:12px;">${r.servicioOrigen}</td>
       <td style="font-size:12px;">${r.supervisorOrigen}</td>
@@ -213,7 +251,7 @@ export function renderReasHist(lista) {
   tbody.innerHTML = rows.map(r => {
     const resolvioPor = r.estado === 'Anulada' ? (r.anuladoPor || '—') : (r.aprobadoPor || '—');
     return `<tr>
-      <td style="font-weight:500;">${r.nombreAsociado}</td>
+      <td style="font-weight:500;">${r.nombreAsociado} ${chipTipoReas(r)}</td>
       <td style="font-family:'DM Mono',monospace;font-size:12px;color:var(--azul);">${r.nroSocio}</td>
       <td style="font-size:12px;">${r.servicioOrigen}</td>
       <td style="font-size:12px;font-weight:500;color:var(--azul);">${r.servicioDestino}${chipPre(r)}</td>
@@ -340,7 +378,8 @@ export function abrirDetalleRotacionPorNro(nro) {
     </div>`).join('');
 
   const filasTabla = movs.map(m => `<tr>
-    <td style="padding:6px 8px;border:1px solid var(--borde);">${m.servicioDestino}</td>
+    <td style="padding:6px 8px;border:1px solid var(--borde);text-align:center;">${chipTipoReas(m)}</td>
+    <td style="padding:6px 8px;border:1px solid var(--borde);">${m.servicioDestino}${chipPre(m)}</td>
     <td style="padding:6px 8px;border:1px solid var(--borde);">${m.supervisorDestino}</td>
     <td style="padding:6px 8px;border:1px solid var(--borde);">${m.motivo || '—'}</td>
     <td style="padding:6px 8px;border:1px solid var(--borde);">${ddmm(m.fechaEfectiva)}</td>
@@ -352,6 +391,7 @@ export function abrirDetalleRotacionPorNro(nro) {
     <div style="overflow-x:auto;padding:16px 0 20px;display:flex;">${timelineHtml}</div>
     <table style="width:100%;border-collapse:collapse;font-size:12px;">
       <thead><tr style="background:#374151;color:white;">
+        <th style="padding:7px 8px;border:1px solid #6b7280;">Tipo</th>
         <th style="padding:7px 12px;border:1px solid #6b7280;text-align:left;">Servicio destino</th>
         <th style="padding:7px 8px;border:1px solid #6b7280;">Supervisor</th>
         <th style="padding:7px 8px;border:1px solid #6b7280;">Motivo</th>
@@ -359,7 +399,7 @@ export function abrirDetalleRotacionPorNro(nro) {
         <th style="padding:7px 8px;border:1px solid #6b7280;text-align:center;">Estado</th>
         <th style="padding:7px 8px;border:1px solid #6b7280;">Descripción</th>
       </tr></thead>
-      <tbody>${filasTabla || '<tr><td colspan="6" style="padding:10px;text-align:center;color:var(--texto-muy-suave);">Sin reasignaciones ejecutadas</td></tr>'}</tbody>
+      <tbody>${filasTabla || '<tr><td colspan="7" style="padding:10px;text-align:center;color:var(--texto-muy-suave);">Sin reasignaciones ejecutadas</td></tr>'}</tbody>
     </table>`;
   abrirModal('modal-reas-rotacion');
 }
@@ -438,6 +478,7 @@ export function autocompletarReas() {
   if (btnSug) btnSug.disabled = false;
   const cont = $('reas-sugerencias');
   if (cont) cont.innerHTML = '';
+  pintarPanoramaReas();
 }
 
 // Matcher servicio destino → supervisor destino: al elegir el servicio,
@@ -446,9 +487,165 @@ export function autocompletarReas() {
 export function onChangeServicioDestinoReas() {
   const codigo = ($('reas-serv-dest') || { value: '' }).value.trim();
   const supEl = $('reas-sup-dest');
-  if (!supEl || !codigo) return;
-  const sup = getSupervisorDeCodigo(codigo);
-  if (sup) supEl.value = sup;
+  if (supEl && codigo) {
+    const sup = getSupervisorDeCodigo(codigo);
+    if (sup) supEl.value = sup;
+  }
+  pintarPanoramaReas();
+}
+
+// ========== MODALIDAD + PANEL DE PANORAMA ==========
+// REUBICACION_SUMA_SERVICIO_para_Fede.md — reemplaza al sugeridor cuando ya
+// hay un asociado elegido: todo lo que Central de Operaciones necesita para
+// juzgar si es apto, en un solo panel.
+
+let MODO_REAS = ''; // '' | 'reub' | 'suma'
+// Puesto FIJO cuando el modal se abrió desde un prepedido (destino y
+// vacante ya conocidos) — permite el chequeo de superposición horaria sin
+// tener que ir a buscar DB.prepedidos de nuevo en cada repintado.
+let _prepVacante = null;
+
+export function setModoReas(modo) {
+  MODO_REAS = modo;
+  const reub = $('reas-modo-reub'), suma = $('reas-modo-suma');
+  if (reub) { reub.style.borderColor = modo === 'reub' ? 'var(--azul)' : 'var(--borde-fuerte)'; reub.style.background = modo === 'reub' ? '#f4f8ff' : ''; }
+  if (suma) { suma.style.borderColor = modo === 'suma' ? 'var(--azul)' : 'var(--borde-fuerte)'; suma.style.background = modo === 'suma' ? '#f4f8ff' : ''; }
+  pintarPanoramaReas();
+}
+
+function resetModoReas() {
+  MODO_REAS = '';
+  _prepVacante = null;
+  setModoReas('');
+}
+
+// Puesto de Personal necesario del servicio que mejor matchea la función
+// del legajo — no hay (todavía) un horario propio por persona en este
+// sistema: Liquidación de horas carga día por día, no un horario semanal
+// fijo por asociado. Se aproxima con el puesto del servicio, y así se
+// aclara en la UI (no se presenta como un dato exacto verificado).
+function puestoAproxDe(leg) {
+  const obj = (DB.objetivos || []).find(o => o.codigo === leg.servicio && !o.anulado);
+  if (!obj) return { obj: null, puesto: null };
+  const puestos = obj.puestos || [];
+  const match = puestos.find(p => p.puesto && leg.funcion && p.puesto.toLowerCase() === leg.funcion.toLowerCase()) || puestos[0] || null;
+  return { obj, puesto: match };
+}
+
+function capacitacionesAprobadasDe(nro) {
+  return [...new Set((DB.capacitaciones || [])
+    .filter(c => !c.anulado && String(c.nroSocio) === String(nro) && c.estado === 'Dictada' && c.resultado === 'Aprobado')
+    .map(c => c.tipo))];
+}
+
+// Horas ya cargadas en grillas del período vigente — mismo criterio que la
+// bandeja de Monotributo (_horasEnGrillas): F/AI no suman, AJ sí.
+function horasVerificadasDe(nro) {
+  const mes = new Date().toISOString().slice(0, 7);
+  let hs = 0;
+  (DB.grillasLiq || []).filter(g => g.periodo === mes).forEach(g => {
+    (g.asociados || []).forEach(a => {
+      if (String(a.nro) !== String(nro)) return;
+      Object.keys(a.horas || {}).forEach(iso => {
+        hs += window.horasCobradasDia ? window.horasCobradasDia(a, iso) : (parseFloat(a.horas[iso]) || 0);
+      });
+    });
+  });
+  return Math.round(hs * 10) / 10;
+}
+
+function domicilioLegajoTexto(leg) {
+  return [leg.direccion, leg.localidad, leg.partido].filter(Boolean).join(', ') || 'sin domicilio cargado';
+}
+function direccionServicioTexto(o) {
+  if (!o) return null;
+  return [o.dir, o.localidad, o.jurisdiccion].filter(Boolean).join(' · ') || null;
+}
+
+function historialServiciosTexto(leg) {
+  const movs = (leg.historialMovimientos || []).slice().sort((a, b) => (a.fecha || '').localeCompare(b.fecha || ''));
+  if (!movs.length) return `${leg.servicio || '—'} (desde ${leg.ingreso || 'el alta'})`;
+  const partes = movs.map((m, i) => `${m.servicioOrigen || '—'} (${i === 0 ? (leg.ingreso || '?') : movs[i - 1].fecha} – ${m.fecha})`);
+  partes.push(`${leg.servicio || '—'} (desde ${movs[movs.length - 1].fecha})`);
+  return partes.join(' · ');
+}
+
+const DIAS_KEYS = ['lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabados', 'domingos'];
+
+// Superposición horaria entre el puesto ACTUAL (aprox.) y el puesto
+// destino (vacante del prepedido, o puesto aprox. del servicio destino
+// elegido a mano) — mismo criterio que el mockup: días en común + rango
+// horario que se pisa.
+function superposicionHoraria(puestoOrigen, puestoDestino) {
+  if (!puestoOrigen || !puestoDestino) return null;
+  const diasComunes = DIAS_KEYS.filter(d => puestoOrigen.dias?.[d] && puestoDestino.dias?.[d]);
+  if (!diasComunes.length) return null;
+  const h1o = puestoOrigen.horarioDesde, h2o = puestoOrigen.horarioHasta;
+  const h1d = puestoDestino.horarioDesde, h2d = puestoDestino.horarioHasta;
+  if (!h1o || !h2o || !h1d || !h2d) return null;
+  const h1 = h1o > h1d ? h1o : h1d, h2 = h2o < h2d ? h2o : h2d;
+  if (h1 >= h2) return null;
+  return { dias: diasMarcadosTexto(Object.fromEntries(diasComunes.map(d => [d, true]))), h1, h2 };
+}
+
+// Puesto/dirección/hs-mes del DESTINO: si viene de un prepedido, es fijo
+// (la vacante exacta); si es el flujo del módulo (destino libre), se
+// aproxima con el primer puesto de Personal necesario del servicio
+// elegido — mismo criterio de aproximación que el origen, misma aclaración.
+function puestoDestinoActual() {
+  if (_prepVacante) return _prepVacante;
+  const codigo = ($('reas-serv-dest') || { value: '' }).value.trim();
+  if (!codigo) return null;
+  const obj = (DB.objetivos || []).find(o => o.codigo === codigo && !o.anulado);
+  if (!obj) return null;
+  const puesto = (obj.puestos || [])[0] || null;
+  return puesto ? { ...puesto, direccion: direccionServicioTexto(obj), hsMes: obj.efts || null, servicioNombre: obj.nombre, aproximado: true } : null;
+}
+
+export function pintarPanoramaReas() {
+  const cont = $('reas-panorama');
+  if (!cont) return;
+  const nro = ($('reas-nro') || { value: '' }).value;
+  const leg = (DB.legajos || []).find(l => String(l.nro) === String(nro));
+  if (!leg) { cont.innerHTML = ''; return; }
+  if (!MODO_REAS) {
+    cont.innerHTML = '<div class="alerta alerta-info" style="margin:8px 0;">Elegí primero la <b>modalidad</b> (paso 1) para ver el panorama del asociado.</div>';
+    return;
+  }
+
+  const { obj: objOrigen, puesto: puestoOrigen } = puestoAproxDe(leg);
+  const horarioOrigenTxt = puestoOrigen?.horarioDesde ? `${puestoOrigen.horarioDesde}–${puestoOrigen.horarioHasta || '?'}` : 'sin horario cargado';
+  const diasOrigenTxt = puestoOrigen ? diasMarcadosTexto(puestoOrigen.dias) : '—';
+  const puestoDestino = puestoDestinoActual();
+  const dirServicioDestino = puestoDestino?.direccion || (_prepVacante ? _prepVacante.direccion : null);
+
+  let html = '<div class="pan-reas" style="border:1px solid var(--borde-fuerte);background:var(--fondo);border-radius:8px;padding:10px 12px;font-size:12.5px;margin:8px 0;">';
+  html += `<div style="margin-bottom:5px;"><b style="color:var(--azul);text-transform:uppercase;font-size:10.5px;margin-right:8px;">Servicio actual</b>${leg.servicio || '—'} <span class="chip" style="font-size:10px;">${horarioOrigenTxt}</span> <span class="chip" style="font-size:10px;">${diasOrigenTxt}</span> <span style="color:var(--texto-suave);">sup.: ${leg.supervisor || '—'}</span>${puestoOrigen ? '' : ' <span style="color:var(--naranja);">(sin puesto matcheado en Personal necesario — horario aproximado no disponible)</span>'}</div>`;
+  html += `<div style="margin-bottom:5px;"><b style="color:var(--azul);text-transform:uppercase;font-size:10.5px;margin-right:8px;">Distancia</b>🏠 ${domicilioLegajoTexto(leg)} → 📍 ${dirServicioDestino || 'elegí el servicio destino'}</div>`;
+  const hsVerif = horasVerificadasDe(leg.nro);
+  const hsPact = objOrigen?.efts || null;
+  html += `<div style="margin-bottom:5px;"><b style="color:var(--azul);text-transform:uppercase;font-size:10.5px;margin-right:8px;">Horas del período</b><b>${hsVerif} hs verificadas</b>${hsPact ? ` · ~${hsPact} hs pactadas en su servicio actual (según hs/mes del servicio)` : ' · sin dato de horas pactadas'}</div>`;
+  const caps = capacitacionesAprobadasDe(leg.nro);
+  html += `<div style="margin-bottom:5px;"><b style="color:var(--azul);text-transform:uppercase;font-size:10.5px;margin-right:8px;">Capacitaciones</b>${caps.length ? caps.map(c => `<span class="chip" style="font-size:10px;background:var(--acento-suave);">${c}</span>`).join(' ') : '<span style="color:var(--texto-suave);">sin capacitaciones aprobadas registradas</span>'}</div>`;
+  html += `<div><b style="color:var(--azul);text-transform:uppercase;font-size:10.5px;margin-right:8px;">Historial</b>${historialServiciosTexto(leg)}</div>`;
+  html += '</div>';
+
+  if (MODO_REAS === 'suma') {
+    if (puestoOrigen && puestoDestino) {
+      const sp = superposicionHoraria(puestoOrigen, puestoDestino);
+      html += sp
+        ? `<div class="alerta alerta-warn" style="margin-bottom:8px;">⚠ <b>Superposición horaria${puestoDestino.aproximado ? ' (estimada)' : ''}:</b> ${sp.dias} de ${sp.h1} a ${sp.h2} — su servicio actual (${horarioOrigenTxt}) se pisa con el puesto nuevo (${puestoDestino.horarioDesde}–${puestoDestino.horarioHasta}). Alerta, no bloqueo: Central de Operaciones decide.</div>`
+        : `<div class="alerta alerta-ok" style="margin-bottom:8px;">✔ Sin superposición horaria${puestoDestino.aproximado ? ' (estimada)' : ''} con su servicio actual.</div>`;
+    }
+    if (puestoDestino?.hsMes) {
+      const nueva = (hsPact || 0) + puestoDestino.hsMes;
+      html += `<div class="pan-reas" style="border:1px solid #d9c8ef;background:#fbf8ff;border-radius:8px;padding:9px 12px;font-size:12.5px;margin-bottom:8px;"><b style="color:#6a3fa0;text-transform:uppercase;font-size:10.5px;margin-right:8px;">Carga resultante</b>Pasaría de <b>${hsPact || 0}</b> a <b>${nueva} hs pactadas/mes</b> (+${puestoDestino.hsMes} del puesto nuevo)${puestoDestino.aproximado ? ' — estimado' : ''} — queda con presencia en dos servicios desde la fecha efectiva.</div>`;
+    }
+  } else if (MODO_REAS === 'reub') {
+    html += `<div class="alerta alerta-warn" style="margin-bottom:8px;">🔁 <b>Reubicación:</b> sale de <b>${leg.servicio || 'su servicio actual'}</b> en la fecha efectiva — la dotación de ese servicio queda incompleta (se avisa a ${leg.supervisor || 'su supervisor'}).</div>`;
+  }
+
+  cont.innerHTML = html;
 }
 
 // ========== SUGERIDOR IA DE SERVICIO DESTINO ==========
@@ -516,7 +713,14 @@ function aplicarModoPrepedido(ctx) {
   const dest = $('reas-serv-dest');
   if (dest) dest.readOnly = !!ctx;
   const tit = $('reas-modal-title');
-  if (tit) tit.textContent = ctx ? `🔄 Nueva reasignación — desde prepedido ${ctx.etiqueta || ''}` : '🔄 Nueva reasignación';
+  if (tit) tit.textContent = ctx ? `🔄 Nueva reubicación — desde prepedido ${ctx.etiqueta || ''}` : '🔄 Nueva reubicación';
+  const chip = $('reas-prep-chip');
+  if (chip) { chip.style.display = ctx ? '' : 'none'; chip.textContent = ctx ? `↔ ${ctx.etiqueta || 'prepedido'}` : ''; }
+  // Con destino fijo (viene de un prepedido) no tiene sentido "sugerir
+  // destino" — el destino ES la vacante que se está cubriendo.
+  const sugWrap = $('reas-sugeridor-wrap');
+  if (sugWrap) sugWrap.style.display = ctx ? 'none' : '';
+  _prepVacante = ctx && ctx.vacante ? ctx.vacante : null;
 }
 
 function refrescarPrepedidos() {
@@ -527,7 +731,19 @@ function refrescarPrepedidos() {
 
 export function abrirReasignacionDesdePrepedido(ctx) {
   abrirNuevaReasignacion();
-  aplicarModoPrepedido(ctx);
+  // Vacante FIJA del prepedido: puesto/horario/dias para el chequeo de
+  // superposición + dirección/hs-mes para el panel de panorama.
+  const vacante = {
+    puesto: ctx.puesto || ctx.etiqueta || '',
+    horarioDesde: ctx.horarioDesde || null,
+    horarioHasta: ctx.horarioHasta || null,
+    dias: ctx.dias || null,
+    tipoHorario: ctx.tipoHorario || null,
+    direccion: ctx.direccion || null,
+    hsMes: ctx.hsMes || null,
+    servicioNombre: ctx.servicioNombre || ctx.servicioDestino || '',
+  };
+  aplicarModoPrepedido({ ...ctx, vacante });
   if ($('reas-serv-dest')) $('reas-serv-dest').value = ctx.servicioDestino || '';
   if ($('reas-sup-dest')) $('reas-sup-dest').value = ctx.supervisorDestino || '';
   if ($('reas-originada-por')) $('reas-originada-por').value = 'Central de Operaciones';
@@ -536,6 +752,9 @@ export function abrirReasignacionDesdePrepedido(ctx) {
 
 export function abrirNuevaReasignacion() {
   aplicarModoPrepedido(null);
+  resetModoReas();
+  const consEl = $('reas-consultado'); if (consEl) consEl.checked = false;
+  const consPorEl = $('reas-consultado-por'); if (consPorEl) consPorEl.value = '';
   ['reas-asociado', 'reas-nro', 'reas-serv-orig', 'reas-sup-orig', 'reas-categoria', 'reas-serv-dest', 'reas-sup-dest', 'reas-desc'].forEach(id => {
     const el = $(id); if (el) el.value = '';
   });
@@ -550,6 +769,7 @@ export function abrirNuevaReasignacion() {
   const sugCont = $('reas-sugerencias'); if (sugCont) sugCont.innerHTML = '';
   _ultimasSugerencias = [];
   poblarSelectsReas();
+  pintarPanoramaReas();
   abrirModal('modal-reasignacion');
 }
 
@@ -590,8 +810,19 @@ export function abrirBorradorReasignacionPorId(id) {
   $('modal-reasignacion').dataset.editId = r.id;
   if (r.prepedidoIdLocal) {
     const pre = (DB.prepedidos || []).find(p => String(p.id).slice(-9) === String(r.prepedidoIdLocal));
-    aplicarModoPrepedido({ prepedidoIdLocal: r.prepedidoIdLocal, prepedidoVacante: r.prepedidoVacante, etiqueta: pre ? `PRE-${pre.numero}` : '' });
+    const v = pre?.vacantes?.[r.prepedidoVacante];
+    const obj = (DB.objetivos || []).find(o => o.codigo === r.servicioDestino);
+    aplicarModoPrepedido({
+      prepedidoIdLocal: r.prepedidoIdLocal, prepedidoVacante: r.prepedidoVacante, etiqueta: pre ? `PRE-${pre.numero}` : '',
+      vacante: v ? {
+        puesto: v.puesto || '', horarioDesde: v.horarioDesde || null, horarioHasta: v.horarioHasta || null, dias: v.dias || null, tipoHorario: v.tipoHorario || null,
+        direccion: obj ? [obj.dir, obj.localidad, obj.jurisdiccion].filter(Boolean).join(' · ') : null, hsMes: obj?.efts || null,
+      } : null,
+    });
   } else aplicarModoPrepedido(null);
+  setModoReas(r.tipo === 'Suma de servicio' ? 'suma' : 'reub');
+  const consEl = $('reas-consultado'); if (consEl) consEl.checked = !!r.consultadoAcepta;
+  const consPorEl = $('reas-consultado-por'); if (consPorEl) consPorEl.value = r.consultadoPor || '';
   abrirModal('modal-reasignacion');
 }
 
@@ -606,13 +837,17 @@ export function guardarReasignacion(estadoDestino) {
   const originadaPor = ($('reas-originada-por') || { value: '' }).value;
   const descripcion = cleanText(($('reas-desc') || { value: '' }).value);
 
+  const consultadoAcepta = !!($('reas-consultado') || {}).checked;
+  const consultadoPor = cleanText(($('reas-consultado-por') || { value: '' }).value);
+
   if (!leg) { toast('⚠️ Seleccioná un asociado'); return; }
 
   if (estadoDestino !== 'Borrador') {
     // Validaciones completas — solo se exigen al elevar, no al guardar borrador.
+    if (!MODO_REAS) { toast('⚠️ Elegí la modalidad: Reubicación o Suma de servicio'); return; }
     if (leg.estado !== 'Activo') { toast('⚠️ El asociado no está activo, no se puede reasignar'); return; }
     if (!dest) { toast('⚠️ Ingresá el servicio destino'); $('reas-serv-dest').focus(); return; }
-    if (dest === leg.servicio) { toast('⚠️ El servicio destino debe ser distinto al actual'); return; }
+    if (MODO_REAS === 'reub' && dest === leg.servicio) { toast('⚠️ El servicio destino debe ser distinto al actual'); return; }
     if (!motivo) { toast('⚠️ Seleccioná un motivo'); $('reas-motivo').focus(); return; }
     if (!fechaEfectiva) { toast('⚠️ Ingresá la fecha efectiva'); $('reas-fecha').focus(); return; }
     const hoy = hoyISO();
@@ -621,6 +856,8 @@ export function guardarReasignacion(estadoDestino) {
     if (fechaEfectiva > maxFecha.toISOString().slice(0, 10)) { toast('⚠️ La fecha efectiva no puede superar los 3 meses'); $('reas-fecha').focus(); return; }
     if (!originadaPor) { toast('⚠️ Indicá quién originó la solicitud'); $('reas-originada-por').focus(); return; }
     if (!descripcion) { toast('⚠️ La descripción es obligatoria'); $('reas-desc').focus(); return; }
+    if (!consultadoAcepta) { toast('⚠️ Confirmá que el asociado fue consultado y acepta'); $('reas-consultado').focus(); return; }
+    if (!consultadoPor) { toast('⚠️ Indicá quién consultó al asociado'); $('reas-consultado-por').focus(); return; }
   }
 
   const modal = $('modal-reasignacion');
@@ -649,6 +886,9 @@ export function guardarReasignacion(estadoDestino) {
   if (_prepCtx) { r.prepedidoIdLocal = _prepCtx.prepedidoIdLocal; r.prepedidoVacante = _prepCtx.prepedidoVacante; }
   r.requiereAltura = (($('reas-altura') || { value: 'No' }).value || 'No') !== 'No';
   r.requierePolizaEsp = (($('reas-poliza') || { value: 'No' }).value || 'No') !== 'No';
+  r.tipo = MODO_REAS === 'suma' ? 'Suma de servicio' : 'Reubicación';
+  r.consultadoAcepta = consultadoAcepta;
+  r.consultadoPor = consultadoPor;
   r.estado = estadoDestino;
   if (editId) { r.editadoPor = currentUser?.nombre || ''; r.editadoEn = new Date().toISOString(); }
 
@@ -658,6 +898,7 @@ export function guardarReasignacion(estadoDestino) {
   supaSync('reasignaciones', r);
   cerrarModal('modal-reasignacion');
   aplicarModoPrepedido(null);
+  resetModoReas();
   construirMenu(); renderReasignaciones(); refrescarPrepedidos();
   toast(estadoDestino === 'Borrador' ? '✓ Borrador guardado' : '✓ Reasignación elevada para aprobación');
 }

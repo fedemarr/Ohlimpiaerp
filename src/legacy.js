@@ -2727,7 +2727,7 @@ async function confirmarBajaObjetivo(){
   }
   registrarEventoObjetivo(o,estadoDesde,'Baja',motivoCompleto);
   const asocAsignados=(DB.legajos||[]).filter(l=>l.servicio===o.codigo&&l.estado==='Activo').map(l=>l.nombre);
-  const detalleAsoc=asocAsignados.length?` Asociados asignados al servicio: ${asocAsignados.join(', ')}. Sugerencia: reasignar vía Reasignaciones.`:'';
+  const detalleAsoc=asocAsignados.length?` Asociados asignados al servicio: ${asocAsignados.join(', ')}. Sugerencia: reasignar vía Reubicación.`:'';
   crearNotificacion({tipo:'objetivo_dado_de_baja',entidadTipo:'objetivo',entidadIdLocal:idLocalTrunc(o.id),destinatarioNombre:GERENTE_OPERACIONES,mensaje:`Se dio de baja el objetivo ${o.nombre} (${o.codigo}). Motivo: ${motivoCompleto}.${detalleAsoc}`});
   crearNotificacion({tipo:'objetivo_dado_de_baja',entidadTipo:'objetivo',entidadIdLocal:idLocalTrunc(o.id),destinatarioNombre:GERENTE_RRHH_COMERCIAL,mensaje:`Se dio de baja el objetivo ${o.nombre} (${o.codigo}). Motivo: ${motivoCompleto}.${detalleAsoc}`});
   cerrarModal('modal-baja-objetivo');
@@ -13600,7 +13600,7 @@ function renderResumenSeleccionIngreso(){
     const uniMes = (DB.uniformes||[]).filter(u=>(u.fecha||'').slice(0,7)===mesActual).length;
     const retActivas = (DB.retenciones||[]).filter(r=>r.estado==='Activa').length;
     const items = [
-      {icon:'🔄', label:'Reasignaciones pendientes', n:reasPend, color:'var(--naranja)'},
+      {icon:'🔄', label:'Reubicaciones pendientes', n:reasPend, color:'var(--naranja)'},
       {icon:'💸', label:'Monotributos fuera de cat.', n:monoFuera, color:'var(--rojo)'},
       {icon:'👕', label:'Uniformes entregados (mes)', n:uniMes, color:'var(--azul)'},
       {icon:'🔒', label:'Retenciones activas', n:retActivas, color:'var(--acento)'},
@@ -13629,7 +13629,7 @@ export function renderInicio(){
     {key:'candidatos',  icon:'👥', label:'Candidatos',         color:'#e8f0fe', border:'#93b4f8'},
     {key:'pedidos',     icon:'📋', label:'Pedidos',             color:'#e8f8ee', border:'#7dd4a0'},
     {key:'legajos',     icon:'📁', label:'Legajos',             color:'#fff8e8', border:'#f0c857'},
-    {key:'reasignaciones',icon:'🔄',label:'Reasignaciones',    color:'#fef3e8', border:'#f4a44a'},
+    {key:'reasignaciones',icon:'🔄',label:'Reubicación',      color:'#fef3e8', border:'#f4a44a'},
     {key:'capacitaciones',icon:'🎓',label:'Capacitaciones',    color:'#f3e8fe', border:'#c084f5'},
     {key:'vacaciones',  icon:'🏖️', label:'Vacaciones',         color:'#e8fefc', border:'#5de8dc'},
     {key:'competencia', icon:'🏆', label:'Competencia',         color:'#fffbea', border:'#f0c857'},
@@ -14066,7 +14066,7 @@ function abrirAgenteIA(contexto, datos){
     crm: '🤖 Agente IA — CRM Comercial',
     reclamos: '🤖 Agente IA — Reclamos',
     cobros: '🤖 Agente IA — Gestión de Cobros',
-    reasignaciones: '🤖 Agente IA — Reasignaciones',
+    reasignaciones: '🤖 Agente IA — Reubicación',
   };
   const promptsIA={
     crm: `Analizá el pipeline de ventas: ${DB.leads.length} leads activos, ${DB.leads.filter(l=>l.etapa==='Negociación').length} en negociación, valor total pipeline $${Math.round(DB.leads.filter(l=>l.etapa!=='Contrato'&&l.etapa!=='Cerrado perdido').reduce((s,l)=>s+l.valor,0)/1000)}k/mes. Principales acciones pendientes hoy: ${DB.leads.flatMap(l=>l.acciones||[]).filter(a=>a.estado==='Pendiente').length} acciones. ¿Qué prioridades me recomendás y cómo puedo comunicarme mejor con los prospectos en etapa de negociación?`,
