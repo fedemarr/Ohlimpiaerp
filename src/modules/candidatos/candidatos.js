@@ -260,6 +260,7 @@ export function renderCandidatos(lista) {
   const fZona = (($('cand-filtro-zona') || {}).value || '');
   const fEstado = (($('cand-filtro-estado') || {}).value || '');
   const fPedido = (($('cand-filtro-pedido') || {}).value || '');
+  const fGenero = (($('cand-filtro-genero') || {}).value || '');
 
   const estadosHist = ['Rechazado', 'Psicotecnico', ...ESTADOS_BAJA];
   const esPrecandidato = c => c.estado === 'Precandidato';
@@ -276,6 +277,14 @@ export function renderCandidatos(lista) {
   if (fEstado) lista2 = lista2.filter(c => c.estado === fEstado);
   if (fPedido === 'con') lista2 = lista2.filter(c => !!c.pedidoVinculadoIdLocal);
   if (fPedido === 'sin') lista2 = lista2.filter(c => !c.pedidoVinculadoIdLocal);
+  // Filtro Género (ticket "vacantes que piden M o F específicamente", 23/09):
+  // candidatos.genero guarda el valor completo ("Masculino"/"Femenino"/
+  // "Otro"), no "M"/"F" — el <select> ya manda ese valor real, así que acá
+  // es una comparación directa. Un candidato sin género cargado (hay 4 en
+  // la base hoy) simplemente no matchea ni M ni F al filtrar por cualquiera
+  // de los dos — no se lo fuerza a ninguno de los dos grupos ni se inventa
+  // un default.
+  if (fGenero) lista2 = lista2.filter(c => c.genero === fGenero);
 
   // Stats
   const ss = (id, v) => { const e = $(id); if (e) e.textContent = v; };
