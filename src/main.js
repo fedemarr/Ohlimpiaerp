@@ -4,7 +4,7 @@
 import './styles/main.css';
 
 // ── Shared ──
-import { SUPA, supaInit, supaSync, supaDel, fetchCandidatosYTurnos, fetchSugerencias, fetchAccesosVigentes } from '@shared/supabase.js';
+import { SUPA, supaInit, supaSync, supaDel, fetchCandidatosYTurnos, fetchSugerencias, fetchAccesosVigentes, fetchDotacionRefresh } from '@shared/supabase.js';
 import { puedeVer } from '@modules/accesos/runtime.js';
 import { DB, PERFILES, MENU, BADGE_MAP, AREAS, LOCALIDADES_BA, currentUser } from '@shared/state.js';
 import { $, initials, avatarEl, badge, formatPeriodo, hoyStr, esFeriado, esFinde, getDiasDelMes, calcularDiasEntre, toTitleCase, cleanText, applyTitleCase, validarCampos, fillSelect, fillDL } from '@shared/helpers.js';
@@ -58,6 +58,7 @@ import { maquinasScreenConfig, filtrarMaquinas } from './modules/maquinas/index.
 import { negociacionesScreenConfig } from './modules/negociaciones/index.js';
 import { preciosScreenConfig } from './modules/precios/index.js';
 import { gestionHorasScreenConfig } from './modules/gestion_horas/index.js';
+import { dotacionScreenConfig } from './modules/dotacion/index.js';
 import { proveedoresScreenConfig } from './modules/proveedores/index.js';
 import { resumenHorasScreenConfig, poblarSelectsResumenHoras } from './modules/resumen_horas/index.js';
 // v098 — Tab "Acceso y perfiles" (no registra screen: la engancha legacy.js
@@ -127,6 +128,7 @@ registerScreens(maquinasScreenConfig);
 registerScreens(negociacionesScreenConfig);
 registerScreens(preciosScreenConfig);
 registerScreens(gestionHorasScreenConfig);
+registerScreens(dotacionScreenConfig);
 registerScreens(proveedoresScreenConfig);
 registerScreens(resumenHorasScreenConfig);
 
@@ -327,6 +329,37 @@ function detenerPollingAccesos() {
   if (pollingAccesosId) { clearInterval(pollingAccesosId); pollingAccesosId = null; }
 }
 
+// Dotación (DOTACION_para_Fede.md) es un TABLERO, no una copia — "tiempo
+// real" acá significa que un alta/baja/licencia cargada por otra persona
+// le llega sin F5. No hay Realtime real en el proyecto para esto (ver
+// fetchDotacionRefresh) — mismo patrón de polling que accesos arriba,
+// solo que además re-renderiza únicamente si el usuario está parado en
+// esa pantalla (evita repintar una pantalla que no se está mirando).
+const INTERVALO_POLLING_DOTACION_MS = 20000;
+let pollingDotacionId = null;
+
+async function chequearDotacionActualizada() {
+  if (!currentUser) return;
+  const datos = await fetchDotacionRefresh();
+  if (!datos) return;
+  const antes = JSON.stringify([DB.legajos || [], DB.casosEnfermosAccidentes || [], DB.descansos || [], DB.vacaciones || []]);
+  const despues = JSON.stringify([datos.legajos, datos.casosEnfermosAccidentes, datos.descansos, datos.vacaciones]);
+  if (antes === despues) return;
+  DB.legajos = datos.legajos;
+  DB.casosEnfermosAccidentes = datos.casosEnfermosAccidentes;
+  DB.descansos = datos.descansos;
+  DB.vacaciones = datos.vacaciones;
+  if (currentScreen === 'dotacion' && SCREEN_CONFIG[currentScreen]) SCREEN_CONFIG[currentScreen].render();
+}
+
+function iniciarPollingDotacion() {
+  if (pollingDotacionId) return;
+  pollingDotacionId = setInterval(chequearDotacionActualizada, INTERVALO_POLLING_DOTACION_MS);
+}
+function detenerPollingDotacion() {
+  if (pollingDotacionId) { clearInterval(pollingDotacionId); pollingDotacionId = null; }
+}
+
 registerAuthCallbacks({
   construirMenu() {
     construirMenu();
@@ -392,12 +425,14 @@ registerAuthCallbacks({
     else iniciarPolling();
     iniciarPollingCampana();
     iniciarPollingAccesos();
+    iniciarPollingDotacion();
   },
   detenerPolling() {
     detenerPolling();
     detenerPollingTickets();
     detenerPollingCampana();
     detenerPollingAccesos();
+    detenerPollingDotacion();
     detenerRealtimeDev();
     ocultarBotonReporte();
   },

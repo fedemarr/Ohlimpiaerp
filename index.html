@@ -3102,6 +3102,63 @@
   </div>
 </div>
 
+<!-- DOTACIÓN (DOTACION_para_Fede.md + mockup_dotacion_1.html) — tablero de
+     solo lectura: no se carga nada, se lee legajos + categorías +
+     licencias + prepedidos/pedidos que ya existen. -->
+<div class="screen" id="screen-dotacion">
+  <div class="stats-grid" style="grid-template-columns:repeat(5,1fr);">
+    <div class="stat-card"><div class="stat-label">Operarios activos</div><div class="stat-valor" id="dot-k-act">—</div><div class="stat-sub">legajo activo · solo operarios</div></div>
+    <div class="stat-card verde"><div class="stat-label">🟢 Trabajando</div><div class="stat-valor" id="dot-k-trab">—</div><div class="stat-sub" id="dot-k-trab-s">—</div></div>
+    <div class="stat-card acento"><div class="stat-label">🟡 En artículo</div><div class="stat-valor" id="dot-k-art">—</div><div class="stat-sub">licencia / accidente</div></div>
+    <div class="stat-card"><div class="stat-label">⚪ Sin servicio</div><div class="stat-valor" id="dot-k-sin" style="color:var(--texto-suave);">—</div><div class="stat-sub">la banca disponible</div></div>
+    <div class="stat-card"><div class="stat-label">Movimientos del mes</div><div class="stat-valor" id="dot-k-mov">—</div><div class="stat-sub">altas / bajas</div></div>
+  </div>
+
+  <div class="card" style="padding:10px 16px;margin-bottom:12px;font-size:12.5px;" id="dot-cats"></div>
+
+  <div class="head" style="display:flex;align-items:center;gap:12px;margin-bottom:12px;flex-wrap:wrap;">
+    <input type="text" id="dot-buscar" placeholder="🔍 Buscar por nombre o N° socio..." oninput="renderDotacion()" style="padding:7px 12px;border:1px solid var(--borde-fuerte);border-radius:20px;font-size:13px;width:250px;">
+    <select id="dot-cat" onchange="renderDotacion()"><option value="">Categoría: todas</option></select>
+    <select id="dot-est" onchange="renderDotacion()">
+      <option value="">Estado: todos</option>
+      <option value="T">🟢 Trabajando</option>
+      <option value="A">🟡 En artículo</option>
+      <option value="S">⚪ Sin servicio</option>
+    </select>
+    <button class="btn btn-secondary btn-sm" onclick="renderDotacion()">🔄 Actualizar</button>
+    <span style="margin-left:auto;font-size:12px;color:var(--texto-suave);">Solo lectura — se arma solo de legajos + categorías + asignaciones + licencias</span>
+  </div>
+
+  <div class="card" style="margin-bottom:16px;">
+    <div class="hd" style="padding:12px 16px;border-bottom:1px solid var(--borde);display:flex;align-items:center;gap:10px;">
+      <h2 style="font-size:14.5px;">👥 Operarios activos</h2><span id="dot-hd-cont" style="margin-left:auto;font-size:12px;color:var(--texto-suave);"></span>
+    </div>
+    <div class="tabla-wrap">
+      <table>
+        <thead><tr><th>N° · Operario/a</th><th>Categoría</th><th>Estado</th><th>Servicio(s) asignado(s)</th><th style="text-align:right;">Hs pactadas/mes</th><th>Desde</th><th></th></tr></thead>
+        <tbody id="dot-tbody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="hd" style="padding:12px 16px;border-bottom:1px solid var(--borde);display:flex;align-items:center;gap:10px;">
+      <h2 style="font-size:14.5px;">⇄ El cruce que mira el Gerente de Operaciones</h2>
+      <span class="badge badge-gris">sobra acá · falta allá — el botón abre el circuito que ya existe</span>
+    </div>
+    <div style="padding:12px 16px;display:grid;grid-template-columns:1fr 1fr;gap:14px;">
+      <div style="border:1px solid var(--borde);border-radius:10px;overflow:hidden;">
+        <div style="padding:9px 13px;font-size:12px;font-weight:700;border-bottom:1px solid var(--borde);background:var(--fondo);color:var(--texto-suave);">⚪ BANCA — activos sin servicio</div>
+        <div id="dot-banca"></div>
+      </div>
+      <div style="border:1px solid var(--borde);border-radius:10px;overflow:hidden;">
+        <div style="padding:9px 13px;font-size:12px;font-weight:700;border-bottom:1px solid var(--borde);background:var(--rojo-suave);color:var(--rojo);">⚠ SERVICIOS CON DOTACIÓN INCOMPLETA</div>
+        <div id="dot-falta"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- SUPERVISIÓN DE SERVICIOS (ticket 13/08/2026, sql/v086) -->
 <div class="screen" id="screen-supervision">
   <div class="stats-grid">

@@ -1442,3 +1442,24 @@ export async function fetchAccesosVigentes() {
     usuarioAccesos: (rUsuario.data || []).map(row => _toCamel(row)),
   };
 }
+
+// Chequeo liviano para el tablero de Dotación (DOTACION_para_Fede.md): no
+// hay Realtime real en el proyecto para esto (el único uso, en
+// shared/realtime.js, es INSERT-only y de un módulo interno) — se replica
+// el mismo patrón de polling ya probado arriba, así un alta/baja/licencia
+// cargada por otra persona le llega al tablero sin que haga F5.
+export async function fetchDotacionRefresh() {
+  const [rLeg, rCasos, rDesc, rVac] = await Promise.all([
+    SUPA.from('legajos').select('*'),
+    SUPA.from('casos_enfermos_accidentes').select('*'),
+    SUPA.from('descansos').select('*'),
+    SUPA.from('vacaciones').select('*'),
+  ]);
+  if (rLeg.error || rCasos.error || rDesc.error || rVac.error) return null;
+  return {
+    legajos: (rLeg.data || []).map(row => _toCamel(row)),
+    casosEnfermosAccidentes: (rCasos.data || []).map(row => _toCamel(row)),
+    descansos: (rDesc.data || []).map(row => _toCamel(row)),
+    vacaciones: (rVac.data || []).map(row => _toCamel(row)),
+  };
+}
