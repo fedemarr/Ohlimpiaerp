@@ -7500,9 +7500,8 @@
     <div class="modal-body">
       <div class="tabs" style="margin-bottom:16px;">
         <button class="tab-btn active" onclick="tabCliModal(0,this)">Datos generales</button>
-        <button class="tab-btn" onclick="tabCliModal(1,this)">Impositivo</button>
-        <button class="tab-btn" onclick="tabCliModal(2,this)">Contactos</button>
-        <button class="tab-btn" onclick="tabCliModal(3,this)">Facturación</button>
+        <button class="tab-btn" onclick="tabCliModal(1,this)">Contactos</button>
+        <button class="tab-btn" onclick="tabCliModal(2,this)">Impositivo y facturación</button>
       </div>
       <div id="cli-tab-0" class="tab-content active">
         <div class="form-grid gap-12">
@@ -7510,7 +7509,7 @@
             <div class="form-group"><label>Razón social *</label><input type="text" id="cli-razon" onblur="applyTitleCase('cli-razon')"></div>
             <div class="form-group"><label>Nombre comercial</label><input type="text" id="cli-nombre" onblur="applyTitleCase('cli-nombre')"></div>
           </div>
-          <div class="form-grid form-grid-3">
+          <div class="form-grid form-grid-2">
             <div class="form-group"><label>Código interno</label>
               <div style="display:flex;gap:6px;">
                 <input type="text" id="cli-codigo" placeholder="Ej: CLI-0001 (vacío = se autogenera)" style="flex:1;">
@@ -7521,61 +7520,49 @@
             <div class="form-group"><label>Tipo de cliente</label>
               <select id="cli-tipo"><option value="">— Seleccionar —</option></select>
             </div>
-            <div class="form-group"><label>Estado</label><select id="cli-estado"><option>Borrador</option><option>Activo</option><option>Inactivo</option></select></div>
           </div>
           <div class="form-group"><label>Código Tango (referencia externa)</label><input type="text" id="cli-codigo-tango" placeholder="Tal como figura en Tango"></div>
           <div class="form-grid form-grid-2">
-            <div class="form-group"><label>Dirección fiscal</label><input type="text" id="cli-direccion"></div>
-            <div class="form-group"><label>Localidad / Ciudad</label><input type="text" id="cli-ciudad"></div>
-          </div>
-          <div class="form-grid form-grid-3">
-            <div class="form-group"><label>Responsable</label>
-              <select id="cli-responsable-tipo" onchange="toggleResponsableClienteTipo()" style="margin-bottom:6px;"><option value="Interno">Interno (Personal)</option><option value="Externo">Externo</option></select>
-              <input type="text" id="cli-responsable" list="dl-cli-responsable" placeholder="Buscar en Personal..."><datalist id="dl-cli-responsable"></datalist>
+            <div class="form-group"><label>Dirección</label><input type="text" id="cli-direccion"></div>
+            <div class="form-group"><label>Localidad / Ciudad</label>
+              <select id="cli-ciudad"></select>
+              <span class="form-hint">Misma lista que usa Candidatos (barrios CABA + localidades PBA).</span>
             </div>
-            <div class="form-group" id="cli-responsable-contacto-row" style="display:none;"><label>Contacto del responsable externo</label><input type="text" id="cli-responsable-contacto" placeholder="Tel / mail"></div>
           </div>
-          <div class="form-group"><label>URL logo (opcional)</label><input type="text" id="cli-logo" placeholder="https://..."></div>
+          <div class="form-section">Coordinador de cuenta <span class="form-hint" style="text-transform:none;font-weight:400;">reemplaza a "Responsable"</span></div>
+          <div class="form-grid form-grid-3">
+            <div class="form-group"><label>Tipo</label>
+              <select id="cli-coord-tipo" onchange="toggleCoordinadorClienteTipo()"><option value="Interno">Interno (Personal)</option><option value="Externo">Externo</option></select>
+            </div>
+            <div class="form-group"><label>Coordinador</label>
+              <input type="text" id="cli-coord" list="dl-cli-coord" placeholder="Buscar en Personal..."><datalist id="dl-cli-coord"></datalist>
+            </div>
+            <div class="form-group" id="cli-coord-contacto-row" style="display:none;"><label>Contacto del coordinador externo</label><input type="text" id="cli-coord-contacto" placeholder="Tel / mail"></div>
+          </div>
+          <div class="form-hint" style="margin:-6px 0 12px;">Se precarga al dar de alta cada servicio de este cliente — pisable por servicio. Un coordinador Externo devenga comisión sobre la facturación.</div>
           <div class="form-group"><label>Observaciones</label><textarea id="cli-obs"></textarea></div>
         </div>
       </div>
       <div id="cli-tab-1" class="tab-content">
         <div class="form-grid gap-12">
+          <div class="alerta alerta-info" style="font-size:12px;">Cargá los contactos clave del cliente. Cada servicio de este cliente los ELIGE (checkbox) en vez de recargarlos.</div>
+          <div id="contactos-cliente-lista" style="display:flex;flex-direction:column;gap:8px;"></div>
+          <button class="btn btn-secondary btn-sm" onclick="agregarContactoCliente()">+ Agregar contacto</button>
+        </div>
+      </div>
+      <div id="cli-tab-2" class="tab-content">
+        <div class="form-grid gap-12">
+          <div class="form-section">Identidad fiscal</div>
           <div class="form-grid form-grid-3">
             <div class="form-group"><label>CUIT *</label><input type="text" id="cli-cuit" placeholder="30-XXXXXXXX-X"></div>
             <div class="form-group"><label>Condición IVA</label>
               <select id="cli-iva"></select>
             </div>
-            <div class="form-group"><label>Categoría ARCA</label>
-              <select id="cli-arca"><option value="">— Seleccionar —</option></select>
+            <div class="form-group"><label>Tipo de factura</label>
+              <select id="cli-tipo-factura"><option value="">— Seleccionar —</option><option value="A">A</option><option value="B">B</option><option value="C">C</option><option value="Sin factura (efectivo)">Sin factura (efectivo)</option></select>
             </div>
           </div>
-          <div class="form-grid form-grid-2">
-            <div class="form-group"><label>Ingresos brutos</label><input type="text" id="cli-ib" placeholder="N° inscripción IIBB"></div>
-            <div class="form-group"><label>Jurisdicción IIBB</label><input type="text" id="cli-jur" placeholder="Ej: CABA, PBA, Convenio multilateral"></div>
-          </div>
-          <div class="form-section">Documentación requerida por el cliente</div>
-          <div style="display:flex;flex-wrap:wrap;gap:10px;">
-            <label style="display:flex;align-items:center;gap:5px;font-size:12px;cursor:pointer;"><input type="checkbox" id="doc-seguros"> Seguros de cada persona</label>
-            <label style="display:flex;align-items:center;gap:5px;font-size:12px;cursor:pointer;"><input type="checkbox" id="doc-monotributo"> Pago monotributo</label>
-            <label style="display:flex;align-items:center;gap:5px;font-size:12px;cursor:pointer;"><input type="checkbox" id="doc-antecedentes"> Antecedentes penales</label>
-            <label style="display:flex;align-items:center;gap:5px;font-size:12px;cursor:pointer;"><input type="checkbox" id="doc-ddjj-iva"> DDJJ IVA</label>
-            <label style="display:flex;align-items:center;gap:5px;font-size:12px;cursor:pointer;"><input type="checkbox" id="doc-pago-iva"> Pago IVA</label>
-            <label style="display:flex;align-items:center;gap:5px;font-size:12px;cursor:pointer;"><input type="checkbox" id="doc-remito-servicio"> Remito de servicio</label>
-            <label style="display:flex;align-items:center;gap:5px;font-size:12px;cursor:pointer;"><input type="checkbox" id="doc-planilla-horas"> Planilla de horas</label>
-            <label style="display:flex;align-items:center;gap:5px;font-size:12px;cursor:pointer;"><input type="checkbox" id="doc-oc"> Orden de compra previa</label>
-          </div>
-        </div>
-      </div>
-      <div id="cli-tab-2" class="tab-content">
-        <div class="form-grid gap-12">
-          <div class="alerta alerta-info" style="font-size:12px;">Cargá los contactos clave del cliente. Podés agregar tantos como necesitás — cada uno con su rol.</div>
-          <div id="contactos-cliente-lista" style="display:flex;flex-direction:column;gap:8px;"></div>
-          <button class="btn btn-secondary btn-sm" onclick="agregarContactoCliente()">+ Agregar contacto</button>
-        </div>
-      </div>
-      <div id="cli-tab-3" class="tab-content">
-        <div class="form-grid gap-12">
+          <div class="form-section">Condiciones</div>
           <div class="form-grid form-grid-2">
             <div class="form-group"><label>Condición de pago</label>
               <select id="cli-cond-pago"></select>
@@ -7595,8 +7582,6 @@
             <div class="form-group"><label>Período de facturación</label>
               <select id="cli-periodo-fact"><option>Del 1 al último del mes</option><option>Del 21 al 20</option><option>Del 26 al 25</option><option>Otro</option></select>
             </div>
-          </div>
-          <div class="form-grid form-grid-2">
             <div class="form-group"><label>Productos en factura</label>
               <!-- FIX (ticket "Lista de supervisores con sus servicios", 04/09):
                    estas 3 opciones no coincidían con los 2 valores literales
@@ -7613,11 +7598,21 @@
                 <option value="NO SE FACTURA">❌ NO SE FACTURA (NO PAGAN)</option>
               </select>
             </div>
-            <div class="form-group"><label>Requiere OC para facturar</label>
-              <select id="cli-req-oc"><option>No</option><option>Sí — siempre</option><option>Sí — solo primera vez</option></select>
-            </div>
           </div>
-          <div class="form-group"><label>Notas de facturación</label><textarea id="cli-notas-fact" placeholder="Texto que debe aparecer en facturas, instrucciones especiales..."></textarea></div>
+          <div class="form-group"><label>Requiere OC para facturar</label>
+            <select id="cli-req-oc"><option>No</option><option>Sí</option></select>
+          </div>
+          <div class="form-section">Documentación requerida por el cliente</div>
+          <div style="display:flex;flex-wrap:wrap;gap:10px;">
+            <label style="display:flex;align-items:center;gap:5px;font-size:12px;cursor:pointer;"><input type="checkbox" id="doc-seguros"> Seguros de cada persona</label>
+            <label style="display:flex;align-items:center;gap:5px;font-size:12px;cursor:pointer;"><input type="checkbox" id="doc-monotributo"> Pago monotributo</label>
+            <label style="display:flex;align-items:center;gap:5px;font-size:12px;cursor:pointer;"><input type="checkbox" id="doc-antecedentes"> Antecedentes penales</label>
+            <label style="display:flex;align-items:center;gap:5px;font-size:12px;cursor:pointer;"><input type="checkbox" id="doc-ddjj-iva"> DDJJ IVA</label>
+            <label style="display:flex;align-items:center;gap:5px;font-size:12px;cursor:pointer;"><input type="checkbox" id="doc-pago-iva"> Pago IVA</label>
+            <label style="display:flex;align-items:center;gap:5px;font-size:12px;cursor:pointer;"><input type="checkbox" id="doc-remito-servicio"> Remito de servicio</label>
+            <label style="display:flex;align-items:center;gap:5px;font-size:12px;cursor:pointer;"><input type="checkbox" id="doc-planilla-horas"> Planilla de horas <span class="chip" style="font-size:9px;background:var(--azul-claro);color:var(--azul);">alimenta Facturación</span></label>
+          </div>
+          <div class="form-group" style="margin-top:12px;"><label>Notas de facturación</label><textarea id="cli-notas-fact" placeholder="Texto que debe aparecer en facturas, instrucciones especiales..."></textarea></div>
         </div>
       </div>
     </div>
@@ -7643,7 +7638,7 @@
       <div id="obj-tab-0" class="tab-content active">
         <div class="form-grid gap-12">
           <div class="form-grid form-grid-2">
-            <div class="form-group"><label>Cliente *</label><select id="obj-cliente" onchange="poblarModeloPrecioSegunCliente(parseInt(this.value)||0);heredarFacturacionDeCliente(parseInt(this.value)||0);if(document.getElementById('obj-usar-dir-fiscal').checked)aplicarDireccionFiscalAObjetivo()"></select></div>
+            <div class="form-group"><label>Cliente *</label><select id="obj-cliente" onchange="poblarModeloPrecioSegunCliente(parseInt(this.value)||0);aplicarHerenciasDeCliente(parseInt(this.value)||0);renderRespObjetivoTemp();if(document.getElementById('obj-usar-dir-fiscal').checked)aplicarDireccionFiscalAObjetivo()"></select></div>
             <div class="form-group"><label>Código del servicio *</label><input type="text" id="obj-codigo" placeholder="Ej: CHANGO.BROWN"></div>
           </div>
           <div class="form-grid form-grid-2">
@@ -7663,14 +7658,15 @@
             <input type="checkbox" id="obj-usar-dir-fiscal" onchange="toggleUsarDireccionFiscalObjetivo()">
             Usar la dirección fiscal del cliente (elegí el cliente primero)
           </label>
-          <div class="form-grid form-grid-2">
-            <div class="form-group"><label>Jurisdicción *</label><select id="obj-jurisdiccion" onchange="poblarLocalidadesServicio()"><option value="">— Seleccionar —</option></select></div>
-            <div class="form-group"><label>Localidad *</label><select id="obj-localidad"><option value="">— Elegí jurisdicción primero —</option></select></div>
+          <div class="form-group"><label>Localidad / Ciudad *</label>
+            <select id="obj-localidad"></select>
+            <span class="form-hint">Misma lista que usa Candidatos y Clientes — la jurisdicción (CABA/PBA) se deriva sola.</span>
           </div>
           <div class="form-grid form-grid-2">
             <div class="form-group"><label>Fecha inicio *</label><input type="date" id="obj-fecha-inicio"></div>
-            <div class="form-group"><label>Cláusula de actualización</label><select id="obj-clausula-actualizacion"></select></div>
+            <div class="form-group"><label>Cláusula de actualización <span class="chip" id="her-clausula" style="font-size:9px;background:var(--azul-claro);color:var(--azul);cursor:pointer;" onclick="pisarHerenciaObj('obj-clausula-actualizacion','her-clausula')">HEREDADA del cliente ✎</span></label><select id="obj-clausula-actualizacion" disabled></select></div>
           </div>
+          <div class="form-group"><label>Coordinador de cuenta <span class="chip" id="her-coordinador" style="font-size:9px;background:var(--azul-claro);color:var(--azul);cursor:pointer;" onclick="pisarHerenciaObj('obj-coordinador','her-coordinador')">HEREDADO del cliente ✎</span></label><input type="text" id="obj-coordinador" disabled></div>
           <div class="form-section">Personal necesario (por puesto — la asignación de personas concretas ocurre después, en Operaciones/RRHH)</div>
           <div id="obj-puestos-lista"></div>
           <button type="button" class="btn btn-secondary btn-sm" id="obj-btn-agregar-puesto" onclick="agregarPuestoObj()">+ Agregar puesto</button>
@@ -7719,8 +7715,8 @@
               <span class="form-hint">Guarda solo las comisiones, sin pedir el resto de los campos del servicio</span>
             </div>
           </div>
-          <div class="form-group"><label>Modelo de precio *</label>
-            <select id="obj-modelo-precio" onchange="toggleModeloPrecio()"></select>
+          <div class="form-group"><label>Modelo de precio * <span class="chip" id="her-modelo-precio" style="font-size:9px;background:var(--azul-claro);color:var(--azul);cursor:pointer;" onclick="pisarHerenciaObj('obj-modelo-precio','her-modelo-precio');toggleModeloPrecio()">HEREDADO del cliente ✎</span></label>
+            <select id="obj-modelo-precio" onchange="toggleModeloPrecio()" disabled></select>
             <span id="obj-modelo-precio-hint" style="font-size:11px;color:var(--texto-suave);"></span>
           </div>
           <div id="obj-precio-por-hora-row" class="form-grid form-grid-3">
@@ -7752,20 +7748,20 @@
       <div id="obj-tab-2" class="tab-content">
         <div class="form-grid gap-12">
           <div class="alerta alerta-info" style="font-size:12px;">
-            Cargá los responsables del cliente dentro de este servicio. Podés marcar a quiénes hay que satisfacer (KPI de relación) y a quién se le manda la factura.
+            Elegí de los CONTACTOS del cliente cuáles aplican a este servicio (no se recargan a mano). Marcá a quiénes hay que satisfacer (KPI de relación) y a quién se le manda la factura — son flags propios de este servicio.
           </div>
           <div id="resp-objetivo-lista" style="display:flex;flex-direction:column;gap:8px;"></div>
-          <button class="btn btn-secondary btn-sm" onclick="agregarRespObjetivo()">+ Agregar responsable</button>
+          <button class="btn btn-secondary btn-sm" onclick="agregarRespObjetivo()">+ Nuevo contacto (se agrega al cliente)</button>
         </div>
       </div>
       <div id="obj-tab-3" class="tab-content">
         <div class="form-grid gap-12">
           <div class="form-grid form-grid-2">
-            <div class="form-group"><label>Período de facturación</label>
-              <select id="obj-periodo-fact"></select>
+            <div class="form-group"><label>Período de facturación <span class="chip" id="her-periodo" style="font-size:9px;background:var(--azul-claro);color:var(--azul);cursor:pointer;" onclick="pisarHerenciaObj('obj-periodo-fact','her-periodo')">HEREDADO del cliente ✎</span></label>
+              <select id="obj-periodo-fact" disabled></select>
             </div>
-            <div class="form-group"><label>Requiere OC</label>
-              <select id="obj-req-oc"><option>Heredar del cliente</option><option>No</option><option>Sí</option></select>
+            <div class="form-group"><label>Requiere OC <span class="chip" id="her-reqoc" style="font-size:9px;background:var(--azul-claro);color:var(--azul);cursor:pointer;" onclick="pisarHerenciaObj('obj-req-oc','her-reqoc')">HEREDADO del cliente ✎</span></label>
+              <select id="obj-req-oc" disabled><option>No</option><option>Sí</option></select>
             </div>
           </div>
           <div class="form-group"><label>Texto que debe aparecer en la factura</label>

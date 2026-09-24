@@ -2,7 +2,7 @@
 // Este archivo se irá vaciando a medida que se migren módulos.
 // No agregar código nuevo acá.
 
-import { DB, PERFILES, MENU, BADGE_MAP, AREAS, LOCALIDADES_BA, currentUser } from '@shared/state.js';
+import { DB, PERFILES, MENU, BADGE_MAP, AREAS, LOCALIDADES_BA, BARRIOS_CABA, LOCALIDAD_A_PARTIDO, currentUser } from '@shared/state.js';
 import { $, initials, avatarEl, badge, formatPeriodo, hoyStr, esFeriado, esFinde, getDiasDelMes, calcularDiasEntre, toTitleCase, cleanText, applyTitleCase, validarCampos, fillSelect, fillDL, fmtDecimal } from '@shared/helpers.js';
 import { toast, abrirModal, cerrarModal, activarOrdenamiento } from '@shared/ui.js';
 import { supaSync, supaDel, supaInit, getLastSupaSyncError, SUPA, _toCamel } from '@shared/supabase.js';
@@ -1243,15 +1243,14 @@ function verCliente(idLocal){
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:16px;">
     <div class="info-grid">
       <div class="info-item"><div class="key">Código interno</div><div class="val" style="font-family:'DM Mono',monospace;">${c.codigo||'—'}</div></div>
-      <div class="info-item"><div class="key">Dirección fiscal</div><div class="val">${c.direccion?`${c.direccion}${c.ciudad?', '+c.ciudad:''}`:'—'}</div></div>
+      <div class="info-item"><div class="key">Dirección</div><div class="val">${c.direccion?`${c.direccion}${c.ciudad?', '+c.ciudad:''}`:'—'}</div></div>
       <div class="info-item"><div class="key">Condición pago</div><div class="val">${c.condPago||'—'}</div></div>
       <div class="info-item"><div class="key">Forma de pago</div><div class="val">${c.formaPago||'—'}</div></div>
       <div class="info-item"><div class="key">Código Tango (ref. externa)</div><div class="val" style="font-family:'DM Mono',monospace;">${c.codigoTango||'—'}</div></div>
       <div class="info-item"><div class="key">Período facturación</div><div class="val">${c.periodoFact||'—'}</div></div>
       <div class="info-item"><div class="key">Tipo de contrato</div><div class="val">${c.tipoContrato||'—'}</div></div>
-      <div class="info-item"><div class="key">Ingresos brutos</div><div class="val">${c.ingresosBrutos||'—'}</div></div>
-      <div class="info-item"><div class="key">Jurisdicción IIBB</div><div class="val">${c.jurisdiccionIibb||'—'}</div></div>
-      <div class="info-item"><div class="key">Responsable</div><div class="val">${c.responsable||'—'}${c.responsableTipo==='Externo'?' <span class="chip" style="font-size:10px;">Externo</span>'+(c.responsableContacto?' · '+c.responsableContacto:''):''}</div></div>
+      <div class="info-item"><div class="key">Tipo de factura</div><div class="val">${c.tipoFactura||'—'}</div></div>
+      <div class="info-item"><div class="key">Coordinador de cuenta</div><div class="val">${c.coordinadorCuenta||'—'}${c.coordinadorCuentaTipo==='Externo'?' <span class="chip" style="font-size:10px;">Externo</span>'+(c.coordinadorCuentaContacto?' · '+c.coordinadorCuentaContacto:''):''}</div></div>
       <div class="info-item"><div class="key">% supervisión <span class="chip" style="font-size:9px;background:var(--verde-claro);color:var(--verde);">${pctEfectivoCliente(c).origen==='cliente'?'CLIENTE':'GENERAL'}</span></div><div class="val">${pctEfectivoCliente(c).pct.toFixed(2).replace('.', ',')}% <a style="cursor:pointer;color:var(--azul);font-size:10px;text-decoration:underline;margin-left:2px;" onclick="navTo('supervision');cerrarModal('modal-ver-pedido')">gestionar en Supervisión →</a></div></div>
     </div>
     <div>
@@ -1277,10 +1276,73 @@ function verCliente(idLocal){
   $('pedido-body').innerHTML=html;
   abrirModal('modal-ver-pedido');
 }
+// ========== ALTA ENCADENADA cliente → primer servicio ==========
+// ALTA_CLIENTE_SERVICIO_para_Fede_1.md §1/§4: "Guardar cliente → ¿Cargar su
+// primer servicio ahora? → form de servicio con el cliente YA PUESTO (sin
+// buscador) → Guardar → ¿Otro servicio? (loop)". _clienteEncadenadoId no es
+// más que "estamos en este flujo" — abrirNuevoCliente/abrirNuevoPedido, etc.
+// no lo tocan, así que el resto del sistema sigue exactamente igual.
+let _clienteEncadenadoId=null;
+function ensureModalEncadenado(){
+  if($('modal-encadenado')) return;
+  const div=document.createElement('div');
+  div.id='modal-encadenado';div.className='modal-overlay';
+  div.innerHTML=`<div class="modal" style="max-width:480px;">
+    <div class="modal-header"><h3 id="enc-titulo">✓ Cliente creado</h3></div>
+    <div class="modal-body"><p id="enc-msg" style="font-size:13px;color:var(--texto-suave);"></p></div>
+    <div class="modal-footer" style="justify-content:center;gap:10px;">
+      <button class="btn btn-secondary" id="enc-btn-despues">Después</button>
+      <button class="btn btn-primary" id="enc-btn-si" style="background:var(--verde);border-color:var(--verde);"></button>
+    </div>
+  </div>`;
+  document.body.appendChild(div);
+}
+function ofrecerPrimerServicio(cliente){
+  ensureModalEncadenado();
+  $('enc-titulo').textContent='✓ Cliente creado: '+cliente.nombre;
+  $('enc-msg').textContent='La mayoría de los clientes tienen un solo servicio — cargalo ahora, sin volver a buscar nada: el cliente y todo lo heredable ya están puestos.';
+  $('enc-btn-despues').textContent='Después';
+  $('enc-btn-despues').onclick=()=>cerrarModal('modal-encadenado');
+  const btnSi=$('enc-btn-si');
+  btnSi.textContent='📍 Cargar su primer servicio ahora';
+  btnSi.onclick=()=>{cerrarModal('modal-encadenado');iniciarServicioEncadenado(cliente.id);};
+  abrirModal('modal-encadenado');
+}
+function ofrecerOtroServicio(clienteId){
+  const cli=DB.clientes.find(c=>c.id===clienteId);
+  ensureModalEncadenado();
+  $('enc-titulo').textContent='✓ Servicio creado';
+  $('enc-msg').textContent=`${cli?.nombre||'El servicio'} quedó en Pendiente asignación — nació su prepedido para Central de Operaciones.`;
+  $('enc-btn-despues').textContent='Terminar';
+  $('enc-btn-despues').onclick=()=>{cerrarModal('modal-encadenado');_clienteEncadenadoId=null;};
+  const btnSi=$('enc-btn-si');
+  btnSi.textContent='+ Agregar OTRO servicio de este cliente';
+  btnSi.onclick=()=>{cerrarModal('modal-encadenado');iniciarServicioEncadenado(clienteId);};
+  abrirModal('modal-encadenado');
+}
+// Cliente FIJO (chip, no buscador) — doc §4: "En el form encadenado, el
+// campo Cliente se muestra fijo". Se deshabilita el <select> en vez de
+// ocultarlo para no reconstruir el layout del form.
+function iniciarServicioEncadenado(clienteId){
+  // nuevoObjetivoDesde() → abrirModalObjetivo() resetea
+  // _clienteEncadenadoId=null al abrir el modal — hay que fijarlo DESPUÉS,
+  // no antes, o el loop "¿Otro servicio?" nunca se ofrece.
+  nuevoObjetivoDesde(clienteId);
+  _clienteEncadenadoId=clienteId;
+  if($('obj-cliente')) $('obj-cliente').disabled=true;
+  const cli=DB.clientes.find(c=>c.id===clienteId);
+  const tit=$('obj-modal-title');
+  if(tit) tit.textContent=`📍 Servicio de ${cli?.nombre||''}`;
+}
 function nuevoObjetivoDesde(clienteId){
   abrirModalObjetivo();
   const sel=$('obj-cliente');
-  if(sel){for(let i=0;i<sel.options.length;i++){if(sel.options[i].value==clienteId){sel.selectedIndex=i;break;}}}
+  if(sel){sel.disabled=false;for(let i=0;i<sel.options.length;i++){if(sel.options[i].value==clienteId){sel.selectedIndex=i;break;}}}
+  // .selectedIndex no dispara el onchange del <select> — sin esto, un
+  // servicio abierto desde "+ Servicio" en la ficha del cliente quedaba
+  // con el cliente puesto pero SIN ninguna herencia precargada.
+  poblarModeloPrecioSegunCliente(clienteId);
+  aplicarHerenciasDeCliente(clienteId);
 }
 
 // P.11 (Delta Comercial v1.2) — bindeado a window porque los oninput/onclick
@@ -1306,8 +1368,24 @@ let _cliCodigoOriginal=null;
 // servicios en distintas direcciones). Ver v114 (COMMENT ON COLUMN) y el
 // checkbox "Usar la dirección fiscal del cliente" en el alta de servicio,
 // más abajo (toggleUsarDireccionFiscalObjetivo).
-const CLI_CAMPOS_TEXTO=['cli-razon','cli-nombre','cli-tipo','cli-codigo','cli-cuit','cli-iva','cli-arca','cli-cond-pago','cli-forma-pago','cli-codigo-tango','cli-ciudad','cli-direccion','cli-responsable','cli-responsable-contacto','cli-logo','cli-obs','cli-tipo-contrato','cli-fact-por','cli-periodo-fact','cli-productos-fact','cli-req-oc','cli-notas-fact','cli-ib','cli-jur'];
-const CLI_CAMPOS_DOC=['doc-seguros','doc-monotributo','doc-antecedentes','doc-ddjj-iva','doc-pago-iva','doc-remito-servicio','doc-planilla-horas','doc-oc'];
+const CLI_CAMPOS_TEXTO=['cli-razon','cli-nombre','cli-tipo','cli-codigo','cli-cuit','cli-iva','cli-tipo-factura','cli-cond-pago','cli-forma-pago','cli-codigo-tango','cli-ciudad','cli-direccion','cli-coord','cli-coord-contacto','cli-obs','cli-tipo-contrato','cli-fact-por','cli-periodo-fact','cli-productos-fact','cli-req-oc','cli-notas-fact'];
+const CLI_CAMPOS_DOC=['doc-seguros','doc-monotributo','doc-antecedentes','doc-ddjj-iva','doc-pago-iva','doc-remito-servicio','doc-planilla-horas'];
+// CLIENTES_SERVICIOS_v2_para_Fede.md: "Localidad / Ciudad" pasa de texto
+// libre a desplegable con la MISMA lista que usa Candidatos (barrios CABA +
+// localidades PBA) — una sola lista para todo el sistema, para que el
+// cálculo de distancia del panel de "Cubrir con interno" sea confiable.
+// Si el cliente ya tenía cargado un valor de texto libre que no matchea
+// ninguna opción real (dato viejo), se agrega como opción sintética
+// "(actual)" para no perderlo silenciosamente al reabrir el form.
+function poblarLocalidadClienteSelect(valorActual){
+  const el=$('cli-ciudad');if(!el)return;
+  const pba=[...new Set(Object.keys(LOCALIDAD_A_PARTIDO))].sort();
+  let h='<option value="">— Seleccionar —</option>';
+  h+='<optgroup label="CABA — barrios">'+BARRIOS_CABA.map(b=>`<option${b===valorActual?' selected':''}>${b}</option>`).join('')+'</optgroup>';
+  h+='<optgroup label="Prov. de Buenos Aires">'+pba.map(l=>`<option${l===valorActual?' selected':''}>${l}</option>`).join('')+'</optgroup>';
+  if(valorActual&&!BARRIOS_CABA.includes(valorActual)&&!pba.includes(valorActual)) h+=`<option value="${valorActual}" selected>${valorActual} (actual)</option>`;
+  el.innerHTML=h;
+}
 function abrirModalCliente(idLocal){
   poblarSelectsComercial();
   clienteEditIdLocal=idLocal||null;
@@ -1319,27 +1397,25 @@ function abrirModalCliente(idLocal){
     if($('cli-tipo')) $('cli-tipo').value=c.tipo||'';
     $('cli-cuit').value=c.cuit||'';
     if($('cli-iva')) $('cli-iva').value=c.iva||'';
-    if($('cli-arca')) $('cli-arca').value=c.arca||'';
+    if($('cli-tipo-factura')) $('cli-tipo-factura').value=c.tipoFactura||'';
     if($('cli-cond-pago')) $('cli-cond-pago').value=c.condPago||'';
     if($('cli-forma-pago')) $('cli-forma-pago').value=c.formaPago||'';
-    if($('cli-responsable')) $('cli-responsable').value=c.responsable||'';
-    if($('cli-responsable-tipo')) $('cli-responsable-tipo').value=c.responsableTipo||'Interno';
-    if($('cli-responsable-contacto')) $('cli-responsable-contacto').value=c.responsableContacto||'';
-    toggleResponsableClienteTipo();
+    if($('cli-coord')) $('cli-coord').value=c.coordinadorCuenta||'';
+    if($('cli-coord-tipo')) $('cli-coord-tipo').value=c.coordinadorCuentaTipo||'Interno';
+    if($('cli-coord-contacto')) $('cli-coord-contacto').value=c.coordinadorCuentaContacto||'';
+    toggleCoordinadorClienteTipo();
     if($('cli-codigo')) $('cli-codigo').value=c.codigo||'';
     _cliCodigoOriginal=c.codigo||'';
     $('cli-codigo-tango').value=c.codigoTango||'';
-    if($('cli-estado')) $('cli-estado').value=c.estado||'Activo';
-    $('cli-ciudad').value=c.ciudad||'';$('cli-direccion').value=c.direccion||'';
-    $('cli-logo').value=c.logo||'';$('cli-obs').value=c.obs||'';
+    poblarLocalidadClienteSelect(c.ciudad||'');
+    $('cli-direccion').value=c.direccion||'';
+    $('cli-obs').value=c.obs||'';
     if($('cli-tipo-contrato')) $('cli-tipo-contrato').value=c.tipoContrato||'';
     if($('cli-fact-por')) $('cli-fact-por').value=c.factPor||'';
     if($('cli-periodo-fact')) $('cli-periodo-fact').value=c.periodoFact||'';
     if($('cli-productos-fact')) $('cli-productos-fact').value=c.productosEnFactura||'';
-    if($('cli-req-oc')) $('cli-req-oc').value=c.reqOC||'';
+    if($('cli-req-oc')) $('cli-req-oc').value=c.reqOC==='Sí'||c.reqOC==='Sí — siempre'||c.reqOC==='Sí — solo primera vez'?'Sí':'No';
     $('cli-notas-fact').value=c.notasFact||'';
-    if($('cli-ib')) $('cli-ib').value=c.ingresosBrutos||'';
-    if($('cli-jur')) $('cli-jur').value=c.jurisdiccionIibb||'';
     const dr=c.docReq||{};
     if($('doc-seguros')) $('doc-seguros').checked=!!dr.seguros;
     if($('doc-monotributo')) $('doc-monotributo').checked=!!dr.monotributo;
@@ -1348,15 +1424,15 @@ function abrirModalCliente(idLocal){
     if($('doc-pago-iva')) $('doc-pago-iva').checked=!!dr.pagoIva;
     if($('doc-remito-servicio')) $('doc-remito-servicio').checked=!!dr.remitoServicio;
     if($('doc-planilla-horas')) $('doc-planilla-horas').checked=!!dr.planillaHoras;
-    if($('doc-oc')) $('doc-oc').checked=!!dr.oc;
   } else {
     contactosClienteTemp.length=0;
     CLI_CAMPOS_TEXTO.forEach(id=>{const el=$(id);if(el)el.value='';});
     CLI_CAMPOS_DOC.forEach(id=>{const el=$(id);if(el)el.checked=false;});
-    if($('cli-estado')) $('cli-estado').value='Activo';
-    if($('cli-responsable-tipo')) $('cli-responsable-tipo').value='Interno';
+    poblarLocalidadClienteSelect('');
+    if($('cli-req-oc')) $('cli-req-oc').value='No';
+    if($('cli-coord-tipo')) $('cli-coord-tipo').value='Interno';
     _cliCodigoOriginal=null;
-    toggleResponsableClienteTipo();
+    toggleCoordinadorClienteTipo();
   }
   renderContactosClienteTemp();
   abrirModal('modal-cliente');
@@ -1406,12 +1482,12 @@ function generarCodigoCliente(){
 function autogenerarCodigoCliente(){
   if($('cli-codigo')) $('cli-codigo').value=generarCodigoCliente();
 }
-function toggleResponsableClienteTipo(){
-  const externo=$('cli-responsable-tipo')?.value==='Externo';
-  const row=$('cli-responsable-contacto-row');
+function toggleCoordinadorClienteTipo(){
+  const externo=$('cli-coord-tipo')?.value==='Externo';
+  const row=$('cli-coord-contacto-row');
   if(row) row.style.display=externo?'':'none';
-  const inp=$('cli-responsable');
-  if(inp) inp.placeholder=externo?'Nombre del responsable externo':'Buscar en Personal...';
+  const inp=$('cli-coord');
+  if(inp) inp.placeholder=externo?'Nombre del coordinador externo':'Buscar en Personal...';
 }
 function guardarCliente(){
   // P.1 (Delta Comercial v1.2) — normalización preventiva: el código de
@@ -1464,33 +1540,43 @@ function guardarCliente(){
   const datos={
     razon,nombre:toTitleCase(cleanText($('cli-nombre')?.value||''))||razon,
     tipo:$('cli-tipo')?.value,cuit:$('cli-cuit')?.value,
-    iva:$('cli-iva')?.value,arca:$('cli-arca')?.value,
+    iva:$('cli-iva')?.value,tipoFactura:$('cli-tipo-factura')?.value||'',
     condPago:$('cli-cond-pago')?.value,formaPago:$('cli-forma-pago')?.value,
-    responsable:cleanText($('cli-responsable')?.value||''),
-    responsableTipo:$('cli-responsable-tipo')?.value||'Interno',
-    responsableContacto:cleanText($('cli-responsable-contacto')?.value||''),
+    coordinadorCuenta:cleanText($('cli-coord')?.value||''),
+    coordinadorCuentaTipo:$('cli-coord-tipo')?.value||'Interno',
+    coordinadorCuentaContacto:cleanText($('cli-coord-contacto')?.value||''),
     codigo,
-    codigoTango,estado:$('cli-estado')?.value,
+    codigoTango,
     ciudad:$('cli-ciudad')?.value,direccion:$('cli-direccion')?.value, // dirección FISCAL (ver comentario en CLI_CAMPOS_TEXTO)
-    logo:$('cli-logo')?.value,obs:$('cli-obs')?.value,
-    ingresosBrutos:$('cli-ib')?.value||'',jurisdiccionIibb:$('cli-jur')?.value||'',
-    docReq:{seguros:$('doc-seguros')?.checked,monotributo:$('doc-monotributo')?.checked,antecedentes:$('doc-antecedentes')?.checked,ddjjIva:$('doc-ddjj-iva')?.checked,pagoIva:$('doc-pago-iva')?.checked,remitoServicio:$('doc-remito-servicio')?.checked,planillaHoras:$('doc-planilla-horas')?.checked,oc:$('doc-oc')?.checked},
+    obs:$('cli-obs')?.value,
+    docReq:{seguros:$('doc-seguros')?.checked,monotributo:$('doc-monotributo')?.checked,antecedentes:$('doc-antecedentes')?.checked,ddjjIva:$('doc-ddjj-iva')?.checked,pagoIva:$('doc-pago-iva')?.checked,remitoServicio:$('doc-remito-servicio')?.checked,planillaHoras:$('doc-planilla-horas')?.checked},
     tipoContrato:$('cli-tipo-contrato')?.value||'',
     factPor:$('cli-fact-por')?.value,periodoFact:$('cli-periodo-fact')?.value,
-    productosEnFactura:$('cli-productos-fact')?.value,reqOC:$('cli-req-oc')?.value,
+    productosEnFactura:$('cli-productos-fact')?.value,reqOC:$('cli-req-oc')?.value||'No',
     notasFact:$('cli-notas-fact')?.value,
     contactos:[...contactosClienteTemp],
   };
   let cliente;
   if(existente){
+    // El Estado ya no se edita desde este form (lo maneja el flujo separado
+    // de "Dar de baja" / reactivación) — Object.assign no debe pisarlo con
+    // undefined solo porque el <select> ya no existe en el DOM.
     Object.assign(existente,datos);
     cliente=existente;
   } else {
-    cliente={id:Date.now(),...datos};
+    // CLIENTES_SERVICIOS_v2_para_Fede.md: "el alta activa al cliente" — la
+    // baja es un flujo separado (abrirBajaCliente/confirmarBajaCliente).
+    cliente={id:Date.now(),estado:'Activo',...datos};
     DB.clientes.push(cliente);
   }
+  const esNuevo=!existente;
   cerrarModal('modal-cliente');renderClientes();poblarSelectsComercial();
   supaSync('clientes', cliente); toast(existente?'✓ Cliente actualizado':'✓ Cliente guardado');
+  // ALTA_CLIENTE_SERVICIO_para_Fede_1.md §1: alta encadenada — al crear un
+  // cliente nuevo (no al editar uno existente) se ofrece cargar su primer
+  // servicio ya con el cliente puesto. Es oferta, no obligación: "Después"
+  // deja todo como el flujo de siempre.
+  if(esNuevo) ofrecerPrimerServicio(cliente);
 }
 function tabCliModal(idx,btn){
   document.querySelectorAll('#modal-cliente .tab-btn').forEach(b=>b.classList.remove('active'));
@@ -1804,9 +1890,47 @@ function toggleObjMulti(cat,nombre,checked){
 
 let respObjetivoTemp=[];
 window.respObjetivoTemp=respObjetivoTemp;
+// CLIENTES_SERVICIOS_v2_para_Fede.md §Responsables: deja de ser carga
+// libre — se ELIGEN (checkbox) los contactos ya cargados en el cliente,
+// con los flags "⭐ a satisfacer"/"🧾 recibe factura" por servicio. La
+// forma de guardado NO cambia (sigue siendo o.responsables[], mismo shape
+// {nombre,rol,tel,aSatisfacer,recibeFactura}) — así verObjetivo() y todo
+// lo que ya lee o.responsables sigue funcionando sin tocarlo.
 function agregarRespObjetivo(){
-  respObjetivoTemp.push({nombre:'',rol:'',tel:'',aSatisfacer:false});
+  const cli=DB.clientes.find(c=>c.id===(parseInt($('obj-cliente')?.value)||0));
+  if(!cli){toast('⚠️ Elegí primero el cliente (tab "Datos del servicio")');return;}
+  const nombre=cleanText(prompt('Nombre del nuevo contacto:')||'');
+  if(!nombre) return;
+  if((cli.contactos||[]).some(c=>c.nombre.trim().toLowerCase()===nombre.trim().toLowerCase())){
+    toast('⚠️ Ese contacto ya existe en el cliente — tildalo en la lista');
+    return;
+  }
+  const tel=cleanText(prompt('Teléfono (opcional):')||'');
+  if(!cli.contactos) cli.contactos=[];
+  cli.contactos.push({nombre,rol:'',tel,mail:'',aSatisfacer:false});
+  supaSync('clientes',cli);
+  respObjetivoTemp.push({nombre,rol:'',tel,aSatisfacer:false,recibeFactura:false});
   renderRespObjetivoTemp();
+  toast('✓ Contacto agregado al cliente y seleccionado para este servicio');
+}
+function toggleRespObjetivoContacto(idx,on){
+  const cli=DB.clientes.find(c=>c.id===(parseInt($('obj-cliente')?.value)||0));
+  const ct=(cli?.contactos||[])[idx];
+  if(!ct) return;
+  if(on){
+    if(!respObjetivoTemp.some(r=>r.nombre===ct.nombre)) respObjetivoTemp.push({nombre:ct.nombre,rol:ct.rol||'',tel:ct.tel||'',aSatisfacer:false,recibeFactura:false});
+  } else {
+    const ix=respObjetivoTemp.findIndex(r=>r.nombre===ct.nombre);
+    if(ix>-1) respObjetivoTemp.splice(ix,1);
+  }
+  renderRespObjetivoTemp();
+}
+function setRespObjetivoFlag(idx,flag,valor){
+  const cli=DB.clientes.find(c=>c.id===(parseInt($('obj-cliente')?.value)||0));
+  const ct=(cli?.contactos||[])[idx];
+  if(!ct) return;
+  const r=respObjetivoTemp.find(x=>x.nombre===ct.nombre);
+  if(r) r[flag]=valor;
 }
 // Payload seguro para la tabla objetivos: sin los arrays que ahora viven en
 // tablas relacionales propias (objetivo_responsables/objetivo_adjuntos) ni
@@ -1869,53 +1993,110 @@ function modelosPrecioEsperados(clienteId){
 // asignación operativa", los datos del servicio son de solo lectura;
 // las únicas 2 excepciones editables son el EFT (obj-efts) y los
 // Responsables del cliente (tab aparte, no se toca acá).
-const OBJ_CAMPOS_BLOQUEABLES_PENDIENTE=['obj-cliente','obj-codigo','obj-nombre','obj-tipo','obj-dir','obj-jurisdiccion','obj-localidad','obj-fecha-inicio','obj-clausula-actualizacion','obj-modelo-precio','obj-valor','obj-valor-hora','obj-efts-fijo','obj-fecha-fin','obj-contrato','obj-notas-precio','obj-productos','obj-periodo-fact','obj-req-oc','obj-texto-factura','obj-log-productos','obj-log-elementos','obj-log-maquinas'];
+const OBJ_CAMPOS_BLOQUEABLES_PENDIENTE=['obj-cliente','obj-codigo','obj-nombre','obj-tipo','obj-dir','obj-localidad','obj-fecha-inicio','obj-valor','obj-valor-hora','obj-efts-fijo','obj-fecha-fin','obj-contrato','obj-notas-precio','obj-productos','obj-texto-factura','obj-log-productos','obj-log-elementos','obj-log-maquinas'];
+// Los campos con chip de herencia (cláusula/coordinador/período/OC/modelo
+// de precio) manejan su propio disabled según HEREDADO vs PROPIO (ver
+// pisarHerenciaObj/resetHerenciasObj) — bloquear=true los fuerza a
+// solo-lectura igual que al resto (Pendiente asignación bloquea casi
+// todo), pero bloquear=false NO los debe re-habilitar de más: eso lo
+// decide únicamente su propio estado de herencia.
+const OBJ_CAMPOS_HERENCIA=['obj-clausula-actualizacion','obj-coordinador','obj-periodo-fact','obj-req-oc','obj-modelo-precio'];
 function bloquearCamposObjetivoPendiente(bloquear){
   OBJ_CAMPOS_BLOQUEABLES_PENDIENTE.forEach(id=>{const el=$(id);if(el) el.disabled=bloquear;});
+  if(bloquear) OBJ_CAMPOS_HERENCIA.forEach(id=>{const el=$(id);if(el) el.disabled=true;});
   const btnPuesto=$('obj-btn-agregar-puesto');if(btnPuesto) btnPuesto.disabled=bloquear;
   const aviso=$('obj-aviso-pendiente');if(aviso) aviso.style.display=bloquear?'block':'none';
 }
-// A.4 (Delta Comercial v1.3) — jurisdicción → localidad encadenados.
-// DB.jurisdiccionesServicio es un objeto plano {jurisdicción:[localidades]}
-// a propósito: agregar otra provincia a futuro es agregar una clave, sin
-// tocar esta función.
-function poblarLocalidadesServicio(valorActual){
-  const selLoc=$('obj-localidad');if(!selLoc)return;
-  const jurisdiccion=$('obj-jurisdiccion')?.value||'';
-  const localidades=DB.jurisdiccionesServicio?.[jurisdiccion]||[];
-  selLoc.innerHTML=localidades.length
-    ?'<option value="">— Seleccionar —</option>'+localidades.map(l=>`<option${l===valorActual?' selected':''}>${l}</option>`).join('')
-    :'<option value="">— Elegí jurisdicción primero —</option>';
+// CLIENTES_SERVICIOS_v2_para_Fede.md — "unificar Jurisdicción/Localidad en
+// UN desplegable, la misma lista de Candidatos y del cliente": un solo
+// select con la MISMA fuente que usa Cliente (BARRIOS_CABA + PBA vía
+// LOCALIDAD_A_PARTIDO) en vez del catálogo propio DB.jurisdiccionesServicio
+// que usaba antes el servicio. La jurisdicción sigue viviendo en
+// o.jurisdiccion (la leen otros módulos) pero ahora se DERIVA sola de la
+// localidad elegida, no se elige a mano.
+function poblarLocalidadObjetivoSelect(valorActual){
+  const el=$('obj-localidad');if(!el)return;
+  const pba=[...new Set(Object.keys(LOCALIDAD_A_PARTIDO))].sort();
+  let h='<option value="">— Seleccionar —</option>';
+  h+='<optgroup label="CABA — barrios">'+BARRIOS_CABA.map(b=>`<option${b===valorActual?' selected':''}>${b}</option>`).join('')+'</optgroup>';
+  h+='<optgroup label="Prov. de Buenos Aires">'+pba.map(l=>`<option${l===valorActual?' selected':''}>${l}</option>`).join('')+'</optgroup>';
+  if(valorActual&&!BARRIOS_CABA.includes(valorActual)&&!pba.includes(valorActual)) h+=`<option value="${valorActual}" selected>${valorActual} (actual)</option>`;
+  el.innerHTML=h;
 }
-// 2.4.1 (Delta Comercial v1.3) — herencia con sobrescritura: al elegir
-// cliente en un servicio NUEVO, se copian período de facturación y
-// Requiere OC como default editable (copia, no referencia en vivo — si
-// después cambia el valor del cliente, los servicios ya creados no se
-// alteran). Solo aplica a servicios nuevos: si ya existe, el servicio
-// manda sobre lo suyo y no se pisa lo que Comercial ya cargó.
-function heredarFacturacionDeCliente(clienteId){
-  if(objetivoEditIdLocal) return;
+function jurisdiccionDeLocalidad(localidad){
+  if(!localidad) return '';
+  return BARRIOS_CABA.includes(localidad)?'CABA':'Provincia de Buenos Aires';
+}
+// ========== HERENCIA DEL CLIENTE (chip HEREDADO/PROPIO) ==========
+// CLIENTES_SERVICIOS_v2_para_Fede.md §2: mientras un bloque no se toca,
+// "lee" el valor del cliente; tocarlo (clic en la chip) lo vuelve PROPIO y
+// deja de seguirlo. No implementamos una referencia viva de verdad (eso
+// obligaría a tocar cada lugar del sistema que lee o.periodoFact/o.dir/etc,
+// bastante más riesgo) — en cambio, todo campo NO pisado se re-copia del
+// cliente tanto al elegirlo como otra vez justo antes de guardar, así el
+// valor persistido siempre refleja el ÚLTIMO dato del cliente hasta que
+// alguien lo pisa. Simplificación consciente, no la única forma válida de
+// leer "referencia" del documento.
+const OBJ_HERENCIA_CHIP={'obj-clausula-actualizacion':'her-clausula','obj-coordinador':'her-coordinador','obj-periodo-fact':'her-periodo','obj-req-oc':'her-reqoc','obj-modelo-precio':'her-modelo-precio'};
+let _objHeredados=new Set(Object.keys(OBJ_HERENCIA_CHIP));
+function pisarHerenciaObj(campoId,chipId){
+  _objHeredados.delete(campoId);
+  const el=$(campoId);if(el) el.disabled=false;
+  const chip=$(chipId);
+  if(chip){chip.textContent=(campoId==='obj-clausula-actualizacion'?'PROPIA':'PROPIO')+' de este servicio';chip.className='chip badge-naranja';chip.style.background='';chip.style.color='';chip.style.fontSize='9px';chip.style.cursor='default';chip.onclick=null;}
+}
+function resetHerenciasObj(){
+  _objHeredados=new Set(Object.keys(OBJ_HERENCIA_CHIP));
+  Object.entries(OBJ_HERENCIA_CHIP).forEach(([campoId,chipId])=>{
+    const el=$(campoId);if(el) el.disabled=true;
+    const chip=$(chipId);
+    if(chip){
+      chip.textContent=(campoId==='obj-clausula-actualizacion'?'HEREDADA':'HEREDADO')+' del cliente ✎';
+      chip.className='chip';chip.style.background='var(--azul-claro)';chip.style.color='var(--azul)';chip.style.fontSize='9px';chip.style.cursor='pointer';
+      chip.onclick=()=>pisarHerenciaObj(campoId,chipId);
+    }
+  });
+}
+// Copia lo heredable del cliente elegido en los campos NO pisados — se
+// llama al elegir/cambiar cliente y de nuevo justo antes de guardar
+// (guardarObjetivo), así un campo que sigue en HEREDADO siempre refleja el
+// dato MÁS RECIENTE del cliente, no una foto vieja de cuando se abrió el form.
+function aplicarHerenciasDeCliente(clienteId){
   const cli=DB.clientes.find(c=>c.id===clienteId);
   if(!cli) return;
-  if($('obj-periodo-fact')&&cli.periodoFact) $('obj-periodo-fact').value=cli.periodoFact;
-  if($('obj-req-oc')&&cli.reqOC) $('obj-req-oc').value=cli.reqOC;
+  if(_objHeredados.has('obj-clausula-actualizacion')&&$('obj-clausula-actualizacion')) $('obj-clausula-actualizacion').value=cli.clausulaActualizacion||'';
+  if(_objHeredados.has('obj-coordinador')&&$('obj-coordinador')) $('obj-coordinador').value=cli.coordinadorCuenta||'';
+  if(_objHeredados.has('obj-periodo-fact')&&$('obj-periodo-fact')) $('obj-periodo-fact').value=cli.periodoFact||'';
+  if(_objHeredados.has('obj-req-oc')&&$('obj-req-oc')) $('obj-req-oc').value=(cli.reqOC==='Sí'||cli.reqOC==='Sí — siempre'||cli.reqOC==='Sí — solo primera vez')?'Sí':'No';
+  if(_objHeredados.has('obj-modelo-precio')&&$('obj-modelo-precio')){
+    const esperados=modelosPrecioEsperados(clienteId);
+    if(esperados&&esperados[0]){$('obj-modelo-precio').value=esperados[0];toggleModeloPrecio();}
+  }
+  // ¿Paga comisión? + Persona: precarga con el coordinador de cuenta del
+  // cliente (tipo Continuo — coordinador de cuenta), editable — solo si
+  // todavía no se cargó ninguna comisión a mano, para no pisar lo que
+  // Comercial ya haya tocado.
+  if(objetivoEditIdLocal==null&&!comisionesObjTemp.length&&cli.coordinadorCuenta&&!$('obj-paga-comision')?.checked){
+    $('obj-paga-comision').checked=true;
+    toggleComisionesObjetivo();
+    if($('obj-com-tipo')) $('obj-com-tipo').value='Continuo';
+    if(cli.coordinadorCuentaTipo==='Externo'){
+      if($('obj-com-es-externo')){$('obj-com-es-externo').checked=true;toggleObjComExterno();}
+    } else if($('obj-com-persona')) $('obj-com-persona').value=cli.coordinadorCuenta;
+    toggleObjComPeriodos();
+  }
 }
 // FIX (ticket "Dirección fiscal", 02/09): checkbox "Usar la dirección fiscal
-// del cliente" en el alta de servicio — copia dirección/ciudad del cliente
-// (fiscal) a dir/jurisdicción/localidad del OBJETIVO (servicio), agilizando
-// la carga cuando coinciden. cliente.ciudad es texto libre, sin vínculo con
-// DB.jurisdiccionesServicio (esa es geografía de servicios) — se intenta un
-// match por nombre; si no matchea ninguna localidad cargada, se deja
-// jurisdicción/localidad para elegir a mano y se avisa con un toast. Nunca
-// se persiste como flag en la base: es solo una conveniencia de carga, así
-// que siempre arranca destildado (ver abrirModalObjetivo) — no pisa en
-// silencio la dirección de un servicio ya cargado al editar.
+// del cliente" en el alta de servicio — copia dirección/localidad del
+// cliente al OBJETIVO (servicio), agilizando la carga cuando coinciden.
+// Nunca se persiste como flag en la base: es solo una conveniencia de
+// carga, así que siempre arranca destildado (ver abrirModalObjetivo) — no
+// pisa en silencio la dirección de un servicio ya cargado al editar.
 function toggleUsarDireccionFiscalObjetivo(){
   const chk=$('obj-usar-dir-fiscal');
-  const inpDir=$('obj-dir'),selJur=$('obj-jurisdiccion'),selLoc=$('obj-localidad');
+  const inpDir=$('obj-dir'),selLoc=$('obj-localidad');
   const usar=!!chk?.checked;
   if(inpDir) inpDir.disabled=usar;
-  if(selJur) selJur.disabled=usar;
   if(selLoc) selLoc.disabled=usar;
   if(usar) aplicarDireccionFiscalAObjetivo();
 }
@@ -1923,22 +2104,9 @@ function aplicarDireccionFiscalAObjetivo(){
   const clienteId=parseInt($('obj-cliente')?.value)||0;
   const cli=DB.clientes.find(c=>c.id===clienteId);
   if(!cli){toast('⚠️ Elegí primero el cliente');return;}
-  if(!cli.direccion){toast('⚠️ Este cliente no tiene dirección fiscal cargada');return;}
+  if(!cli.direccion){toast('⚠️ Este cliente no tiene dirección cargada');return;}
   $('obj-dir').value=cli.direccion;
-  const ciudadNorm=(cli.ciudad||'').trim().toLowerCase();
-  let matcheo=false;
-  if(ciudadNorm){
-    for(const[jurisdiccion,localidades]of Object.entries(DB.jurisdiccionesServicio||{})){
-      const loc=(localidades||[]).find(l=>l.toLowerCase()===ciudadNorm);
-      if(loc){
-        $('obj-jurisdiccion').value=jurisdiccion;
-        poblarLocalidadesServicio(loc);
-        matcheo=true;
-        break;
-      }
-    }
-  }
-  if(!matcheo) toast('📍 Dirección copiada — la ciudad fiscal ("'+(cli.ciudad||'—')+'") no matchea ninguna localidad cargada, elegí jurisdicción/localidad a mano');
+  poblarLocalidadObjetivoSelect(cli.ciudad||'');
 }
 function poblarModeloPrecioSegunCliente(clienteId){
   const hint=$('obj-modelo-precio-hint');if(!hint)return;
@@ -1950,8 +2118,32 @@ let objetivoEditIdLocal=null;
 function abrirModalObjetivo(idLocal){
   poblarSelectsComercial();
   objetivoEditIdLocal=idLocal||null;
+  // Reset por si el modal quedó a medio abrir en un flujo encadenado
+  // anterior (cliente fijo/deshabilitado) — nuevoObjetivoDesde/
+  // iniciarServicioEncadenado, si corresponde, lo vuelven a fijar DESPUÉS.
+  _clienteEncadenadoId=null;
+  if($('obj-cliente')) $('obj-cliente').disabled=false;
   const o=idLocal?getObjetivoByIdLocal(idLocal):null;
   respObjetivoTemp.length=0;respObjetivoTemp.push(...(o?(o.responsables||[]).map(r=>({...r})):[]));
+  // Migración lazy (CLIENTES_SERVICIOS_v2_para_Fede.md §Responsables): un
+  // responsable cargado ANTES de este ticket (texto libre) puede no existir
+  // todavía como contacto del cliente — se consolida acá, al abrir el
+  // servicio, dedup por nombre, para que la lista de checkboxes lo
+  // encuentre y lo muestre marcado (en vez de "desaparecer" silenciosamente).
+  if(o&&respObjetivoTemp.length){
+    const cli=DB.clientes.find(c=>c.id===o.clienteId);
+    if(cli){
+      if(!cli.contactos) cli.contactos=[];
+      let agregoAlguno=false;
+      respObjetivoTemp.forEach(r=>{
+        if(r.nombre&&!cli.contactos.some(c=>c.nombre.trim().toLowerCase()===r.nombre.trim().toLowerCase())){
+          cli.contactos.push({nombre:r.nombre,rol:r.rol||'',tel:r.tel||'',mail:'',aSatisfacer:false});
+          agregoAlguno=true;
+        }
+      });
+      if(agregoAlguno) supaSync('clientes',cli);
+    }
+  }
   adjuntosObjTemp.length=0;adjuntosObjTemp.push(...(o?(o.adjuntos||[]).map(a=>({...a})):[]));
   puestosObjTemp.length=0;puestosObjTemp.push(...(o?(o.puestos||[]).map(p=>({...p,dias:{...(p.dias||{})}})):[]));
   comisionesObjTemp.length=0;comisionesObjTemp.push(...(o?(o.comisiones||[]).map(c=>({...c,tramosPct:(c.tramosPct||[]).map(t=>({...t}))})):[]));
@@ -1959,13 +2151,13 @@ function abrirModalObjetivo(idLocal){
   renderObjMulti();
   const titulo=$('obj-modal-title');
   if(titulo) titulo.textContent=o?'📍 Editar servicio':'📍 Nuevo servicio';
+  resetHerenciasObj();
   if(o){
     $('obj-cliente').value=o.clienteId;$('obj-codigo').value=o.codigo;
     $('obj-nombre').value=o.nombre;if($('obj-tipo'))$('obj-tipo').value=o.tipo||'';
     if($('obj-tipo-sitio'))$('obj-tipo-sitio').value=o.tipoSitio||'';
     $('obj-dir').value=o.dir||'';
-    if($('obj-jurisdiccion')) $('obj-jurisdiccion').value=o.jurisdiccion||'';
-    poblarLocalidadesServicio(o.localidad||'');
+    poblarLocalidadObjetivoSelect(o.localidad||'');
     if($('obj-fecha-inicio')&&o.fechaInicio){const[dd,mm,yy]=o.fechaInicio.split('/');$('obj-fecha-inicio').value=`${yy}-${mm}-${dd}`;}
     poblarModeloPrecioSegunCliente(o.clienteId);
     if($('obj-modelo-precio')) $('obj-modelo-precio').value=o.modeloPrecio||'';
@@ -1981,8 +2173,9 @@ function abrirModalObjetivo(idLocal){
     if($('obj-contrato')) $('obj-contrato').value=o.contrato||'';
     if($('obj-productos')) $('obj-productos').value=o.productos||'';
     if($('obj-clausula-actualizacion')) $('obj-clausula-actualizacion').value=o.clausulaActualizacion||'';
+    if($('obj-coordinador')) $('obj-coordinador').value=o.coordinadorCuenta||'';
     if($('obj-periodo-fact')) $('obj-periodo-fact').value=o.periodoFact||'';
-    if($('obj-req-oc')) $('obj-req-oc').value=o.reqOC||'';
+    if($('obj-req-oc')) $('obj-req-oc').value=o.reqOC||'No';
     $('obj-texto-factura').value=o.textoFactura||'';
     if($('obj-email-facturacion')) $('obj-email-facturacion').value=o.emailFacturacion||'';
     if($('obj-email-cc')) $('obj-email-cc').value=o.emailCc||'';
@@ -1990,11 +2183,17 @@ function abrirModalObjetivo(idLocal){
     if($('obj-log-productos')) $('obj-log-productos').value=o.logProductos||'';
     if($('obj-log-elementos')) $('obj-log-elementos').value=o.logElementos||'';
     if($('obj-log-maquinas')) $('obj-log-maquinas').value=o.logMaquinas||'';
+    // Restaura el estado PROPIO de los campos que ya se habían pisado
+    // (si no está marcado en o.heredado, resetHerenciasObj ya lo dejó en
+    // HEREDADO/disabled, que es el default correcto para servicios viejos
+    // que no tienen este campo todavía).
+    Object.keys(OBJ_HERENCIA_CHIP).forEach(campoId=>{
+      if(o.heredado?.[campoId]===false) pisarHerenciaObj(campoId,OBJ_HERENCIA_CHIP[campoId]);
+    });
   } else {
     ['obj-cliente','obj-codigo','obj-nombre','obj-dir','obj-fecha-inicio','obj-valor','obj-efts','obj-efts-fijo','obj-valor-hora','obj-fecha-fin','obj-texto-factura','obj-email-facturacion','obj-email-cc','obj-notas-precio','obj-log-productos','obj-log-elementos','obj-log-maquinas'].forEach(id=>{const el=$(id);if(el)el.value='';});
-    if($('obj-jurisdiccion')) $('obj-jurisdiccion').value='';
     if($('obj-tipo-sitio')) $('obj-tipo-sitio').value='';
-    poblarLocalidadesServicio();
+    poblarLocalidadObjetivoSelect();
     poblarModeloPrecioSegunCliente(0);
   }
   // FIX (ticket "Dirección fiscal", 02/09): el checkbox siempre arranca
@@ -2002,7 +2201,6 @@ function abrirModalObjetivo(idLocal){
   // carga, nunca pisa en silencio la dirección de un servicio ya cargado.
   if($('obj-usar-dir-fiscal')){$('obj-usar-dir-fiscal').checked=false;}
   if($('obj-dir')) $('obj-dir').disabled=false;
-  if($('obj-jurisdiccion')) $('obj-jurisdiccion').disabled=false;
   if($('obj-localidad')) $('obj-localidad').disabled=false;
   if($('obj-paga-comision')) $('obj-paga-comision').checked=comisionesObjTemp.length>0;
   if($('obj-com-es-externo')) $('obj-com-es-externo').checked=false;
@@ -2031,6 +2229,11 @@ async function guardarObjetivo(){
     if(dup){toast('Ya existe un servicio con ese código');return;}
   }
   const clienteId=parseInt($('obj-cliente')?.value)||0;
+  // Re-copia en los campos NO pisados el valor MÁS RECIENTE del cliente
+  // (no solo el que había cuando se abrió/eligió el cliente en el form) —
+  // así "HEREDADO" se acerca a una referencia viva sin tener que tocar
+  // cada lugar del sistema que lee estos campos del objetivo.
+  aplicarHerenciasDeCliente(clienteId);
   const contrato=$('obj-contrato')?.value;
   const modeloPrecio=$('obj-modelo-precio')?.value;
   // DELTA_servicios_tipo_de_sitio_v1 — hay TRES modelos, no dos. "Por EFT"
@@ -2046,7 +2249,7 @@ async function guardarObjetivo(){
     clienteId,clienteIdLocal:idLocalTrunc(clienteId),
     codigo:cod,nombre:nom,tipo:$('obj-tipo')?.value,tipoSitio:$('obj-tipo-sitio')?.value||'',
     dir:$('obj-dir')?.value,
-    jurisdiccion:$('obj-jurisdiccion')?.value||'',localidad:$('obj-localidad')?.value||'',
+    localidad:$('obj-localidad')?.value||'',jurisdiccion:jurisdiccionDeLocalidad($('obj-localidad')?.value||''),
     puestos:[...puestosObjTemp],
     comisiones:$('obj-paga-comision')?.checked?[...comisionesObjTemp]:[],
     modeloPrecio,valor,efts,valorHora,
@@ -2061,7 +2264,12 @@ async function guardarObjetivo(){
     fechaFin:$('obj-fecha-fin')?.value?new Date($('obj-fecha-fin').value).toLocaleDateString('es-AR'):null,
     contrato,
     clausulaActualizacion:$('obj-clausula-actualizacion')?.value||'',
-    periodoFact:$('obj-periodo-fact')?.value,reqOC:$('obj-req-oc')?.value,
+    coordinadorCuenta:$('obj-coordinador')?.value||'',
+    periodoFact:$('obj-periodo-fact')?.value,reqOC:$('obj-req-oc')?.value||'No',
+    // Qué campos heredables siguen HEREDADOS (true) vs se pisaron y son
+    // PROPIOS (false) de este servicio — para restaurar el estado de la
+    // chip al reabrir el modal (ver abrirModalObjetivo).
+    heredado:Object.fromEntries(Object.keys(OBJ_HERENCIA_CHIP).map(id=>[id,_objHeredados.has(id)])),
     textoFactura:$('obj-texto-factura')?.value,
     // v125 — fuente única del mail de facturación / notas de aumento del
     // servicio (ticket "Servicios — Mails de facturación", Lautaro 11/09).
@@ -2088,7 +2296,6 @@ async function guardarObjetivo(){
   // permitida (EFT/responsables).
   if(!existente||existente.estado!=='Pendiente asignación operativa'){
     const faltantes=[];
-    if(!datos.jurisdiccion) faltantes.push('Jurisdicción');
     if(!datos.localidad) faltantes.push('Localidad');
     if(!datos.dir) faltantes.push('Dirección');
     if(!datos.fechaInicio) faltantes.push('Fecha de inicio');
@@ -2153,6 +2360,10 @@ async function guardarObjetivo(){
   // el servicio recién entrado a Pendiente asignación genera su prepedido.
   if(!existente&&objetivo.estado==='Pendiente asignación operativa'&&window.sembrarPrepedido) window.sembrarPrepedido(objetivo,{notificar:true});
   toast(existente?'✓ Servicio actualizado':'✓ Servicio guardado');
+  // ALTA_CLIENTE_SERVICIO_para_Fede_1.md §1: loop "¿Agregar OTRO servicio
+  // de este cliente?" — solo en alta encadenada (no al editar un servicio
+  // suelto ni al crear uno desde el buscador normal).
+  if(!existente&&_clienteEncadenadoId) ofrecerOtroServicio(_clienteEncadenadoId);
 }
 function tabObjModal(idx,btn){
   document.querySelectorAll('#modal-objetivo .tab-btn').forEach(b=>b.classList.remove('active'));
@@ -2385,29 +2596,30 @@ function guardarComisionesObjetivo(){
 // Roles de responsables en formulario (parametrizables)
 function renderRespObjetivoTemp(){
   const el=$('resp-objetivo-lista');if(!el)return;
-  const rolesOpts=DB.rolesResponsables.map(r=>`<option>${r}</option>`).join('');
-  el.innerHTML=respObjetivoTemp.map((r,i)=>`
-    <div style="background:var(--fondo);border:1px solid var(--borde);border-radius:var(--radio);padding:10px 12px;">
-      <div style="display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:8px;align-items:center;">
-        <input type="text" placeholder="Nombre *" value="${r.nombre}" style="${inputStyle}" oninput="respObjetivoTemp[${i}].nombre=this.value">
-        <select style="${inputStyle}" onchange="respObjetivoTemp[${i}].rol=this.value">
-          <option value="">— Rol —</option>${rolesOpts}
-          <option${r.rol&&!DB.rolesResponsables.includes(r.rol)?' selected':''}>Otro</option>
-        </select>
-        <input type="text" placeholder="Teléfono" value="${r.tel}" style="${inputStyle}" oninput="respObjetivoTemp[${i}].tel=this.value">
-        <button style="background:none;border:none;cursor:pointer;color:var(--rojo);font-size:16px;" onclick="respObjetivoTemp.splice(${i},1);renderRespObjetivoTemp()">✕</button>
+  const clienteId=parseInt($('obj-cliente')?.value)||0;
+  const cli=DB.clientes.find(c=>c.id===clienteId);
+  if(!cli){el.innerHTML='<p class="text-muted" style="font-size:12px;">Elegí primero el cliente (tab "Datos del servicio").</p>';return;}
+  const contactos=cli.contactos||[];
+  if(!contactos.length){el.innerHTML='<p class="text-muted" style="font-size:12px;">Este cliente todavía no tiene contactos cargados — agregá uno con "+ Agregar responsable".</p>';return;}
+  el.innerHTML=contactos.map((ct,i)=>{
+    const r=respObjetivoTemp.find(x=>x.nombre===ct.nombre);
+    const marcado=!!r;
+    return `<div style="background:var(--fondo);border:1px solid var(--borde);border-radius:var(--radio);padding:10px 12px;margin-bottom:6px;">
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+        <input type="checkbox" ${marcado?'checked':''} onchange="toggleRespObjetivoContacto(${i},this.checked)">
+        <b style="font-size:12.5px;">${ct.nombre}</b>
+        <span style="font-size:11px;color:var(--texto-suave);">${ct.rol||'sin rol'}${ct.tel?' · '+ct.tel:''}</span>
+        <span style="margin-left:auto;display:flex;gap:14px;">
+          <label style="display:flex;align-items:center;gap:5px;font-size:11px;cursor:pointer;${marcado?'':'opacity:.4;pointer-events:none;'}">
+            <input type="checkbox" ${r?.aSatisfacer?'checked':''} ${marcado?'':'disabled'} onchange="setRespObjetivoFlag(${i},'aSatisfacer',this.checked)"> ⭐ a satisfacer
+          </label>
+          <label style="display:flex;align-items:center;gap:5px;font-size:11px;cursor:pointer;${marcado?'':'opacity:.4;pointer-events:none;'}">
+            <input type="checkbox" ${r?.recibeFactura?'checked':''} ${marcado?'':'disabled'} onchange="setRespObjetivoFlag(${i},'recibeFactura',this.checked)"> 🧾 recibe factura
+          </label>
+        </span>
       </div>
-      <div style="display:flex;gap:14px;flex-wrap:wrap;margin-top:6px;">
-        <label style="display:flex;align-items:center;gap:6px;font-size:11px;cursor:pointer;">
-          <input type="checkbox" ${r.aSatisfacer?'checked':''} onchange="respObjetivoTemp[${i}].aSatisfacer=this.checked">
-          ⭐ "Cliente a satisfacer"
-        </label>
-        <label style="display:flex;align-items:center;gap:6px;font-size:11px;cursor:pointer;">
-          <input type="checkbox" ${r.recibeFactura?'checked':''} onchange="respObjetivoTemp[${i}].recibeFactura=this.checked">
-          🧾 Recibe la factura
-        </label>
-      </div>
-    </div>`).join('')||'<p class="text-muted" style="font-size:12px;">Sin responsables — hacé click en "+ Agregar"</p>';
+    </div>`;
+  }).join('');
 }
 
 // ========== HANDOFF COMERCIAL → OPERACIONES (Cambios 5, 11, 12, 14) ==========
@@ -2943,15 +3155,14 @@ function crearClienteBorradorDesdeLead(lead){
   const cliente={
     id:Date.now(),codigo:generarCodigoCliente(),
     razon:lead.empresa,nombre:lead.empresa,
-    tipo:'',cuit:'',iva:'',arca:'',
+    tipo:'',cuit:'',iva:'',tipoFactura:'',
     condPago:'',formaPago:'',
-    responsable:lead.responsable||'',responsableTipo:'Interno',responsableContacto:'',
+    coordinadorCuenta:lead.responsable||'',coordinadorCuentaTipo:'Interno',coordinadorCuentaContacto:'',
     codigoTango:'',estado:'Borrador',
     ciudad:'',direccion:lead.zona||'',
-    logo:'',obs:`Creado automáticamente al ganar el lead en CRM (origen: ${lead.origen||'—'}).${lead.obs?' '+lead.obs:''}`,
-    ingresosBrutos:'',jurisdiccionIibb:'',
-    docReq:{seguros:false,monotributo:false,antecedentes:false,ddjjIva:false,pagoIva:false,remitoServicio:false,planillaHoras:false,oc:false},
-    tipoContrato:'',factPor:'',periodoFact:'',productosEnFactura:'',reqOC:'',notasFact:'',
+    obs:`Creado automáticamente al ganar el lead en CRM (origen: ${lead.origen||'—'}).${lead.obs?' '+lead.obs:''}`,
+    docReq:{seguros:false,monotributo:false,antecedentes:false,ddjjIva:false,pagoIva:false,remitoServicio:false,planillaHoras:false},
+    tipoContrato:'',factPor:'',periodoFact:'',productosEnFactura:'',reqOC:'No',notasFact:'',
     contactos:lead.contacto?[{nombre:lead.contacto,rol:'',tel:'',mail:'',aSatisfacer:true}]:[],
   };
   DB.clientes.push(cliente);
@@ -3912,10 +4123,9 @@ function poblarSelectsComercial(){
   // Clientes y objetivos
   fS('cli-tipo',DB.tiposCliente);
   fS('cf-cli-tipo',DB.tiposCliente);
-  fS('cli-arca',DB.categoriasArca);
-  fillDL('dl-cli-responsable',(DB.legajos||[]).filter(l=>l.estado==='Activo').map(l=>l.nombre));
+  fillDL('dl-cli-coord',(DB.legajos||[]).filter(l=>l.estado==='Activo').map(l=>l.nombre));
+  fillDL('dl-obj-coord',(DB.legajos||[]).filter(l=>l.estado==='Activo').map(l=>l.nombre));
   fillDL('dl-obj-comision-persona',(DB.legajos||[]).filter(l=>l.estado==='Activo').map(l=>l.nombre));
-  fS('obj-jurisdiccion',Object.keys(DB.jurisdiccionesServicio||{}));
   fSId('obj-cliente',DB.clientes);
   // FIX (ticket "Faltan clientes", 02/09): el <select> nativo solo saltaba
   // a la primera opción que empezaba con la letra tipeada (comportamiento
@@ -14547,6 +14757,8 @@ window.agregarMesLiq = agregarMesLiq;
 window.agregarPersonaArea = agregarPersonaArea;
 window.agregarPregunta = agregarPregunta;
 window.agregarRespObjetivo = agregarRespObjetivo;
+window.toggleRespObjetivoContacto = toggleRespObjetivoContacto;
+window.setRespObjetivoFlag = setRespObjetivoFlag;
 window.toggleObjMulti = toggleObjMulti;
 window.agregarSMVM = agregarSMVM;
 window.alertarAccionesVencidasModulo = alertarAccionesVencidasModulo;
@@ -14900,13 +15112,14 @@ window.toggleDescuentoBase = toggleDescuentoBase;
 window.toggleFueraEFT = toggleFueraEFT;
 window.toggleModeloPrecio = toggleModeloPrecio;
 window.recalcularPrecioObjetivo = recalcularPrecioObjetivo;
-window.poblarLocalidadesServicio = poblarLocalidadesServicio;
-window.heredarFacturacionDeCliente = heredarFacturacionDeCliente;
+window.poblarLocalidadObjetivoSelect = poblarLocalidadObjetivoSelect;
+window.aplicarHerenciasDeCliente = aplicarHerenciasDeCliente;
+window.pisarHerenciaObj = pisarHerenciaObj;
 window.toggleUsarDireccionFiscalObjetivo = toggleUsarDireccionFiscalObjetivo;
 window.aplicarDireccionFiscalAObjetivo = aplicarDireccionFiscalAObjetivo;
 window.agregarPuestoObj = agregarPuestoObj;
 window.renderPuestosObj = renderPuestosObj;
-window.toggleResponsableClienteTipo = toggleResponsableClienteTipo;
+window.toggleCoordinadorClienteTipo = toggleCoordinadorClienteTipo;
 window.poblarModeloPrecioSegunCliente = poblarModeloPrecioSegunCliente;
 window.toggleMotivoNoFact = toggleMotivoNoFact;
 window.toggleNuevaGrillaTipo = toggleNuevaGrillaTipo;
