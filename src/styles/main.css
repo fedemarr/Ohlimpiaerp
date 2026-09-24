@@ -1102,4 +1102,13 @@ thead .acc-mod { z-index: 3; }
 .seg-srv small { display: block; color: var(--texto-suave); font-weight: 400; font-size: 11px; }
 .seg-flecha { cursor: pointer; user-select: none; color: var(--azul); font-weight: 700; }
 .seg-hist { background: var(--fondo); font-size: 12px; }
+
+/* Gestión de horas (GESTION_HORAS_para_Fede.md) — mismo lenguaje de
+   colores que el mockup: negro = real, gris = proyectado, naranja =
+   vigencia nueva ese mes. */
+#screen-gestion_horas th.svc, #screen-gestion_horas td.svc { text-align: left; min-width: 200px; }
+#screen-gestion_horas .hor-fut { color: var(--texto-muy-suave); font-style: italic; }
+#screen-gestion_horas .hor-vg { background: #fdebd7 !important; color: #b25b00; }
+#screen-gestion_horas tr.hor-tot td { background: var(--azul-claro); font-weight: 700; color: var(--azul); border-top: 2px solid var(--borde-fuerte); }
+#screen-gestion_horas tr.hor-det td { background: var(--fondo); text-align: left; white-space: normal; padding: 12px 16px; }
 .seg-hist td { padding: 8px 14px 10px 34px !important; color: var(--texto-suave); }

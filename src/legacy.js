@@ -2359,6 +2359,10 @@ async function guardarObjetivo(){
   // El alta siembra el pedido de personal (ALTA_CLIENTE_SERVICIO bloque 5):
   // el servicio recién entrado a Pendiente asignación genera su prepedido.
   if(!existente&&objetivo.estado==='Pendiente asignación operativa'&&window.sembrarPrepedido) window.sembrarPrepedido(objetivo,{notificar:true});
+  // El alta siembra la REGLA de horas pactadas (GESTION_HORAS_para_Fede.md
+  // §3) — cualquier servicio nuevo con Personal necesario cargado, sea
+  // cual sea su estado inicial (no solo Pendiente asignación).
+  if(!existente&&window.sembrarVigenciaHorasDesdeAlta) window.sembrarVigenciaHorasDesdeAlta(objetivo);
   toast(existente?'✓ Servicio actualizado':'✓ Servicio guardado');
   // ALTA_CLIENTE_SERVICIO_para_Fede_1.md §1: loop "¿Agregar OTRO servicio
   // de este cliente?" — solo en alta encadenada (no al editar un servicio

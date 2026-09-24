@@ -3075,6 +3075,33 @@
   </div>
 </div>
 
+<!-- GESTIÓN DE HORAS (GESTION_HORAS_para_Fede.md, sql/v162) — horas
+     pactadas por servicio, con vigencias (nunca se pisa el pasado) y
+     cálculo por calendario real contra el módulo Feriados. Misma
+     estructura visual que Gestión de precios: servicios en vertical,
+     meses en horizontal, fila TOTAL al pie. -->
+<div class="screen" id="screen-gestion_horas">
+  <div class="head" style="display:flex;align-items:center;gap:12px;margin-bottom:10px;flex-wrap:wrap;">
+    <input type="text" id="hor-buscar" placeholder="🔍 Buscar servicio / cliente..." oninput="renderGestionHoras()" style="padding:7px 12px;border:1px solid var(--borde-fuerte);border-radius:20px;font-size:13px;width:260px;">
+    <span style="margin-left:auto;font-size:12px;color:var(--texto-suave);">Cargan: <b>Operaciones y Comercial</b> — el historial registra quién</span>
+  </div>
+  <div style="display:flex;gap:16px;align-items:center;font-size:12px;color:var(--texto-suave);margin-bottom:12px;flex-wrap:wrap;">
+    <span id="hor-resumen" style="font-weight:600;"></span>
+    <span><span style="display:inline-block;width:12px;height:12px;border-radius:3px;margin-right:5px;vertical-align:-1px;background:#1f2430;"></span>Real (mes vigente o cerrado)</span>
+    <span><span style="display:inline-block;width:12px;height:12px;border-radius:3px;margin-right:5px;vertical-align:-1px;background:#c3c9d6;"></span>Proyectado (regla vigente × calendario futuro)</span>
+    <span><span style="display:inline-block;width:12px;height:12px;border-radius:3px;margin-right:5px;vertical-align:-1px;background:#fdebd7;border:1px solid #f0c894;"></span>Mes donde entra una <b>vigencia nueva</b></span>
+  </div>
+  <div class="alerta alerta-info" style="font-size:12px;margin-bottom:12px;">Misma estructura que <b>Gestión de precios</b>: servicios en vertical, meses en horizontal. La celda es la cantidad de horas pactadas del mes, <b>calculada</b> de la regla (puestos × horario × días × Fer) contra el calendario del <b>módulo Feriados</b> — nada que cargar acá. Precios dice a cuánto la hora; este módulo dice cuántas horas — <b>Facturación multiplica los dos</b>. ▶ expande el servicio para ver la regla, las vigencias y modificar.</div>
+  <div class="card" style="border-radius:var(--radio-lg);margin-bottom:16px;">
+    <div class="tabla-wrap">
+      <table id="hor-grilla">
+        <thead id="hor-thead"></thead>
+        <tbody id="hor-tbody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
 <!-- SUPERVISIÓN DE SERVICIOS (ticket 13/08/2026, sql/v086) -->
 <div class="screen" id="screen-supervision">
   <div class="stats-grid">

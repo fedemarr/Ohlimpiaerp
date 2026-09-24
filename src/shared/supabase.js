@@ -104,6 +104,7 @@ export const _SM = {
   monoCasosImport: 'mono_casos_import',
   supervisoresConfig: 'supervisores_config',
   supervisionVigencias: 'supervision_vigencias',
+  horasVigencias: 'horas_vigencias',
   reclamos: 'reclamos',
   noConformidades: 'no_conformidades',
   reglasCompetencia: 'reglas_competencia',

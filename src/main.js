@@ -57,6 +57,7 @@ import { superadminScreenConfig } from './modules/superadmin/index.js';
 import { maquinasScreenConfig, filtrarMaquinas } from './modules/maquinas/index.js';
 import { negociacionesScreenConfig } from './modules/negociaciones/index.js';
 import { preciosScreenConfig } from './modules/precios/index.js';
+import { gestionHorasScreenConfig } from './modules/gestion_horas/index.js';
 import { proveedoresScreenConfig } from './modules/proveedores/index.js';
 import { resumenHorasScreenConfig, poblarSelectsResumenHoras } from './modules/resumen_horas/index.js';
 // v098 — Tab "Acceso y perfiles" (no registra screen: la engancha legacy.js
@@ -125,6 +126,7 @@ registerScreens(superadminScreenConfig);
 registerScreens(maquinasScreenConfig);
 registerScreens(negociacionesScreenConfig);
 registerScreens(preciosScreenConfig);
+registerScreens(gestionHorasScreenConfig);
 registerScreens(proveedoresScreenConfig);
 registerScreens(resumenHorasScreenConfig);
 
