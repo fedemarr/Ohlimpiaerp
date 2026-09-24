@@ -248,14 +248,21 @@ export async function aprobarRRHH(tipo, id, extra = {}) {
   return { pedido: p };
 }
 
+// ADELANTOS_devuelto_por_RRHH_para_Fede.md: "tres salidas" en Revisión
+// RRHH — Rechazar (final) tiene que estar disponible tanto para un
+// pedido recién elevado (Enviada) como para uno que Finanzas ya había
+// devuelto (Rechazada Finanzas); antes solo se podía rechazar el primer
+// caso, y un pedido devuelto por Finanzas quedaba sin salida de rechazo
+// final propia.
 export async function rechazarRRHH(tipo, id, motivo) {
   const p = _getById(tipo, id);
   if (!p) return { error: 'No se encontró el pedido' };
-  if (p.estado !== 'Enviada') return { error: 'Este pedido no está esperando aprobación de RRHH' };
+  if (!['Enviada', 'Rechazada Finanzas'].includes(p.estado)) return { error: 'Este pedido no está esperando aprobación de RRHH' };
   if (!motivo) return { error: 'El motivo del rechazo es obligatorio' };
   const estadoDesde = p.estado;
   p.estado = 'Rechazada RRHH';
   p.motivoRechazoRrhh = motivo;
+  p.rechazadoPorRrhh = currentUser?.nombre || '';
   await _guardar(tipo, p);
   await _registrarEvento(tipo, p, estadoDesde, p.estado, motivo);
   await crearNotificacion({
@@ -314,6 +321,7 @@ export async function rechazarFinanzas(tipo, id, motivo) {
   const estadoDesde = p.estado;
   p.estado = 'Rechazada Finanzas';
   p.motivoRechazoFinanzas = motivo;
+  p.rechazadoPorFinanzas = currentUser?.nombre || '';
   await _guardar(tipo, p);
   await _registrarEvento(tipo, p, estadoDesde, p.estado, motivo);
   await crearNotificacion({
@@ -356,24 +364,62 @@ export async function reAprobarTrasRechazoFinanzas(tipo, id, cambios = {}) {
   return { pedido: p };
 }
 
-// RRHH devuelve al supervisor un pedido que Finanzas rechazó, en vez de
-// ajustarlo y reenviarlo (alternativa a reAprobarTrasRechazoFinanzas,
-// misma transición terminal que rechazarRRHH: el supervisor ve el
-// motivo en su historial y arma un pedido nuevo, no se reedita este).
-export async function devolverASupervisorTrasRechazoFinanzas(tipo, id, motivo) {
+// ADELANTOS_devuelto_por_RRHH_para_Fede.md — Modelo B: "devolver" tiene
+// que DEVOLVER (corregible), no rechazar. RRHH devuelve al supervisor un
+// pedido recién elevado (Enviada) o uno que Finanzas ya había rechazado
+// (Rechazada Finanzas) — en los dos casos el pedido queda en 'Devuelta
+// RRHH', el supervisor lo ve con el motivo, lo corrige (mismo id_local,
+// nunca se pisa el original) y lo reeleva con corregirYReelevarPedido()
+// más abajo. Reemplaza a la vieja devolverASupervisorTrasRechazoFinanzas,
+// que terminaba en 'Rechazada RRHH' — el mismo estado final que
+// rechazarRRHH, sin dejarle al supervisor ninguna forma de corregir.
+export async function devolverASupervisorRRHH(tipo, id, motivo) {
   const p = _getById(tipo, id);
   if (!p) return { error: 'No se encontró el pedido' };
-  if (p.estado !== 'Rechazada Finanzas') return { error: 'Este pedido no fue devuelto por Finanzas' };
+  if (!['Enviada', 'Rechazada Finanzas'].includes(p.estado)) return { error: 'Este pedido no está esperando revisión de RRHH' };
   if (!motivo) return { error: 'El motivo es obligatorio' };
   const estadoDesde = p.estado;
-  p.estado = 'Rechazada RRHH';
-  p.motivoRechazoRrhh = motivo;
+  p.estado = 'Devuelta RRHH';
+  p.motivoDevueltoRrhh = motivo;
+  p.devueltoPorRrhh = currentUser?.nombre || '';
+  p.fechaDevueltoRrhh = new Date().toISOString();
   await _guardar(tipo, p);
   await _registrarEvento(tipo, p, estadoDesde, p.estado, motivo);
   await crearNotificacion({
-    tipo: 'adelantos_rechazado_rrhh', entidadTipo: 'pedido_adelanto', entidadIdLocal: p.id,
+    tipo: 'adelantos_devuelto_rrhh', entidadTipo: 'pedido_adelanto', entidadIdLocal: p.id,
     destinatarioNombre: p.supervisorNombre,
-    mensaje: `↩️ RRHH devolvió el ${tipo.toLowerCase()} de ${tipo === 'Préstamo' ? p.nombre : p.nombreAsociado} (rechazado antes por Finanzas). Motivo: ${motivo}`,
+    mensaje: `🔁 RRHH devolvió el ${tipo.toLowerCase()} de ${tipo === 'Préstamo' ? p.nombre : p.nombreAsociado} para corregir y reelevar. Motivo: ${motivo}`,
+  });
+  return { pedido: p };
+}
+
+// El supervisor corrige un pedido 'Devuelta RRHH' y lo reeleva — MISMO
+// id_local, nunca se crea uno nuevo (doc: "el pedido corregido conserva
+// su identidad... lo original nunca se pisa" — el evento registra el
+// motivo de RRHH y qué se ajustó, así el detalle 👁 conserva la historia
+// completa sin necesitar un campo "monto anterior" aparte).
+export async function corregirYReelevarPedido(tipo, id, cambios = {}) {
+  const p = _getById(tipo, id);
+  if (!p) return { error: 'No se encontró el pedido' };
+  if (p.estado !== 'Devuelta RRHH') return { error: 'Este pedido no fue devuelto por RRHH' };
+  const estadoDesde = p.estado;
+  if (tipo === 'Adelanto') {
+    if (cambios.monto != null) p.monto = Number(cambios.monto);
+    if (!p.monto || p.monto <= 0) return { error: 'Definí un monto válido antes de reelevar' };
+  } else {
+    if (cambios.montoSolicitado != null) p.montoSolicitado = Number(cambios.montoSolicitado);
+    if (cambios.cuotasSolicitadas != null) p.cuotasSolicitadas = parseInt(cambios.cuotasSolicitadas, 10);
+    if (!p.montoSolicitado || p.montoSolicitado <= 0) return { error: 'Definí un monto válido antes de reelevar' };
+    if (!p.cuotasSolicitadas || p.cuotasSolicitadas <= 0) return { error: 'Definí la cantidad de cuotas antes de reelevar' };
+  }
+  if (cambios.observaciones != null) p.observaciones = cambios.observaciones;
+  p.estado = 'Enviada';
+  await _guardar(tipo, p);
+  await _registrarEvento(tipo, p, estadoDesde, p.estado, 'Supervisor corrigió y reelevó tras devolución de RRHH');
+  await crearNotificacion({
+    tipo: 'adelantos_reelevado_supervisor', entidadTipo: 'pedido_adelanto', entidadIdLocal: p.id,
+    destinatarioNombre: 'RRHH',
+    mensaje: `✎ El ${tipo.toLowerCase()} de ${tipo === 'Préstamo' ? p.nombre : p.nombreAsociado} fue corregido y reelevado — esperando revisión.`,
   });
   return { pedido: p };
 }

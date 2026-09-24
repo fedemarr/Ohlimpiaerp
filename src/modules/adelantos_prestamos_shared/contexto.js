@@ -36,7 +36,12 @@ function historialPropio(legajoNro) {
   const prestamos = (DB.prestamos || []).filter(p => !p.anulado && String(p.legajoIdLocal) === String(legajoNro));
 
   const aprobados = adelantos.filter(p => p.estado === 'Aprobada').length;
-  const rechazados = adelantos.filter(p => ['Rechazada RRHH', 'Rechazada Finanzas'].includes(p.estado)).length;
+  // ADELANTOS_devuelto_por_RRHH_para_Fede.md §"El contexto del asociado
+  // deja de mentir": contar como rechazo SOLO el estado final
+  // (Rechazada RRHH). 'Rechazada Finanzas' y 'Devuelta RRHH' son
+  // transitorios/corregibles — un pedido devuelto y luego corregido no
+  // es un rechazo, aunque haya pasado por ese estado en el camino.
+  const rechazados = adelantos.filter(p => p.estado === 'Rechazada RRHH').length;
   const montoTotal = adelantos.filter(p => p.estado === 'Aprobada').reduce((s, p) => s + (Number(p.monto) || 0), 0);
 
   const prestamosActivos = prestamos.filter(p => p.estado === 'Aprobada' || p.estado === 'Activo');

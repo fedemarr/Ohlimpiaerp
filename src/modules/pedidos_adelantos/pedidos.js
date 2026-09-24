@@ -8,7 +8,7 @@ import { $ } from '@shared/helpers.js';
 import { toast, abrirModal, cerrarModal } from '@shared/ui.js';
 import {
   getPedidoById, getPrestamoById, crearPedidoAdelanto, crearPedidoPrestamo,
-  cancelarPedido, elevarPedido, eventosDePedido,
+  cancelarPedido, elevarPedido, eventosDePedido, corregirYReelevarPedido,
 } from '../adelantos_prestamos_shared/flujo.js';
 import { obtenerTopeVigente, obtenerTasaInteres, obtenerCuotasDefault } from '../adelantos_prestamos_shared/config.js';
 import { esSupervisor, esCentralOperaciones } from '../adelantos_prestamos_shared/permisos.js';
@@ -55,6 +55,7 @@ function filaPedido(p, { mostrarAcciones = true } = {}) {
     <td>
       <button class="btn btn-secondary btn-sm" onclick="abrirDetallePedidoAdelanto('${p.tipo}','${p.id}')">👁 Ver</button>
       ${mostrarAcciones && p.estado === 'Borrador' ? `<button class="btn btn-primary btn-sm" onclick="elevarPedidoPorId('${p.tipo}','${p.id}')">📤 Elevar</button>` : ''}
+      ${mostrarAcciones && p.estado === 'Devuelta RRHH' ? `<button class="btn btn-primary btn-sm" onclick="abrirDetallePedidoAdelanto('${p.tipo}','${p.id}')">✎ Corregir y reelevar</button>` : ''}
     </td>
   </tr>`;
 }
@@ -339,9 +340,16 @@ export function abrirDetallePedidoAdelanto(tipo, id) {
       <div class="info-item"><div class="key">Fecha del pedido</div><div class="val">${p.fechaPedido}</div></div>
       <div class="info-item"><div class="key">Origen</div><div class="val">${p.origen || 'Formal'}</div></div>
     </div>
+    ${p.estado === 'Devuelta RRHH' ? `<div class="alerta alerta-warn" style="margin-bottom:12px;">🔁 <strong>Devuelto por RRHH — corregible:</strong> ${p.motivoDevueltoRrhh || '—'}</div>` : ''}
     ${p.motivoRechazoRrhh ? `<p style="font-size:13px;"><strong>Motivo rechazo RRHH:</strong> ${p.motivoRechazoRrhh}</p>` : ''}
     ${p.motivoRechazoFinanzas ? `<p style="font-size:13px;"><strong>Motivo rechazo Finanzas:</strong> ${p.motivoRechazoFinanzas}</p>` : ''}
     ${(p.observaciones || p.obs) ? `<p style="font-size:13px;"><strong>Observaciones:</strong> ${p.observaciones || p.obs}</p>` : ''}
+    ${p.estado === 'Devuelta RRHH' ? `
+    <div class="form-section" style="margin-bottom:8px;">Corregir y reelevar</div>
+    <div class="form-grid form-grid-2" style="margin-bottom:10px;">
+      <div class="form-group"><label>Monto ${tipo === 'Préstamo' ? 'solicitado' : ''}</label><input type="number" id="pd-monto-corregido" min="0" value="${p.monto ?? p.montoSolicitado ?? ''}"></div>
+      ${tipo === 'Préstamo' ? `<div class="form-group"><label>Cuotas solicitadas</label><input type="number" id="pd-cuotas-corregidas" min="1" value="${p.cuotasSolicitadas ?? ''}"></div>` : ''}
+    </div>` : ''}
     <div class="form-section" style="margin-bottom:8px;">Historial</div>
     <div class="timeline">
       ${eventos.length === 0 ? '<p class="text-muted">Sin eventos</p>' : eventos.map(e => `
@@ -352,12 +360,37 @@ export function abrirDetallePedidoAdelanto(tipo, id) {
     </div>
   `;
 
-  $('pd-acciones').innerHTML = p.estado === 'Borrador' ? `
-    <button class="btn" style="background:#fee2e2;color:#991b1b;" onclick="cancelarPedidoPorId('${tipo}','${p.id}')">Cancelar pedido</button>
-    <button class="btn btn-primary" onclick="elevarPedidoPorId('${tipo}','${p.id}'); cerrarModal('modal-padl-detalle');">📤 Elevar</button>
-    <button class="btn btn-secondary" onclick="cerrarModal('modal-padl-detalle')">Cerrar</button>
-  ` : '<button class="btn btn-secondary" onclick="cerrarModal(\'modal-padl-detalle\')">Cerrar</button>';
+  if (p.estado === 'Borrador') {
+    $('pd-acciones').innerHTML = `
+      <button class="btn" style="background:#fee2e2;color:#991b1b;" onclick="cancelarPedidoPorId('${tipo}','${p.id}')">Cancelar pedido</button>
+      <button class="btn btn-primary" onclick="elevarPedidoPorId('${tipo}','${p.id}'); cerrarModal('modal-padl-detalle');">📤 Elevar</button>
+      <button class="btn btn-secondary" onclick="cerrarModal('modal-padl-detalle')">Cerrar</button>
+    `;
+  } else if (p.estado === 'Devuelta RRHH') {
+    $('pd-acciones').innerHTML = `
+      <button class="btn btn-secondary" onclick="cerrarModal('modal-padl-detalle')">Cerrar</button>
+      <button class="btn btn-primary" onclick="corregirYReelevarPedidoPorId('${tipo}','${p.id}')">✎ Corregir y reelevar</button>
+    `;
+  } else {
+    $('pd-acciones').innerHTML = '<button class="btn btn-secondary" onclick="cerrarModal(\'modal-padl-detalle\')">Cerrar</button>';
+  }
   abrirModal('modal-padl-detalle');
+}
+
+export function corregirYReelevarPedidoPorId(tipo, id) {
+  const cambios = {};
+  if (tipo === 'Adelanto') {
+    cambios.monto = $('pd-monto-corregido')?.value;
+  } else {
+    cambios.montoSolicitado = $('pd-monto-corregido')?.value;
+    cambios.cuotasSolicitadas = $('pd-cuotas-corregidas')?.value;
+  }
+  corregirYReelevarPedido(tipo, id, cambios).then(r => {
+    if (r.error) { toast('⚠️ ' + r.error); return; }
+    cerrarModal('modal-padl-detalle');
+    renderMisPedidos();
+    toast('✅ Pedido corregido y reelevado — esperando revisión de RRHH');
+  });
 }
 
 export function cancelarPedidoPorId(tipo, id) {

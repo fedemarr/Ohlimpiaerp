@@ -510,6 +510,12 @@ export function _toSnake(obj) {
     // Adelantos y Préstamos v1.1 (v038)
     supervisorNombre: 'supervisor_nombre', fechaPedido: 'fecha_pedido',
     motivoRechazoFinanzas: 'motivo_rechazo_finanzas', pagadoPor: 'pagado_por', fechaPago: 'fecha_pago',
+    // ADELANTOS_devuelto_por_RRHH_para_Fede.md (v166): "Devuelto por RRHH"
+    // es un estado corregible, distinto de Rechazada RRHH (final) — cada
+    // transición registra motivo y responsable, mismo criterio que ya usa
+    // el resto del módulo.
+    motivoDevueltoRrhh: 'motivo_devuelto_rrhh', devueltoPorRrhh: 'devuelto_por_rrhh', fechaDevueltoRrhh: 'fecha_devuelto_rrhh',
+    rechazadoPorRrhh: 'rechazado_por_rrhh', rechazadoPorFinanzas: 'rechazado_por_finanzas',
     superaTope: 'supera_tope', topeVigenteAlPedido: 'tope_vigente_al_pedido',
     montoSolicitado: 'monto_solicitado', cuotasSolicitadas: 'cuotas_solicitadas', montoCuotaSolicitado: 'monto_cuota_solicitado',
     fechaOtorgamiento: 'fecha_otorgamiento', tipoPedido: 'tipo_pedido', montoTope: 'monto_tope',
@@ -1032,6 +1038,9 @@ export function _toCamel(obj) {
     // Adelantos y Préstamos v1.1 (v038)
     supervisor_nombre: 'supervisorNombre', fecha_pedido: 'fechaPedido',
     motivo_rechazo_finanzas: 'motivoRechazoFinanzas', pagado_por: 'pagadoPor', fecha_pago: 'fechaPago',
+    // v166 — "Devuelto por RRHH" (corregible) vs Rechazada RRHH (final)
+    motivo_devuelto_rrhh: 'motivoDevueltoRrhh', devuelto_por_rrhh: 'devueltoPorRrhh', fecha_devuelto_rrhh: 'fechaDevueltoRrhh',
+    rechazado_por_rrhh: 'rechazadoPorRrhh', rechazado_por_finanzas: 'rechazadoPorFinanzas',
     supera_tope: 'superaTope', tope_vigente_al_pedido: 'topeVigenteAlPedido',
     monto_solicitado: 'montoSolicitado', cuotas_solicitadas: 'cuotasSolicitadas', monto_cuota_solicitado: 'montoCuotaSolicitado',
     fecha_otorgamiento: 'fechaOtorgamiento', tipo_pedido: 'tipoPedido', monto_tope: 'montoTope',

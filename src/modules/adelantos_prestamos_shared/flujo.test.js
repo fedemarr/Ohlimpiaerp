@@ -16,7 +16,8 @@ vi.mock('@shared/supabase.js', () => ({
 
 const {
   crearPedidoAdelanto, crearPedidoPrestamo, elevarPedido, aprobarRRHH, rechazarRRHH,
-  pagarFinanzas, pagarFinanzasBulk, rechazarFinanzas, reAprobarTrasRechazoFinanzas, devolverASupervisorTrasRechazoFinanzas,
+  pagarFinanzas, pagarFinanzasBulk, rechazarFinanzas, reAprobarTrasRechazoFinanzas,
+  devolverASupervisorRRHH, corregirYReelevarPedido,
   cancelarPedido, getPedidoById, getPrestamoById,
 } = await import('./flujo.js');
 
@@ -213,21 +214,93 @@ describe('Rechazo de Finanzas — dos caminos para RRHH', () => {
     expect(r.pedido.montoCuota).toBe(14000);
   });
 
-  it('Camino B — RRHH devuelve el pedido al supervisor con motivo obligatorio', async () => {
+  it('Camino B — RRHH devuelve el pedido al supervisor (corregible, NO rechaza) con motivo obligatorio', async () => {
     const { id } = await prestamoRechazadoPorFinanzas();
 
-    const sinMotivo = await devolverASupervisorTrasRechazoFinanzas('Préstamo', id, '');
+    const sinMotivo = await devolverASupervisorRRHH('Préstamo', id, '');
     expect(sinMotivo.error).toBeTruthy();
     expect(getPrestamoById(id).estado).toBe('Rechazada Finanzas');
 
-    const r = await devolverASupervisorTrasRechazoFinanzas('Préstamo', id, 'Monto muy elevado, pedir menos');
-    expect(r.pedido.estado).toBe('Rechazada RRHH');
-    expect(r.pedido.motivoRechazoRrhh).toBe('Monto muy elevado, pedir menos');
+    // ADELANTOS_devuelto_por_RRHH_para_Fede.md (Modelo B): esto tiene que
+    // DEVOLVER, no rechazar — antes del fix terminaba en 'Rechazada RRHH',
+    // el mismo estado final que rechazarRRHH, y el supervisor no podía
+    // corregir nada.
+    const r = await devolverASupervisorRRHH('Préstamo', id, 'Monto muy elevado, pedir menos');
+    expect(r.pedido.estado).toBe('Devuelta RRHH');
+    expect(r.pedido.estado).not.toBe('Rechazada RRHH');
+    expect(r.pedido.motivoDevueltoRrhh).toBe('Monto muy elevado, pedir menos');
+    expect(r.pedido.devueltoPorRrhh).toBeTruthy();
+  });
+});
+
+describe('Devolución de RRHH al supervisor — Modelo B (ADELANTOS_devuelto_por_RRHH_para_Fede.md)', () => {
+  it('devolverASupervisorRRHH también aplica a un pedido recién elevado (no solo a los devueltos por Finanzas)', async () => {
+    const p = await crearPedidoPrestamo({ legajo, montoSolicitado: 90000, fechaPedido: '2026-07-01' });
+    await elevarPedido('Préstamo', p.id);
+    const r = await devolverASupervisorRRHH('Préstamo', p.id, 'Falta el aval del supervisor');
+    expect(r.pedido.estado).toBe('Devuelta RRHH');
   });
 
-  it('devolverASupervisorTrasRechazoFinanzas no aplica a un pedido que no pasó por Finanzas', async () => {
-    const p = await crearPedidoPrestamo({ legajo, montoSolicitado: 1000, fechaPedido: '2026-07-01' });
-    const r = await devolverASupervisorTrasRechazoFinanzas('Préstamo', p.id, 'motivo');
+  it('devolverASupervisorRRHH no aplica a un pedido en Borrador (todavía no llegó a RRHH)', async () => {
+    const p = await crearPedidoPrestamo({ legajo, montoSolicitado: 90000, fechaPedido: '2026-07-01' });
+    const r = await devolverASupervisorRRHH('Préstamo', p.id, 'motivo');
     expect(r.error).toBeTruthy();
+  });
+
+  it('rechazarRRHH — ahora también rechaza (final) un pedido que ya había sido devuelto por Finanzas', async () => {
+    const p = await crearPedidoPrestamo({ legajo, montoSolicitado: 90000, fechaPedido: '2026-07-01' });
+    await elevarPedido('Préstamo', p.id);
+    await aprobarRRHH('Préstamo', p.id, { cuotasAprobadas: 6, montoAprobado: 90000, tasaInteres: 0 });
+    await rechazarFinanzas('Préstamo', p.id, 'Supera tope');
+    const r = await rechazarRRHH('Préstamo', p.id, 'No corresponde insistir');
+    expect(r.pedido.estado).toBe('Rechazada RRHH');
+    expect(r.pedido.rechazadoPorRrhh).toBeTruthy();
+  });
+
+  it('rechazarFinanzas registra quién rechazó (bug "— / —" del doc: antes no quedaba nadie firmando)', async () => {
+    const p = await crearPedidoPrestamo({ legajo, montoSolicitado: 90000, fechaPedido: '2026-07-01' });
+    await elevarPedido('Préstamo', p.id);
+    await aprobarRRHH('Préstamo', p.id, { cuotasAprobadas: 6, montoAprobado: 90000, tasaInteres: 0 });
+    const r = await rechazarFinanzas('Préstamo', p.id, 'Supera tope');
+    expect(r.pedido.rechazadoPorFinanzas).toBeTruthy();
+  });
+
+  it('corregirYReelevarPedido solo aplica a un pedido Devuelta RRHH', async () => {
+    const p = await crearPedidoPrestamo({ legajo, montoSolicitado: 90000, fechaPedido: '2026-07-01' });
+    await elevarPedido('Préstamo', p.id);
+    const r = await corregirYReelevarPedido('Préstamo', p.id, { montoSolicitado: 70000 });
+    expect(r.error).toBeTruthy();
+  });
+
+  it('el supervisor corrige el monto y reeleva — MISMO id, vuelve a Enviada para que RRHH lo revise de nuevo', async () => {
+    const p = await crearPedidoPrestamo({ legajo, montoSolicitado: 90000, fechaPedido: '2026-07-01' });
+    await elevarPedido('Préstamo', p.id);
+    await devolverASupervisorRRHH('Préstamo', p.id, 'Monto muy elevado, pedir menos');
+    expect(getPrestamoById(p.id).estado).toBe('Devuelta RRHH');
+
+    const r = await corregirYReelevarPedido('Préstamo', p.id, { montoSolicitado: 50000, cuotasSolicitadas: 6 });
+    expect(r.pedido.id).toBe(p.id); // mismo registro, no uno nuevo
+    expect(r.pedido.estado).toBe('Enviada');
+    expect(r.pedido.montoSolicitado).toBe(50000);
+    // El motivo de la devolución queda en el pedido — no se pierde al reelevar.
+    expect(r.pedido.motivoDevueltoRrhh).toBe('Monto muy elevado, pedir menos');
+  });
+
+  it('corregirYReelevarPedido exige monto y cuotas válidos en un préstamo', async () => {
+    const p = await crearPedidoPrestamo({ legajo, montoSolicitado: 90000, fechaPedido: '2026-07-01' });
+    await elevarPedido('Préstamo', p.id);
+    await devolverASupervisorRRHH('Préstamo', p.id, 'motivo');
+    const r = await corregirYReelevarPedido('Préstamo', p.id, { montoSolicitado: 0 });
+    expect(r.error).toBeTruthy();
+    expect(getPrestamoById(p.id).estado).toBe('Devuelta RRHH');
+  });
+
+  it('un Adelanto devuelto se corrige por monto (no tiene cuotas)', async () => {
+    const p = await crearPedidoAdelanto({ legajo, monto: 20000 });
+    await elevarPedido('Adelanto', p.id);
+    await devolverASupervisorRRHH('Adelanto', p.id, 'Pedí menos, ya tomaste otro este mes');
+    const r = await corregirYReelevarPedido('Adelanto', p.id, { monto: 10000 });
+    expect(r.pedido.estado).toBe('Enviada');
+    expect(r.pedido.monto).toBe(10000);
   });
 });

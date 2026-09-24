@@ -5,7 +5,7 @@
 import { DB } from '@shared/state.js';
 import { $ } from '@shared/helpers.js';
 import { toast, abrirModal, cerrarModal } from '@shared/ui.js';
-import { getPedidoById, getPrestamoById, aprobarRRHH, rechazarRRHH, reAprobarTrasRechazoFinanzas, devolverASupervisorTrasRechazoFinanzas } from '../adelantos_prestamos_shared/flujo.js';
+import { getPedidoById, getPrestamoById, aprobarRRHH, rechazarRRHH, reAprobarTrasRechazoFinanzas, devolverASupervisorRRHH } from '../adelantos_prestamos_shared/flujo.js';
 import { obtenerTopeVigente, obtenerUmbralAlertaPedidos, obtenerMaxCuotas, obtenerTasaInteres, obtenerCuotasDefault } from '../adelantos_prestamos_shared/config.js';
 import { construirContextoAsociado } from '../adelantos_prestamos_shared/contexto.js';
 
@@ -131,13 +131,17 @@ export function abrirRevisionRRHH(tipo, id) {
       <div id="gr-aviso-cuotas" class="alerta alerta-warning" style="display:none;font-size:12px;margin-bottom:10px;"></div>
       <div id="gr-resumen-prestamo" class="alerta alerta-info" style="font-size:12.5px;margin-bottom:10px;"></div>
     ` : ''}
-    <div class="form-group"><label>Motivo ${devuelto ? '(obligatorio para devolver al supervisor)' : '(obligatorio si rechaza)'}</label><textarea id="gr-motivo" rows="2" placeholder="${devuelto ? 'Ej: Monto muy elevado, solicitar menos / El asociado ya solicitó demasiados adelantos este mes' : ''}"></textarea></div>
+    <div class="form-group"><label>Motivo (obligatorio para devolver o rechazar)</label><textarea id="gr-motivo" rows="2" placeholder="Ej: Monto muy elevado, solicitar menos / El asociado ya solicitó demasiados adelantos este mes"></textarea></div>
   `;
 
+  // ADELANTOS_devuelto_por_RRHH_para_Fede.md: "tres salidas" siempre
+  // disponibles — Devolver al supervisor (corregible), Rechazar (final),
+  // Aprobar/Ajustar y reenviar a Finanzas — sea el pedido recién elevado
+  // o uno que Finanzas ya había devuelto.
   $('gr-acciones').innerHTML = `
     <button class="btn btn-secondary" onclick="cerrarModal('modal-gadl-revision')">Cerrar</button>
-    ${!devuelto ? `<button class="btn" style="background:#fee2e2;color:#991b1b;" onclick="rechazarRevisionRRHH()">❌ Rechazar</button>` : ''}
-    ${devuelto ? `<button class="btn" style="background:#fee2e2;color:#991b1b;" onclick="devolverPedidoASupervisor()">↩️ Devolver al supervisor</button>` : ''}
+    <button class="btn" style="background:#fee2e2;color:#991b1b;" onclick="devolverPedidoASupervisor()">↩️ Devolver al supervisor</button>
+    <button class="btn" style="background:#fee2e2;color:#991b1b;" onclick="rechazarRevisionRRHH()">❌ Rechazar</button>
     <button class="btn btn-primary" onclick="aprobarRevisionRRHH()">✅ ${devuelto ? 'Ajustar y reenviar a Finanzas' : 'Aprobar'}</button>
   `;
   if (tipo === 'Préstamo') chequearCuotasModal();
@@ -201,11 +205,11 @@ export async function devolverPedidoASupervisor() {
   const { tipo, id } = _revisando;
   const motivo = ($('gr-motivo')?.value || '').trim();
   if (!motivo) { toast('⚠️ El motivo es obligatorio para devolver el pedido'); return; }
-  const r = await devolverASupervisorTrasRechazoFinanzas(tipo, id, motivo);
+  const r = await devolverASupervisorRRHH(tipo, id, motivo);
   if (r.error) { toast('⚠️ ' + r.error); return; }
   cerrarModal('modal-gadl-revision');
   renderRevisionRRHH();
-  toast('↩️ Pedido devuelto al supervisor');
+  toast('🔁 Pedido devuelto al supervisor para corregir y reelevar');
 }
 
 export async function rechazarRevisionRRHH() {

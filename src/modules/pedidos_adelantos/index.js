@@ -8,7 +8,7 @@ import { $ } from '@shared/helpers.js';
 export {
   renderMisPedidos, filtrarMisPedidos, renderHistorialEquipo, filtrarHistorialEquipo,
   abrirNuevoPedidoAdelanto, cambiarTipoPedidoModal, simularPrestamoModal, seleccionarAsociadoPedido, buscarAsociadoPedidoPorNro, chequearTopeModal,
-  confirmarNuevoPedido, elevarPedidoPorId, abrirDetallePedidoAdelanto, cancelarPedidoPorId,
+  confirmarNuevoPedido, elevarPedidoPorId, abrirDetallePedidoAdelanto, cancelarPedidoPorId, corregirYReelevarPedidoPorId,
 } from './pedidos.js';
 
 export {
@@ -53,7 +53,7 @@ export const pedidosAdelantosScreenConfig = {
 
 import {
   filtrarMisPedidos, filtrarHistorialEquipo, cambiarTipoPedidoModal, simularPrestamoModal, seleccionarAsociadoPedido, buscarAsociadoPedidoPorNro,
-  chequearTopeModal, confirmarNuevoPedido, elevarPedidoPorId, abrirDetallePedidoAdelanto, cancelarPedidoPorId,
+  chequearTopeModal, confirmarNuevoPedido, elevarPedidoPorId, abrirDetallePedidoAdelanto, cancelarPedidoPorId, corregirYReelevarPedidoPorId,
 } from './pedidos.js';
 import {
   recalcPlanilla, traerMontosAnterior, guardarBorradorPlanilla, abrirResumenPlanilla, confirmarElevarPlanilla,
@@ -72,6 +72,7 @@ window.confirmarNuevoPedido = confirmarNuevoPedido;
 window.elevarPedidoPorId = elevarPedidoPorId;
 window.abrirDetallePedidoAdelanto = abrirDetallePedidoAdelanto;
 window.cancelarPedidoPorId = cancelarPedidoPorId;
+window.corregirYReelevarPedidoPorId = corregirYReelevarPedidoPorId;
 
 window.recalcPlanilla = recalcPlanilla;
 window.traerMontosAnterior = traerMontosAnterior;

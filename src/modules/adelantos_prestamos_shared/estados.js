@@ -19,6 +19,9 @@ export const ESTADO_LABEL = {
   'Aprobada': 'DEPOSITADO',
   'Rechazada RRHH': 'RECHAZADO',
   'Rechazada Finanzas': 'Devuelto por Finanzas',
+  // ADELANTOS_devuelto_por_RRHH_para_Fede.md (v166): corregible — el
+  // supervisor edita y reeleva el MISMO pedido, no es un rechazo final.
+  'Devuelta RRHH': 'Devuelto por RRHH',
   'Cancelada': 'Cancelado',
 };
 
@@ -29,6 +32,7 @@ export const ESTADO_BADGE = {
   'Aprobada': 'badge-verde',
   'Rechazada RRHH': 'badge-rojo',
   'Rechazada Finanzas': 'badge-naranja',
+  'Devuelta RRHH': 'badge-naranja',
   'Cancelada': 'badge-gris',
 };
 

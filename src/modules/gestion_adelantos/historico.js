@@ -16,6 +16,14 @@ function todosLosPedidos() {
   return [...adelantos, ...prestamos];
 }
 
+// ADELANTOS_devuelto_por_RRHH_para_Fede.md, "bug menor": una fila
+// rechazada mostraba "— / —" porque esta columna solo conocía
+// "aprobadoPorRrhh / pagadoPor" — nunca quién rechazó o devolvió. Cada
+// transición de flujo.js ya registra su responsable (rechazadoPorRrhh/
+// rechazadoPorFinanzas/devueltoPorRrhh) — acá solo hacía falta mostrarlo.
+function quienRrhh(p) { return p.aprobadoPorRrhh || p.rechazadoPorRrhh || p.devueltoPorRrhh || '—'; }
+function quienFinanzas(p) { return p.pagadoPor || p.rechazadoPorFinanzas || '—'; }
+
 function filaHistorial(p) {
   return `<tr>
     <td style="font-size:12px;">${p.fechaPedido}</td>
@@ -25,8 +33,8 @@ function filaHistorial(p) {
     <td style="text-align:right;">$${Number(p.monto || 0).toLocaleString('es-AR')}</td>
     <td style="font-size:12px;">${p.tipo === 'Préstamo' ? (p.cuotas ?? p.cuotasSolicitadas ?? '—') : '—'}</td>
     <td>${badgeEstado(p.estado)}</td>
-    <td style="font-size:11px;">${p.aprobadoPorRrhh || '—'} / ${p.pagadoPor || '—'}</td>
-    <td style="font-size:11px;">${p.motivoRechazoRrhh || p.motivoRechazoFinanzas || '—'}</td>
+    <td style="font-size:11px;">${quienRrhh(p)} / ${quienFinanzas(p)}</td>
+    <td style="font-size:11px;">${p.motivoRechazoRrhh || p.motivoRechazoFinanzas || p.motivoDevueltoRrhh || '—'}</td>
     <td style="font-size:12px;">${(p.fechaPago || '').slice(0, 10) || '—'}</td>
     <td><button class="btn btn-secondary btn-sm" onclick="abrirDetallePedidoAdelanto('${p.tipo === 'Préstamo' ? 'Préstamo' : 'Adelanto'}','${p.id}')">👁</button></td>
   </tr>`;
@@ -65,8 +73,8 @@ export async function exportarHistorialGestionExcel() {
   const datos = filas.map(p => ({
     Fecha: p.fechaPedido, Tipo: p.tipo, Asociado: p.nombreMostrar, 'N° Socio': p.nroSocio,
     Supervisor: p.supervisorNombre, Monto: p.monto, Cuotas: p.cuotas ?? p.cuotasSolicitadas ?? '',
-    Estado: p.estado, 'Aprobado RRHH': p.aprobadoPorRrhh || '', 'Pagado por': p.pagadoPor || '',
-    'Motivo rechazo': p.motivoRechazoRrhh || p.motivoRechazoFinanzas || '', 'Fecha de pago': (p.fechaPago || '').slice(0, 10),
+    Estado: p.estado, 'RRHH': quienRrhh(p) === '—' ? '' : quienRrhh(p), 'Finanzas': quienFinanzas(p) === '—' ? '' : quienFinanzas(p),
+    'Motivo rechazo/devolución': p.motivoRechazoRrhh || p.motivoRechazoFinanzas || p.motivoDevueltoRrhh || '', 'Fecha de pago': (p.fechaPago || '').slice(0, 10),
   }));
   const hoja = XLSX.utils.json_to_sheet(datos);
   const libro = XLSX.utils.book_new();
