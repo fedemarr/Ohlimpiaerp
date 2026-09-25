@@ -157,9 +157,33 @@ function presupuestoDelMesPP(pedido) {
   return (pedido.facturacionNeta || 0) * (pedido.porcentajeTope || 0.06);
 }
 
-// Motivo(s) por los que un pedido cae en la bandeja del auditor (punto 9).
-// [] = pasa directo a Compras. Un pedido puede tener más de un motivo —
-// se muestran todos, el semáforo/chip usa el primero para el color.
+// ========== REGLA DE ENTRADA A LA BANDEJA DEL AUDITOR ==========
+// BANDEJA_AUDITOR_solo_no_pagan_para_Fede.md (Lautaro, Finanzas, 25/09):
+// "al auditor solo le importan los pedidos que NO se facturan".
+//
+//   NO PAGAN → SIEMPRE a la bandeja, esté dentro o fuera del presupuesto.
+//              El 6% es la vara de la cooperativa sobre plata propia.
+//   PAGAN    → NUNCA a la bandeja, ni aunque exceda el presupuesto. Si el
+//              cliente factura los productos, el exceso lo paga el cliente:
+//              no hay plata de la cooperativa que cuidar, no hay nada que
+//              auditar. Va directo a Compras.
+//
+// Antes: `motivosRevisionPP(pedido).length > 0`, o sea los PAGAN caían si
+// excedían el presupuesto, si tenían productos con autorización o si
+// confirmaban fuera de ventana. Contra la base real eso tenía 7 pedidos PAGAN
+// trabados en la bandeja (Cons Delgado, Hit Arguibel x5, Hit Tecno) de los 9
+// que había: el filtro estaba al revés y el auditor tenía la bandeja llena de
+// pedidos que no le correspondían mirar.
+function caeEnBandejaPP(pedido) {
+  return !esPaganPP(pedido);
+}
+
+// Motivo(s) por los que un pedido llama la atención del auditor.
+// OJO: desde el 25/09 esto ya NO decide quién cae en la bandeja (eso es
+// caeEnBandejaPP): es la "situación" del pedido, que se muestra como chip y
+// ordena la tabla. Por eso sigue calculando el exceso también para los PAGAN,
+// que ya no se auditan pero cuyo % se ve en "Pasaron directo a Compras".
+// Un pedido puede tener más de un motivo.
 function motivosRevisionPP(pedido) {
   const motivos = [];
   const pagan = esPaganPP(pedido);
@@ -238,10 +262,13 @@ function badgeEstadoPeriodoPP(estado) {
 // 0 quedaba gris sin avisar nada del destino):
 //   VERDE  → dentro del presupuesto, sin excepciones → directo a Compras
 //   ÁMBAR  → >85% del presupuesto, O lleva productos CON AUTORIZACIÓN
-//            (dentro del presupuesto igual) → al auditor, pero no por exceso
-//   ROJO   → excede el presupuesto → al auditor
-// NO PAGAN siempre va al auditor (ver motivosRevisionPP) aunque el
-// semáforo dé verde por presupuesto — se muestra aparte, no tapa el color.
+//            (dentro del presupuesto igual)
+//   ROJO   → excede el presupuesto
+// El color informa cómo viene de presupuesto el pedido. El DESTINO ya no lo
+// decide el color ni los motivos: desde el 25/09 es caeEnBandejaPP() — un
+// PAGAN va directo a Compras aunque el semáforo esté en rojo, y un NO PAGAN va
+// a la banda aunque esté en verde. El rojo de un PAGAN no significa "te van a
+// auditar", solo "vas 40% arriba del 6%".
 function renderSemaforoHTML(pedido) {
   const total = totalPedidoPP(pedido.id);
   const presupuesto = presupuestoDelMesPP(pedido);
@@ -257,7 +284,9 @@ function renderSemaforoHTML(pedido) {
   else if (excede) { nivel = 'rojo'; color = '#dc2626'; }
   else if (pctPresupuesto > 85 || conAutorizacion) { nivel = 'ambar'; color = '#c96a10'; }
 
-  const vaAlAuditor = !pagan || motivos.length > 0;
+  // Si ya estaba observado vuelve al auditor sea PAGAN o NO PAGAN: el
+  // revisor ya lo vio, no se puede cerrar el circuito sin que lo apruebe.
+  const vaAlAuditor = caeEnBandejaPP(pedido) || pedido.estado === 'observado';
   const destino = vaAlAuditor
     ? '<span style="font-weight:700;">→ al confirmar pasa por el AUDITOR</span>' + (!pagan ? ' <span style="color:var(--texto-suave);">(servicio NO PAGAN)</span>' : '')
     : '<span style="font-weight:700;color:#16a34a;">→ al confirmar pasa DIRECTO a Compras</span>';
@@ -1466,7 +1495,12 @@ export async function confirmarPedidoPP(pedidoId, { silencioso = false, motivoNo
   pedido.confirmadoPor = currentUser?.nombre || (silencioso ? 'Sistema (cierre automático)' : '');
   pedido.confirmadoEn = new Date().toISOString();
   const motivos = motivosRevisionPP(pedido);
-  pedido.estado = (motivos.length || veniaObservado) ? 'confirmado_revision' : 'confirmado';
+  // Destino (BANDEJA_AUDITOR..., 25/09): al auditor SOLO los NO PAGAN. Un
+  // PAGAN va directo a Compras aunque exceda el presupuesto o tenga productos
+  // con autorización — el exceso lo factura el cliente, no lo paga la
+  // cooperativa. veniaObservado mantiene el paso por el auditor: si ya le
+  // devolvió una propuesta, tiene que ser él quien la cierre.
+  pedido.estado = (caeEnBandejaPP(pedido) || veniaObservado) ? 'confirmado_revision' : 'confirmado';
   // FIX 8: snapshot del motivo que lo manda a revisión — motivosRevisionPP()
   // se puede recalcular distinto más adelante (el auditor ajusta
   // cantidades y ya no daría el mismo motivo), así que "Resueltos" tiene
@@ -1499,22 +1533,49 @@ export async function confirmarPedidoPP(pedidoId, { silencioso = false, motivoNo
 // ========== BANDEJA DEL AUDITOR (punto 9 — antes "Auditoría", que en todo
 // el resto del sistema es el registro de acciones, no esta pantalla) ==========
 //
-// Regla de qué cae acá (definida con Lautaro, punto 9.2):
-//   - TODOS los pedidos NO PAGAN (costo de la cooperativa, se revisan
-//     siempre, aun dentro del presupuesto).
-//   - De los PAGAN, solo las excepciones (motivosRevisionPP): excede
-//     presupuesto, con autorización, fuera de ventana, fuera de estándar.
-//   - PAGAN sin ninguna excepción → confirmarPedidoPP() ya los mandó
-//     directo a 'confirmado' — no pasan por acá, se listan aparte para
-//     control ("Pasaron directo a Compras").
+// Regla de qué cae acá (BANDEJA_AUDITOR..., 25/09 — antes punto 9.2):
+//   - SOLO los pedidos NO PAGAN. Todos, excedido o no: es plata de la
+//     cooperativa, así que se revisa siempre.
+//   - Los PAGAN NUNCA, ni excediendo el presupuesto. Van directo a Compras y
+//     quedan listados abajo ("Pasaron directo a Compras") para control, con
+//     su % a la vista.
 
 // Colores 1:1 con el mockup (chip c-gris/c-rojo/c-viol/c-nara/c-teal).
 const COLOR_CHIP_MOTIVO = { 'c-gris': ['#eceef3', '#5a6478'], 'c-rojo': ['#fddede', '#a11c1c'], 'c-viol': ['#ece0fa', '#5b2ca0'], 'c-nara': ['#ffe8d6', '#a04a08'], 'c-teal': ['#d5f0f2', '#0b6470'] };
+// Chips de la columna Motivo, ya no de "por qué cayó en la bandeja" sino de la
+// SITUACIÓN PRESUPUESTARIA, que es lo que el auditor usa para priorizar
+// (25/09):
+//   - Con los PAGAN afuera, todas las filas son NO PAGAN, así que el chip
+//     "NO FACTURA PRODUCTOS" decía lo mismo en todas: no informaba nada y
+//     empujaba al chip útil al segundo lugar.
+//   - El % no va más en el chip ("EXCEDE PRESUPUESTO101%", y pegado al
+//     texto): ya tiene su columna, que además lo pinta rojo cuando pasa el
+//     100. Acá va solo el texto.
+//   - Orden: el rojo primero, el gris después.
 function chipsMotivosPP(pedido) {
-  return motivosRevisionPP(pedido).map(m => {
+  const motivos = motivosRevisionPP(pedido).filter(m => m.codigo !== 'no_factura');
+  if (!motivos.some(m => m.codigo === 'excede')) {
+    // Sin presupuesto (facturación 0) no se puede decir "dentro": no hay
+    // vara contra la cual comparar. Hay 3 pedidos así en la base.
+    const sinVara = !(presupuestoDelMesPP(pedido) > 0);
+    motivos.unshift({
+      codigo: sinVara ? 'sin_presupuesto' : 'dentro',
+      label: sinVara ? 'SIN PRESUPUESTO QUE COMPARAR' : 'DENTRO DEL PRESUPUESTO',
+      chip: 'c-gris',
+    });
+  }
+  return motivos.map(m => {
     const [bg, fg] = COLOR_CHIP_MOTIVO[m.chip] || COLOR_CHIP_MOTIVO['c-gris'];
-    return `<span class="badge" style="background:${bg};color:${fg};">${m.label}${m.pct ? ` <b>${m.pct.toFixed(0)}%</b>` : ''}</span>`;
+    return `<span class="badge" style="background:${bg};color:${fg};">${m.label}</span>`;
   }).join(' ');
+}
+// % de consummación del presupuesto, para ordenar y para el tooltip.
+function _pctPresupuestoPP(pedido) {
+  const presupuesto = presupuestoDelMesPP(pedido);
+  return presupuesto > 0 ? (totalPedidoPP(pedido.id) / presupuesto * 100) : null;
+}
+function _excedePP(pedido) {
+  return motivosRevisionPP(pedido).some(m => m.codigo === 'excede');
 }
 
 export function renderAuditoriaPP() {
@@ -1526,20 +1587,26 @@ export function renderAuditoriaPP() {
   }
   const todos = (DB.ppPedidos || []).filter(p => !p.anulado && _idTrunc(p.periodoIdLocal) === _idTrunc(periodoId));
 
-  const pendientes = todos.filter(p => ['confirmado_revision', 'observado'].includes(p.estado));
+  // Auto-ordenada (25/09): primero lo que excede el presupuesto, por % de
+  // más alto a más bajo; después los que están dentro, también por %. El
+  // auditor abre la pantalla y arriba está lo que tiene que decidir.
+  const pendientes = todos
+    .filter(p => ['confirmado_revision', 'observado'].includes(p.estado))
+    .sort((a, b) => (_excedePP(b) ? 1 : 0) - (_excedePP(a) ? 1 : 0)
+      || (_pctPresupuestoPP(b) || 0) - (_pctPresupuestoPP(a) || 0));
   if (tbodyPend) {
     tbodyPend.innerHTML = pendientes.length ? pendientes.map(p => {
       const obj = (DB.objetivos || []).find(o => o.codigo === p.servicioCodigo);
       const total = totalPedidoPP(p.id);
       const presupuesto = presupuestoDelMesPP(p);
-      const pct = presupuesto > 0 ? (total / presupuesto * 100) : 0;
+      const pct = _pctPresupuestoPP(p);
       return `<tr class="clk" onclick="abrirAuditoriaPedidoPP('${p.id}')">
         <td style="padding:6px 12px;border:1px solid var(--borde);font-weight:500;">${obj ? obj.nombre : p.servicioCodigo} ${badgeEstadoPedidoPP(p.estado)}</td>
         <td style="padding:6px 8px;border:1px solid var(--borde);">${p.supervisor || '—'}</td>
         <td style="padding:6px 8px;border:1px solid var(--borde);">${chipsMotivosPP(p)}</td>
         <td style="padding:6px 8px;border:1px solid var(--borde);text-align:right;">${_money(presupuesto)}</td>
         <td style="padding:6px 8px;border:1px solid var(--borde);text-align:right;">${_money(total)}</td>
-        <td style="padding:6px 8px;border:1px solid var(--borde);text-align:right;${pct > 100 ? 'color:var(--rojo);font-weight:600;' : ''}">${presupuesto > 0 ? pct.toFixed(0) + '%' : '—'}</td>
+        <td style="padding:6px 8px;border:1px solid var(--borde);text-align:right;${pct > 100 ? 'color:var(--rojo);font-weight:600;' : ''}">${pct != null ? pct.toFixed(0) + '%' : '—'}</td>
       </tr>`;
     }).join('') : '<tr><td colspan="6" style="padding:30px;text-align:center;color:var(--texto-muy-suave);">Nada pendiente de revisión en este período 🎉</td></tr>';
   }
@@ -1549,14 +1616,16 @@ export function renderAuditoriaPP() {
   if (tbodyDirecto) {
     tbodyDirecto.innerHTML = pasaronDirecto.length ? pasaronDirecto.map(p => {
       const obj = (DB.objetivos || []).find(o => o.codigo === p.servicioCodigo);
+      const pct = _pctPresupuestoPP(p);
       return `<tr>
         <td style="padding:6px 12px;border:1px solid var(--borde);font-weight:500;">${obj ? obj.nombre : p.servicioCodigo}</td>
         <td style="padding:6px 8px;border:1px solid var(--borde);color:var(--texto-suave);">${p.supervisor || '—'}</td>
         <td style="padding:6px 8px;border:1px solid var(--borde);text-align:right;">${_money(presupuestoDelMesPP(p))}</td>
         <td style="padding:6px 8px;border:1px solid var(--borde);text-align:right;">${_money(totalPedidoPP(p.id))}</td>
+        <td style="padding:6px 8px;border:1px solid var(--borde);text-align:right;${pct > 100 ? 'color:var(--rojo);' : 'color:var(--texto-suave);'}" title="Porcentaje del presupuesto (6% de la facturación) que consume este pedido. No bloquea nada: los PAGAN van directo a Compras siempre.">${pct != null ? pct.toFixed(0) + '%' : '—'}</td>
         <td style="padding:6px 8px;border:1px solid var(--borde);color:var(--texto-suave);font-size:11.5px;">${p.confirmadoEn ? new Date(p.confirmadoEn).toLocaleString('es-AR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : '—'} · sin intervención del auditor</td>
       </tr>`;
-    }).join('') : '<tr><td colspan="5" style="padding:20px;text-align:center;color:var(--texto-muy-suave);">Ninguno todavía</td></tr>';
+    }).join('') : '<tr><td colspan="6" style="padding:20px;text-align:center;color:var(--texto-muy-suave);">Ninguno todavía</td></tr>';
   }
 
   // FIX 8 (ronda 02/09): pedidos que pasaron por la bandeja (excede,
