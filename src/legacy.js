@@ -4094,12 +4094,17 @@ function renderCfgComercialLista(dbKey,elId){
   // array se reordenó entre que se pintó y que se hizo click.
   el.innerHTML=items.map((item)=>`<div class="config-item">
     <span style="font-size:13px;">${item}</span>
-    <button class="btn btn-danger btn-xs" data-eliminar-cfg="${dbKey}">Eliminar</button>
+    <button class="btn btn-danger btn-xs" data-eliminar-cfg="${dbKey}" data-valor="${escapeAttrCfg(item)}">Eliminar</button>
   </div>`).join('')||'<p class="text-muted" style="font-size:12px;">Sin ítems cargados</p>';
   el.onclick=(ev)=>{
     const btn=ev.target.closest('button[data-eliminar-cfg]');
     if(!btn)return;
-    const valor=(btn.closest('.config-item')?.querySelector('span')?.textContent||'').trim();
+    // El valor se lee del data-valor (escapado) y NO del textContent del
+    // <span>: con un valor que tenga "<" el navegador parsea el span como
+    // HTML y textContent devuelve otra cosa — el borrado iba a la fila
+    // equivocada o no encontraba nada. Mismo criterio que
+    // renderConfigLista() de las listas de RRHH.
+    const valor=(btn.dataset.valor||'').trim();
     if(valor)eliminarCfgComercial(btn.dataset.eliminarCfg,valor,elId);
   };
 }
@@ -4152,7 +4157,7 @@ function renderCfgEtapasCRM(){
       <div style="width:14px;height:14px;border-radius:3px;background:${DB.colorEtapasCRM[e]||'var(--azul)'};flex-shrink:0;"></div>
       <span style="font-size:13px;">${e}</span>
     </div>
-    <button class="btn btn-danger btn-xs" data-eliminar-etapa="${e}">Eliminar</button>
+    <button class="btn btn-danger btn-xs" data-eliminar-etapa="${escapeAttrCfg(e)}">Eliminar</button>
   </div>`).join('');
   el.onclick=(ev)=>{
     const btn=ev.target.closest('button[data-eliminar-etapa]');

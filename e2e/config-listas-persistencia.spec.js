@@ -158,3 +158,27 @@ test('Configuración: un duplicado no se agrega dos veces', async ({ page }) => 
   expect(await itemsDe(page, 'lista-tipos-cliente')).toEqual(['Hospital', 'Corporativo']);
   expect(await page.evaluate(() => window.__escrituras)).toHaveLength(0);
 });
+
+// El caso que faltaba: un valor con "<" en una lista de Comercial. El <span>
+// visible no escapa (tema aparte), pero el botón tiene que llevar el valor
+// crudo en un atributo escapado — antes se leía el textContent del span, que
+// con tags devuelve otra cosa ("Coworking premium" en vez de
+// "Coworking <b>premium</b>") y el borrado no encontraba la fila.
+test('Configuración: valor con "<" se borra con el valor exacto, no con el texto parseado', async ({ page }) => {
+  await interceptarEscrituras(page);
+  const valor = 'Coworking <b>premium</b>';
+  await sembrarLista(page, 'tiposCliente', ['Hospital', valor, 'Corporativo']);
+  await page.evaluate(() => window.renderConfiguracion());
+  await abrirTab(page, 'ventas-cfg');
+
+  await expect(page.locator('#lista-tipos-cliente .config-item')).toHaveCount(3);
+
+  await page.locator('#lista-tipos-cliente .config-item', { hasText: 'Coworking' }).locator('button').click();
+
+  expect(await itemsDe(page, 'lista-tipos-cliente')).toEqual(['Hospital', 'Corporativo']);
+  // Y que el update haya sido sobre la fila correcta (id_local 'seed1' =
+  // el segundo valor sembrado), no sobre otra.
+  const escritura = await page.evaluate(() => window.__escrituras);
+  expect(escritura).toHaveLength(1);
+  expect(escritura[0].payload).toEqual({ anulado: true });
+});
