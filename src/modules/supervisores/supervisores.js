@@ -6,7 +6,7 @@
 // (src/modules/supervision/). Nunca se llama "comisión" — eso es de
 // coordinadores de cuenta.
 
-import { DB, currentUser } from '@shared/state.js';
+import { DB, currentUser, SEMILLA_SUPERVISORES } from '@shared/state.js';
 import { $ } from '@shared/helpers.js';
 import { toast } from '@shared/ui.js';
 import { supaSync, supaDel, getLastSupaSyncError } from '@shared/supabase.js';
@@ -29,6 +29,42 @@ function getSupervisorConfigById(id) {
 function serviciosDelSupervisor(nombre) {
   return (DB.objetivos || []).filter(o => o.estado === 'Operativo' && !o.anulado &&
     ((o.supervisoresAsignados && o.supervisoresAsignados.length) ? o.supervisoresAsignados : (o.supervisorAsignado ? [o.supervisorAsignado] : [])).includes(nombre));
+}
+
+// FIX ticket #195 — "la lista de asignación de supervisores no viene del
+// módulo Supervisores".
+//
+// Causa: DB.supervisores (el array que alimenta los ~12 selects/datalists de
+// Pedidos, Reasignaciones, Descansos, Capacitaciones, Liquidación, Dotación,
+// Accesos...) era una lista tipeada a mano en state.js, mientras el módulo
+// Supervisores daba de alta contra la tabla `supervisores_config`. Los dos
+// nunca se cruzaron: Carballo Gisela Soledad está en la base desde el 25/09
+// (alta hecha desde este módulo) y no aparecía en un solo select, porque
+// nadie leía el catálogo.
+//
+// Qué hace: DB.supervisores pasa a ser la unión del catálogo persistido con
+// la semilla de state.js. Un solo origen de verdad, y los ~12 consumidores
+// existentes se arreglan sin tocar ninguno.
+//
+// - Se INCLUYEN los inactivos: DB.supervisores alimenta también filtros de
+//   histórico (Liquidación, Descansos) y sacar un supervisor dado de baja
+//   dejaría sus servicios sin forma de consultarse. Para "asignar" sigue
+//   mandando el filtro de activo, que ya vive en
+//   recomendarSupervisoresParaObjetivo() y en los selects de porcentaje.
+// - Se llama después de supaInit() y en cada alta/baja/desactivación del
+//   catálogo, para que el cambio se vea sin refrescar.
+//
+// Es idempotente: es unión contra la semilla, no contra el resultado
+// anterior, así que un supervisor BORRADO del catálogo no resucita.
+export function hidratarSupervisores() {
+  const catalogo = (DB.supervisoresConfig || [])
+    .map(s => (s.nombre || '').trim())
+    .filter(Boolean);
+  const nombres = [...new Set([...SEMILLA_SUPERVISORES, ...catalogo])]
+    .sort((a, b) => a.localeCompare(b, 'es'));
+  const antes = DB.supervisores || [];
+  DB.supervisores = nombres;
+  return { antes: antes.length, despues: nombres.length, nuevos: nombres.filter(n => !antes.includes(n)) };
 }
 
 export function renderSupervisores() {
@@ -60,6 +96,7 @@ export function toggleActivoSupervisor(id) {
   const s = getSupervisorConfigById(id); if (!s) return;
   s.activo = s.activo === false ? true : false;
   supaSync('supervisoresConfig', s);
+  hidratarSupervisores();
   renderSupervisores();
   toast(s.activo ? `✓ ${s.nombre} reactivado` : `${s.nombre} desactivado`);
 }
@@ -90,6 +127,7 @@ export async function eliminarSupervisor(id) {
   }
   const idx = (DB.supervisoresConfig || []).findIndex(x => String(x.id) === String(id));
   if (idx >= 0) DB.supervisoresConfig.splice(idx, 1);
+  hidratarSupervisores();
   renderSupervisores();
   toast(`🗑️ ${s.nombre} eliminado del catálogo`);
 }
@@ -104,6 +142,7 @@ export function agregarSupervisorAlCatalogo() {
   if (!DB.supervisoresConfig) DB.supervisoresConfig = [];
   DB.supervisoresConfig.push(nuevo);
   supaSync('supervisoresConfig', nuevo);
+  hidratarSupervisores();
   if ($('sup-cfg-nuevo')) $('sup-cfg-nuevo').value = '';
   renderSupervisores();
   toast(`✓ ${nombre} agregado al catálogo`);

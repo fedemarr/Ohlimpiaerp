@@ -1,5 +1,11 @@
 // ========== ESTADO GLOBAL ==========
 
+// Piso del catálogo de supervisores (ver DB.supervisores). Snapshot
+// inmutable de los nombres que estavam tipeados a mano antes de que el
+// catálogo pasara a persistirse (sql/v081). Vive acá y no en
+// modules/supervisores/ para no crear un ciclo state → module → state.
+export const SEMILLA_SUPERVISORES = ['Alvaro Jesus Uballes', 'Alejandro Cacciato', 'Claudia Cazenave', 'Claudio Gonzalez', 'Fabio Benvenuto', 'Matias Maidana', 'Marcelo Moure', 'Santiago Ayala', 'Richard Recalde', 'Alfredo Arispe', 'Lorena Unzain', 'Dario Lage', 'Patricia Scaglia', 'Maximiliano Poncino', 'Sandra Luna'];
+
 export const DB = {
   rrhh: ['Jimena', 'Naara', 'Gabi'],
   // Catálogo de atributos del perfil solicitado en Pedidos de personal
@@ -109,7 +115,17 @@ export const DB = {
   // y sql/v128). Este array alimenta datalists/selects de todo el
   // sistema (Pedidos, Reasignaciones, Descansos, Capacitaciones...) —
   // dejar el nombre viejo acá lo reintroduce por más que se corrija la base.
-  supervisores: ['Alvaro Jesus Uballes', 'Alejandro Cacciato', 'Claudia Cazenave', 'Claudio Gonzalez', 'Fabio Benvenuto', 'Matias Maidana', 'Marcelo Moure', 'Santiago Ayala', 'Richard Recalde', 'Alfredo Arispe', 'Lorena Unzain', 'Dario Lage', 'Patricia Scaglia', 'Maximiliano Poncino', 'Sandra Luna'],
+  //
+  // FIX ticket #195: esta lista a mano se desincronizaba del catálogo
+  // persistido (DB.supervisoresConfig, sql/v081). Un supervisor agregado
+  // desde el módulo Supervisores (ej. Carballo Gisela Soledad, 25/09) quedaba
+  // en la base pero NO aparecía en ningún select de asignación, porque todos
+  // leen este array. Por eso ahora DB.supervisores se DERIVA del catálogo en
+  // vez de_editarse a mano — ver hidratarSupervisores() en
+  // src/modules/supervisores/. La semilla se conserva acá (y en
+  // SEMILLA_SUPERVISORES) solo como piso: garantiza que, si el catálogo
+  // llegara vacío o incompleto, no desaparezcan nombres del histórico.
+  supervisores: [...SEMILLA_SUPERVISORES],
   // Deprecado (Clientes y Objetivos v1.1, v039) — no usar como fuente
   // directa. Usar window.obtenerServiciosActivos() (legacy.js), que
   // devuelve DB.objetivos.codigo (Operativos) + los códigos de esta lista

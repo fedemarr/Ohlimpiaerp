@@ -2,7 +2,7 @@
 
 export {
   renderSupervisores, toggleActivoSupervisor, eliminarSupervisor,
-  agregarSupervisorAlCatalogo, poblarSelectNuevoSupervisor,
+  agregarSupervisorAlCatalogo, poblarSelectNuevoSupervisor, hidratarSupervisores,
 } from './supervisores.js';
 
 // ========== SCREEN CONFIG ==========

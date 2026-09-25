@@ -50,7 +50,7 @@ import './modules/personal_rrhh/index.js';
 import './modules/servicios_supervisor/index.js';
 import { sincronizarServiciosSupervisor } from './modules/servicios_supervisor/index.js';
 import './modules/comercial_importador/index.js';
-import { supervisoresScreenConfig } from './modules/supervisores/index.js';
+import { hidratarSupervisores, supervisoresScreenConfig } from './modules/supervisores/index.js';
 import { supervisionScreenConfig } from './modules/supervision/index.js';
 import { descuentosScreenConfig } from './modules/descuentos/index.js';
 import { pedidoProductosScreenConfig } from './modules/pedido_productos/index.js';
@@ -390,6 +390,11 @@ registerAuthCallbacks({
     // con lo persistido en `config_listas`. Sin esto, lo agregado desde
     // Configuración vivía solo en memoria y se perdía al recargar.
     hidratarListas();
+    // Ticket #195: DB.supervisores pasa a derivarse del catálogo persistido
+    // (supervisores_config) en vez de la lista tipeada a mano de state.js.
+    // Sin esto, un supervisor dado de alta desde el módulo Supervisores
+    // quedaba en la base pero no aparecía en ningún select de asignación.
+    hidratarSupervisores();
     // Refresca DB.motivosReasignacion/DB.aprobadoresReas (arrays planos que
     // legacy.js sigue leyendo) desde la config real recién cargada, para
     // que no queden con el seed default hasta visitar Reasignaciones.
