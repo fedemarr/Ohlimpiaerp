@@ -5435,17 +5435,19 @@
           <button class="btn btn-primary btn-sm" onclick="abrirPeriodoPP()">+ Habilitar período</button>
         </div>
       </div>
-      <p style="font-size:12px;color:var(--texto-suave);padding:0 20px 10px;">Un solo período EN CARGA a la vez: si ya hay uno abierto, el nuevo queda HABILITADO y abre solo cuando cierre el actual. Al cierre (manual o programado) los borradores se CONFIRMAN automáticamente tal como estén, con notificación — recordatorio 24 hs antes.</p>
-      <div class="stats-grid" style="grid-template-columns:repeat(4,1fr);padding:0 20px 14px;">
+      <p style="font-size:12px;color:var(--texto-suave);padding:0 20px 10px;">Un solo período EN CARGA a la vez: si ya hay uno abierto, el nuevo queda HABILITADO y abre solo cuando cierre el actual. Al cierre (manual o programado) los borradores se CONFIRMAN automáticamente tal como estén, con notificación — recordatorio 24 hs antes. <b>Click en la fila de un mes (o en "Ver estado")</b> para abrir el detalle de solo lectura: qué falta, quién lo tiene y por qué está trabado en auditoría.</p>
+      <div class="stats-grid" style="grid-template-columns:repeat(6,1fr);padding:0 20px 14px;">
         <div class="stat-card verde"><div class="stat-label">Confirmados</div><div class="stat-valor" id="pp-per-k-confirmados" style="cursor:pointer;" onclick="filtrarDesglosePeriodoPP('confirmado')">0</div></div>
+        <div class="stat-card verde"><div class="stat-label">Autorizados</div><div class="stat-valor" id="pp-per-k-autorizados" style="cursor:pointer;" onclick="filtrarDesglosePeriodoPP('autorizado')">0</div></div>
         <div class="stat-card azul"><div class="stat-label">Borradores</div><div class="stat-valor" id="pp-per-k-borradores" style="cursor:pointer;" onclick="filtrarDesglosePeriodoPP('borrador')">0</div></div>
         <div class="stat-card"><div class="stat-label">Sin iniciar</div><div class="stat-valor" id="pp-per-k-siniciar" style="cursor:pointer;" onclick="filtrarDesglosePeriodoPP('sin_iniciar')">0</div></div>
-        <div class="stat-card acento"><div class="stat-label">Observados</div><div class="stat-valor" id="pp-per-k-observados">0</div></div>
+        <div class="stat-card"><div class="stat-label">En auditoría</div><div class="stat-valor" id="pp-per-k-auditoria" style="cursor:pointer;" onclick="filtrarDesglosePeriodoPP('en_auditoria')">0</div></div>
+        <div class="stat-card acento"><div class="stat-label">Observados</div><div class="stat-valor" id="pp-per-k-observados" style="cursor:pointer;" onclick="filtrarDesglosePeriodoPP('observado')">0</div></div>
       </div>
       <div class="tabla-wrap"><table style="width:100%;border-collapse:collapse;font-size:12.5px;">
         <thead><tr style="background:#374151;color:white;">
           <th style="padding:8px 12px;">Mes</th><th style="padding:8px 12px;">Estado</th><th style="padding:8px 12px;">Cierre programado</th><th style="padding:8px 12px;">Servicios</th>
-          <th style="padding:8px 12px;">Confirmados</th><th style="padding:8px 12px;">Acciones</th>
+          <th style="padding:8px 12px;" title="Confirmados = estado 'confirmado'. Debajo, 'enviados' = todo lo que el supervisor ya confirmó, incluye los que esperan al auditor o ya fueron autorizados.">Confirmados</th><th style="padding:8px 12px;">Acciones</th>
         </tr></thead>
         <tbody id="tbody-pp-periodos"></tbody>
       </table></div>

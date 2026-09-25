@@ -771,6 +771,8 @@ export function _toSnake(obj) {
     // pedidos confirmado/observado)
     cierreProgramado: 'cierre_programado', recordatorioEnviado: 'recordatorio_enviado',
     confirmadoPor: 'confirmado_por', confirmadoEn: 'confirmado_en',
+    // v168 — "borrador guardado el <fecha>" (modal de estado por período)
+    borradorGuardadoEn: 'borrador_guardado_en',
     observadoPor: 'observado_por', observadoEn: 'observado_en',
     observadoMotivo: 'observado_motivo', observadoComentario: 'observado_comentario',
     // v109 — Pedido de productos: Compras por proveedor + Entregas
@@ -1256,6 +1258,8 @@ export function _toCamel(obj) {
     // v108 — Pedido de productos: ajustes
     cierre_programado: 'cierreProgramado', recordatorio_enviado: 'recordatorioEnviado',
     confirmado_por: 'confirmadoPor', confirmado_en: 'confirmadoEn',
+    // v168 — "borrador guardado el <fecha>"
+    borrador_guardado_en: 'borradorGuardadoEn',
     observado_por: 'observadoPor', observado_en: 'observadoEn',
     observado_motivo: 'observadoMotivo', observado_comentario: 'observadoComentario',
     // v109 — Pedido de productos: Compras por proveedor + Entregas

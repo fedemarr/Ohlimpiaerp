@@ -704,12 +704,41 @@ export function corregirPrecioPP(precioId) {
 // mano o por el cierre programado. El supervisor nunca elige el mes: "Mis
 // pedidos" siempre muestra el único período 'abierto' que puede haber.
 
-// sin_iniciar / borrador / confirmado — derivado, no es un estado propio
-// en la base: "sin iniciar" es un borrador sin ítems todavía. Alimenta el
-// desglose de Períodos (punto 8.4) y el filtro rápido.
-function estadoDerivadoPedidoPP(pedido) {
-  if (pedido.estado !== 'borrador') return 'confirmado';
+// ========== BUCKETS DE ESTADO (FIX 25/09 — mockup "Períodos: drill-down") ==========
+//
+// FIX: antes estadoDerivadoPedidoPP devolvía 'confirmado' para TODO estado
+// distinto de 'borrador', así que la columna "X/Y Confirmados" sumaba
+// confirmado + confirmado_revision (esperando al auditor) + autorizado. El
+// "16/163" que el mockup clonaba en su tabla era justo ese número: contra la
+// base real, de los 16 advancing solo 3 están 'confirmado', 9 están
+// 'autorizado' y 4 esperan al auditor. Logística leía un verde que no era
+// tal y no tenía forma de ver el desglose.
+//
+// Ahora cada estado real cae en su propio bucket, y los buckets son
+// excluyentes entre sí (suman el total del período — se puede chequear la
+// suma de los KPI). 'sin_iniciar' NO es un estado en la base: es un borrador
+// sin ítems todavía.
+const BUCKETS_PP = {
+  sin_iniciar:  { label: 'Sin iniciar',  tono: 'gris',  orden: 0 },
+  borrador:     { label: 'Borrador',    tono: 'nara',  orden: 1 },
+  en_auditoria: { label: 'En auditoría', tono: 'viol', orden: 2 },
+  observado:    { label: 'Observado',   tono: 'nara',  orden: 3 },
+  confirmado:   { label: 'Confirmado',  tono: 'verde', orden: 4 },
+  autorizado:   { label: 'Autorizado',  tono: 'verde', orden: 5 },
+  en_compra:    { label: 'En compra',   tono: 'azul',  orden: 6 },
+  entregado:    { label: 'Entregado',   tono: 'verde', orden: 7 },
+};
+// 'confirmado_revision' es el estado en la base del pedido que el supervisor
+// confirmó y quedó en la bandeja del auditor (ver comentario de estados).
+const BUCKET_DE_ESTADO_PP = { borrador: 'borrador', confirmado: 'confirmado', confirmado_revision: 'en_auditoria', observado: 'observado', autorizado: 'autorizado', en_compra: 'en_compra', entregado: 'entregado' };
+function bucketPedidoPP(pedido) {
+  if (pedido.estado !== 'borrador') return BUCKET_DE_ESTADO_PP[pedido.estado] || 'confirmado';
   return itemsDePedido(pedido.id).length ? 'borrador' : 'sin_iniciar';
+}
+function contarBucketsPP(pedidos) {
+  const cont = {};
+  pedidos.forEach(p => { const b = bucketPedidoPP(p); cont[b] = (cont[b] || 0) + 1; });
+  return cont;
 }
 
 let _filtroDesglosePeriodo = '';
@@ -722,35 +751,270 @@ export function renderPeriodosPP() {
 
   // KPIs del período abierto (punto 8.4: desglose sin iniciar/borrador/confirmados)
   if (abierto) {
-    const pedidosAbierto = (DB.ppPedidos || []).filter(x => !x.anulado && _idTrunc(x.periodoIdLocal) === _idTrunc(abierto.id));
-    const cont = { sin_iniciar: 0, borrador: 0, confirmado: 0 };
-    pedidosAbierto.forEach(p => { cont[estadoDerivadoPedidoPP(p)]++; });
-    const setKpi = (id, v) => { const el = $(id); if (el) el.textContent = v; };
+    const cont = contarBucketsPP(pedidosDelPeriodoPP(abierto));
+    const setKpi = (id, v) => { const el = $(id); if (el) el.textContent = v || 0; };
     setKpi('pp-per-k-confirmados', cont.confirmado);
+    setKpi('pp-per-k-autorizados', cont.autorizado);
     setKpi('pp-per-k-borradores', cont.borrador);
     setKpi('pp-per-k-siniciar', cont.sin_iniciar);
-    setKpi('pp-per-k-observados', pedidosAbierto.filter(p => p.estado === 'observado').length);
+    setKpi('pp-per-k-auditoria', cont.en_auditoria);
+    setKpi('pp-per-k-observados', cont.observado);
   }
 
   if (!tbody) return;
   if (!rows.length) { tbody.innerHTML = '<tr><td colspan="6" style="padding:40px;text-align:center;color:var(--texto-muy-suave);">Sin períodos habilitados todavía.</td></tr>'; return; }
   tbody.innerHTML = rows.map(p => {
-    const pedidosDelPeriodo = (DB.ppPedidos || []).filter(x => !x.anulado && _idTrunc(x.periodoIdLocal) === _idTrunc(p.id));
+    const pedidosDelPeriodo = pedidosDelPeriodoPP(p);
     let filtrados = pedidosDelPeriodo;
-    if (p.estado === 'abierto' && _filtroDesglosePeriodo) filtrados = pedidosDelPeriodo.filter(x => estadoDerivadoPedidoPP(x) === _filtroDesglosePeriodo);
-    const confirmados = pedidosDelPeriodo.filter(x => estadoDerivadoPedidoPP(x) === 'confirmado').length;
+    if (p.estado === 'abierto' && _filtroDesglosePeriodo) filtrados = pedidosDelPeriodo.filter(x => bucketPedidoPP(x) === _filtroDesglosePeriodo);
+    const cont = contarBucketsPP(pedidosDelPeriodo);
+    // "enviados" = todo lo que el supervisor YA confirmó (incluye lo que
+    // espera al auditor o ya fue autorizado). Se muestra aparte para no
+    // volver a sumar "autorizado + en revisión" dentro de "Confirmados".
+    const enviados = pedidosDelPeriodo.length - (cont.sin_iniciar || 0) - (cont.borrador || 0);
     const cierreTxt = p.cierreProgramado ? new Date(p.cierreProgramado).toLocaleString('es-AR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : '—';
-    return `<tr>
+    return `<tr onclick="abrirDetallePeriodoPP('${p.id}')" style="cursor:pointer;" onmouseover="this.style.background='#f2f6ff';" onmouseout="this.style.background='';">
       <td style="padding:6px 12px;border:1px solid var(--borde);font-weight:600;">${p.mes}</td>
       <td style="padding:6px 8px;border:1px solid var(--borde);text-align:center;">${badgeEstadoPeriodoPP(p.estado)}${p.estado === 'habilitado' ? '<div style="font-size:10px;color:var(--texto-suave);">abre solo al cerrar el período actual</div>' : ''}</td>
       <td style="padding:6px 8px;border:1px solid var(--borde);text-align:center;">${cierreTxt}</td>
       <td style="padding:6px 8px;border:1px solid var(--borde);text-align:center;">${filtrados.length}${p.estado === 'abierto' && _filtroDesglosePeriodo ? ' <span style="color:var(--texto-suave);">(filtrado)</span>' : ''}</td>
-      <td style="padding:6px 8px;border:1px solid var(--borde);text-align:center;">${confirmados}/${pedidosDelPeriodo.length}</td>
+      <td style="padding:6px 8px;border:1px solid var(--borde);text-align:center;">${cont.confirmado || 0}/${pedidosDelPeriodo.length}<div style="font-size:10px;color:var(--texto-suave);">${enviados} enviados</div></td>
       <td style="padding:6px 8px;border:1px solid var(--borde);text-align:center;">
-        ${p.estado === 'abierto' ? `<button class="btn btn-xs btn-secondary" onclick="cerrarPeriodoPP('${p.id}')">Cerrar período</button>` : '—'}
+        <button class="btn btn-xs btn-secondary" onclick="event.stopPropagation();abrirDetallePeriodoPP('${p.id}')">Ver estado</button>
+        ${p.estado === 'abierto' ? ` <button class="btn btn-xs btn-secondary" onclick="event.stopPropagation();cerrarPeriodoPP('${p.id}')">Cerrar período</button>` : ''}
       </td>
     </tr>`;
   }).join('');
+}
+
+function pedidosDelPeriodoPP(periodo) {
+  return (DB.ppPedidos || []).filter(x => !x.anulado && _idTrunc(x.periodoIdLocal) === _idTrunc(periodo.id));
+}
+
+// ========== DETALLE DEL PERÍODO — "Estado de los pedidos" ==========
+//
+// Ticket de Lautaro (25/09) + mockup_periodos_estado_pedidos_1.html:
+// el tab Períodos NO se reestructura, se le agrega el detalle. Click en la
+// fila del mes (o en "Ver estado") abre este modal de SOLO LECTURA con:
+//   · KPIs arriba que además filtran al tocarlos
+//   · la lista AGRUPADA POR SUPERVISOR — la persecución real es "Lorena
+//     tiene 3 sin iniciar", no "faltan 12 servicios" — con los grupos que
+//     más deben arriba
+//   · dentro del grupo: sin iniciar → borrador → en auditoría → confirmado
+//   · el detalle de cada fila (fecha de confirmación, cuándo se guardó el
+//     borrador, el MOTIVO leído de la bandeja del auditor) y el monto
+//   · búsqueda por servicio o supervisor
+//   · "Recordar a los que faltan": campanita manual a cada supervisor con
+//     pedidos sin iniciar (el recordatorio automático de 24 hs del cierre
+//     sigue igual, es otro camino)
+// Funciona igual para un período cerrado: ahí queda como foto final /
+// historial de cumplimiento por supervisor.
+
+const CHIP_TONO_PP = {
+  verde: ['#dff2e1', '#1e7b34'], nara: ['#fdebd7', '#b25b00'], rojo: ['#fbe0dc', '#b3261e'],
+  azul: ['#dde7f8', '#1b4ea0'], viol: ['#ece2f7', '#6a3fa0'], gris: ['#eceef2', '#5a6070'],
+};
+function _chipPP(txt, tono = 'gris') {
+  const [bg, fg] = CHIP_TONO_PP[tono] || CHIP_TONO_PP.gris;
+  return `<span style="display:inline-block;padding:2px 9px;border-radius:20px;font-size:11px;font-weight:600;white-space:nowrap;background:${bg};color:${fg};">${txt}</span>`;
+}
+function _fmtFechaPP(v) {
+  if (!v) return null;
+  const d = new Date(v);
+  if (isNaN(d.getTime())) return null;
+  return d.toLocaleString('es-AR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+}
+function _nombreServicioPP(codigo) {
+  const obj = (DB.objetivos || []).find(o => o.codigo === codigo);
+  return obj ? obj.nombre : codigo;
+}
+// El detalle que muestra el mockup en cada fila, según el bucket. Para lo
+// que está en la bandeja del auditor se lee el motivo REAL de la bandeja
+// (motivosRevisionPP), no un texto inventado.
+function _detalleFilaPP(pedido) {
+  const b = bucketPedidoPP(pedido);
+  if (b === 'sin_iniciar') return 'sin productos cargados';
+  if (b === 'borrador') {
+    const t = _fmtFechaPP(pedido.borradorGuardadoEn);
+    return t ? 'guardado ' + t : 'en carga';
+  }
+  if (b === 'en_auditoria') {
+    const motivos = motivosRevisionPP(pedido).map(m => m.label).join(' · ');
+    const t = _fmtFechaPP(pedido.confirmadoEn);
+    return [motivos || 'en la bandeja del auditor', t ? 'enviado ' + t : ''].filter(Boolean).join(' · ');
+  }
+  if (b === 'observado') {
+    const motivo = pedido.observadoComentario || pedido.observadoMotivo || 'devuelto con propuesta';
+    const t = _fmtFechaPP(pedido.observadoEn);
+    return [motivo, t ? 'devuelto ' + t : ''].filter(Boolean).join(' · ');
+  }
+  if (b === 'confirmado') return ['confirmado ' + (_fmtFechaPP(pedido.confirmadoEn) || '—'), pedido.confirmadoPor || ''].filter(Boolean).join(' · ');
+  if (b === 'autorizado') return ['autorizado ' + (_fmtFechaPP(pedido.autorizadoEn) || '—'), pedido.autorizadoPor || ''].filter(Boolean).join(' · ');
+  if (b === 'en_compra') return 'en compra ' + (_fmtFechaPP(pedido.enCompraEn) || '—');
+  if (b === 'entregado') return 'entregado ' + (_fmtFechaPP(pedido.entregadoEn) || '—');
+  return '';
+}
+
+let _detallePeriodoId = null;
+let _filtroDetallePeriodo = '';
+let _qDetallePeriodo = '';
+
+export function abrirDetallePeriodoPP(id) {
+  const periodo = getPeriodoPP(id);
+  if (!periodo) { toast('⚠️ No se encontró el período'); return; }
+  ensureModalDetallePeriodoPP();
+  _detallePeriodoId = periodo.id;
+  _filtroDetallePeriodo = '';
+  _qDetallePeriodo = '';
+  if ($('pp-det-q')) $('pp-det-q').value = '';
+  renderDetallePeriodoPP();
+  abrirModal('modal-pp-detalle-periodo');
+}
+export function cerrarDetallePeriodoPP() { cerrarModal('modal-pp-detalle-periodo'); _detallePeriodoId = null; }
+export function filtrarDetallePeriodoPP(bucket) {
+  _filtroDetallePeriodo = _filtroDetallePeriodo === bucket ? '' : bucket;
+  renderDetallePeriodoPP();
+}
+export function buscarDetallePeriodoPP(valor) {
+  _qDetallePeriodo = String(valor || '').trim().toLowerCase();
+  renderDetallePeriodoPP();
+}
+
+export function renderDetallePeriodoPP() {
+  const cont = $('pp-det-grupos');
+  const periodo = getPeriodoPP(_detallePeriodoId);
+  if (!cont || !periodo) return;
+  const pedidos = pedidosDelPeriodoPP(periodo);
+  const counts = contarBucketsPP(pedidos);
+
+  const cierre = periodo.cierreProgramado ? _fmtFechaPP(periodo.cierreProgramado) : null;
+  $('pp-det-titulo').innerHTML = `Estado de los pedidos — ${periodo.mes} ${badgeEstadoPeriodoPP(periodo.estado)}`
+    + (periodo.estado === 'abierto' && cierre ? ` <span style="font-size:12px;font-weight:400;color:var(--texto-suave);">· cierra ${cierre}</span>` : '');
+  $('pp-det-sub').textContent = `${pedidos.length} servicio(s) en el período · solo lectura`
+    + (periodo.estado !== 'abierto' ? ' · período cerrado (foto final)' : '');
+
+  // KPIs-filtro. Los buckets son excluyentes, así que la suma da el total.
+  const ordenChips = ['confirmado', 'autorizado', 'en_auditoria', 'observado', 'borrador', 'sin_iniciar', 'en_compra', 'entregado'];
+  let chips = `<div class="pp-kc${_filtroDetallePeriodo === '' ? ' on' : ''}" onclick="filtrarDetallePeriodoPP('')"><b>${pedidos.length}</b>Todos</div>`;
+  ordenChips.forEach(b => {
+    const n = counts[b] || 0;
+    // en_compra / entregado solo aparecen si hay algo (hoy no hay filas).
+    if ((b === 'en_compra' || b === 'entregado') && !n) return;
+    const cfg = BUCKETS_PP[b];
+    chips += `<div class="pp-kc${_filtroDetallePeriodo === b ? ' on' : ''}" onclick="filtrarDetallePeriodoPP('${b}')"><b>${n}</b>${cfg.label}</div>`;
+  });
+  $('pp-det-chips').innerHTML = chips;
+
+  // Filtro + búsqueda.
+  const q = _qDetallePeriodo;
+  let lista = pedidos.filter(p => !_filtroDetallePeriodo || bucketPedidoPP(p) === _filtroDetallePeriodo);
+  if (q) {
+    lista = lista.filter(p => {
+      const srv = (_nombreServicioPP(p.servicioCodigo) + ' ' + p.servicioCodigo).toLowerCase();
+      return srv.includes(q) || String(p.supervisor || '').toLowerCase().includes(q);
+    });
+  }
+
+  // Agrupar por supervisor; los grupos que más deben (sin iniciar) arriba.
+  const grupos = {};
+  lista.forEach(p => {
+    const s = p.supervisor || '(sin supervisor)';
+    (grupos[s] = grupos[s] || []).push(p);
+  });
+  const sups = Object.keys(grupos).sort((a, b) => {
+    const sa = contarBucketsPP(grupos[a]).sin_iniciar || 0;
+    const sb = contarBucketsPP(grupos[b]).sin_iniciar || 0;
+    return sb - sa || a.localeCompare(b);
+  });
+
+  $('pp-det-grupos').innerHTML = sups.length ? sups.map(s => {
+    const ps = grupos[s].slice().sort((a, b) =>
+      (BUCKETS_PP[bucketPedidoPP(a)].orden - BUCKETS_PP[bucketPedidoPP(b)].orden)
+      || _nombreServicioPP(a.servicioCodigo).localeCompare(_nombreServicioPP(b.servicioCodigo)));
+    const sinIni = ps.filter(p => bucketPedidoPP(p) === 'sin_iniciar').length;
+    const total = ps.reduce((s2, p) => s2 + totalPedidoPP(p.id), 0);
+    return `<div style="border:1px solid var(--borde);border-radius:10px;margin-bottom:12px;overflow:hidden;">
+      <div style="background:#f7f8fb;padding:9px 14px;display:flex;align-items:center;gap:10px;font-size:13px;border-bottom:1px solid var(--borde);">
+        <b style="color:#1b4ea0;">${s}</b>${_chipPP(ps.length + ' servicio(s)', 'gris')}
+        ${sinIni ? _chipPP('⚪ ' + sinIni + ' sin iniciar', 'rojo') : _chipPP('al día', 'verde')}
+        ${total ? `<span style="margin-left:auto;font-weight:600;">${_money(total)}</span>` : ''}
+      </div>
+      ${ps.map(p => {
+        const b = bucketPedidoPP(p);
+        const monto = totalPedidoPP(p.id);
+        return `<div style="display:flex;align-items:center;gap:10px;padding:8px 14px;border-bottom:1px solid #f2f4f8;font-size:13px;flex-wrap:wrap;">
+          <span style="min-width:190px;font-weight:600;">${_nombreServicioPP(p.servicioCodigo)}</span>
+          ${_chipPP(BUCKETS_PP[b].label.toUpperCase(), BUCKETS_PP[b].tono)}
+          <span style="font-size:11.5px;color:#8a8f9c;">${_detalleFilaPP(p)}</span>
+          <span style="margin-left:auto;text-align:right;font-variant-numeric:tabular-nums;">${monto ? _money(monto) : '—'}</span>
+        </div>`;
+      }).join('')}
+    </div>`;
+  }).join('') : '<div style="color:#8a8f9c;padding:20px;text-align:center;">Sin resultados con ese filtro.</div>';
+
+  // El empujón manual solo tiene sentido con la ventana abierta.
+  const sinIniciar = counts.sin_iniciar || 0;
+  const btn = $('pp-det-recordar');
+  if (btn) {
+    btn.style.display = (periodo.estado === 'abierto' && sinIniciar) ? '' : 'none';
+    btn.textContent = sinIniciar
+      ? `🔔 Recordar a los que faltan (${Object.keys(grupos).filter(s => grupos[s].some(p => bucketPedidoPP(p) === 'sin_iniciar')).length} supervisor/es)`
+      : '🔔 Recordar a los que faltan';
+  }
+}
+
+// "Avisa, no bloquea": manda la campanita a cada supervisor con pedidos SIN
+// INICIAR del período. Usa el mismo tipo de notificación que el recordatorio
+// automático de 24 hs (chequearCierrePeriodosPP) para que el supervisor la
+// vea en la misma bandeja.
+export async function recordarFaltantesPeriodoPP() {
+  const periodo = getPeriodoPP(_detallePeriodoId);
+  if (!periodo) return;
+  const porSup = {};
+  pedidosDelPeriodoPP(periodo).forEach(p => {
+    if (bucketPedidoPP(p) !== 'sin_iniciar') return;
+    const s = p.supervisor || '';
+    if (!s) return;
+    porSup[s] = (porSup[s] || 0) + 1;
+  });
+  const sups = Object.keys(porSup);
+  if (!sups.length) { toast('⚠️ No hay supervisores con pedidos sin iniciar en este período'); return; }
+  const cierre = periodo.cierreProgramado
+    ? new Date(periodo.cierreProgramado).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit' })
+    : 'sin fecha programada';
+  for (const s of sups) {
+    await crearNotificacion({
+      tipo: 'pp_recordatorio_cierre',
+      entidadTipo: 'pedido_productos',
+      entidadIdLocal: _idTrunc(periodo.id),
+      destinatarioNombre: s,
+      mensaje: `🔔 El período de pedido de productos ${periodo.mes} cierra el ${cierre} y tenés ${porSup[s]} servicio(s) sin pedido cargado todavía.`,
+    });
+  }
+  renderDetallePeriodoPP();
+  toast(`🔔 Campanita enviada a ${sups.length} supervisor(es): ${sups.map(s => `${s.split(' ')[0]} (${porSup[s]})`).join(' · ')}`, 6000);
+}
+
+function ensureModalDetallePeriodoPP() {
+  if ($('modal-pp-detalle-periodo')) return;
+  const m = document.createElement('div');
+  m.className = 'modal-overlay'; m.id = 'modal-pp-detalle-periodo';
+  m.innerHTML = `
+    <div class="modal" style="max-width:900px;">
+      <div class="modal-header"><h3 id="pp-det-titulo">Estado de los pedidos</h3><button class="btn-close" onclick="cerrarDetallePeriodoPP()">×</button></div>
+      <div class="modal-body">
+        <p id="pp-det-sub" style="font-size:12px;color:var(--texto-suave);margin-bottom:10px;"></p>
+        <div id="pp-det-chips" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;"></div>
+        <input type="text" id="pp-det-q" placeholder="🔍 Buscar servicio o supervisor..." oninput="buscarDetallePeriodoPP(this.value)"
+          style="width:100%;padding:7px 12px;border:1px solid #c9d0dd;border-radius:20px;font-size:13px;margin-bottom:12px;box-sizing:border-box;">
+        <div id="pp-det-grupos"></div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" id="pp-det-recordar" onclick="recordarFaltantesPeriodoPP()">🔔 Recordar a los que faltan</button>
+        <button class="btn btn-primary" onclick="cerrarDetallePeriodoPP()">Cerrar</button>
+      </div>
+    </div>`;
+  document.body.appendChild(m);
 }
 
 export function abrirPeriodoPP() {
@@ -1094,6 +1358,12 @@ export function repetirPedidoMesAnteriorPP() {
   const cants = cantidadesMesAnteriorPP(pedido);
   if (!cants.size) { toast('⚠️ No hay pedido del mes anterior para este servicio'); return; }
   for (const [productoIdTrunc, cant] of cants) _guardarItemPedidoInterno(pedido.id, productoIdTrunc, cant);
+  // v168: "repetir el mes anterior" deja el borrador cargado — cuenta como
+  // guardado para que el modal de estado muestre la fecha.
+  if (pedido.estado === 'borrador') {
+    pedido.borradorGuardadoEn = new Date().toISOString();
+    supaSync('ppPedidos', pedido);
+  }
   renderModalCargaPP();
   toast(`✓ Se cargaron las cantidades de ${cants.size} producto(s) del mes anterior — revisá y ajustá`);
 }
@@ -1112,9 +1382,17 @@ export function aceptarPropuestaAuditorPP() {
 // "quedó guardado, seguís después" y cierra la ventana. No cambia el
 // estado: sigue en BORRADOR (o OBSERVADO) para retomar cuando quieras.
 export function guardarBorradorPedidoPP() {
+  // v168: el modal de estado por período muestra "guardado <fecha>" para los
+  // borradores. Se escribe acá, que es el "Guardar como borrador" explícito
+  // del supervisor (los ítems ya se persisten uno por uno).
+  const pedido = getPedidoPP(_ppPedidoModalId);
+  if (pedido && pedido.estado === 'borrador') {
+    pedido.borradorGuardadoEn = new Date().toISOString();
+    supaSync('ppPedidos', pedido);
+  }
   cerrarModal('modal-pp-carga');
   renderMisPedidosPP();
-  toast('✓ Guardado como borrador — podés retomarlo cuando quieras');
+  toast('V Guardado como borrador - podés retomarlo cuando quieras');
 }
 // "✔ Confirmar pedido" (punto 4, reemplaza "Cerrar"): congela costos,
 // aplica la regla de ruteo (punto 9 — PAGAN + dentro de presupuesto + sin

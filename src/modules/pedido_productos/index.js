@@ -6,6 +6,7 @@ export {
   productosNuncaUsadosPP, abrirNuncaUsadosPP, _toggleUnoNuncaUsadoPP, _toggleTodosNuncaUsadosPP, anularSeleccionadosNuncaUsadosPP,
   abrirNuevoPrecioPP, guardarNuevoPrecioPP, corregirPrecioPP,
   renderPeriodosPP, abrirPeriodoPP, cerrarPeriodoPP, filtrarDesglosePeriodoPP, chequearCierrePeriodosPP,
+  abrirDetallePeriodoPP, cerrarDetallePeriodoPP, filtrarDetallePeriodoPP, buscarDetallePeriodoPP, recordarFaltantesPeriodoPP,
   renderMisPedidosPP, abrirCargaPedidoPP, filtrarCargaPedidoPP, guardarItemPedidoPP,
   repetirPedidoMesAnteriorPP, guardarBorradorPedidoPP, confirmarPedidoPP, aceptarPropuestaAuditorPP,
   renderAuditoriaPP, abrirAuditoriaPedidoPP, ajustarCantidadAuditoriaPP, aprobarPedidoPP, confirmarDevolverConPropuestaPP,
@@ -65,6 +66,7 @@ import {
   productosNuncaUsadosPP, abrirNuncaUsadosPP, _toggleUnoNuncaUsadoPP, _toggleTodosNuncaUsadosPP, anularSeleccionadosNuncaUsadosPP,
   abrirNuevoPrecioPP, guardarNuevoPrecioPP, corregirPrecioPP,
   renderPeriodosPP, abrirPeriodoPP, cerrarPeriodoPP, filtrarDesglosePeriodoPP,
+  abrirDetallePeriodoPP, cerrarDetallePeriodoPP, filtrarDetallePeriodoPP, buscarDetallePeriodoPP, recordarFaltantesPeriodoPP,
   renderMisPedidosPP, abrirCargaPedidoPP, filtrarCargaPedidoPP, guardarItemPedidoPP,
   repetirPedidoMesAnteriorPP, guardarBorradorPedidoPP, confirmarPedidoPP, aceptarPropuestaAuditorPP,
   renderAuditoriaPP, abrirAuditoriaPedidoPP, ajustarCantidadAuditoriaPP, aprobarPedidoPP, confirmarDevolverConPropuestaPP,
@@ -121,6 +123,11 @@ window.renderPeriodosPP = renderPeriodosPP;
 window.abrirPeriodoPP = abrirPeriodoPP;
 window.cerrarPeriodoPP = cerrarPeriodoPP;
 window.filtrarDesglosePeriodoPP = filtrarDesglosePeriodoPP;
+window.abrirDetallePeriodoPP = abrirDetallePeriodoPP;
+window.cerrarDetallePeriodoPP = cerrarDetallePeriodoPP;
+window.filtrarDetallePeriodoPP = filtrarDetallePeriodoPP;
+window.buscarDetallePeriodoPP = buscarDetallePeriodoPP;
+window.recordarFaltantesPeriodoPP = recordarFaltantesPeriodoPP;
 window.renderMisPedidosPP = renderMisPedidosPP;
 window.abrirCargaPedidoPP = abrirCargaPedidoPP;
 window.filtrarCargaPedidoPP = filtrarCargaPedidoPP;
