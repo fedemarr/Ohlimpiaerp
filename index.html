@@ -184,6 +184,7 @@
     <div style="margin:12px 20px;display:flex;gap:8px;flex-wrap:wrap;">
       <input type="text" id="cand-buscar" placeholder="🔍 Buscar nombre o DNI..." oninput="filtrarCandidatos()" style="padding:7px 12px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;width:220px;">
       <select id="cand-filtro-zona" onchange="filtrarCandidatos()" style="padding:7px 10px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;"><option value="">Todas las zonas</option></select>
+      <select id="cand-filtro-localidad" onchange="filtrarCandidatos()" title="Localidad" style="padding:7px 10px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;max-width:190px;"><option value="">Todas las localidades</option></select>
       <select id="cand-filtro-estado" onchange="filtrarCandidatos()" style="padding:7px 10px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;"><option value="">Todos los estados</option><option>Precandidato</option><option>Sin citar</option><option>Citado</option><option>Entrevistado</option><option>Aprobado</option><option value="Psicotecnico">Psicotécnico</option><option>Rechazado</option><option>Baja</option><option>Caducado</option><option>MT Social</option><option>MT con deuda</option></select>
       <select id="cand-filtro-pedido" onchange="filtrarCandidatos()" style="padding:7px 10px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;"><option value="">Pedido: todos</option><option value="con">Con pedido vinculado</option><option value="sin">Sin pedido vinculado</option></select>
       <select id="cand-filtro-genero" onchange="filtrarCandidatos()" title="Género" style="padding:7px 10px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;width:88px;"><option value="">Género</option><option value="Masculino">M</option><option value="Femenino">F</option></select>
@@ -195,6 +196,7 @@
           <th style="padding:10px 8px;text-align:left;">DNI</th>
           <th style="padding:10px 8px;text-align:left;">Teléfono</th>
           <th style="padding:10px 8px;text-align:left;">Zona</th>
+          <th style="padding:10px 8px;text-align:left;">Localidad</th>
           <th style="padding:10px 8px;text-align:left;">Medio</th>
           <th style="padding:10px 8px;text-align:center;">Fecha citación</th>
           <th style="padding:10px 8px;text-align:center;">Hora</th>

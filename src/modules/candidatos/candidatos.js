@@ -242,6 +242,43 @@ function bindTbodyEvents(tbody) {
   };
 }
 
+// Centinela del filtro de localidad para "no cargada". No puede ser una
+// localidad real porque va en el value de un <option>; el prefijo improbable
+// evita colisionar con una localidad que se llame así.
+const SIN_LOCALIDAD = '__sin_localidad__';
+
+// Poblar el filtro de localidad — mismo patrón que el de zona (opciones
+// dinámicas desde los propios candidatos, no desde el catálogo de
+// Configuración: el catálogo tiene 27 localidades de CABA/conurbano y los
+// candidatos traen nombres que no están todos ahí — "Campana", "Retiro",
+// "José C. Paz"; al revés de la zona, ofrecer una localidad sin candidatos
+// solo agrega ruido).
+//
+// A diferencia del de zona, se repuebla en CADA render, porque el juego de
+// valores cambia según el tab: en "Precandidatos" o "Histórico" las
+// localidades son otras, y un select que ofrece algo que no está en la lista
+// actual filtra a cero sin avisar.
+//
+// Va antes de leer el value (ver renderCandidatos) por eso: si la localidad
+// elegida ya no existe, se limpia a "" y el render de ese mismo paso ya
+// muestra la lista completa, en vez de quedar filtrada por un valor que el
+// select ya no tiene.
+function poblarFiltroLocalidad(todos) {
+  const lSel = $('cand-filtro-localidad');
+  if (!lSel) return;
+  const previo = lSel.value;
+  const sinLocalidad = todos.filter(c => !String(c.localidad || '').trim()).length;
+  const opciones = [...new Set(todos.map(c => String(c.localidad || '').trim()).filter(Boolean))].sort();
+  let html = '<option value="">Todas las localidades</option>';
+  if (opciones.length) html += opciones.map(l => `<option value="${l}">${l}</option>`).join('');
+  // Los candidatos sin localidad cargada (7 de 135 hoy) no se pueden
+  // encontrar por otro camino: no aparecen en ninguna opción. Esta es la
+  // lista de trabajo para completarlos.
+  if (sinLocalidad) html += `<option value="${SIN_LOCALIDAD}">⚠ Sin localidad cargada (${sinLocalidad})</option>`;
+  lSel.innerHTML = html;
+  if (previo && [...lSel.options].some(o => o.value === previo)) lSel.value = previo;
+}
+
 export function renderCandidatos(lista) {
   const todos = DB.candidatos || [];
 
@@ -258,6 +295,13 @@ export function renderCandidatos(lista) {
     || ''
   ).toLowerCase();
   const fZona = (($('cand-filtro-zona') || {}).value || '');
+  // El select de localidad se repuebla ANTES de leer su valor (ver
+  // poblarFiltroLocalidad más abajo): si la localidad seleccionada ya no
+  // existe entre los candidatos, el repoblado la limpia a "" y recién
+  // después se lee — si se leyera antes, la tabla quedaría filtrada por un
+  // valor que el select ya no tiene, es decir vacía sin explicación.
+  poblarFiltroLocalidad(todos);
+  const fLocalidad = (($('cand-filtro-localidad') || {}).value || '');
   const fEstado = (($('cand-filtro-estado') || {}).value || '');
   const fPedido = (($('cand-filtro-pedido') || {}).value || '');
   const fGenero = (($('cand-filtro-genero') || {}).value || '');
@@ -274,6 +318,18 @@ export function renderCandidatos(lista) {
     return nombreCompleto.includes(buscar) || (c.dni || '').includes(buscar);
   });
   if (fZona) lista2 = lista2.filter(c => c.zona === fZona);
+  // Filtro Localidad (ticket "agregar el dato de LOCALIDAD y filtrar por
+  // localidad", Jimena): la columna YA existía en candidatos y se cargaba
+  // en el alta/importador, pero no se mostraba en el listado ni se podía
+  // filtrar — solo la zona (4 valores), que es demasiado gruesa. La
+  // localidad convive con el filtro de zona, no lo reemplaza: se puede
+  // filtrar por los dos a la vez.
+  // El valor centinela SIN_LOCALIDAD no es una localidad: sirve para
+  // encontrar los candidatos que hay que completar (hay 7 de 135 hoy sin
+  // localidad cargada), que si no sería imposible de detectar desde la UI.
+  if (fLocalidad) lista2 = lista2.filter(c => fLocalidad === SIN_LOCALIDAD
+    ? !String(c.localidad || '').trim()
+    : String(c.localidad || '').trim() === fLocalidad);
   if (fEstado) lista2 = lista2.filter(c => c.estado === fEstado);
   if (fPedido === 'con') lista2 = lista2.filter(c => !!c.pedidoVinculadoIdLocal);
   if (fPedido === 'sin') lista2 = lista2.filter(c => !c.pedidoVinculadoIdLocal);
@@ -307,7 +363,9 @@ export function renderCandidatos(lista) {
   const tbody = $('tbody-candidatos');
   if (!tbody) return;
   if (!lista2.length) {
-    tbody.innerHTML = '<tr><td colspan="10" style="text-align:center;padding:30px;color:#94a3b8;">Sin candidatos</td></tr>';
+    // 11 columnas base; 12 en el tab histórico, que agrega "Motivo rechazo".
+    const colspan = _candTab === 'historico' ? 12 : 11;
+    tbody.innerHTML = '<tr><td colspan="' + colspan + '" style="text-align:center;padding:30px;color:#94a3b8;">Sin candidatos</td></tr>';
     return;
   }
   tbody.innerHTML = lista2.map(c => renderFilaCand(c)).join('');
@@ -400,6 +458,13 @@ function renderFilaCand(c) {
     + '<td style="padding:8px;font-size:12px;color:#64748b;">' + (c.dni || '—') + '</td>'
     + '<td style="padding:8px;font-size:12px;">' + (c.tel || '—') + '</td>'
     + '<td style="padding:8px;font-size:12px;">' + (c.zona || '—') + '</td>'
+    // Localidad (ticket Jimena): se muestra con el partido entre paréntesis
+    // porque en el conurbano la localidad sola no ubica (hay "San José de
+    // Flores" y "Florencia" en partidos distintos) — mismo criterio que ya
+    // usa la vista previa del importador. Sin partido, solo la localidad.
+    + '<td style="padding:8px;font-size:12px;">' + (String(c.localidad || '').trim()
+        ? c.localidad + (c.partido ? ' <span style="color:#94a3b8;font-size:11px;">(' + c.partido + ')</span>' : '')
+        : '<span style="color:#cbd5e1;">—</span>') + '</td>'
     + '<td style="padding:8px;font-size:12px;">' + (c.medio || '—') + '</td>'
     + '<td style="padding:8px;text-align:center;font-size:12px;">' + (fechaDisplay ? '<strong>' + fechaDisplay + '</strong>' : '<span style="color:#cbd5e1;">—</span>') + '</td>'
     + '<td style="padding:8px;text-align:center;font-size:12px;">' + (c.horaCita || '—') + '</td>'
