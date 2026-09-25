@@ -15,6 +15,13 @@ import { listarAdjuntos, obtenerUrlFirmada, subirAdjunto, borrarAdjunto, MAX_SIZ
 // v098 — Tab "Acceso y perfiles" de Configuración (matriz + usuarios + alta).
 import { renderTabAccesosPerfiles } from '@modules/accesos/index.js';
 import { DIAS_SEMANA, checklistDiasHtml } from '@shared/horarioDias.js';
+// GRILLAS_PROYECTADO_GESTION_HORAS_para_Fede.md: "el proyectado del
+// servicio vive en Gestión de horas — la grilla lo CONSUME, no lo
+// fabrica ni lo destruye". horasServicioMes/tieneRegla/vigenciaParaMes
+// leen la regla vigente (puestos × horario × días × Fer) para un
+// servicio y mes puntual; horasPuestosDia da la jornada de UN día.
+import { horasServicioMes, tieneRegla, vigenciaParaMes } from './modules/gestion_horas/gestion_horas.js';
+import { horasPuestosDia } from './modules/gestion_horas/calculo.js';
 
 // ========== ESTADO ==========
 
@@ -12715,22 +12722,18 @@ function renderGrillasLiq(){
   objetivosVisibles.forEach(obj=>{
     const cli=DB.clientes.find(c=>c.id===obj.clienteId);
     let grilla=DB.grillasLiq.find(g=>g.periodo===mes&&g.objCodigo===obj.codigo);
-    const params=DB.parametrosServicio[obj.codigo]||{diasSemana:[1,2,3,4,5],horasPorDia:8};
+    // GRILLAS_PROYECTADO_GESTION_HORAS_para_Fede.md Bug 1: "la jornada es
+    // el dato (de la regla vigente en Gestión de horas), el total del mes
+    // es la cuenta" — antes se dividía obj.efts (horas/mes fijas del alta)
+    // entre los días hábiles, inventando una jornada (176÷20=8.8) que
+    // nunca coincidía con la matriz de Gestión de horas. Ahora se lee la
+    // vigencia real y se pinta la jornada de cada día tal cual la regla
+    // dice (respetando Fer) — el total sale de sumar, nunca de dividir.
+    const vigenciaObj=grilla?null:vigenciaParaMes(obj.codigo,mes);
 
     // Calcular totales de la fila resumen
     let totalHsObj=0,totalFactObj=0,totalPagarObj=0;
     const horasPorDia={};
-    // Sin grilla (servicio aún no expandido/creado este mes): estimar horas
-    // esperadas del día repartiendo o.efts (que ya es la cantidad de horas
-    // TOTAL contratada por mes, no una cantidad de personas — ver comentario
-    // en calcularFacturacionMensualObjetivo) entre los días hábiles del mes,
-    // en vez de multiplicarlo de nuevo por horasPorDia (eso duplicaba la
-    // magnitud: 2.204,1hs/mes × 8 = 17.632,8 en vez de repartir esas 2.204,1
-    // horas a lo largo del mes). Si no hay o.efts cargado, no se inventa nada.
-    const diasHabilesObj=grilla?0:(dias.filter(dia=>{
-      const dow=new Date(dia.iso+'T12:00:00').getDay();
-      return params.diasSemana.includes(dow)&&(params.trabajaFeriados||!dia.esFeriado)&&(params.trabajaFinde||!dia.esFinde);
-    }).length||1);
     dias.forEach(dia=>{
       let sumDia=0;
       if(grilla){
@@ -12744,16 +12747,18 @@ function renderGrillasLiq(){
           sumDia+=horasCobradasDia(asoc,dia.iso);
           if(!isNaN(h)&&esHoraFacturableReal(asoc,dia.iso)) totalFactObj+=h;
         });
-      } else {
-        // Sin grilla: mostrar horas esperadas según parámetros
-        const dow=new Date(dia.iso+'T12:00:00').getDay();
-        const ok=params.diasSemana.includes(dow)&&(params.trabajaFeriados||!dia.esFeriado)&&(params.trabajaFinde||!dia.esFinde);
-        sumDia=ok?(obj.efts||0)/diasHabilesObj:0;
+      } else if(vigenciaObj){
+        // Sin grilla: el proyectado del pactado (Gestión de horas), día
+        // por día — nunca un total fijo repartido a la fuerza.
+        sumDia=horasPuestosDia(vigenciaObj.puestos,dia.iso);
       }
+      // Sin grilla y sin ninguna regla en Gestión de horas: no se inventa
+      // nada (sumDia queda en 0 — mismo criterio "—" que ya usa la matriz).
       horasPorDia[dia.iso]=sumDia;
       totalHsObj+=sumDia;
       totalesDia[dia.iso]=(totalesDia[dia.iso]||0)+sumDia;
     });
+    const sinDatoObj=!grilla&&!vigenciaObj;
     if(grilla){
       let tFact=0,tPagar=0;
       (grilla.asociados||[]).forEach(asoc=>{
@@ -12830,7 +12835,7 @@ function renderGrillasLiq(){
         const bg='';
         return`<td class="liq-celda-dia" style="border:1px solid #6b7280;${bg}color:${h>0?'white':'rgba(255,255,255,.35)'};">${h||''}</td>`;
       }).join('')}
-      <td style="padding:6px 8px;border:1px solid #6b7280;text-align:right;font-weight:700;color:white;">${fmtDecimal(totalHsObj)}hs</td>
+      <td style="padding:6px 8px;border:1px solid #6b7280;text-align:right;font-weight:700;color:white;">${sinDatoObj?'—':fmtDecimal(totalHsObj)+'hs'}</td>
       <td style="padding:6px 8px;border:1px solid #6b7280;"></td>
       <td style="padding:6px 8px;border:1px solid #6b7280;text-align:right;font-size:11px;color:rgba(255,255,255,.8);">${totalFactObj}hs</td>
       <td style="padding:6px 8px;border:1px solid #6b7280;text-align:right;font-weight:700;color:#86efac;">$${(totalPagarObj||0).toLocaleString('es-AR')}</td>
@@ -12895,17 +12900,38 @@ function renderDetalleGrillaServicio(objCodigo){
   const esMesActualParaHoy=mes===_mesActualISO();
   const hoyEfectivoGrillas=mes<_mesActualISO()?(mes+'-31'):(mes>_mesActualISO()?(mes+'-00'):hoyISO);
 
+  const [yy,mm]=mes.split('-');
+  const nombreMesLargo=new Date(parseInt(yy),parseInt(mm)-1,1).toLocaleDateString('es-AR',{month:'long',year:'numeric'}).toUpperCase();
+  $('mgs-nombre').textContent=`${obj.nombre} · ${obj.codigo}`;
+  $('mgs-sub').textContent=`Supervisor: ${obj.supervisorAsignado||'—'} · ${nombreMesLargo}`;
+
+  // GRILLAS_PROYECTADO_GESTION_HORAS_para_Fede.md — chip "Pactado del
+  // mes": leído de Gestión de horas para ESE mes puntual, siempre
+  // visible en el header sin salir del modal.
+  const pactadoMes=tieneRegla(obj.codigo)?horasServicioMes(obj.codigo,mes):null;
+  const chipPactadoEl=$('mgs-pactado');
+
   let grilla=DB.grillasLiq.find(g=>g.periodo===mes&&g.objCodigo===obj.codigo);
   if(!grilla){
     crearGrillaDesdeObj(obj.codigo, mes);
     grilla=DB.grillasLiq.find(g=>g.periodo===mes&&g.objCodigo===obj.codigo);
   }
-  if(!grilla) return;
 
-  const [yy,mm]=mes.split('-');
-  const nombreMesLargo=new Date(parseInt(yy),parseInt(mm)-1,1).toLocaleDateString('es-AR',{month:'long',year:'numeric'}).toUpperCase();
-  $('mgs-nombre').textContent=`${obj.nombre} · ${obj.codigo}`;
-  $('mgs-sub').textContent=`Supervisor: ${obj.supervisorAsignado||'—'} · ${nombreMesLargo}`;
+  if(!grilla){
+    // Bug 2: sin operarios asignados todavía — no se crea nada, se
+    // muestra el proyectado del pactado en modo lectura.
+    if($('mgs-pend')) $('mgs-pend').innerHTML='';
+    if(chipPactadoEl) chipPactadoEl.innerHTML=pactadoMes!=null
+      ?`<span class="liq-badge-tipo" style="background:#dbeafe;color:#1e40af;">⏱ Pactado del mes: ${fmtDecimal(pactadoMes)} hs</span>`
+      :`<span class="liq-badge-tipo" style="background:#f3f4f6;color:#6b7280;">⚠ Sin regla en Gestión de horas</span>`;
+    theadEl.innerHTML='';
+    tbodyEl.innerHTML=`<tr><td style="padding:40px;text-align:center;color:var(--texto-muy-suave);">
+      <div style="font-size:32px;margin-bottom:8px;">👥</div>
+      <p>Este servicio todavía no tiene operarios asignados este mes.</p>
+      <p style="font-size:12px;">En cuanto se le asigne un/a operario/a activo/a (Alta, Reubicación), la grilla se arma sola con sus datos.</p>
+    </td></tr>`;
+    return;
+  }
 
   const statsVer=statsVerificacionServicio(grilla,hoyEfectivoGrillas,dias);
   $('mgs-pend').innerHTML=statsVer.verificables===0?'':(statsVer.pendientes===0
@@ -12932,6 +12958,7 @@ function renderDetalleGrillaServicio(objCodigo){
 
   let html='';
   const asocs=grilla.asociados||[];
+  let totalCargadoServicio=0;
   asocs.forEach((asoc,ai)=>{
     let hsAsoc=0,hsFactAsoc=0,totalPagarAsoc=0,hsAJAsoc=0;
     dias.forEach(dia=>{
@@ -12942,6 +12969,7 @@ function renderDetalleGrillaServicio(objCodigo){
       if(!isNaN(h)&&esHoraFacturableReal(asoc,dia.iso))hsFactAsoc+=h;
       if(hPago){const vhDia=valorHoraEfectivoAsoc(asoc,obj.nombre,dia.iso);totalPagarAsoc+=hPago*(vhDia?.valorHora||0);}
     });
+    totalCargadoServicio+=hsAsoc;
     totalPagarAsoc=Math.round(totalPagarAsoc);
     const legajoAsoc=(DB.legajos||[]).find(l=>String(l.nro)===String(asoc.nro));
     const vhInfo=valorHoraEfectivoAsoc(asoc,obj.nombre,fechaRepresentativaMes(mes));
@@ -13095,6 +13123,20 @@ function renderDetalleGrillaServicio(objCodigo){
   </tr>`;
 
   tbodyEl.innerHTML=html;
+
+  // Chip "Pactado del mes" (con carga: comparación en vivo pactado vs
+  // cargado — verde si coinciden, naranja si difieren).
+  if(chipPactadoEl){
+    if(pactadoMes==null){
+      chipPactadoEl.innerHTML=`<span class="liq-badge-tipo" style="background:#f3f4f6;color:#6b7280;">⚠ Sin regla en Gestión de horas</span>`;
+    } else if(!asocs.length){
+      chipPactadoEl.innerHTML=`<span class="liq-badge-tipo" style="background:#dbeafe;color:#1e40af;">⏱ Pactado del mes: ${fmtDecimal(pactadoMes)} hs</span>`;
+    } else {
+      const coincide=Math.round(pactadoMes)===Math.round(totalCargadoServicio);
+      const colores=coincide?'background:#dff2e1;color:#1e7b34;':'background:#fdebd7;color:#b25b00;';
+      chipPactadoEl.innerHTML=`<span class="liq-badge-tipo" style="${colores}">⏱ Pactado ${fmtDecimal(pactadoMes)} · Cargadas ${fmtDecimal(totalCargadoServicio)}</span>`;
+    }
+  }
 }
 
 function buscarAsocGrilla(grillaId, query){
@@ -13153,9 +13195,14 @@ function seleccionarAsocSearch(el){
 }
 
 async function crearGrillaDesdeObj(objCodigo, mes){
-  const obj=DB.objetivos.find(o=>o.codigo===objCodigo); if(!obj) return;
+  const obj=DB.objetivos.find(o=>o.codigo===objCodigo); if(!obj) return null;
   const calc=calcularHorasMes(mes,objCodigo);
   const legajosAsignados=(DB.legajos||[]).filter(l=>l.servicio===obj.codigo&&l.estado==='Activo');
+  // GRILLAS_PROYECTADO_GESTION_HORAS_para_Fede.md Bug 2: "mirar no debe
+  // crear". Sin ningún operario asignado todavía no hay nada real que
+  // guardar — no se materializa la grilla (la fila del servicio sigue
+  // mostrando el proyectado del pactado hasta que se le asigne alguien).
+  if(!legajosAsignados.length) return null;
   legajosAsignados.forEach(l=>validarValorHoraAsociado(l.nro, objCodigo));
   const asocAsignados=legajosAsignados.map(l=>({
     id:l.nro, nro:l.nro, nombre:l.nombre, categoria:l.funcion||'Operario/a limpieza',

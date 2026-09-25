@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { DB } from '@shared/state.js';
 import {
-  horasEntreHHMM, trabajaEseDia, horasPuestoMes, horasPuestosMes,
+  horasEntreHHMM, trabajaEseDia, horasPuestoMes, horasPuestosMes, horasPuestosDia,
   composicionMes, mesAnterior, mesSiguiente, rangoMeses, mesDeFechaArg,
 } from './calculo.js';
 
@@ -60,6 +60,27 @@ describe('horasPuestoMes — caso real del documento', () => {
   });
   it('cantidad multiplica', () => {
     expect(horasPuestoMes({ ...puestoLaV, cantidad: 3 }, '2026-09')).toBe(528);
+  });
+});
+
+describe('horasPuestosDia — GRILLAS_PROYECTADO_GESTION_HORAS_para_Fede.md Bug 1', () => {
+  const puestoLaV = { cantidad: 1, horarioDesde: '08:00', horarioHasta: '16:00', dias: { lunes: true, martes: true, miercoles: true, jueves: true, viernes: true } };
+  it('un día que trabaja da la jornada real (no un total dividido)', () => {
+    expect(horasPuestosDia([puestoLaV], '2026-10-05')).toBe(8); // lunes 5/10/2026
+  });
+  it('un día que no trabaja da 0', () => {
+    expect(horasPuestosDia([puestoLaV], '2026-10-03')).toBe(0); // sábado
+  });
+  it('el feriado del 12/10 da 0 para el puesto sin Fer (la jornada real, no una fracción)', () => {
+    expect(horasPuestosDia([puestoLaV], '2026-10-12')).toBe(0); // lunes feriado
+  });
+  it('con Fer, el feriado se trabaja igual', () => {
+    const conFer = { ...puestoLaV, dias: { ...puestoLaV.dias, feriados: true } };
+    expect(horasPuestosDia([conFer], '2026-10-12')).toBe(8);
+  });
+  it('suma varios puestos del mismo día', () => {
+    const finde = { cantidad: 1, horarioDesde: '06:00', horarioHasta: '18:00', dias: { sabados: true } };
+    expect(horasPuestosDia([puestoLaV, finde], '2026-10-03')).toBe(12); // solo el de finde trabaja el sábado
   });
 });
 

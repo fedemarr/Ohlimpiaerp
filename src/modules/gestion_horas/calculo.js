@@ -54,6 +54,20 @@ export function horasPuestosMes(puestos, mesISO) {
   return (puestos || []).reduce((acc, p) => acc + horasPuestoMes(p, mesISO), 0);
 }
 
+// GRILLAS_PROYECTADO_GESTION_HORAS_para_Fede.md (Bug 1): la jornada de
+// UN día puntual, para pintar la grilla día por día con la regla real
+// (nunca dividiendo un total fijo entre los días del mes).
+export function horasPuestosDia(puestos, fechaISO) {
+  const dow = new Date(fechaISO + 'T12:00:00').getDay();
+  const fer = esFeriado(fechaISO);
+  return (puestos || []).reduce((acc, p) => {
+    if (!trabajaEseDia(p, dow, fer)) return acc;
+    const horasDia = horasEntreHHMM(p.horarioDesde, p.horarioHasta);
+    const cantidad = Math.max(0, parseInt(p.cantidad, 10) || 0);
+    return acc + horasDia * cantidad;
+  }, 0);
+}
+
 // Composición del mes para el encabezado ("21 háb · 1 fer"): hábiles =
 // lunes a viernes sin feriado; fer = feriados del mes (caigan donde caigan).
 export function composicionMes(mesISO) {
