@@ -1,5 +1,5 @@
 import { DB } from '@shared/state.js';
-import { $ } from '@shared/helpers.js';
+import { $, personasComparables } from '@shared/helpers.js';
 import { toast, cerrarModal, abrirModalInput } from '@shared/ui.js';
 import { supaSync, getLastSupaSyncError } from '@shared/supabase.js';
 import { subirAdjunto, listarAdjuntos, obtenerUrlFirmada, borrarAdjunto } from '@shared/adjuntos.js';
@@ -96,6 +96,21 @@ export function renderDocum(listaFiltrada) {
               return '<button onclick="revertirDocum(\'' + d.id + '\')" style="font-size:11px;padding:3px 10px;background:#f59e0b;color:white;border:none;border-radius:4px;cursor:pointer;">↩️ Revertir</button>';
             }
             const legajoDelAsoc = (DB.legajos || []).find(l => d.dni && l.dni === d.dni);
+            // FIX (ticket "Ver legajo abre a otra persona" — Riveros
+            // Bastias Carolina / Luque Balmaceda Marcelo): el match es
+            // SOLO por DNI — un DNI mal cargado en este registro puede
+            // coincidir por casualidad con el DNI real de otra persona ya
+            // en Legajos, y antes esto abría ese legajo ajeno sin ningún
+            // aviso. Antes de ofrecer el link, se corrobora que el nombre
+            // del legajo encontrado comparta al menos una palabra con el
+            // nombre de este registro — si no comparten ninguna, es una
+            // señal fuerte de que el DNI cargado acá está mal, no que sea
+            // la misma persona.
+            if (legajoDelAsoc && !personasComparables(legajoDelAsoc.nombre, d.nombre)) {
+              const dniEsc = String(d.dni || '').replace(/"/g, '&quot;');
+              const nombreLegEsc = String(legajoDelAsoc.nombre || '').replace(/"/g, '&quot;');
+              return `<span style="font-size:11px;color:#b91c1c;" title="El DNI cargado acá (${dniEsc}) coincide con el legajo de otra persona (${nombreLegEsc}, N°${legajoDelAsoc.nro}) — revisá el DNI de ${d.nombre}, seguramente está mal tipeado">⚠ DNI no coincide — revisar dato</span>`;
+            }
             return legajoDelAsoc
               ? '<button onclick="verLegajo(' + legajoDelAsoc.nro + ')" style="font-size:11px;padding:3px 10px;background:#e0f2fe;color:#075985;border:1px solid #7dd3fc;border-radius:4px;cursor:pointer;" title="Ya completó el ingreso y es socia activa — el ingreso ya no se edita acá">✓ Ya es socia — ver Legajo</button>'
               : '<span style="font-size:11px;color:#94a3b8;" title="Ya completó el ingreso — es socia">✓ Ya es socia</span>';

@@ -34,6 +34,23 @@ export const nombreClaveComparacion = s =>
     .sort()
     .join(' ');
 
+// Ticket "Ver legajo abre a otra persona" (24-25/09): un DNI mal cargado
+// en un registro (docum de ingreso, candidato, etc.) puede matchear por
+// casualidad con el DNI real de OTRA persona ya en Legajos — el look-up
+// "por DNI" entonces resuelve silenciosamente al legajo equivocado. Esto
+// no es señal de "misma persona" (nombreClaveComparacion exige igualdad
+// exacta de palabras); es la señal opuesta y más laxa: ¿comparten AL
+// MENOS una palabra significativa (3+ letras, para no matchear por "de"/
+// "del")? Si NO comparten ninguna, es across altísima probabilidad que
+// sean personas distintas — el DNI está mal, no el nombre.
+export const personasComparables = (a, b) => {
+  const palabras = s => new Set(nombreClaveComparacion(s).split(' ').filter(w => w.length >= 3));
+  const pa = palabras(a), pb = palabras(b);
+  if (!pa.size || !pb.size) return true; // sin nombre para comparar, no bloqueamos
+  for (const w of pa) if (pb.has(w)) return true;
+  return false;
+};
+
 // Formatea un número con coma decimal (es-AR), redondeado a una cantidad
 // fija de decimales — SOLO para mostrar. No usar sobre el valor que se
 // persiste o se usa para liquidar: mantiene la precisión completa en el
