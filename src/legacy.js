@@ -14,6 +14,8 @@ import { chequearEjecucionesPendientes } from './modules/reasignaciones/index.js
 import { listarAdjuntos, obtenerUrlFirmada, subirAdjunto, borrarAdjunto, MAX_SIZE as ADJ_MAX_SIZE } from '@shared/adjuntos.js';
 // v098 — Tab "Acceso y perfiles" de Configuración (matriz + usuarios + alta).
 import { renderTabAccesosPerfiles } from '@modules/accesos/index.js';
+// v167 (tickets #193/#194) — persistencia de los catálogos de Configuración.
+import { agregarValor, eliminarValor } from '@modules/config_listas/index.js';
 import { DIAS_SEMANA, checklistDiasHtml } from '@shared/horarioDias.js';
 // GRILLAS_PROYECTADO_GESTION_HORAS_para_Fede.md: "el proyectado del
 // servicio vive en Gestión de horas — la grilla lo CONSUME, no lo
@@ -152,16 +154,55 @@ function renderConfigLista(key,elId){
   // categorias); con una key camelCase (ej. disponibilidadesHorarias) y
   // un elId con guiones (lista-disponibilidades-horarias) quedaban
   // desincronizados y el botón no volvía a pintar la lista.
-  el.innerHTML=DB[key].map((item,i)=>`<div class="config-item"><span style="font-size:13px;">${item}</span><button class="btn btn-danger btn-xs" onclick="eliminarItem('${key}',${i},'${elId}')">Eliminar</button></div>`).join('');
+  // v167: se pasa el VALOR (con comillas) en vez del índice del array —
+  // el valor es la clave natural de la fila en `config_listas`, y evita
+  // el desajuste clásico de "índice que se corrió" entre lo que se pintó
+  // y lo que se termina borrando.
+  el.innerHTML=(DB[key]||[]).map((item)=>`<div class="config-item"><span style="font-size:13px;">${item}</span><button class="btn btn-danger btn-xs" data-eliminar-lista="${elId}" data-valor="${escapeAttrCfg(item)}">Eliminar</button></div>`).join('');
+  // Un solo listener delegado por lista en vez de un onclick por fila:
+  // los valores son texto libre tipeado por el usuario y pueden contener
+  // comillas, que romperían el atributo onclick generado como string.
+  el.onclick=(ev)=>{
+    const btn=ev.target.closest('button[data-eliminar-lista]');
+    if(!btn)return;
+    eliminarItem(btn.dataset.valor,btn.dataset.eliminarLista);
+  };
 }
-function agregarItem(key,inputId,listId){
+function escapeAttrCfg(s){return String(s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+async function agregarItem(key,inputId,listId){
   const val=$(inputId).value.trim();if(!val)return;
-  if(DB[key]&&DB[key].includes(val)){toast('Ya existe');return;}
-  if(!DB[key])DB[key]=[];
-  DB[key].push(val);$(inputId).value='';
+  const r=await agregarValor(key,val);
+  if(!r.ok){
+    if(r.motivo==='duplicado')toast('Ya existe');
+    else toast('⚠️ No se pudo guardar — recargá la página e intentá de nuevo');
+    return;
+  }
+  $(inputId).value='';
   renderConfigLista(key,listId);poblarSelects();toast(`✓ "${val}" agregado`);
 }
-function eliminarItem(key,idx,listId){DB[key].splice(idx,1);renderConfigLista(key,listId);poblarSelects();}
+async function eliminarItem(valor,listId){
+  const r=await eliminarValorPorLista(listId,valor);
+  if(!r.ok)return;
+  renderConfigLista(r.clave,listId);poblarSelects();
+}
+// El onclick del HTML viejo llamaba eliminarItem(key,idx,elId); el idx ya no
+// se usa, pero el key sí hace falta para el re-render. Se resuelve por el
+// elId con un mapa, y si no está, se busca la lista que hoy contiene el
+// valor (una lista no puede contener el mismo texto que otra en la misma
+// pantalla, salvo los "Otro" repetidos — en ese caso gana la primera).
+const CFG_LISTA_POR_ELID = {
+  'lista-medios':'medios','lista-zonas':'zonas','lista-disponibilidades-horarias':'disponibilidadesHorarias',
+  'lista-categorias':'categorias','lista-movimientos':'movimientos','lista-estados-legales':'estadosLegales',
+  'lista-tipos-legales':'tiposLegales','lista-abogados':'abogados','lista-tipos-medicos':'tiposMedicos',
+  'lista-estados-medicos':'estadosMedicos','lista-medicos-cfg':'medicosCfg','lista-funciones-usuario':'funcionesUsuario',
+};
+async function eliminarValorPorLista(listId,valor){
+  const clave=CFG_LISTA_POR_ELID[listId] || Object.keys(DB).find(k=>Array.isArray(DB[k])&&DB[k].includes(valor));
+  if(!clave){toast('⚠️ No se encontró la lista');return {ok:false};}
+  const r=await eliminarValor(clave,valor);
+  if(!r.ok&&r.motivo!=='no_existe')toast('⚠️ No se pudo eliminar — recargá la página e intentá de nuevo');
+  return {ok:r.ok||r.motivo==='no_existe',clave};
+}
 
 // ========== USUARIOS Y ACCESOS ==========
 // v098: la tabla "perfiles × módulos", renderTablaUsuarios,
@@ -177,43 +218,60 @@ function eliminarItem(key,idx,listId){DB[key].splice(idx,1);renderConfigLista(ke
 // Render grilla de funciones en configuración
 function renderGrillaFuncionesUsuario(){
   const el=$('grilla-funciones-usuario');if(!el)return;
-  el.innerHTML=DB.funcionesUsuario.map((f,i)=>{
+  // v167: listener delegado con la función en el DOM, mismo criterio que
+  // el resto de las listas de Configuración (el onclick interpolaba el
+  // índice del array, que se desalinea si la lista se reordenó).
+  el.innerHTML=DB.funcionesUsuario.map((f)=>{
     const usrsConFuncion=DB.usuarios.filter(u=>u.funcion===f);
     return `<div style="background:var(--fondo);border:1px solid var(--borde);border-radius:var(--radio);padding:10px 12px;">
       <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px;">
         <span style="font-weight:600;font-size:13px;">⭐ ${f}</span>
-        <button style="background:none;border:none;cursor:pointer;color:var(--rojo);font-size:12px;padding:0;" onclick="eliminarFuncionUsuario(${i})">✕</button>
+        <button style="background:none;border:none;cursor:pointer;color:var(--rojo);font-size:12px;padding:0;" data-eliminar-funcion="${f}">✕</button>
       </div>
       ${usrsConFuncion.length>0
         ?`<div style="font-size:11px;color:var(--texto-suave);">${usrsConFuncion.map(u=>`<span class="chip" style="font-size:10px;">${u.nombre.split(' ')[0]}</span>`).join(' ')}</div>`
         :`<div style="font-size:11px;color:var(--texto-muy-suave);">Sin usuarios asignados</div>`}
     </div>`;
   }).join('')||'<p class="text-muted" style="grid-column:span 4;">Sin funciones definidas aún.</p>';
+  el.onclick=(ev)=>{
+    const btn=ev.target.closest('button[data-eliminar-funcion]');
+    if(btn)eliminarFuncionUsuario(btn.dataset.eliminarFuncion);
+  };
 }
 
 function agregarFuncionUsuario(){
   const val=($('nueva-funcion-usuario')||{value:''}).value.trim();
   if(!val){toast('Ingresá el nombre de la función');return;}
-  if(DB.funcionesUsuario.includes(val)){toast('Ya existe esa función');return;}
-  DB.funcionesUsuario.push(val);
-  $('nueva-funcion-usuario').value='';
-  renderGrillaFuncionesUsuario();
-  poblarSelectFuncionUsuario();
-  toast(`✓ Función "${val}" agregada`);
+  agregarValor('funcionesUsuario',val).then(r=>{
+    if(!r.ok){
+      toast(r.motivo==='duplicado'?'Ya existe esa función':'⚠️ No se pudo guardar — recargá la página e intentá de nuevo');
+      return;
+    }
+    $('nueva-funcion-usuario').value='';
+    renderGrillaFuncionesUsuario();
+    poblarSelectFuncionUsuario();
+    toast(`✓ Función "${val}" agregada`);
+  });
 }
 
-function eliminarFuncionUsuario(idx){
-  const f=DB.funcionesUsuario[idx];
+// v167: el botón ✕ pasa el VALOR y delega en el mapa de arriba, en vez de
+// hacer splice por índice del array en memoria (que se desalineaba con
+// `config_listas` y además no persistía nada).
+function eliminarFuncionUsuario(idxOrValor){
+  const f=typeof idxOrValor==='number'?DB.funcionesUsuario[idxOrValor]:idxOrValor;
+  if(!f)return;
   // Verificar si hay usuarios con esa función
   const enUso=DB.usuarios.filter(u=>u.funcion===f);
   if(enUso.length>0){
     toast(`⚠️ No se puede eliminar — ${enUso.length} usuario${enUso.length>1?'s':''} tiene${enUso.length>1?'n':''} asignada esa función`);
     return;
   }
-  DB.funcionesUsuario.splice(idx,1);
-  renderGrillaFuncionesUsuario();
-  poblarSelectFuncionUsuario();
-  toast(`Función eliminada`);
+  eliminarValor('funcionesUsuario',f).then(r=>{
+    renderGrillaFuncionesUsuario();
+    poblarSelectFuncionUsuario();
+    if(r.ok)toast('Función eliminada');
+    else toast('⚠️ No se pudo eliminar — recargá la página e intentá de nuevo');
+  });
 }
 
 function poblarSelectFuncionUsuario(){
@@ -1105,7 +1163,9 @@ function obtenerServiciosActivos(){
 window.obtenerServiciosActivos=obtenerServiciosActivos;
 
 DB.clientes = [];
-DB.tiposServicio = ['Limpieza','Mantenimiento','Final de obra','Evento','Obra','Otro'];
+// v167: default de respaldo — la fuente de verdad es la tabla
+// `config_listas` (ver modules/config_listas/catalogo.js).
+DB.tiposServicio=DB.tiposServicio||['Limpieza','Mantenimiento','Final de obra','Evento','Obra','Otro'];
 DB.objetivos = [];
 if(!DB.objetivoSupervisoresHistorial) DB.objetivoSupervisoresHistorial=[];
 if(!DB.objetivoEventos) DB.objetivoEventos=[];
@@ -1118,7 +1178,9 @@ if(!DB.objetivoEventos) DB.objetivoEventos=[];
 DB.propuestasPrecios = [];
 
 // Cláusulas de actualización de precio
-DB.clausulasActualizacion = ['Paritarias','Inflación mensual (IPC)','Índice trimestral','Índice semestral','Libre negociación','Sin cláusula'];
+// v167: default de respaldo — la fuente de verdad es la tabla
+// `config_listas` (ver modules/config_listas/catalogo.js).
+DB.clausulasActualizacion=DB.clausulasActualizacion||['Paritarias','Inflación mensual (IPC)','Índice trimestral','Índice semestral','Libre negociación','Sin cláusula'];
 
 // CRM
 // DELTA_crm_flujo_leads_v1 (30/07/2026): "Contrato" y "Cerrado ganado" eran
@@ -1126,15 +1188,17 @@ DB.clausulasActualizacion = ['Paritarias','Inflación mensual (IPC)','Índice tr
 // "Contrato (ganado)" como una sola cosa, así que se fusionan: "Contrato"
 // pasa a ser la etapa terminal ganada (dispara fecha de cierre + auto-create
 // de cliente en borrador). "Cerrado perdido" sigue siendo la otra terminal.
-DB.etapasCRM = ['Prospecto','Primer contacto','Propuesta enviada','Negociación','Contrato','Cerrado perdido'];
-DB.colorEtapasCRM = {'Prospecto':'#94a3b8','Primer contacto':'var(--azul)','Propuesta enviada':'#8b5cf6','Negociación':'var(--naranja)','Contrato':'var(--verde)','Cerrado perdido':'var(--rojo)'};
+// v167: defaults de respaldo — la fuente de verdad es la tabla
+// `config_listas` (ver modules/config_listas/catalogo.js).
+DB.etapasCRM=DB.etapasCRM||['Prospecto','Primer contacto','Propuesta enviada','Negociación','Contrato','Cerrado perdido'];
+DB.colorEtapasCRM = DB.colorEtapasCRM || {'Prospecto':'#94a3b8','Primer contacto':'var(--azul)','Propuesta enviada':'#8b5cf6','Negociación':'var(--naranja)','Contrato':'var(--verde)','Cerrado perdido':'var(--rojo)'};
 // Motivos de pérdida parametrizables (punto 2 del delta) — mismo patrón que
 // el resto de las listas configurables de Comercial (agregarCfgComercial).
-DB.motivosPerdidaCRM = ['Precio','Eligió competencia','Sin personal disponible para cubrir','No respondió','Otro'];
+DB.motivosPerdidaCRM=DB.motivosPerdidaCRM||['Precio','Eligió competencia','Sin personal disponible para cubrir','No respondió','Otro'];
 DB.leads = [];
 
 // Reclamos
-DB.tiposReclamo = ['Calidad del servicio','Falta de personal','Falta de insumos','Incidente de seguridad','Comunicación','Facturación','Otro'];
+DB.tiposReclamo=DB.tiposReclamo||['Calidad del servicio','Falta de personal','Falta de insumos','Incidente de seguridad','Comunicación','Facturación','Otro'];
 DB.reclamos = [];
 DB.noConformidades = [];
 
@@ -4004,51 +4068,75 @@ function renderStatsReclamos(){
 }
 
 // ========== CONFIGURACIÓN VENTAS (ABMs) ==========
-DB.condicionesIVA=['Responsable inscripto','Monotributista','Exento','Consumidor final','No responsable'];
-DB.condicionesPago=['30 días','45 días','60 días','90 días','A 30/60 días','Contado','15 días','A 30/60/90 días'];
-DB.formasPago=['Transferencia','Cheque físico','E-cheq','Transferencia programada','Efectivo'];
-DB.modelosPrecio=['Abono mensual fijo','Por EFT','Por horas variables'];
-DB.periodosFacturacion=['Del 1 al último del mes','Del 21 al 20','Del 26 al 25','Del 16 al 15','Otro'];
-DB.rolesResponsables=['Gerente general','Gerente de operaciones','Gerente de sucursal','Jefe de seguridad','Jefe de servicios','Encargado','Contacto de cobros','Contacto de facturación','Otro'];
-DB.tiposAccionCRM=['Llamada','Reunión','Email','Visita','Propuesta','Seguimiento'];
+// v167 (tickets #193/#194): los defaults de estas listas ya NO se asignan
+// acá — viven en src/modules/config_listas/catalogo.js y, sobre todo, en
+// la tabla `config_listas`, que es la fuente de verdad. hidratarListas()
+// (main.js, después de supaInit) pisa cada DB[clave] con lo persistido y
+// solo cae al default si esa clave todavía no tiene filas.
+// El `||` evita además que un valor undefined arranque el módulo roto
+// mientras corre el import dinámico de legacy.
+DB.condicionesIVA=DB.condicionesIVA||['Responsable inscripto','Monotributista','Exento','Consumidor final','No responsable'];
+DB.condicionesPago=DB.condicionesPago||['30 días','45 días','60 días','90 días','A 30/60 días','Contado','15 días','A 30/60/90 días'];
+DB.formasPago=DB.formasPago||['Transferencia','Cheque físico','E-cheq','Transferencia programada','Efectivo'];
+DB.modelosPrecio=DB.modelosPrecio||['Abono mensual fijo','Por EFT','Por horas variables'];
+DB.periodosFacturacion=DB.periodosFacturacion||['Del 1 al último del mes','Del 21 al 20','Del 26 al 25','Del 16 al 15','Otro'];
+DB.rolesResponsables=DB.rolesResponsables||['Gerente general','Gerente de operaciones','Gerente de sucursal','Jefe de seguridad','Jefe de servicios','Encargado','Contacto de cobros','Contacto de facturación','Otro'];
+DB.tiposAccionCRM=DB.tiposAccionCRM||['Llamada','Reunión','Email','Visita','Propuesta','Seguimiento'];
 DB.tiposAccionCobro=['Llamada','Email','WhatsApp','Visita presencial','Nota de deuda','Carta documento','Negociación de plan'];
 
 function renderCfgComercialLista(dbKey,elId){
   const el=$(elId);if(!el)return;
   const items=DB[dbKey]||[];
-  el.innerHTML=items.map((item,i)=>`<div class="config-item">
+  // v167: el botón lleva la clave en un data-attribute y se resuelve con
+  // un listener delegado, en vez de un onclick por fila interpolando el
+  // índice del array. El valor a borrar se lee del <span> de la misma
+  // fila: es la clave natural en `config_listas` y no se desalinea si el
+  // array se reordenó entre que se pintó y que se hizo click.
+  el.innerHTML=items.map((item)=>`<div class="config-item">
     <span style="font-size:13px;">${item}</span>
-    <button class="btn btn-danger btn-xs" onclick="eliminarCfgComercial('${dbKey}',${i},'${elId}')">Eliminar</button>
+    <button class="btn btn-danger btn-xs" data-eliminar-cfg="${dbKey}">Eliminar</button>
   </div>`).join('')||'<p class="text-muted" style="font-size:12px;">Sin ítems cargados</p>';
+  el.onclick=(ev)=>{
+    const btn=ev.target.closest('button[data-eliminar-cfg]');
+    if(!btn)return;
+    const valor=(btn.closest('.config-item')?.querySelector('span')?.textContent||'').trim();
+    if(valor)eliminarCfgComercial(btn.dataset.eliminarCfg,valor,elId);
+  };
 }
-function agregarCfgComercial(dbKey,inputId,elId){
+async function agregarCfgComercial(dbKey,inputId,elId){
   const val=$(inputId)?.value.trim();
   if(!val){toast('Ingresá el valor');return;}
-  if(!DB[dbKey]) DB[dbKey]=[];
-  if(DB[dbKey].includes(val)){toast('Ya existe');return;}
-  DB[dbKey].push(val);
+  // v167: se escribe en `config_listas` y solo después se repinta. Antes
+  // el toast de "✓ agregado" salía siempre, aunque nada se guardara —
+  // por eso lo agregado desaparecía al refrescar.
+  const r=await agregarValor(dbKey,val);
+  if(!r.ok){toast(r.motivo==='duplicado'?'Ya existe':'⚠️ No se pudo guardar — recargá la página e intentá de nuevo');return;}
   $(inputId).value='';
   renderCfgComercialLista(dbKey,elId);
   poblarSelectsComercial();
   toast(`✓ "${val}" agregado`);
 }
-function eliminarCfgComercial(dbKey,idx,elId){
-  DB[dbKey].splice(idx,1);
+async function eliminarCfgComercial(dbKey,valor,elId){
+  const r=await eliminarValor(dbKey,valor);
+  if(!r.ok)return;
   renderCfgComercialLista(dbKey,elId);
   poblarSelectsComercial();
 }
-function agregarEtapaCRM(){
+async function agregarEtapaCRM(){
   const nombre=$('nueva-etapa-crm')?.value.trim();
   const color=$('color-etapa-crm')?.value||'#3b82f6';
   if(!nombre){toast('Ingresá el nombre de la etapa');return;}
   if(DB.etapasCRM.includes(nombre)){toast('Ya existe esa etapa');return;}
+  // v167: se persiste la etapa con su color antes de tocar el array local.
+  // Si el insert falla no se agrega en memoria — antes se agregaba igual
+  // y se perdía sola al recargar, sin ningún aviso.
+  const r=await agregarValor('etapasCRM',nombre,color);
+  if(!r.ok){toast('⚠️ No se pudo guardar — recargá la página e intentá de nuevo');return;}
   // Insertar antes de Cerrado perdido (única etapa terminal que queda al
   // final del array — "Contrato" ya es terminal-ganada pero es una etapa
   // "normal" del recorrido, no hace falta insertar antes de ella).
   const idx=DB.etapasCRM.indexOf('Cerrado perdido');
-  if(idx>=0) DB.etapasCRM.splice(idx,0,nombre);
-  else DB.etapasCRM.push(nombre);
-  DB.colorEtapasCRM[nombre]=color;
+  if(idx>=0)DB.etapasCRM.splice(idx,0,nombre);
   $('nueva-etapa-crm').value='';
   renderCfgEtapasCRM();
   poblarSelectsComercial();
@@ -4056,19 +4144,26 @@ function agregarEtapaCRM(){
 }
 function renderCfgEtapasCRM(){
   const el=$('lista-etapas-crm');if(!el)return;
-  el.innerHTML=DB.etapasCRM.map((e,i)=>`<div class="config-item">
+  // v167: listener delegado con el nombre de la etapa en el DOM (mismo
+  // criterio que renderCfgComercialLista) — el onclick con índice era
+  // frágil y no persistía.
+  el.innerHTML=DB.etapasCRM.map((e)=>`<div class="config-item">
     <div style="display:flex;align-items:center;gap:8px;">
       <div style="width:14px;height:14px;border-radius:3px;background:${DB.colorEtapasCRM[e]||'var(--azul)'};flex-shrink:0;"></div>
       <span style="font-size:13px;">${e}</span>
     </div>
-    <button class="btn btn-danger btn-xs" onclick="eliminarEtapaCRM(${i})">Eliminar</button>
+    <button class="btn btn-danger btn-xs" data-eliminar-etapa="${e}">Eliminar</button>
   </div>`).join('');
+  el.onclick=(ev)=>{
+    const btn=ev.target.closest('button[data-eliminar-etapa]');
+    if(btn)eliminarEtapaCRM(btn.dataset.eliminarEtapa);
+  };
 }
-function eliminarEtapaCRM(idx){
-  const etapa=DB.etapasCRM[idx];
+async function eliminarEtapaCRM(etapa){
+  if(!DB.etapasCRM.includes(etapa))return;
   if(DB.leads.some(l=>l.etapa===etapa)){toast(`⚠️ No se puede eliminar — hay leads en "${etapa}"`);return;}
-  delete DB.colorEtapasCRM[etapa];
-  DB.etapasCRM.splice(idx,1);
+  const r=await eliminarValor('etapasCRM',etapa);
+  if(!r.ok)return;
   renderCfgEtapasCRM();poblarSelectsComercial();renderCRM();
   toast(`Etapa "${etapa}" eliminada`);
 }

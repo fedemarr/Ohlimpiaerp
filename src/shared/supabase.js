@@ -161,6 +161,11 @@ export const _SM = {
   serviciosSupervisor: 'servicios_supervisor',
   adjuntos: 'adjuntos',
   tickets: 'tickets',
+  // v167 — Catálogos parametrizables de Configuración (zonas, medios,
+  // categorías, tiposCliente, etapasCRM, ...). Antes vivían solo en memoria:
+  // lo agregado desde Configuración se perdía al recargar la página
+  // (tickets #193 y #194). Ver src/modules/config_listas/.
+  configListas: 'config_listas',
   vacaciones: 'vacaciones',
   notificacionesSistema: 'notificaciones_sistema',
   // v098 — Matriz de accesos y perfiles (Configuración → Acceso y perfiles).

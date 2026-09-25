@@ -284,6 +284,12 @@ export const DB = {
   // Tickets del perfil DEVELOPER — se sincronizan desde `sugerencias` la
   // primera vez que ese perfil inicia sesión (ver developer.js).
   tickets: [],
+  // v167 — Filas de la tabla `config_listas`: los catálogos editables desde
+  // Configuración (zonas, medios, categorías, tiposCliente, etapasCRM, ...)
+  // que antes eran arrays hardcodeados sin persistencia. La fuente de
+  // verdad de cada lista en runtime es el array plano DB[clave]; este array
+  // guarda las filas crudas y lo hidrata src/modules/config_listas/.
+  configListas: [],
   // Módulo Vacaciones (sector administrativo) y campana de notificaciones
   // del sistema (compartida, ver shared/notificaciones.js).
   vacaciones: [],

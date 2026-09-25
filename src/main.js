@@ -22,6 +22,7 @@ import { legajosScreenConfig, filtrarLegajos, renderLegajos } from './modules/le
 import { pedidosScreenConfig, filtrarPedidos } from './modules/pedidos/index.js';
 import { sincronizarPrepedidos } from './modules/prepedidos/index.js';
 import { reasignacionesScreenConfig, sincronizarConfigReasignaciones, chequearEjecucionesPendientes } from './modules/reasignaciones/index.js';
+import { hidratarListas } from './modules/config_listas/index.js';
 import { capacitacionesScreenConfig, filtrarCapacitaciones } from './modules/capacitaciones/index.js';
 import { uniformesScreenConfig } from './modules/uniformes/index.js';
 import { retencionesScreenConfig, filtrarRetenciones } from './modules/retenciones/index.js';
@@ -384,6 +385,11 @@ registerAuthCallbacks({
   verificarAccionesVencidas() {},
   async cargarDatos() {
     await supaInit(DB, toast);
+    // v167 (tickets #193/#194): pisa los 28 catálogos editables de
+    // Configuración (zonas, medios, categorías, tiposCliente, etapasCRM, …)
+    // con lo persistido en `config_listas`. Sin esto, lo agregado desde
+    // Configuración vivía solo en memoria y se perdía al recargar.
+    hidratarListas();
     // Refresca DB.motivosReasignacion/DB.aprobadoresReas (arrays planos que
     // legacy.js sigue leyendo) desde la config real recién cargada, para
     // que no queden con el seed default hasta visitar Reasignaciones.
