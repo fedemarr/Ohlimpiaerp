@@ -4,7 +4,7 @@ export {
   renderGestionHoras, toggleDetalleHoras, abrirVigenciaHoras,
   agregarPuestoHoras, quitarPuestoHoras, previewVigenciaHoras, guardarVigenciaHoras,
   sembrarVigenciaHorasDesdeAlta, sincronizarVigenciasHoras,
-  vigenciaParaMes, horasServicioMes, puedeEditarHoras,
+  vigenciaParaMes, horasServicioMes, puedeEditarHoras, tieneRegla,
 } from './gestion_horas.js';
 
 // ========== SCREEN CONFIG ==========

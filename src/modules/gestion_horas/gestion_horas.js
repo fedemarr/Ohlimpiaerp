@@ -56,6 +56,12 @@ export function vigenciaParaMes(objCodigo, mes) {
 function ultimaVigencia(objCodigo) {
   return vigenciasDe(objCodigo).slice().sort((a, b) => (b.vigenteDesde || '').localeCompare(a.vigenteDesde || ''))[0] || null;
 }
+// GESTION_HORAS_carga_directa_para_Fede.md: un servicio operativo sin
+// NINGUNA vigencia todavía (el stock histórico de ~200 que nunca tuvo
+// Personal necesario en el alta) — se distingue de "tiene regla pero
+// este mes puntual cae antes de la primera vigencia", que también da
+// vigenciaParaMes()===null pero acá NO cuenta como "sin regla".
+export function tieneRegla(objCodigo) { return vigenciasDe(objCodigo).length > 0; }
 export function horasServicioMes(objCodigo, mes) {
   const v = vigenciaParaMes(objCodigo, mes);
   return v ? horasPuestosMes(v.puestos, mes) : 0;
@@ -132,8 +138,13 @@ export function sincronizarVigenciasHoras() {
 
 let _expandidos = new Set();
 
+// GESTION_HORAS_carga_directa_para_Fede.md §1: la matriz muestra TODOS
+// los servicios OPERATIVOS, tengan regla o no — antes solo entraban los
+// que ya tenían Personal necesario cargado en el alta (4 de ~200). El
+// resto ya no desaparece en silencio: aparece con "⚠ sin regla" (ver
+// tieneRegla()) hasta que alguien la carga con "＋ Cargar regla".
 function serviciosVisibles() {
-  return (DB.objetivos || []).filter(o => !o.anulado && o.estado !== 'Baja' && o.puestos?.length);
+  return (DB.objetivos || []).filter(o => !o.anulado && o.estado === 'Operativo');
 }
 function ventanaMeses() {
   let desde = mesActualStr();
@@ -164,7 +175,9 @@ export function renderGestionHoras() {
   });
   thead.innerHTML = h1 + '</tr>' + h2 + '</tr>';
 
-  const servicios = serviciosVisibles().filter(o => {
+  const todos = serviciosVisibles();
+  const sinReglaTotal = todos.filter(o => !tieneRegla(alcanceServicio(o))).length;
+  const servicios = todos.filter(o => {
     if (!q) return true;
     const cli = clienteDeObjetivo(o);
     return `${o.codigo} ${o.nombre} ${cli?.nombre || ''}`.toLowerCase().includes(q);
@@ -175,21 +188,36 @@ export function renderGestionHoras() {
     const objCodigo = alcanceServicio(o);
     const cli = clienteDeObjetivo(o);
     const abierto = _expandidos.has(objCodigo);
+    const sinRegla = !tieneRegla(objCodigo);
     filas += `<tr><td class="svc" style="cursor:pointer;" onclick="toggleDetalleHoras('${objCodigo}')">`
       + `<span style="margin-right:5px;color:var(--texto-suave);">${abierto ? '▼' : '▶'}</span>`
-      + `<b style="color:var(--azul);">${o.codigo}</b><div style="font-size:11px;color:var(--texto-suave);">${cli?.nombre || o.nombre || ''}</div></td>`;
+      + `<b style="color:var(--azul);">${o.codigo}</b>${sinRegla ? ' <span class="badge badge-naranja" style="font-size:9.5px;">⚠ sin regla</span>' : ''}`
+      + `<div style="font-size:11px;color:var(--texto-suave);">${cli?.nombre || o.nombre || ''}</div></td>`;
     meses.forEach(m => {
       const v = vigenciaParaMes(objCodigo, m);
-      const hs = v ? horasPuestosMes(v.puestos, m) : 0;
+      // Sin vigencia para este mes (servicio sin regla, o mes anterior a
+      // su primera vigencia): "—" — sin dato, no cero (doc §1 y §"orden
+      // sugerido" 1: nada desaparece en silencio, pero tampoco se inventa
+      // un cero que no existe).
+      if (!v) {
+        filas += `<td class="hor-hs" title="Sin regla vigente ese mes" style="text-align:right;color:var(--texto-suave);">—</td>`
+          + `<td style="text-align:right;font-size:11px;color:var(--texto-suave);">—</td>`;
+        return;
+      }
+      const hs = horasPuestosMes(v.puestos, m);
       totales[m] = (totales[m] || 0) + hs;
       const hsAnt = horasServicioMes(objCodigo, mesAnterior(m));
       const delta = hs - hsAnt;
-      const esVigNueva = !!(v && v.vigenteDesde === m && v.origen !== 'alta' && v.origen !== 'backfill');
+      // 'alta'/'backfill'/'manual' son la vigencia INICIAL del servicio
+      // (nunca un cambio de contrato) — no se marcan naranja como
+      // "vigencia nueva este mes", ni siquiera la carga manual del stock
+      // histórico (aunque se cargue "hoy", el servicio ya venía operativo).
+      const esVigNueva = !!(v.vigenteDesde === m && !['alta', 'backfill', 'manual'].includes(v.origen));
       const clase = esVigNueva ? ' hor-vg' : (m > hoy ? ' hor-fut' : '');
       const deltaHtml = delta === 0
         ? '<span style="color:#c3c9d6;">=</span>'
         : (delta > 0 ? `<span style="color:var(--verde);font-weight:600;">+${fmt(delta)}</span>` : `<span style="color:var(--rojo);font-weight:600;">${fmt(delta)}</span>`);
-      const titulo = (v ? reglaTxt(v.puestos) : 'Sin regla vigente') + (esVigNueva ? ' — ✎ vigencia nueva este mes' : '');
+      const titulo = reglaTxt(v.puestos) + (esVigNueva ? ' — ✎ vigencia nueva este mes' : '');
       filas += `<td class="hor-hs${clase}" title="${titulo.replace(/"/g, '&quot;')}" style="text-align:right;font-weight:700;font-variant-numeric:tabular-nums;white-space:nowrap;">${fmt(hs)}${esVigNueva ? ' ✎' : ''}</td>`
         + `<td style="text-align:right;font-size:11px;">${deltaHtml}</td>`;
     });
@@ -208,24 +236,31 @@ export function renderGestionHoras() {
 
   tbody.innerHTML = filas + filaTotal;
   const resumen = $('hor-resumen');
-  if (resumen) resumen.textContent = `${servicios.length} servicios · ${meses.length} meses a la vista`;
+  if (resumen) {
+    resumen.innerHTML = `${servicios.length} servicios · ${meses.length} meses a la vista`
+      + (sinReglaTotal ? ` · <span class="badge badge-naranja" style="font-size:11px;">⚠ ${sinReglaTotal} servicios sin regla</span>` : '');
+  }
 }
 
 function filaDetalleHoras(o, objCodigo, totalMeses) {
   const ult = ultimaVigencia(objCodigo);
-  const puestosHtml = (ult?.puestos || []).map(p => `<span class="chip" style="margin:0 6px 6px 0;display:inline-block;">`
-    + `<b>${p.cantidad || 1}× ${p.puesto || '—'}</b> `
-    + `<span class="badge badge-azul" style="font-size:10px;">${p.horarioDesde || '?'}–${p.horarioHasta || '?'}</span> `
-    + `<span class="badge badge-gris" style="font-size:10px;">${diasMarcadosTexto(p.dias) || '—'}</span>`
-    + `${p.dias?.feriados ? ' <span class="badge badge-acento" style="font-size:10px;">+Fer</span>' : ''}`
-    + `</span>`).join('') || '<p class="text-muted" style="font-size:12px;">Sin puestos cargados.</p>';
+  const puestosHtml = ult
+    ? (ult.puestos || []).map(p => `<span class="chip" style="margin:0 6px 6px 0;display:inline-block;">`
+      + `<b>${p.cantidad || 1}× ${p.puesto || '—'}</b> `
+      + `<span class="badge badge-azul" style="font-size:10px;">${p.horarioDesde || '?'}–${p.horarioHasta || '?'}</span> `
+      + `<span class="badge badge-gris" style="font-size:10px;">${diasMarcadosTexto(p.dias) || '—'}</span>`
+      + `${p.dias?.feriados ? ' <span class="badge badge-acento" style="font-size:10px;">+Fer</span>' : ''}`
+      + `</span>`).join('')
+    : '<p class="text-muted" style="font-size:12px;">⚠ Este servicio operativo todavía no tiene ninguna regla de horas cargada.</p>';
   const historial = vigenciasDe(objCodigo).slice().sort((a, b) => (b.vigenteDesde || '').localeCompare(a.vigenteDesde || '')).map((v, i) => `
     <div style="border-left:3px solid ${i === 0 ? 'var(--verde)' : 'var(--borde-fuerte)'};padding:5px 12px;margin-bottom:6px;font-size:12px;${i === 0 ? 'background:var(--verde-claro);' : ''}">
       <b>Desde ${v.vigenteDesde}</b> — ${reglaTxt(v.puestos)}
       <div style="color:var(--texto-suave);font-size:11px;">${v.usuario || '—'} · ${v.fecha || ''} · ${v.motivo || ''}</div>
-    </div>`).join('');
+    </div>`).join('') || '<p class="text-muted" style="font-size:12px;">Sin vigencias todavía.</p>';
   const btnEditar = puedeEditarHoras()
-    ? `<button class="btn btn-primary btn-sm" onclick="abrirVigenciaHoras('${objCodigo}')">✎ Nueva vigencia (modificar horas)</button>`
+    ? (ult
+      ? `<button class="btn btn-primary btn-sm" onclick="abrirVigenciaHoras('${objCodigo}')">✎ Nueva vigencia (modificar horas)</button>`
+      : `<button class="btn btn-primary btn-sm" onclick="abrirVigenciaHoras('${objCodigo}')">＋ Cargar regla</button>`)
     : '';
   return `<tr class="hor-det"><td colspan="${1 + totalMeses * 2}">`
     + `<div style="display:flex;gap:20px;flex-wrap:wrap;align-items:flex-start;">`
@@ -243,6 +278,13 @@ export function toggleDetalleHoras(objCodigo) {
 // ========== MODAL "NUEVA VIGENCIA" ==========
 
 let _vigObjCodigo = null;
+// GESTION_HORAS_carga_directa_para_Fede.md §2: "＋ Cargar regla" abre el
+// MISMO modal, pero creando la vigencia INICIAL de un servicio que
+// todavía no tiene ninguna — sin restricción de "solo futuro" (el
+// servicio puede llevar meses u años operativo) y con motivo/origen
+// distintos para que el historial diga "Carga inicial manual" en vez de
+// "Backfill" (ese lo pone el sistema solo; esto lo carga una persona).
+let _vigEsCargaInicial = false;
 let EDIT_PUESTOS = [];
 // Bindeado a window: los onchange/oninput inline del editor de puestos
 // (EDIT_PUESTOS[i].cantidad=..., mismo patrón que puestosObjTemp en
@@ -260,7 +302,7 @@ function ensureModalVigenciaHoras() {
       <div class="modal-body">
         <div class="form-grid form-grid-2">
           <div class="form-group"><label>Desde el período *</label><select id="hor-vig-desde" onchange="previewVigenciaHoras()"></select>
-            <span class="form-hint">Solo períodos futuros/vigentes — los ya liquidados quedan congelados.</span>
+            <span class="form-hint" id="hor-vig-hint">Solo períodos futuros/vigentes — los ya liquidados quedan congelados.</span>
           </div>
           <div class="form-group"><label>Cargado por *</label><input type="text" id="hor-vig-quien" placeholder="Nombre"></div>
         </div>
@@ -273,7 +315,7 @@ function ensureModalVigenciaHoras() {
       <div class="modal-footer">
         <span id="hor-vig-warn" style="margin-right:auto;font-size:12px;color:#b25b00;"></span>
         <button class="btn btn-secondary" onclick="cerrarModal('modal-vigencia-horas')">Cancelar</button>
-        <button class="btn btn-primary" onclick="guardarVigenciaHoras()">Guardar nueva vigencia</button>
+        <button class="btn btn-primary" id="hor-vig-btn-guardar" onclick="guardarVigenciaHoras()">Guardar nueva vigencia</button>
       </div>
     </div>`;
   document.body.appendChild(div);
@@ -283,13 +325,22 @@ export function abrirVigenciaHoras(objCodigo) {
   if (!puedeEditarHoras()) { toast('⛔ Solo Operaciones y Comercial cargan vigencias de horas'); return; }
   _vigObjCodigo = objCodigo;
   const ult = ultimaVigencia(objCodigo);
+  _vigEsCargaInicial = !ult;
   EDIT_PUESTOS.length = 0;
   EDIT_PUESTOS.push(...(ult?.puestos || []).map(p => ({ ...p, dias: { ...(p.dias || {}) } })));
   ensureModalVigenciaHoras();
   const o = (DB.objetivos || []).find(x => alcanceServicio(x) === objCodigo);
-  $('hor-vig-titulo').textContent = `✎ Nueva vigencia — ${o?.codigo || objCodigo}`;
+  $('hor-vig-titulo').textContent = _vigEsCargaInicial
+    ? `＋ Cargar regla — ${o?.codigo || objCodigo}`
+    : `✎ Nueva vigencia — ${o?.codigo || objCodigo}`;
+  if ($('hor-vig-hint')) {
+    $('hor-vig-hint').textContent = _vigEsCargaInicial
+      ? 'Carga inicial: puede ser cualquier período no liquidado, pasado o futuro.'
+      : 'Solo períodos futuros/vigentes — los ya liquidados quedan congelados.';
+  }
+  if ($('hor-vig-btn-guardar')) $('hor-vig-btn-guardar').textContent = _vigEsCargaInicial ? 'Guardar regla inicial' : 'Guardar nueva vigencia';
   poblarSelectPeriodoHoras();
-  $('hor-vig-motivo').value = '';
+  $('hor-vig-motivo').value = _vigEsCargaInicial ? 'Carga inicial manual' : '';
   $('hor-vig-quien').value = currentUser?.nombre || '';
   renderEditPuestosHoras();
   abrirModal('modal-vigencia-horas');
@@ -298,12 +349,24 @@ export function abrirVigenciaHoras(objCodigo) {
 function poblarSelectPeriodoHoras() {
   const sel = $('hor-vig-desde'); if (!sel) return;
   const opciones = [];
-  let m = mesSiguiente(mesActualStr()); // "solo futuro" (doc §4) — el mes en curso ya está en marcha
-  for (let i = 0; i < 6 && opciones.length < 6; i++) {
-    if (!periodoCongelado(m)) opciones.push(m);
-    m = mesSiguiente(m);
+  if (_vigEsCargaInicial) {
+    // Sin "solo futuro": el servicio puede llevar tiempo operativo — se
+    // ofrece un año hacia atrás y unos meses hacia adelante, arrancando
+    // seleccionado en el mes actual (lo más simple para cargar "ahora").
+    let m = mesActualStr();
+    for (let i = 0; i < 12; i++) m = mesAnterior(m);
+    for (let i = 0; i < 12 + 1 + VENTANA_ADELANTE; i++) {
+      if (!periodoCongelado(m)) opciones.push(m);
+      m = mesSiguiente(m);
+    }
+  } else {
+    let m = mesSiguiente(mesActualStr()); // "solo futuro" (doc §4) — el mes en curso ya está en marcha
+    for (let i = 0; i < 6 && opciones.length < 6; i++) {
+      if (!periodoCongelado(m)) opciones.push(m);
+      m = mesSiguiente(m);
+    }
   }
-  sel.innerHTML = opciones.map(mm => `<option value="${mm}">${mesLabel(mm).toUpperCase()}</option>`).join('');
+  sel.innerHTML = opciones.map(mm => `<option value="${mm}"${_vigEsCargaInicial && mm === mesActualStr() ? ' selected' : ''}>${mesLabel(mm).toUpperCase()}</option>`).join('');
 }
 
 export function agregarPuestoHoras() {
@@ -363,9 +426,12 @@ export async function guardarVigenciaHoras() {
   const desde = $('hor-vig-desde')?.value;
   if (!desde) { toast('⚠️ Elegí desde qué período.'); return; }
   const usuario = ($('hor-vig-quien')?.value || '').trim() || currentUser?.nombre || '';
-  await abrirNuevaVigenciaHoras(_vigObjCodigo, EDIT_PUESTOS, desde, usuario, motivo, 'operaciones');
+  const cargaInicial = _vigEsCargaInicial;
+  await abrirNuevaVigenciaHoras(_vigObjCodigo, EDIT_PUESTOS, desde, usuario, motivo, cargaInicial ? 'manual' : 'operaciones');
   cerrarModal('modal-vigencia-horas');
   _expandidos.add(_vigObjCodigo);
   renderGestionHoras();
-  toast(`✓ Nueva vigencia guardada desde ${mesLabel(desde)} — la fila se recalculó de ese mes en adelante.`);
+  toast(cargaInicial
+    ? `✓ Regla inicial cargada desde ${mesLabel(desde)} — la fila ya tiene números.`
+    : `✓ Nueva vigencia guardada desde ${mesLabel(desde)} — la fila se recalculó de ese mes en adelante.`);
 }
