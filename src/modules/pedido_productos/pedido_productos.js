@@ -299,17 +299,22 @@ export function renderPedidoProductos() {
   });
   const btnMis = $('pp-tab-btn-mispedidos'); if (btnMis) btnMis.style.display = esSupervisor ? '' : 'none';
   poblarSelectsPeriodoPP();
-  const tabInicial = (esSupervisor && !esLogistica) ? 'mispedidos' : 'catalogo';
+  // Se recuerda el tab en el que estaba el usuario: si no, cada re-render de
+  // la pantalla lo devolvía a Catálogo y cerraba el modal/tab de Períodos
+  // que acababa de abrir.
+  const tabInicial = (esSupervisor && !esLogistica) ? 'mispedidos' : (_ultimoTabPP || 'catalogo');
   tabPP(tabInicial, $('pp-tab-btn-' + tabInicial));
   // Punto 8.2/8.3 del MD: chequeo al abrir, mismo patrón que
   // chequearAlertas24hs de Uniformes (sin cron real todavía) — cierra
   // solo el período si se pasó la hora programada y manda el
   // recordatorio 24hs antes. Re-renderiza lo que esté a la vista si algo
   // cambió, para no depender de F5 (punto 6).
-  chequearCierrePeriodosPP().then(() => tabPP(tabInicial, null));
+  chequearCierrePeriodosPP().then(cambio => { if (cambio) tabPP(_ultimoTabPP || tabInicial); });
 }
 
+let _ultimoTabPP = null;
 export function tabPP(tab, btn) {
+  _ultimoTabPP = tab;
   document.querySelectorAll('#screen-pedido_productos .tab-content').forEach(t => t.classList.remove('active'));
   document.querySelectorAll('#screen-pedido_productos .tab-btn').forEach(b => b.classList.remove('active'));
   const el = $('pp-tab-' + tab); if (el) el.classList.add('active');
@@ -707,33 +712,43 @@ export function corregirPrecioPP(precioId) {
 // ========== BUCKETS DE ESTADO (FIX 25/09 — mockup "Períodos: drill-down") ==========
 //
 // FIX: antes estadoDerivadoPedidoPP devolvía 'confirmado' para TODO estado
-// distinto de 'borrador', así que la columna "X/Y Confirmados" sumaba
-// confirmado + confirmado_revision (esperando al auditor) + autorizado. El
-// "16/163" que el mockup clonaba en su tabla era justo ese número: contra la
-// base real, de los 16 advancing solo 3 están 'confirmado', 9 están
-// 'autorizado' y 4 esperan al auditor. Logística leía un verde que no era
-// tal y no tenía forma de ver el desglose.
+// distinto de 'borrador'. La columna "X/Y Confirmados" sumaba confirmado +
+// confirmado_revision (esperando al auditor) + autorizado — el "16/163" del
+// mockup. No era un número inflado: eran TRES cosas distintas mezcladas en
+// un solo verde, y Logística no podía ver el desglose.
 //
-// Ahora cada estado real cae en su propio bucket, y los buckets son
-// excluyentes entre sí (suman el total del período — se puede chequear la
-// suma de los KPI). 'sin_iniciar' NO es un estado en la base: es un borrador
-// sin ítems todavía.
+// La decisión de qué va en "Confirmados": para el negocio NO son dos cosas.
+// 'confirmado' (el supervisor lo confirmó y pasó directo a Compras) y
+// 'autorizado' (el supervisor lo confirmó, el auditor lo aprobó) terminan en
+// el mismo lugar — la bandeja de Compras. Separlos en dos KPIs obligaría a
+// sumar a mano para contestar la única pregunta que importa: ¿el pedido de
+// este mes está listo o todavía no? Los dos van en 'confirmado'.
+//
+// Los buckets quedaron 5 y son EXCLUYENTES: suman el total del período, así
+// que la suma de los KPI se puede chequear de un vistazo.
+// 'sin_iniciar' NO es un estado en la base: es un borrador sin ítems todavía.
 const BUCKETS_PP = {
-  sin_iniciar:  { label: 'Sin iniciar',  tono: 'gris',  orden: 0 },
-  borrador:     { label: 'Borrador',    tono: 'nara',  orden: 1 },
-  en_auditoria: { label: 'En auditoría', tono: 'viol', orden: 2 },
-  observado:    { label: 'Observado',   tono: 'nara',  orden: 3 },
-  confirmado:   { label: 'Confirmado',  tono: 'verde', orden: 4 },
-  autorizado:   { label: 'Autorizado',  tono: 'verde', orden: 5 },
-  en_compra:    { label: 'En compra',   tono: 'azul',  orden: 6 },
-  entregado:    { label: 'Entregado',   tono: 'verde', orden: 7 },
+  sin_iniciar:  { label: 'Sin iniciar',   tono: 'gris',  orden: 0 },
+  borrador:     { label: 'Borrador',      tono: 'nara',  orden: 1 },
+  en_auditoria: { label: 'En auditoría',  tono: 'viol',  orden: 2 },
+  observado:    { label: 'Observado',     tono: 'nara',  orden: 3 },
+  confirmado:   { label: 'Confirmado',    tono: 'verde', orden: 4 },
 };
-// 'confirmado_revision' es el estado en la base del pedido que el supervisor
-// confirmó y quedó en la bandeja del auditor (ver comentario de estados).
-const BUCKET_DE_ESTADO_PP = { borrador: 'borrador', confirmado: 'confirmado', confirmado_revision: 'en_auditoria', observado: 'observado', autorizado: 'autorizado', en_compra: 'en_compra', entregado: 'entregado' };
+// 'confirmado_revision' = el supervisor lo confirmó y quedó en la bandeja del
+// auditor. El resto de los estados no-borrador ya pasaron auditoría.
+const BUCKET_DE_ESTADO_PP = { confirmado: 'confirmado', confirmado_revision: 'en_auditoria', observado: 'observado', autorizado: 'confirmado', en_compra: 'confirmado', entregado: 'confirmado' };
 function bucketPedidoPP(pedido) {
   if (pedido.estado !== 'borrador') return BUCKET_DE_ESTADO_PP[pedido.estado] || 'confirmado';
   return itemsDePedido(pedido.id).length ? 'borrador' : 'sin_iniciar';
+}
+// El chip de la fila muestra la etiqueta del BUCKET, salvo dentro de
+// 'confirmado', donde el bucket junta confirmado/autorizado/en compra/
+// entregado y ahí sí hace falta el estado real: la fila tiene que poder
+// distinguir "lo confirmó el supervisor" de "lo aprobó el auditor".
+function _labelFilaPP(pedido) {
+  const b = bucketPedidoPP(pedido);
+  if (b !== 'confirmado') return BUCKETS_PP[b].label;
+  return (ESTADOS_PEDIDO_PP[pedido.estado] || [, pedido.estado])[1];
 }
 function contarBucketsPP(pedidos) {
   const cont = {};
@@ -754,7 +769,6 @@ export function renderPeriodosPP() {
     const cont = contarBucketsPP(pedidosDelPeriodoPP(abierto));
     const setKpi = (id, v) => { const el = $(id); if (el) el.textContent = v || 0; };
     setKpi('pp-per-k-confirmados', cont.confirmado);
-    setKpi('pp-per-k-autorizados', cont.autorizado);
     setKpi('pp-per-k-borradores', cont.borrador);
     setKpi('pp-per-k-siniciar', cont.sin_iniciar);
     setKpi('pp-per-k-auditoria', cont.en_auditoria);
@@ -768,17 +782,17 @@ export function renderPeriodosPP() {
     let filtrados = pedidosDelPeriodo;
     if (p.estado === 'abierto' && _filtroDesglosePeriodo) filtrados = pedidosDelPeriodo.filter(x => bucketPedidoPP(x) === _filtroDesglosePeriodo);
     const cont = contarBucketsPP(pedidosDelPeriodo);
-    // "enviados" = todo lo que el supervisor YA confirmó (incluye lo que
-    // espera al auditor o ya fue autorizado). Se muestra aparte para no
-    // volver a sumar "autorizado + en revisión" dentro de "Confirmados".
-    const enviados = pedidosDelPeriodo.length - (cont.sin_iniciar || 0) - (cont.borrador || 0);
     const cierreTxt = p.cierreProgramado ? new Date(p.cierreProgramado).toLocaleString('es-AR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : '—';
+    // Debajo del confirmado va lo que está trabado en auditoría: es el otro
+    // número accionable desde acá (ir a pressionar al auditor), y la razón de
+    // que el total no cierre con el verde.
+    const trabados = (cont.en_auditoria || 0) + (cont.observado || 0);
     return `<tr onclick="abrirDetallePeriodoPP('${p.id}')" style="cursor:pointer;" onmouseover="this.style.background='#f2f6ff';" onmouseout="this.style.background='';">
       <td style="padding:6px 12px;border:1px solid var(--borde);font-weight:600;">${p.mes}</td>
       <td style="padding:6px 8px;border:1px solid var(--borde);text-align:center;">${badgeEstadoPeriodoPP(p.estado)}${p.estado === 'habilitado' ? '<div style="font-size:10px;color:var(--texto-suave);">abre solo al cerrar el período actual</div>' : ''}</td>
       <td style="padding:6px 8px;border:1px solid var(--borde);text-align:center;">${cierreTxt}</td>
       <td style="padding:6px 8px;border:1px solid var(--borde);text-align:center;">${filtrados.length}${p.estado === 'abierto' && _filtroDesglosePeriodo ? ' <span style="color:var(--texto-suave);">(filtrado)</span>' : ''}</td>
-      <td style="padding:6px 8px;border:1px solid var(--borde);text-align:center;">${cont.confirmado || 0}/${pedidosDelPeriodo.length}<div style="font-size:10px;color:var(--texto-suave);">${enviados} enviados</div></td>
+      <td style="padding:6px 8px;border:1px solid var(--borde);text-align:center;">${cont.confirmado || 0}/${pedidosDelPeriodo.length}${trabados ? `<div style="font-size:10px;color:var(--texto-suave);">${trabados} trabado${trabados > 1 ? 's' : ''}</div>` : ''}</td>
       <td style="padding:6px 8px;border:1px solid var(--borde);text-align:center;">
         <button class="btn btn-xs btn-secondary" onclick="event.stopPropagation();abrirDetallePeriodoPP('${p.id}')">Ver estado</button>
         ${p.estado === 'abierto' ? ` <button class="btn btn-xs btn-secondary" onclick="event.stopPropagation();cerrarPeriodoPP('${p.id}')">Cerrar período</button>` : ''}
@@ -848,10 +862,15 @@ function _detalleFilaPP(pedido) {
     const t = _fmtFechaPP(pedido.observadoEn);
     return [motivo, t ? 'devuelto ' + t : ''].filter(Boolean).join(' · ');
   }
-  if (b === 'confirmado') return ['confirmado ' + (_fmtFechaPP(pedido.confirmadoEn) || '—'), pedido.confirmadoPor || ''].filter(Boolean).join(' · ');
-  if (b === 'autorizado') return ['autorizado ' + (_fmtFechaPP(pedido.autorizadoEn) || '—'), pedido.autorizadoPor || ''].filter(Boolean).join(' · ');
-  if (b === 'en_compra') return 'en compra ' + (_fmtFechaPP(pedido.enCompraEn) || '—');
-  if (b === 'entregado') return 'entregado ' + (_fmtFechaPP(pedido.entregadoEn) || '—');
+  // Los que pasaron auditoría se distinguen por el estado REAL (confirmado /
+  // autorizado / en compra / entregado), no por el bucket, que ahora los
+  // junta a todos en 'confirmado'.
+  switch (pedido.estado) {
+    case 'confirmado': return ['confirmado ' + (_fmtFechaPP(pedido.confirmadoEn) || '—'), pedido.confirmadoPor || ''].filter(Boolean).join(' · ');
+    case 'autorizado': return ['autorizado ' + (_fmtFechaPP(pedido.autorizadoEn) || '—'), pedido.autorizadoPor || ''].filter(Boolean).join(' · ');
+    case 'en_compra': return 'en compra ' + (_fmtFechaPP(pedido.enCompraEn) || '—');
+    case 'entregado': return 'entregado ' + (_fmtFechaPP(pedido.entregadoEn) || '—');
+  }
   return '';
 }
 
@@ -894,14 +913,11 @@ export function renderDetallePeriodoPP() {
     + (periodo.estado !== 'abierto' ? ' · período cerrado (foto final)' : '');
 
   // KPIs-filtro. Los buckets son excluyentes, así que la suma da el total.
-  const ordenChips = ['confirmado', 'autorizado', 'en_auditoria', 'observado', 'borrador', 'sin_iniciar', 'en_compra', 'entregado'];
+  const ordenChips = ['confirmado', 'en_auditoria', 'observado', 'borrador', 'sin_iniciar'];
   let chips = `<div class="pp-kc${_filtroDetallePeriodo === '' ? ' on' : ''}" onclick="filtrarDetallePeriodoPP('')"><b>${pedidos.length}</b>Todos</div>`;
   ordenChips.forEach(b => {
-    const n = counts[b] || 0;
-    // en_compra / entregado solo aparecen si hay algo (hoy no hay filas).
-    if ((b === 'en_compra' || b === 'entregado') && !n) return;
     const cfg = BUCKETS_PP[b];
-    chips += `<div class="pp-kc${_filtroDetallePeriodo === b ? ' on' : ''}" onclick="filtrarDetallePeriodoPP('${b}')"><b>${n}</b>${cfg.label}</div>`;
+    chips += `<div class="pp-kc${_filtroDetallePeriodo === b ? ' on' : ''}" title="${b === 'confirmado' ? 'Confirmados por el supervisor + autorizados por el auditor: los que ya pasaron auditoría y están en Compras.' : ''}" onclick="filtrarDetallePeriodoPP('${b}')"><b>${counts[b] || 0}</b>${cfg.label}</div>`;
   });
   $('pp-det-chips').innerHTML = chips;
 
@@ -944,7 +960,7 @@ export function renderDetallePeriodoPP() {
         const monto = totalPedidoPP(p.id);
         return `<div style="display:flex;align-items:center;gap:10px;padding:8px 14px;border-bottom:1px solid #f2f4f8;font-size:13px;flex-wrap:wrap;">
           <span style="min-width:190px;font-weight:600;">${_nombreServicioPP(p.servicioCodigo)}</span>
-          ${_chipPP(BUCKETS_PP[b].label.toUpperCase(), BUCKETS_PP[b].tono)}
+          ${_chipPP(_labelFilaPP(p).toUpperCase(), BUCKETS_PP[b].tono)}
           <span style="font-size:11.5px;color:#8a8f9c;">${_detalleFilaPP(p)}</span>
           <span style="margin-left:auto;text-align:right;font-variant-numeric:tabular-nums;">${monto ? _money(monto) : '—'}</span>
         </div>`;
@@ -952,14 +968,15 @@ export function renderDetallePeriodoPP() {
     </div>`;
   }).join('') : '<div style="color:#8a8f9c;padding:20px;text-align:center;">Sin resultados con ese filtro.</div>';
 
-  // El empujón manual solo tiene sentido con la ventana abierta.
+  // El empujón manual solo tiene sentido con la ventana abierta. El contador
+  // sale de la lista SIN filtrar: si el usuario está viendo un chip, el botón
+  // tiene que seguir diciendo a cuántos va a avisar.
   const sinIniciar = counts.sin_iniciar || 0;
   const btn = $('pp-det-recordar');
   if (btn) {
     btn.style.display = (periodo.estado === 'abierto' && sinIniciar) ? '' : 'none';
-    btn.textContent = sinIniciar
-      ? `🔔 Recordar a los que faltan (${Object.keys(grupos).filter(s => grupos[s].some(p => bucketPedidoPP(p) === 'sin_iniciar')).length} supervisor/es)`
-      : '🔔 Recordar a los que faltan';
+    const nSups = new Set(pedidos.filter(p => bucketPedidoPP(p) === 'sin_iniciar' && p.supervisor).map(p => p.supervisor)).size;
+    btn.textContent = `🔔 Recordar a los que faltan (${nSups} supervisor/es)`;
   }
 }
 
@@ -979,6 +996,11 @@ export async function recordarFaltantesPeriodoPP() {
   });
   const sups = Object.keys(porSup);
   if (!sups.length) { toast('⚠️ No hay supervisores con pedidos sin iniciar en este período'); return; }
+  // Confirmación: esto crea N notificaciones reales en la bandeja de cada
+  // supervisor, y un clic de más sería un spam a toda la operación.
+  if (!confirm(`¿Mandar el recordatorio a ${sups.length} supervisor(es)?\n\n` +
+    sups.map(s => `· ${s}: ${porSup[s]} pedido(s) sin cargar`).join('\n') +
+    `\n\nLa campana les va a aparecer en la bandeja.`)) return;
   const cierre = periodo.cierreProgramado
     ? new Date(periodo.cierreProgramado).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit' })
     : 'sin fecha programada';
@@ -1114,11 +1136,13 @@ export async function cerrarPeriodoPP(id, { automatico = false } = {}) {
 // 24 hs antes a los supervisores con pedidos sin iniciar o en borrador.
 export async function chequearCierrePeriodosPP() {
   const ahora = new Date();
+  let cambio = false;
   for (const periodo of (DB.ppPeriodos || [])) {
     if (periodo.anulado || periodo.estado !== 'abierto' || !periodo.cierreProgramado) continue;
     const cierre = new Date(periodo.cierreProgramado);
     if (ahora >= cierre) {
       await cerrarPeriodoPP(periodo.id, { automatico: true });
+      cambio = true;
       continue;
     }
     const horasRestantes = (cierre - ahora) / 3_600_000;
@@ -1134,8 +1158,10 @@ export async function chequearCierrePeriodosPP() {
       }
       periodo.recordatorioEnviado = true;
       await supaSync('ppPeriodos', periodo);
+      cambio = true;
     }
   }
+  return cambio;
 }
 
 // ========== MIS PEDIDOS (Supervisor) ==========
@@ -1334,7 +1360,19 @@ function renderModalCargaPP() {
 export function guardarItemPedidoPP(pedidoId, productoId, valor) {
   const pedido = getPedidoPP(pedidoId); if (!pedido || !['borrador', 'observado'].includes(pedido.estado)) { toast('⚠️ Este pedido ya no se puede editar'); return; }
   _guardarItemPedidoInterno(pedidoId, productoId, parseFloat(valor) || 0);
+  _sellarBorradorPP(pedido);
   renderModalCargaPP();
+}
+// Sella cuándo se guardó por última vez un borrador: es el "guardado <fecha>"
+// del modal de Períodos. Va en columna propia (v168) y NO en updated_at,
+// porque pp_pedidos no tiene trigger de updated_at y _toCamel() descarta
+// created_at/updated_at de todas las tablas, así que nunca llegaría a la UI.
+// Solo en el camino de 1 ítem: el bulk de "repetir mes anterior" sella una vez
+// al final, no por ítem.
+function _sellarBorradorPP(pedido) {
+  if (!pedido || pedido.estado !== 'borrador') return;
+  pedido.borradorGuardadoEn = new Date().toISOString();
+  supaSync('pedidos', pedido);
 }
 // Escritura sin re-render — la usa guardarItemPedidoPP (1 ítem, 1 render)
 // y repetirPedidoMesAnteriorPP (N ítems, 1 solo render al final).

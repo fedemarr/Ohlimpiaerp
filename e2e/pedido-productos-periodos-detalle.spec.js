@@ -82,19 +82,21 @@ test('Períodos — modal de estado por período: KPIs-filtro, grupos por superv
   await sembrar(page);
   await irAPeriodos(page);
 
-  // --- El tab queda como estaba: ahora con 6 KPIs y la fila clickeable ---
-  await expect(page.locator('#pp-per-k-confirmados')).toHaveText('1');
-  await expect(page.locator('#pp-per-k-autorizados')).toHaveText('1');
+  // --- El tab queda como estaba: ahora con 5 KPIs y la fila clickeable ---
+  // FIX: "Confirmados" = lo que ya pasó auditoría y está en Compras, o sea
+  // confirmado POR EL SUPERVISOR (1) + autorizado POR EL AUDITOR (1) = 2. Antes
+  // estadoDerivadoPedidoPP metía también en el verde lo que esperaba al
+  // auditor; ahora 'En auditoría' va por separado y los KPI suman el total.
+  await expect(page.locator('#pp-per-k-confirmados')).toHaveText('2');
   await expect(page.locator('#pp-per-k-borradores')).toHaveText('1');
   await expect(page.locator('#pp-per-k-siniciar')).toHaveText('3');
   await expect(page.locator('#pp-per-k-auditoria')).toHaveText('1');
   await expect(page.locator('#pp-per-k-observados')).toHaveText('0');
-  // FIX: "Confirmados" ya no suma lo que espera al auditor ni lo autorizado.
-  // Debajo va "enviados" = todo lo que el supervisor confirmó (3: 1 confirmado,
-  // 1 en auditoría, 1 autorizado) para no perder ese dato.
+  // Los buckets son excluyentes: 2+1+3+1+0 = 7 del período.
   const filaAbierto = page.locator('#tbody-pp-periodos tr', { hasText: MES });
-  await expect(filaAbierto).toContainText('1/7');
-  await expect(filaAbierto).toContainText('3 enviados');
+  await expect(filaAbierto).toContainText('2/7');
+  // Debajo del verde, lo accionable desde este tab: lo trabado en auditoría.
+  await expect(filaAbierto).toContainText('1 trabado');
   await expect(filaAbierto).toContainText('Ver estado');
 
   // El card "Observados" ahora también filtra (antes no tenía onclick).
@@ -114,13 +116,13 @@ test('Períodos — modal de estado por período: KPIs-filtro, grupos por superv
   // --- KPIs del modal: excluyentes, suman el total ---
   const chip = (label) => modal.locator('.pp-kc', { hasText: label });
   await expect(chip('Todos')).toContainText('7');
-  await expect(chip('Confirmado')).toContainText('1');
-  await expect(chip('Autorizado')).toContainText('1');
+  await expect(chip('Confirmado')).toContainText('2');
   await expect(chip('En auditoría')).toContainText('1');
   await expect(chip('Borrador')).toContainText('1');
   await expect(chip('Sin iniciar')).toContainText('3');
-  // en_compra / entregado no se inventan chips si no hay filas.
-  await expect(modal.locator('.pp-kc', { hasText: 'En compra' })).toHaveCount(0);
+  // 'Autorizado' no es un bucket propio: va adentro de Confirmado, así que
+  // el chip existe (para filtrar lo trabado) pero no infla el verde.
+  await expect(chip('Observado')).toContainText('0');
 
   // --- Agrupado por supervisor, el que más debe arriba ---
   const grupos = modal.locator('#pp-det-grupos > div');
@@ -142,6 +144,17 @@ test('Períodos — modal de estado por período: KPIs-filtro, grupos por superv
   // El monto sale de los ítems (10 × $1.000).
   await expect(grupos.nth(1)).toContainText('$ 10.000,00');
 
+  // El chip de la fila dice el estado REAL dentro de 'Confirmados': el pedido
+  // que el auditor autorizó cuenta para el KPI verde, pero en la fila se lee
+  // AUTORIZADO, con su fecha y el nombre de quien aprobó. (Dentro del bucket
+  // el desempate es por nombre de servicio, así que va E2E.4 y después E2E.5.)
+  const filasDos = grupos.nth(2).locator('div').filter({ hasText: /Servicio E2E/ });
+  await expect(filasDos).toHaveCount(2);
+  await expect(filasDos.nth(0)).toContainText('CONFIRMADO');
+  await expect(filasDos.nth(1)).toContainText('AUTORIZADO');
+  await expect(filasDos.nth(1)).toContainText('autorizado 11/3');
+  await expect(filasDos.nth(1)).toContainText('Auditor E2E');
+
   // --- Los KPIs filtran ---
   const filasTodas = modal.locator('#pp-det-grupos > div > div').filter({ hasText: /Servicio E2E/ });
   await chip('Sin iniciar').click();
@@ -155,7 +168,7 @@ test('Períodos — modal de estado por período: KPIs-filtro, grupos por superv
   await chip('Confirmado').click();
   await expect(grupos).toHaveCount(1);
   await expect(grupos.nth(0)).toContainText('Sup Dos');
-  await expect(filasTodas).toHaveCount(1);
+  await expect(filasTodas).toHaveCount(2);   // el confirmado + el autorizado
   await expect(modal.locator('#pp-det-grupos')).not.toContainText('Sin iniciar');
   await chip('Confirmado').click();
 
@@ -170,6 +183,19 @@ test('Períodos — modal de estado por período: KPIs-filtro, grupos por superv
 
   // --- "Recordar a los que faltan": campanita a cada supervisor con sin iniciar ---
   await expect(page.locator('#pp-det-recordar')).toBeVisible();
+  await expect(page.locator('#pp-det-recordar')).toContainText('2 supervisor/es');
+  // Manda notificaciones reales a la bandeja de toda la operación, así que
+  // pide confirmación. Se registra el handler ANTES del click: con un
+  // waitForEvent aparte, el click queda esperando al diálogo y deadlock.
+  let mensajeDialogo = null;
+  page.once('dialog', d => { mensajeDialogo = d.message(); d.dismiss(); });
+  await page.locator('#pp-det-recordar').click();
+  expect(mensajeDialogo).toContain('2 supervisor(es)');
+  expect(mensajeDialogo).toContain('Sup Tres: 2 pedido(s) sin cargar');
+  // Dismiss = no se manda nada.
+  await expect.poll(async () => page.evaluate(async () => (await import('/src/shared/state.js')).DB.notificacionesSistema.length), { timeout: 5000 }).toBe(0);
+  // Ahora sí, aceptado.
+  page.once('dialog', d => d.accept());
   await page.locator('#pp-det-recordar').click();
   // crearNotificacion() hace un supaSync (ida a Supabase) por destinatario,
   // así que se espera por condición en vez de por un timeout fijo.
@@ -199,4 +225,34 @@ test('Períodos — modal de estado por período: KPIs-filtro, grupos por superv
   await expect(grupos.nth(1)).toContainText('Sup Dos');
   // Período cerrado → no tiene sentido el empujón, no se muestra el botón.
   await expect(page.locator('#pp-det-recordar')).toBeHidden();
+});
+
+// Regression de un bug que el E2E de arriba destapó de paso:
+// renderPedidoProductos() terminaba con
+//   chequearCierrePeriodosPP().then(() => tabPP('catalogo'))
+// SIEMPRE, aunque no hubiera nada que cerrar. Cada re-render de la pantalla
+// (y navTo la dispara) devolvía al usuario a Catálogo y le cerraba el tab de
+// Períodos que tenía abierto.
+test('Períodos — el tab sobrevive a un re-render de la pantalla', async ({ page }) => {
+  await loginComoAdmin(page);
+  await sembrar(page);
+  await page.waitForTimeout(500);
+  await page.evaluate(() => window.navTo('pedido_productos'));
+  await page.waitForTimeout(700);
+
+  await page.locator('#pp-tab-btn-periodos').click();
+  await expect(page.locator('#pp-tab-periodos')).toBeVisible();
+
+  // Salir a otra pantalla y volver: el tab tiene que seguir en Períodos.
+  await page.evaluate(() => window.navTo('gestion_horas'));
+  await page.waitForTimeout(300);
+  await page.evaluate(() => window.navTo('pedido_productos'));
+  await page.waitForTimeout(700);
+  await expect(page.locator('#pp-tab-periodos')).toBeVisible();
+  await expect(page.locator('#pp-tab-catalogo')).not.toBeVisible();
+
+  // Y el modal se sigue abriendo bien sobre el tab persistente.
+  await page.locator('#tbody-pp-periodos tr', { hasText: MES }).click();
+  await expect(page.locator('#modal-pp-detalle-periodo')).toBeVisible();
+  await expect(page.locator('#pp-det-sub')).toContainText('7 servicio(s)');
 });
