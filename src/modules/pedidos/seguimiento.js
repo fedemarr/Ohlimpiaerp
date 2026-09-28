@@ -239,11 +239,27 @@ function pipeHtml(pipe) {
     </div>`).join('') + `</div>`;
 }
 
+// Identificador que se muestra debajo del nombre del candidato (ticket #185,
+// Jimena: "en vez de que figure el dni abajo del candidato que se encuentra
+// realizando el proceso de ingreso necesito que figure el CUIT/CUIL").
+//
+// El campo `cuit` ya existe en la tabla candidatos y en el formulario de
+// carga, así que acá no hay nada que agregar en la base. El DNI no desaparece:
+// queda como fallback para los candidatos cargados antes de que existiera el
+// CUIT, que son unos cuantos y no se van a recargar solos.
+function identCandidato(c) {
+  const cuit = (c.cuit || '').trim();
+  if (cuit) return `CUIT/CUIL ${cuit}`;
+  const dni = (c.dni || '').trim();
+  if (dni) return `DNI ${dni}`;
+  return 'sin CUIT/DNI cargado';
+}
+
 function candidatoActivoHtml(a, avisaReemplazo) {
   const nombre = `${a.c.apellido}, ${a.c.nombre}`;
   const puedeCargarManual = a.pipe.etapaActualKey !== 'alta';
   return `<div class="seg-cand">
-    <div><b>${nombre}</b><span class="seg-x"> DNI ${a.c.dni}${avisaReemplazo ? ' · reemplaza a un candidato que no continuó (ver historial ▸)' : ''}</span></div>
+    <div><b>${nombre}</b><span class="seg-x"> ${identCandidato(a.c)}${avisaReemplazo ? ' · reemplaza a un candidato que no continuó (ver historial ▸)' : ''}</span></div>
     ${pipeHtml(a.pipe)}
     <div style="margin-top:4px;display:flex;gap:6px;flex-wrap:wrap;">
       ${puedeCargarManual ? `<button class="btn btn-xs btn-secondary" onclick="abrirCargaManualEtapaSeguimiento('${a.c.id}')">✏️ Cargar etapa manual</button>` : ''}

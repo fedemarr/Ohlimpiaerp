@@ -306,7 +306,14 @@ export function renderCandidatos(lista) {
   const fPedido = (($('cand-filtro-pedido') || {}).value || '');
   const fGenero = (($('cand-filtro-genero') || {}).value || '');
 
-  const estadosHist = ['Rechazado', 'Psicotecnico', ...ESTADOS_BAJA];
+  // Ticket #186 (Jimena: "después de que la persona avanza de la fase de
+  // candidatos a psicotécnico permitir editar los datos"): 'Psicotecnico'
+  // estaba acá adentro, y como en la tab Hist.rico el único botón es
+  // "Eliminar", al avanzar a psicotécnico la persona desaparecía de Activos
+  // y sus datos quedaban congelados sin forma de corregirlos. Es un estado
+  // VIVO (el circuito sigue en el módulo de Psicotécnico), así que va en
+  // Activos — donde el botón de editar ya existe para todos los estados.
+  const estadosHist = ['Rechazado', ...ESTADOS_BAJA];
   const esPrecandidato = c => c.estado === 'Precandidato';
   const activos = todos.filter(c => !estadosHist.includes(c.estado) && !esPrecandidato(c));
   const precandidatos = todos.filter(c => esPrecandidato(c));
