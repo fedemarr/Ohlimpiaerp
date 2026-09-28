@@ -8,6 +8,7 @@ import { DB, MENU, PERFILES, currentUser } from '@shared/state.js';
 import { $ } from '@shared/helpers.js';
 import { toast, abrirModal, cerrarModal } from '@shared/ui.js';
 import { supaSync, SUPA } from '@shared/supabase.js';
+import { guardarBorrador, guardarBorradorAhora, leerBorrador, limpiarBorrador } from '@shared/autosave.js';
 import { puedeVer } from '@modules/accesos/runtime.js';
 import {
   subirAdjuntoSugerencia,
@@ -84,6 +85,89 @@ export function ocultarBotonReporte() {
   if (_botonReporte) _botonReporte.style.setProperty('display', 'none', 'important');
 }
 
+// ========== AUTOSAVE DEL BORRADOR (ticket #178) ==========
+// Jimena: "si pueden hacer que cuando se salga, lo que estamos redactando se
+// mantenga por favor". Reusa el helper compartido de módulos/candidatos
+// (mismo patrón: guardar con debounce + banner Restaurar/Descartar), así que
+// el texto sobrevive a recargar la página, cerrar la pestaña o cambiar de
+// pantalla sin llegar a enviar.
+//
+// No se guardan los archivos adjuntos: un File no se puede serializar a
+// localStorage. Los adjuntos sí se siguen aceptando al enviar, solo hay que
+// volver a elegirlos (el banner lo aclara).
+
+const SUG_DRAFT_KEY = 'sugerencias:nueva';
+
+function recolectarBorradorSugerencia() {
+  return {
+    tipo: $('sugerencia-tipo')?.value || 'problema',
+    modulo: $('sugerencia-modulo')?.value || MODULO_GENERAL,
+    titulo: $('sugerencia-titulo')?.value || '',
+    desc: $('sugerencia-desc')?.value || '',
+  };
+}
+
+function aplicarBorradorSugerencia(data) {
+  if (!data) return;
+  const set = (id, v) => { const el = $(id); if (el && v != null) el.value = v; };
+  set('sugerencia-tipo', data.tipo);
+  set('sugerencia-modulo', data.modulo);
+  set('sugerencia-titulo', data.titulo);
+  set('sugerencia-desc', data.desc);
+}
+
+function onSugFormChange(e) {
+  const data = recolectarBorradorSugerencia();
+  if (e.type === 'change') guardarBorradorAhora(SUG_DRAFT_KEY, data);
+  else guardarBorrador(SUG_DRAFT_KEY, data, 500);
+}
+
+function registrarAutosaveSugerencia() {
+  const overlay = $('modal-sugerencia');
+  if (!overlay || overlay.dataset.autosaveSug) return;
+  overlay.dataset.autosaveSug = '1';
+  overlay.addEventListener('input', onSugFormChange);
+  overlay.addEventListener('change', onSugFormChange);
+}
+
+function ensureSugDraftBanner() {
+  let banner = $('sug-draft-banner');
+  if (banner) return banner;
+  const body = document.querySelector('#modal-sugerencia .modal-body');
+  if (!body) return null;
+  banner = document.createElement('div');
+  banner.id = 'sug-draft-banner';
+  banner.style.cssText = 'display:none;align-items:center;gap:10px;flex-wrap:wrap;background:#fffbeb;border:1px solid #fcd34d;border-radius:8px;padding:10px 12px;margin-bottom:12px;font-size:13px;color:#92400e;';
+  banner.innerHTML =
+    '<span>💾 Hay un reporte sin enviar.</span>'
+    + '<button type="button" class="btn btn-primary" id="sug-draft-restaurar" style="padding:4px 10px;font-size:12px;">Restaurar</button>'
+    + '<button type="button" class="btn btn-secondary" id="sug-draft-descartar" style="padding:4px 10px;font-size:12px;">Descartar</button>'
+    + '<span style="flex-basis:100%;font-size:11px;opacity:.85;">Los archivos adjuntos no se conservan: hay que volver a elegirlos al enviar.</span>';
+  body.prepend(banner);
+  $('sug-draft-restaurar').onclick = () => {
+    aplicarBorradorSugerencia(leerBorrador(SUG_DRAFT_KEY));
+    banner.style.display = 'none';
+    toast('✓ Borrador restaurado');
+  };
+  $('sug-draft-descartar').onclick = () => {
+    limpiarBorrador(SUG_DRAFT_KEY);
+    banner.style.display = 'none';
+    toast('🗑️ Borrador descartado');
+  };
+  return banner;
+}
+
+function ofrecerRestaurarSugerencia() {
+  const banner = ensureSugDraftBanner();
+  if (!banner) return;
+  const d = leerBorrador(SUG_DRAFT_KEY);
+  // Solo tiene sentido ofrecerlo si quedó algo escrito: un borrador con los
+  // 4 campos vacíos no es una carga que se haya perdido.
+  const hay = !!(d && ((d.titulo || '').trim() || (d.desc || '').trim()));
+  banner.style.display = hay ? 'flex' : 'none';
+  if (!hay) limpiarBorrador(SUG_DRAFT_KEY);
+}
+
 // ========== MODAL DE CARGA ==========
 export function abrirModalSugerencia() {
   let overlay = $('modal-sugerencia');
@@ -143,6 +227,10 @@ export function abrirModalSugerencia() {
   const archivos = $('sugerencia-archivos'); if (archivos) archivos.value = '';
   const lista = $('sugerencia-archivos-lista'); if (lista) lista.innerHTML = '';
   const modulo = $('sugerencia-modulo'); if (modulo) modulo.value = MODULO_GENERAL;
+  // El modal arranca limpio y, si quedó algo escrito sin enviar, el banner
+  // ofrece devolverlo (ticket #178).
+  registrarAutosaveSugerencia();
+  ofrecerRestaurarSugerencia();
   abrirModal('modal-sugerencia');
 }
 
@@ -207,6 +295,11 @@ export async function enviarSugerencia() {
   }
   DB.sugerencias.push(registro);
   if (adjuntosSubidos.length) DB.sugerenciaAdjuntos.push(...adjuntosSubidos);
+  // El reporte ya está en la base: el borrador local cumplió su función y no
+  // debe volver a ofrecerse al reabrir el modal.
+  limpiarBorrador(SUG_DRAFT_KEY);
+  const banner = $('sug-draft-banner');
+  if (banner) banner.style.display = 'none';
   cerrarModal('modal-sugerencia');
   toast(adjuntosSubidos.length
     ? '✅ Recibido con ' + adjuntosSubidos.length + ' archivo(s) adjunto(s). ¡Gracias por tu colaboración!'
