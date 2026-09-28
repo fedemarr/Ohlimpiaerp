@@ -17,6 +17,7 @@ export {
   abrirCargaManualEtapaSeguimiento, guardarCargaManualEtapaSeguimiento, exportarSeguimientoCSV,
   abrirVincularCandidato, filtrarVincularCandidatos, elegirCandidatoVincular, irACrearCandidatoDesdeVincular,
   desvincularCandidatoPorId,
+  abrirComentariosCandidato, guardarComentarioCandidato, anularComentarioCandidato,
 } from './seguimiento.js';
 
 // ========== SCREEN CONFIG ==========
@@ -46,6 +47,7 @@ import {
   abrirCargaManualEtapaSeguimiento, guardarCargaManualEtapaSeguimiento, exportarSeguimientoCSV,
   abrirVincularCandidato, filtrarVincularCandidatos, elegirCandidatoVincular, irACrearCandidatoDesdeVincular,
   pedidoEstaCubierto, desvincularCandidatoPorId,
+  abrirComentariosCandidato, guardarComentarioCandidato, anularComentarioCandidato,
 } from './seguimiento.js';
 
 window.crearPedidoDesdePrepedido = crearPedidoDesdePrepedido;
@@ -83,3 +85,6 @@ window.filtrarVincularCandidatos = filtrarVincularCandidatos;
 window.elegirCandidatoVincular = elegirCandidatoVincular;
 window.irACrearCandidatoDesdeVincular = irACrearCandidatoDesdeVincular;
 window.desvincularCandidatoPorId = desvincularCandidatoPorId;
+window.abrirComentariosCandidato = abrirComentariosCandidato;
+window.guardarComentarioCandidato = guardarComentarioCandidato;
+window.anularComentarioCandidato = anularComentarioCandidato;

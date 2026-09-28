@@ -293,6 +293,9 @@ export const DB = {
   sugerencias: [],
   // Adjuntos de sugerencias/tickets (tabla sugerencia_adjuntos, v087).
   sugerenciaAdjuntos: [],
+  // Comentarios libres por candidato (tabla candidato_comentarios, v171).
+  // Se escriben desde la vista de Seguimiento de Pedidos de personal.
+  candidatoComentarios: [],
   // Se puebla desde Supabase Auth (tabla public.usuarios) al loguear —
   // ver cargarListaUsuarios() en src/shared/auth.js. Ya no vive hardcodeado
   // acá para no mandar contraseñas en texto plano al bundle del cliente.

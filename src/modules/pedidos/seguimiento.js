@@ -343,14 +343,146 @@ export function abrirDetallePedidoSeguimiento(id) {
     <span class="badge ${ESTADO_CHIP[estadoCalculadoPedido(p, cobertura)] || 'badge-gris'}">${cobertura.cubiertas} DE ${cobertura.total} CUBIERTAS</span>`;
   const vTxt = (c) => `V${(c.pedidoVacanteIdx ?? 0) + 1} · `;
   const filas = [];
-  cobertura.altasCompletas.forEach(c => filas.push(`<tr><td>${vTxt(c)}${c.apellido}, ${c.nombre}</td><td><span class="badge badge-verde">ALTA COMPLETA</span></td><td>${getLegajoDe(c)?.ingreso || '—'} (efectivo)</td></tr>`));
-  cobertura.reasigCubren.forEach(r => filas.push(`<tr><td>${r.nombreAsociado || '—'}</td><td><span class="badge badge-viol">REASIGNACIÓN</span></td><td>${r.fechaEjecucion || '—'} (efectivo)</td></tr>`));
+  cobertura.altasCompletas.forEach(c => filas.push(`<tr><td>${vTxt(c)}${c.apellido}, ${c.nombre}</td><td><span class="badge badge-verde">ALTA COMPLETA</span></td><td>${getLegajoDe(c)?.ingreso || '—'} (efectivo)</td><td>${celdaComentarios(c)}</td></tr>`));
+  // La reasignación no es un candidato: no hay ficha de la que colgar
+  // comentarios, así que la celda queda vacía.
+  cobertura.reasigCubren.forEach(r => filas.push(`<tr><td>${r.nombreAsociado || '—'}</td><td><span class="badge badge-viol">REASIGNACIÓN</span></td><td>${r.fechaEjecucion || '—'} (efectivo)</td><td></td></tr>`));
   candidatosVinculadosA(p).filter(c => !getLegajoDe(c) && !ESTADOS_NO_CONTINUA.includes(c.estado)).forEach(c => {
     const pipe = pipelineDe(c);
-    filas.push(`<tr><td>${vTxt(c)}${c.apellido}, ${c.nombre}</td><td><span class="badge badge-naranja">${(PASO_LABEL[pipe.etapaActualKey] || '—').toUpperCase()}</span></td><td>— (en curso)</td></tr>`);
+    filas.push(`<tr><td>${vTxt(c)}${c.apellido}, ${c.nombre}</td><td><span class="badge badge-naranja">${(PASO_LABEL[pipe.etapaActualKey] || '—').toUpperCase()}</span></td><td>— (en curso)</td><td>${celdaComentarios(c)}</td></tr>`);
   });
-  $('tbody-seg-ver').innerHTML = filas.length ? filas.join('') : '<tr><td colspan="3" style="text-align:center;color:var(--texto-muy-suave);">Sin candidatos vinculados todavía.</td></tr>';
+  $('tbody-seg-ver').innerHTML = filas.length ? filas.join('') : '<tr><td colspan="4" style="text-align:center;color:var(--texto-muy-suave);">Sin candidatos vinculados todavía.</td></tr>';
   abrirModal('modal-seg-ver-pedido');
+}
+
+// ========== COMENTARIOS DE LA PERSONA (ticket #184) ==========
+// Jimena: "dentro de la visualización de una persona en seguimiento tener la
+// posibilidad de agregar un comentario (me serviría para dejar la clave fiscal
+// y acceder cada que lo necesito)". Los comentarios viven en su propia tabla
+// (candidato_comentarios, v171) y se concilian por id_local del candidato —
+// no por DNI, para no depender de que el DNI esté cargado completo.
+//
+// El borrado es lógico (anulado=true): el registro queda para auditoría pero
+// deja de listarse.
+
+function comentariosDe(candidatoId) {
+  const id = String(candidatoId);
+  return (DB.candidatoComentarios || [])
+    .filter(x => String(x.candidatoIdLocal) === id && !x.anulado)
+    .sort((a, b) => String(b.creadoEn || '').localeCompare(String(a.creadoEn || '')));
+}
+
+function celdaComentarios(c) {
+  const n = comentariosDe(c.id).length;
+  const base = 'font-size:11px;padding:3px 8px;border:none;border-radius:4px;cursor:pointer;';
+  const color = n ? 'background:#fef3c7;color:#92400e;' : 'background:#f1f5f9;color:#94a3b8;';
+  const title = n ? `Ver los ${n} comentario(s)` : 'Agregar el primer comentario';
+  return `<button onclick="abrirComentariosCandidato('${c.id}')" style="${base}${color}" title="${title}">💬 ${n}</button>`;
+}
+
+function _escaparHtml(s) {
+  return String(s == null ? '' : s)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+function _fechaCorta(iso) {
+  if (!iso) return '';
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return String(iso);
+  return d.toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: '2-digit' });
+}
+
+// Actualiza SOLO el botón del candidato dado. No se puede llamar a
+// renderSeguimientoSeleccion() para esto: esa función re-pinta la lista de
+// pedidos (#tbody-seg-sel), no la tabla del modal de detalle (#tbody-seg-ver),
+// así que el contador de la fila se quedaba clavado en el valor viejo.
+function refrescarContadorComentarios(candidatoId) {
+  const id = String(candidatoId);
+  const cont = $('tbody-seg-ver');
+  if (!cont) return;
+  cont.querySelectorAll('button[onclick*="abrirComentariosCandidato"]').forEach(btn => {
+    const m = /abrirComentariosCandidato\('([^']*)'\)/.exec(btn.getAttribute('onclick') || '');
+    if (!m || m[1] !== id) return;
+    btn.outerHTML = celdaComentarios({ id: m[1] });
+  });
+}
+
+function renderListaComentariosCandidato(candidatoId) {
+  const cont = $('seg-com-lista');
+  if (!cont) return;
+  const lista = comentariosDe(candidatoId);
+  if (!lista.length) {
+    cont.innerHTML = '<div style="font-size:12px;color:var(--texto-suave);padding:8px 0;">Todavía no hay comentarios para esta persona.</div>';
+    return;
+  }
+  cont.innerHTML = lista.map(x => `
+    <div style="border:1px solid #e2e8f0;border-radius:8px;padding:8px 10px;margin-bottom:6px;background:#fff;">
+      <div style="display:flex;align-items:center;gap:8px;font-size:11px;color:var(--texto-suave);margin-bottom:4px;">
+        <b style="color:var(--texto);">${_escaparHtml(x.autor || 'Sin autor')}</b>
+        <span>· ${_fechaCorta(x.creadoEn)}</span>
+        <span style="flex:1"></span>
+        <button onclick="anularComentarioCandidato('${x.id}')" style="font-size:11px;padding:2px 6px;border:none;border-radius:4px;cursor:pointer;background:#fee2e2;color:#991b1b;" title="Borrar este comentario">🗑️</button>
+      </div>
+      <div style="font-size:13px;white-space:pre-wrap;word-break:break-word;">${_escaparHtml(x.comentario)}</div>
+    </div>`).join('');
+}
+
+export function abrirComentariosCandidato(candidatoId) {
+  const c = (DB.candidatos || []).find(x => String(x.id) === String(candidatoId));
+  const nombre = c ? `${c.apellido || ''}${c.apellido && c.nombre ? ', ' : ''}${c.nombre || ''}`.trim() : 'Persona';
+  const tit = $('seg-com-titulo');
+  if (tit) tit.textContent = 'Comentarios — ' + (nombre || 'Persona');
+  const hid = $('seg-com-cand-id');
+  if (hid) hid.value = candidatoId;
+  const txt = $('seg-com-texto');
+  if (txt) txt.value = '';
+  renderListaComentariosCandidato(candidatoId);
+  abrirModal('modal-seg-comentarios');
+}
+
+export async function guardarComentarioCandidato() {
+  const hid = $('seg-com-cand-id');
+  const candidatoId = hid && hid.value;
+  if (!candidatoId) { toast('⚠️ No se identificó a la persona'); return; }
+  const texto = ($('seg-com-texto')?.value || '').trim();
+  if (!texto) { toast('Escribí el comentario antes de guardar'); return; }
+  const now = new Date().toISOString();
+  const registro = {
+    id: Date.now(),
+    candidatoIdLocal: String(candidatoId),
+    comentario: texto,
+    autor: currentUser?.nombre || '—',
+    creadoEn: now,
+    anulado: false,
+  };
+  const ok = await supaSync('candidatoComentarios', registro);
+  if (!ok) { toast('⚠️ No se pudo guardar el comentario — revisá tu conexión e intentá de nuevo.'); return; }
+  DB.candidatoComentarios = DB.candidatoComentarios || [];
+  DB.candidatoComentarios.push(registro);
+  const txt = $('seg-com-texto');
+  if (txt) txt.value = '';
+  renderListaComentariosCandidato(candidatoId);
+  toast('💬 Comentario guardado');
+  // Refresca el contador de la fila en la tabla de atrás sin cerrarle encima
+  // el modal de comentarios.
+  refrescarContadorComentarios(candidatoId);
+}
+
+export async function anularComentarioCandidato(comentarioId) {
+  const hid = $('seg-com-cand-id');
+  const candidatoId = hid && hid.value;
+  const rec = (DB.candidatoComentarios || []).find(x => String(x.id) === String(comentarioId));
+  if (!rec) return;
+  if (!confirm('¿Borrar este comentario? Queda registrado como anulado.')) return;
+  rec.anulado = true;
+  rec.anuladoPor = currentUser?.nombre || '—';
+  rec.anuladoFecha = new Date().toISOString();
+  const ok = await supaSync('candidatoComentarios', rec);
+  if (!ok) { rec.anulado = false; toast('⚠️ No se pudo borrar el comentario'); return; }
+  renderListaComentariosCandidato(candidatoId);
+  toast('🗑️ Comentario borrado');
+  refrescarContadorComentarios(candidatoId);
 }
 
 // ========== CARGA MANUAL DE UNA ETAPA (excepción) ==========

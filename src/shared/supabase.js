@@ -157,6 +157,7 @@ export const _SM = {
   liqSuplementoPeriodos: 'liq_suplemento_periodos',
   sugerencias: 'sugerencias',
   sugerenciaAdjuntos: 'sugerencia_adjuntos',
+  candidatoComentarios: 'candidato_comentarios',
   personalRrhh: 'personal_rrhh',
   serviciosSupervisor: 'servicios_supervisor',
   adjuntos: 'adjuntos',
@@ -279,6 +280,9 @@ export function _toSnake(obj) {
     // v125 — objetivos: mail de facturación/notas de aumento del servicio
     emailFacturacion: 'email_facturacion', emailCc: 'email_cc',
     candidatoId: 'candidato_id', psicoId: 'psico_id', fechaTurno: 'fecha_turno',
+    // v171: comentarios libres por candidato (tabla candidato_comentarios),
+    // se concilia por id_local del candidato y no por DNI.
+    candidatoIdLocal: 'candidato_id_local',
     observacion: 'observacion',
     preocupId: 'preocup_id',
     antecResultado: 'antec_resultado',
@@ -824,6 +828,7 @@ export function _toCamel(obj) {
     fecha_inicio: 'fechaInicio', fecha_fin: 'fechaFin', ultimo_contacto: 'ultimoContacto',
     email_facturacion: 'emailFacturacion', email_cc: 'emailCc',
     candidato_id: 'candidatoId', psico_id: 'psicoId', fecha_turno: 'fechaTurno',
+    candidato_id_local: 'candidatoIdLocal',
     observacion: 'observacion',
     preocup_id: 'preocupId',
     antec_resultado: 'antecResultado',
