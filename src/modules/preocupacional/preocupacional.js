@@ -120,8 +120,15 @@ function crearHTMLModalPreocup() {
           '<div id="pr-adjunto-aviso" style="display:none;margin-top:8px;padding:8px 10px;border-radius:6px;font-size:12px;background:#fffbeb;border:1px solid #fcd34d;color:#92400e;"></div>',
           '<div id="pr-adjunto-lista" style="margin-top:8px;font-size:13px;color:#64748b;">Cargando…</div>',
           '<input type="file" id="pr-adjunto-file" accept="application/pdf,image/jpeg,image/png" style="display:none;" onchange="seleccionarArchivoPreocup()">',
+          // Ticket #191 (Jimena): caja aparte para los documentos que ACOMPAÑAN
+          // al apto médico. Va con `multiple` y sube con el tipo
+          // 'preocup-adicional', que es de los que conservan historial: así
+          // se pueden cargar N (beta de embarazo, examen complementario…)
+          // sin que cada uno tape al anterior.
+          '<input type="file" id="pr-adjunto-adicional-file" accept="application/pdf,image/jpeg,image/png" multiple style="display:none;" onchange="seleccionarArchivoAdicionalPreocup()">',
           '<div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap;">',
             '<button type="button" class="btn btn-secondary" onclick="document.getElementById(\'pr-adjunto-file\').click()">⬆️ Subir archivo</button>',
+            '<button type="button" class="btn btn-secondary" onclick="document.getElementById(\'pr-adjunto-adicional-file\').click()" title="Podés cargar varios a la vez. No reemplazan el apto médico, se suman.">➕ Agregar documentos adicionales</button>',
             '<button type="button" id="btn-ia-apto" class="btn" style="background:#7c3aed;color:white;" onclick="analizarAptoMedicoIA()">🤖 Analizar con IA</button>',
           '</div>',
           '<div id="pr-ia-resultado" style="display:none;margin-top:10px;background:#f5f3ff;border:1px solid #c4b5fd;border-radius:8px;padding:10px;font-size:12px;"></div>',
@@ -498,6 +505,36 @@ export async function seleccionarArchivoPreocup() {
     if (input) input.value = '';
   }
   cargarAdjuntoPreocup(p.dni);
+}
+
+// Documentos ADICIONALES del preocupacional (ticket #191, Jimena). Se suben
+// con el tipo 'preocup-adicional', que está en TIPOS_CON_HISTORIAL: cada
+// archivo se suma sin invalidar al anterior, así queconviven el apto médico
+// y todos los extras. Acepta varios archivos en una sola selección.
+export async function seleccionarArchivoAdicionalPreocup() {
+  const input = $('pr-adjunto-adicional-file');
+  const files = Array.from((input && input.files) || []);
+  if (!files.length) return;
+  const p = getPreocupAbierto();
+  if (!p) {
+    console.error('seleccionarArchivoAdicionalPreocup: no se encontró el registro', { id: $('preocup-gest-id')?.value, dni: $('preocup-gest-dni')?.value });
+    toast('⚠️ No se encontró el registro — cerrá el modal y volvé a abrirlo desde la lista');
+    return;
+  }
+  const cont = $('pr-adjunto-lista');
+  let ok = 0;
+  for (const file of files) {
+    try {
+      await subirAdjunto({ dni: p.dni, etapa: 'preocupacional', tipo: 'preocup-adicional', file });
+      ok += 1;
+    } catch (e) {
+      console.error('seleccionarArchivoAdicionalPreocup: falló la subida de', file.name, e);
+      toast('⚠️ No se pudo adjuntar "' + file.name + '": ' + (e.message || 'error'), 6000);
+    }
+  }
+  if (ok) toast(ok === 1 ? '📎 Documento adicional cargado' : '📎 ' + ok + ' documentos adicionales cargados');
+  if (cont) cargarAdjuntoPreocup(p.dni);
+  if (input) input.value = '';
 }
 
 export async function verAdjuntoPreocup(path) {

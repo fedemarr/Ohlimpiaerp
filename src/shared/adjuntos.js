@@ -28,7 +28,19 @@ export const TIPO_LEGIBLE = {
   'certificado-mipyme': 'Certificado MiPyME',
   'nc-firmada': 'NC Firmada',
   'respaldo-baja': 'Respaldo de baja',
+  // v171 / ticket #191 (Jimena): en Preocupacional hacía falta poder dejar
+  // MÁS de un archivo (ej. el apto médico Y una beta de embarazo). Con los
+  // tipos de arriba el segundo archivo invalidaba al primero (ver la
+  // invalidación de previos más abajo) y dejaba de verse. Este tipo no
+  // invalida a los anteriores, así que conviven los N.
+  'preocup-adicional': 'Documento adicional',
 };
+
+// Tipos que conservan historial: al subir uno nuevo NO se invalidan los
+// vigentes del mismo (dni, tipo). Son los que legítimamente pueden repetirse
+// en cantidad. Lista explícita y no un flag en la base, para que agregar un
+// tipo nuevo sea una decisión consciente.
+export const TIPOS_CON_HISTORIAL = ['antecedente', 'respaldo-baja', 'preocup-adicional'];
 
 // Límite de tamaño (10 MB, igual que el bucket) y MIME types permitidos.
 export const MAX_SIZE = 10 * 1024 * 1024;
@@ -52,6 +64,12 @@ function _nombreArchivo(tipo, dni, ext) {
     const fecha = new Date().toISOString().slice(0, 10);
     return `Respaldo de baja ${fecha} - DNI ${dni}.${ext}`;
   }
+  if (tipo === 'preocup-adicional') {
+    // Varios por etapa (beta de embarazo, examen complementario…): sin la
+    // fecha el nombre legible sería idéntico para todos los del mismo DNI.
+    const fecha = new Date().toISOString().slice(0, 10);
+    return `Documento adicional ${fecha} - DNI ${dni}.${ext}`;
+  }
   return `${TIPO_LEGIBLE[tipo]} - DNI ${dni}.${ext}`;
 }
 
@@ -60,7 +78,8 @@ function _nombreArchivo(tipo, dni, ext) {
 /**
  * Sube un archivo a Storage y crea el registro en la tabla adjuntos.
  * Invalida (vigente=false) los adjuntos previos del mismo (dni, tipo),
- * EXCEPTO tipo='antecedente' y 'respaldo-baja' que conservan historial.
+ * EXCEPTO los tipos de TIPOS_CON_HISTORIAL (antecedente, respaldo-baja,
+ * preocup-adicional) que conservan historial.
  * Devuelve el registro creado (camelCase, con id). Lanza Error en cualquier fallo.
  *
  * LIMITACIÓN CONOCIDA (deuda anotada):
@@ -101,11 +120,13 @@ export async function subirAdjunto({ dni, etapa, tipo, file, fechaVencimiento = 
   // 5. Nombre legible del archivo
   const nombreArchivo = _nombreArchivo(tipo, dni, ext);
 
-  // 6. Invalidar vigentes previos del mismo (dni, tipo) — salvo antecedentes.
-  //    Si la UPDATE falla, abortamos: no podemos quedar con 2 vigentes.
+  // 6. Invalidar vigentes previos del mismo (dni, tipo) — salvo los tipos con
+  //    historial (antecedente, respaldo-baja, preocup-adicional), que pueden
+  //    repetirse en cantidad. Si la UPDATE falla, abortamos: no podemos
+  //    quedar con 2 vigentes.
   //    'respaldo-baja' también conserva historial: una baja puede tener
   //    varios documentos (CD, acuse de recibo, acta).
-  if (tipo !== 'antecedente' && tipo !== 'respaldo-baja') {
+  if (!TIPOS_CON_HISTORIAL.includes(tipo)) {
     const { error: invErr } = await SUPA.from('adjuntos')
       .update({ vigente: false })
       .eq('dni', dni).eq('tipo', tipo)

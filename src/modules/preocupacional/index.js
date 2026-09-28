@@ -1,8 +1,8 @@
 // Módulo Pre-ocupacional — Entry point
 
-export { renderPreocup, tabPreocup, filtrarPreocup, poblarFiltrosColumnasPreocup, abrirGestionPreocup, actualizarMotivoPreocup, guardarPreocup, aprobarPreocup, bajaPreocup, rechazarPreocup, revertirPreocup, cargarAdjuntoPreocup, seleccionarArchivoPreocup, verAdjuntoPreocup, eliminarAdjuntoPreocup, analizarAptoMedicoIA, usarDatosIAApto } from './preocupacional.js';
+export { renderPreocup, tabPreocup, filtrarPreocup, poblarFiltrosColumnasPreocup, abrirGestionPreocup, actualizarMotivoPreocup, guardarPreocup, aprobarPreocup, bajaPreocup, rechazarPreocup, revertirPreocup, cargarAdjuntoPreocup, seleccionarArchivoPreocup, seleccionarArchivoAdicionalPreocup, verAdjuntoPreocup, eliminarAdjuntoPreocup, analizarAptoMedicoIA, usarDatosIAApto } from './preocupacional.js';
 
-import { renderPreocup, tabPreocup, filtrarPreocup, poblarFiltrosColumnasPreocup, abrirGestionPreocup, actualizarMotivoPreocup, guardarPreocup, aprobarPreocup, bajaPreocup, rechazarPreocup, revertirPreocup, cargarAdjuntoPreocup, seleccionarArchivoPreocup, verAdjuntoPreocup, eliminarAdjuntoPreocup, analizarAptoMedicoIA, usarDatosIAApto } from './preocupacional.js';
+import { renderPreocup, tabPreocup, filtrarPreocup, poblarFiltrosColumnasPreocup, abrirGestionPreocup, actualizarMotivoPreocup, guardarPreocup, aprobarPreocup, bajaPreocup, rechazarPreocup, revertirPreocup, cargarAdjuntoPreocup, seleccionarArchivoPreocup, seleccionarArchivoAdicionalPreocup, verAdjuntoPreocup, eliminarAdjuntoPreocup, analizarAptoMedicoIA, usarDatosIAApto } from './preocupacional.js';
 
 export const preocupScreenConfig = {
   preocupacional: {
@@ -26,6 +26,7 @@ window.rechazarPreocup = rechazarPreocup;
 window.revertirPreocup = revertirPreocup;
 window.cargarAdjuntoPreocup = cargarAdjuntoPreocup;
 window.seleccionarArchivoPreocup = seleccionarArchivoPreocup;
+window.seleccionarArchivoAdicionalPreocup = seleccionarArchivoAdicionalPreocup;
 window.verAdjuntoPreocup = verAdjuntoPreocup;
 window.eliminarAdjuntoPreocup = eliminarAdjuntoPreocup;
 window.analizarAptoMedicoIA = analizarAptoMedicoIA;
