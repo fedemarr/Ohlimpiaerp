@@ -7871,6 +7871,11 @@
       </div>
       <div id="obj-tab-4" class="tab-content">
         <div class="form-grid gap-12">
+          <div class="form-group">
+            <label><input type="checkbox" id="obj-tercerizado" onchange="toggleObjTercerizado()"> Servicio tercerizado (sin pedido de productos)</label>
+            <span class="form-hint">La limpieza la hace un tercero — este servicio no aparece en Pedido de productos: no cuenta en el total, no figura en ningún filtro ni recibe recordatorios.</span>
+          </div>
+          <div id="obj-tab4-resto">
           <div class="form-group"><label>Facturación de productos</label>
             <select id="obj-productos"><option>Incluidos en el precio</option><option>Factura separada</option><option>Renglón aparte en la factura</option><option>No lleva productos</option></select>
           </div>
@@ -7884,6 +7889,7 @@
           <div class="form-group"><label>Productos de limpieza</label><div id="obj-multi-productos" style="display:flex;flex-wrap:wrap;gap:8px;"></div></div>
           <div class="form-group"><label>Elementos de limpieza</label><div id="obj-multi-elementos" style="display:flex;flex-wrap:wrap;gap:8px;"></div></div>
           <div class="form-group"><label>Máquinas</label><div id="obj-multi-maquinas" style="display:flex;flex-wrap:wrap;gap:8px;"></div></div>
+          </div>
         </div>
       </div>
     </div>

@@ -2243,6 +2243,8 @@ function abrirModalObjetivo(idLocal){
     if($('obj-fecha-fin')&&o.fechaFin){const[dd,mm,yy]=o.fechaFin.split('/');$('obj-fecha-fin').value=`${yy}-${mm}-${dd}`;} else if($('obj-fecha-fin')) $('obj-fecha-fin').value='';
     if($('obj-contrato')) $('obj-contrato').value=o.contrato||'';
     if($('obj-productos')) $('obj-productos').value=o.productos||'';
+    if($('obj-tercerizado')) $('obj-tercerizado').checked=!!o.tercerizado;
+    toggleObjTercerizado();
     if($('obj-clausula-actualizacion')) $('obj-clausula-actualizacion').value=o.clausulaActualizacion||'';
     if($('obj-coordinador')) $('obj-coordinador').value=o.coordinadorCuenta||'';
     if($('obj-periodo-fact')) $('obj-periodo-fact').value=o.periodoFact||'';
@@ -2273,6 +2275,7 @@ function abrirModalObjetivo(idLocal){
   if($('obj-usar-dir-fiscal')){$('obj-usar-dir-fiscal').checked=false;}
   if($('obj-dir')) $('obj-dir').disabled=false;
   if($('obj-localidad')) $('obj-localidad').disabled=false;
+  if(!o&&$('obj-tercerizado')){$('obj-tercerizado').checked=false;toggleObjTercerizado();}
   if($('obj-paga-comision')) $('obj-paga-comision').checked=comisionesObjTemp.length>0;
   if($('obj-com-es-externo')) $('obj-com-es-externo').checked=false;
   if($('obj-com-tipo')) $('obj-com-tipo').value='Continuo';
@@ -2351,6 +2354,10 @@ async function guardarObjetivo(){
     // de la tab Precio a la tab Logística y cambió de opciones/nombre
     // (antes "productos", "Productos incluidos en precio").
     productos:$('obj-productos')?.value,
+    // PERIODOS_campanita_tercerizados_para_Fede.md — dato del servicio, no
+    // un texto libre en el campo supervisor. Excluye el servicio de todo
+    // Pedido de productos (ver esServicioTercerizadoPP en ese módulo).
+    tercerizado:$('obj-tercerizado')?.checked||false,
     logProductos:$('obj-log-productos')?.value||'',
     logElementos:$('obj-log-elementos')?.value||'',
     logMaquinas:$('obj-log-maquinas')?.value||'',
@@ -2555,6 +2562,16 @@ function renderPuestosObj(){
 let comisionesObjTemp=[];
 window.comisionesObjTemp=comisionesObjTemp;
 
+// PERIODOS_campanita_tercerizados_para_Fede.md — "es un dato del
+// servicio, no un supervisor trucho": marcado, oculta el resto de la tab
+// Logística (no aplica: nadie carga pedido de productos acá) y el
+// servicio desaparece por completo de Pedido de productos (ver
+// pedidosDelPeriodoPP en ese módulo).
+function toggleObjTercerizado(){
+  const on=$('obj-tercerizado')?.checked;
+  const resto=$('obj-tab4-resto');
+  if(resto) resto.style.display=on?'none':'block';
+}
 function toggleComisionesObjetivo(){
   const on=$('obj-paga-comision')?.checked;
   const wrap=$('obj-comisiones-wrap');
@@ -15069,6 +15086,7 @@ window.sincronizarComisionesFactura = sincronizarComisionesFactura;
 window.generarDevengosFactura = generarDevengosFactura;
 window.habilitarComisionesFactura = habilitarComisionesFactura;
 // DELTA_comisiones_v1 — asignación de comisiones en el modal de Servicios
+window.toggleObjTercerizado = toggleObjTercerizado;
 window.toggleComisionesObjetivo = toggleComisionesObjetivo;
 window.toggleObjComExterno = toggleObjComExterno;
 window.toggleObjComPeriodos = toggleObjComPeriodos;

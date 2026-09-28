@@ -830,8 +830,17 @@ export function renderPeriodosPP() {
   }).join('');
 }
 
+// PERIODOS_campanita_tercerizados_para_Fede.md: un servicio marcado
+// "tercerizado" (checkbox en el alta/edición, sección Logística) no
+// existe para este módulo — filtrar acá, el único punto de lectura que
+// consume la tab Períodos + el modal "Estado de los pedidos" + la
+// campanita, alcanza para que desaparezca de los tres a la vez, incluso
+// en períodos ya abiertos (sin tocar los pp_pedidos ya creados).
+function esServicioTercerizadoPP(codigo) {
+  return !!(DB.objetivos || []).find(o => o.codigo === codigo)?.tercerizado;
+}
 function pedidosDelPeriodoPP(periodo) {
-  return (DB.ppPedidos || []).filter(x => !x.anulado && _idTrunc(x.periodoIdLocal) === _idTrunc(periodo.id));
+  return (DB.ppPedidos || []).filter(x => !x.anulado && _idTrunc(x.periodoIdLocal) === _idTrunc(periodo.id) && !esServicioTercerizadoPP(x.servicioCodigo));
 }
 
 // ========== DETALLE DEL PERÍODO — "Estado de los pedidos" ==========
@@ -1107,7 +1116,7 @@ export function abrirPeriodoPP() {
 async function activarPeriodoPP(periodo) {
   periodo.estado = 'abierto';
   await supaSync('ppPeriodos', periodo);
-  const activos = (DB.objetivos || []).filter(o => o.estado === 'Operativo');
+  const activos = (DB.objetivos || []).filter(o => o.estado === 'Operativo' && !o.tercerizado);
   let creados = 0;
   for (const o of activos) {
     const facturacionNeta = (typeof window !== 'undefined' && window.calcularFacturacionMensualObjetivo) ? (window.calcularFacturacionMensualObjetivo(o) || 0) : 0;
@@ -1135,7 +1144,7 @@ async function activarPeriodoPP(periodo) {
 export async function cerrarPeriodoPP(id, { automatico = false } = {}) {
   const periodo = getPeriodoPP(id); if (!periodo) return;
   if (periodo.estado !== 'abierto') { toast('Ya está cerrado'); return; }
-  const pedidos = (DB.ppPedidos || []).filter(p => !p.anulado && _idTrunc(p.periodoIdLocal) === _idTrunc(periodo.id));
+  const pedidos = pedidosDelPeriodoPP(periodo);
   const borradores = pedidos.filter(p => p.estado === 'borrador');
   const sinIniciar = borradores.filter(p => !itemsDePedido(p.id).length).length;
 
