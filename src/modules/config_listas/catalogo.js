@@ -49,6 +49,13 @@ export const CATALOGO_LISTAS = {
   etapasCRM: ['Prospecto', 'Primer contacto', 'Propuesta enviada', 'Negociación', 'Contrato', 'Cerrado perdido'],
   tiposAccionCRM: ['Llamada', 'Reunión', 'Email', 'Visita', 'Propuesta', 'Seguimiento'],
   motivosPerdidaCRM: ['Precio', 'Eligió competencia', 'Sin personal disponible para cubrir', 'No respondió', 'Otro'],
+
+  // ---------- Agente de tickets (AGENTE_TICKETS_OHLIMPIA.md, punto 5/10) ----------
+  // Clasificación de riesgo por palabras clave + módulo, editable acá en vez
+  // de hardcodeada — ver src/modules/agente/riesgo.js (clasificarRiesgoTicket).
+  agenteModulosRojos: ['liquidacion', 'monotributo', 'cuentas_cbu', 'retenciones', 'supervision', 'migraciones', 'accesos', 'configuracion'],
+  agentePalabrasClaveRojo: ['migración', 'migracion', 'liquidación', 'liquidacion', 'monotributo', 'retención', 'retencion', 'cuenta corriente', 'permiso', 'rls', 'deploy', 'producción', 'produccion'],
+  agentePalabrasClaveAmarillo: ['cálculo', 'calculo', 'validación', 'validacion', 'regla', 'fórmula', 'formula', 'estado', 'flujo'],
 };
 
 // Colores por defecto de las etapas del CRM — el único catálogo que se

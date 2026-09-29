@@ -105,6 +105,8 @@ export const _SM = {
   supervisoresConfig: 'supervisores_config',
   supervisionVigencias: 'supervision_vigencias',
   horasVigencias: 'horas_vigencias',
+  corridasAgente: 'corridas_agente',
+  agenteAuditLog: 'agente_audit_log',
   reclamos: 'reclamos',
   noConformidades: 'no_conformidades',
   reglasCompetencia: 'reglas_competencia',
@@ -792,6 +794,20 @@ export function _toSnake(obj) {
     fechaLimiteEntrega: 'fecha_limite_entrega',
     // v113 — Pedido de productos: correcciones ronda de prueba 02/09
     motivoRevisionSnapshot: 'motivo_revision_snapshot', tuvoObservacion: 'tuvo_observacion',
+    // v172 — Agente de tickets
+    ticketIdLocal: 'ticket_id_local', ticketTitulo: 'ticket_titulo', ticketModulo: 'ticket_modulo',
+    nivelRiesgo: 'nivel_riesgo', modoSimulacion: 'modo_simulacion',
+    prUrl: 'pr_url', prNumber: 'pr_number', iniciadaPor: 'iniciada_por',
+    iniciadaEn: 'iniciada_en', finalizadaEn: 'finalizada_en',
+    queProbar: 'que_probar', archivosTocados: 'archivos_tocados',
+    testsOk: 'tests_ok', testsCorridos: 'tests_corridos',
+    tieneMigracion: 'tiene_migracion', sqlMigracion: 'sql_migracion',
+    migracionReversible: 'migracion_reversible', migracionFilasAfectadasEstimado: 'migracion_filas_afectadas_estimado',
+    migracionAprobadaPor: 'migracion_aprobada_por', migracionAprobadaEn: 'migracion_aprobada_en',
+    migracionAplicadaConfirmadaPor: 'migracion_aplicada_confirmada_por', migracionAplicadaConfirmadaEn: 'migracion_aplicada_confirmada_en',
+    deployadoEn: 'deployado_en', resolucionEnviadaEn: 'resolucion_enviada_en',
+    callbackToken: 'callback_token', callbackTokenUsado: 'callback_token_usado', callbackTokenExpiraEn: 'callback_token_expira_en',
+    corridaIdLocal: 'corrida_id_local',
   };
   const r = {};
   for (const [k, v] of Object.entries(obj)) {
@@ -1279,6 +1295,20 @@ export function _toCamel(obj) {
     fecha_limite_entrega: 'fechaLimiteEntrega',
     // v113 — Pedido de productos: correcciones ronda de prueba 02/09
     motivo_revision_snapshot: 'motivoRevisionSnapshot', tuvo_observacion: 'tuvoObservacion',
+    // v172 — Agente de tickets
+    ticket_id_local: 'ticketIdLocal', ticket_titulo: 'ticketTitulo', ticket_modulo: 'ticketModulo',
+    nivel_riesgo: 'nivelRiesgo', modo_simulacion: 'modoSimulacion',
+    pr_url: 'prUrl', pr_number: 'prNumber', iniciada_por: 'iniciadaPor',
+    iniciada_en: 'iniciadaEn', finalizada_en: 'finalizadaEn',
+    que_probar: 'queProbar', archivos_tocados: 'archivosTocados',
+    tests_ok: 'testsOk', tests_corridos: 'testsCorridos',
+    tiene_migracion: 'tieneMigracion', sql_migracion: 'sqlMigracion',
+    migracion_reversible: 'migracionReversible', migracion_filas_afectadas_estimado: 'migracionFilasAfectadasEstimado',
+    migracion_aprobada_por: 'migracionAprobadaPor', migracion_aprobada_en: 'migracionAprobadaEn',
+    migracion_aplicada_confirmada_por: 'migracionAplicadaConfirmadaPor', migracion_aplicada_confirmada_en: 'migracionAplicadaConfirmadaEn',
+    deployado_en: 'deployadoEn', resolucion_enviada_en: 'resolucionEnviadaEn',
+    callback_token: 'callbackToken', callback_token_usado: 'callbackTokenUsado', callback_token_expira_en: 'callbackTokenExpiraEn',
+    corrida_id_local: 'corridaIdLocal',
   };
   const r = {};
   for (const [k, v] of Object.entries(obj)) {
@@ -1454,6 +1484,18 @@ export async function fetchSugerencias() {
 // guardado era correcto en Supabase, pero esa persona seguía viendo el
 // nivel viejo porque DB.usuarioAccesos/DB.perfilAccesos solo se cargaban
 // una vez, al login (supaInit()) — nada los refrescaba después.
+// Agente de tickets (AGENTE_TICKETS_OHLIMPIA.md): el resultado del agente
+// (real o simulado) puede llegar desde OTRO proceso por completo — la
+// función serverless api/agente-callback.js escribe directo en Supabase,
+// sin pasar por esta pestaña. Sin polling, la corrida cambia de estado en
+// la base pero la pantalla se queda mostrando el estado viejo hasta un F5.
+// Mismo patrón que fetchAccesosVigentes/fetchDotacionRefresh de arriba.
+export async function fetchCorridasAgenteVigentes() {
+  const { data, error } = await SUPA.from('corridas_agente').select('*').order('created_at', { ascending: true });
+  if (error) return null;
+  return (data || []).map((row) => _toCamel(row));
+}
+
 export async function fetchAccesosVigentes() {
   const [rPerfil, rUsuario] = await Promise.all([
     SUPA.from('perfil_accesos').select('*'),

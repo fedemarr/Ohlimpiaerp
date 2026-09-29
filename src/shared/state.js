@@ -38,6 +38,8 @@ export const DB = {
   // {objetivoCodigo, puestos, vigenteDesde, vigenteHasta, usuario, fecha,
   // motivo, origen}; cambiar horas nunca pisa la vigencia anterior.
   horasVigencias: [],
+  corridasAgente: [],
+  agenteAuditLog: [],
   // Ajuste de nivelación por (mes, personaId) en Liquidación Administración
   // — {ajuste, motivo, usuario, fecha}. Se reconstruye en
   // reconciliarPeriodosOperaciones() desde las filas de liq_admin_periodos.
@@ -360,7 +362,11 @@ export const PERFILES = {
   // 'empresas' agregado acá (18/08/2026, a pedido de Fede) — entra con su
   // login de siempre (fede@ohlimpia.com) en vez de necesitar una cuenta
   // aparte para el perfil Superadmin de más abajo.
-  'DEVELOPER': { color: 'badge-azul', modulos: ['dev_inicio', 'dev_tickets', 'dev_proyeccion', 'dev_seguridad', 'empresas'], desc: 'Panel de desarrollo — tickets, roadmap, seguridad y empresas clientes.' },
+  // 'configuracion' se suma acá (no lo tenía) solo para poder llegar a la tab
+  // "🤖 Agente" (AGENTE_TICKETS_OHLIMPIA.md punto 10: la lista de módulos
+  // rojos/palabras clave "va en Configuración, no hardcodeada") — el tab se
+  // oculta para cualquier otro perfil (ver renderConfiguracion() en legacy.js).
+  'DEVELOPER': { color: 'badge-azul', modulos: ['dev_inicio', 'dev_tickets', 'dev_proyeccion', 'dev_seguridad', 'empresas', 'agente', 'configuracion'], desc: 'Panel de desarrollo — tickets, roadmap, seguridad, agente de tickets y empresas clientes.' },
   // Perfil exclusivo para gestionar el negocio de vender este sistema como
   // producto a otras empresas — registro de empresas clientes y qué
   // módulos le vendiste a cada una (sql/v089). Queda definido por si en el
@@ -481,6 +487,10 @@ export const MENU = [
     { key: 'dev_tickets', icon: '🎫', label: 'Tickets', perfiles: ['DEVELOPER'] },
     { key: 'dev_proyeccion', icon: '🗺️', label: 'Proyección', perfiles: ['DEVELOPER'] },
     { key: 'dev_seguridad', icon: '🔐', label: 'Seguridad', perfiles: ['DEVELOPER'] },
+    // AGENTE_TICKETS_OHLIMPIA.md — "no es un módulo para usuarios de
+    // Ohlimpia", solo DEVELOPER (el SUPER_ADMIN que pide el spec: no se creó
+    // un perfil nuevo para no fragmentar el sistema de permisos existente).
+    { key: 'agente', icon: '🤖', label: 'Agente', perfiles: ['DEVELOPER'] },
   ]},
   // Panel de Superadmin (sql/v089) — venta del sistema como producto a
   // otras empresas. Ver comentario de PERFILES.Superadmin más arriba.

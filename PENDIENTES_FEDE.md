@@ -1,0 +1,186 @@
+# PENDIENTES_FEDE.md
+
+Documento vivo con las decisiones conservadoras tomadas sin preguntar (regla
+general de la sesión: "si es ambigua, tomá la opción más conservadora,
+anotala acá y seguí") y los gaps reales que quedaron. Última actualización:
+29/09/2026, al cerrar la Fase 1 de `AGENTE_TICKETS_OHLIMPIA.md`.
+
+---
+
+## 🔴 Lo más importante — leer esto primero
+
+**El pipeline de CI/CD de `OHLIMPIA_TESTS_STAGING.md` (Parte 3) NO está
+construido**, aunque `AGENTE_TICKETS_OHLIMPIA.md` (punto 0) dice
+explícitamente "si todavía no existen los tests de humo y el entorno de
+staging, construí eso primero" y vos me confirmaste "ya están hechos los
+tests, el staging y el pipeline del otro spec". Verifiqué el estado real del
+repo antes de arrancar la Fase 1 del agente y esto es lo que hay:
+
+| Pieza | Estado real |
+|---|---|
+| Tests de humo (Vitest + Playwright) | ✅ Existen — 18 archivos Vitest (206 tests), 51 specs de Playwright |
+| Rama `staging` | ✅ Existe |
+| Base de datos de staging separada | ✅ Existe (proyecto Supabase `ddhsnukcgliunolbrfuf`, distinto de producción) |
+| Schema de staging reproducible desde cero | ✅ `scripts/reset_staging.mjs` — corre las 173 migraciones limpio |
+| Seed sintético (20-30 colaboradores falsos, etc.) | ❌ **No existe** `scripts/seed_staging.mjs` |
+| `.github/workflows/` que corra lint+build+tests antes de deployar | ❌ **No existía** — recién con esta sesión existe `.github/workflows/agente-tickets.yml`, pero es específico del agente, no el pipeline general de staging→main |
+| Vercel con auto-deploy desconectado a favor del pipeline | ❌ No se tocó — Vercel sigue deployando automático en cada push, sin gate de tests |
+| Branch protection en `main` | ❌ No configurado |
+
+**Consecuencia concreta:** el workflow `.github/workflows/agente-tickets.yml`
+que armé para la Fase 1 del agente corre sus propios tests DENTRO de la
+misma corrida (no depende del pipeline general), así que el caso "A · Verde,
+sin migración → 100% automático" SÍ tiene una barrera de tests real. Pero
+fuera del agente, cualquier otro push a `main` (tuyo, mío, o de Opencode)
+sigue deployando a producción sin que nada lo frene si rompe algo — la
+promesa de "sin tests en verde no hay deploy" (innegociable #2 de este
+spec) hoy solo aplica al camino del agente, no al repo en general.
+
+**Qué hacer con esto:** no lo resolví porque no era lo que se me pidió
+ahora (se pidió la Fase 1 del agente) y hubiera sido un scope creep grande.
+Queda como el pendiente de mayor prioridad real del proyecto completo.
+
+---
+
+## Decisiones conservadoras tomadas sin preguntar
+
+### 1. Disparo del agente: GitHub Issue + etiqueta (no Routine Cloud)
+Un Issue deja auditoría gratis en el repo (calza con el innegociable #8),
+el modelo "un ticket = un issue = una branch = un PR" es nativo de GitHub,
+y la forma exacta de invocar una Routine Cloud para este caso no está tan
+documentada/probada como `anthropics/claude-code-action`. La interfaz hacia
+Ohlimpia es siempre `dispararAgente(corrida)`
+(`src/modules/agente/dispatcher.js`) — cambiar de implementación no toca la
+UI.
+
+### 2. No se creó un perfil `SUPER_ADMIN` nuevo
+Se reusó el perfil `DEVELOPER` que ya existe (es literalmente el usuario de
+Fede) en vez de fragmentar el sistema de permisos con un rol nuevo. Se le
+agregó `'agente'` y `'configuracion'` a `PERFILES.DEVELOPER.modulos` en
+`state.js` — lo de `configuracion` es necesario porque la lista de módulos
+rojos/palabras clave "va en Configuración" (punto 10) y DEVELOPER no tenía
+acceso a esa pantalla hasta ahora. El tab "🤖 Agente" dentro de
+Configuración se oculta para cualquier otro perfil.
+
+### 3. Estado nuevo agregado a la máquina de estados del spec:
+`MIGRACION_APROBADA_PENDIENTE_APLICAR`. El spec dice "si apruebo: corre la
+migración" pero tu decisión explícita en el chat fue "el agente nunca las
+ejecuta... la aplicación sigue siendo manual". Sin un paso separado de "ya
+la apliqué", el código podría deployar ANTES de que la columna/tabla que
+ese código espera exista de verdad — es exactamente el incidente real de
+Polo del 28/09 (columna `tercerizado` faltante). Aprobar el SQL solo te deja
+en este estado intermedio con instrucciones de aplicarlo a mano; recién al
+confirmar "Ya la apliqué" la corrida pasa a `DEPLOYADO`.
+
+### 4. Config de riesgo (módulos rojos, palabras clave) vive en `config_listas`
+Reusé la infraestructura de `src/modules/config_listas/` (creada la sesión
+pasada para las 28 listas editables de Configuración) en vez de armar una
+tabla nueva — 3 claves nuevas: `agenteModulosRojos`,
+`agentePalabrasClaveRojo`, `agentePalabrasClaveAmarillo`. Se persisten,
+editan y auditan exactamente igual que cualquier otra lista de
+Configuración.
+
+### 5. Canal de WhatsApp: solo botón "Copiar" (punto 8, tal como el spec anticipaba)
+Confirmé por exploración que no hay NINGÚN canal de WhatsApp conectado hoy
+(`botfuturo.md` es puro relevamiento, Meta Business API "no está destrabada"
+según ese mismo documento). El botón "Enviar al equipo" marca la corrida
+como `COMUNICADO` y registra la auditoría, pero no manda nada a ningún
+lado — es exactamente lo que el punto 8 del spec pedía para este caso
+("mientras no exista el canal, la Fase 1 genera el texto y lo deja
+copiable").
+
+### 6. Deploy real: se apoya en el auto-deploy de Vercel existente, no en un pipeline nuevo
+El workflow del agente corre sus propios tests y, si están en verde y no hay
+migración, mergea el PR con `gh pr merge --auto`. El deploy en sí lo hace
+Vercel automáticamente al mergear a `main` (como ya lo hace hoy con
+cualquier push) — no se construyó un pipeline de deploy propio para esto,
+porque el otro spec que se suponía que lo iba a dar (Parte 3 de
+`OHLIMPIA_TESTS_STAGING.md`) no está construido (ver la sección roja arriba).
+
+---
+
+## Gaps reales — no verificado end-to-end
+
+### El disparo real del agente (GitHub Issue → Action → Claude Code → PR → callback)
+Escribí todo el código (`api/agente-disparar-real.js`,
+`.github/workflows/agente-tickets.yml`, `api/agente-callback.js`) siguiendo
+los patrones ya probados del repo (mismo estilo de auth que
+`api/crear-usuario.js`, mismo uso de `service_role` para el callback), pero
+**nunca se disparó una corrida real** — no hay forma de observar un GitHub
+Action corriendo desde esta sesión. Antes de usarlo en serio con un ticket
+real:
+
+1. Configurar en Vercel: `GITHUB_TOKEN` (con permisos de `issues:write` sobre
+   el repo), y en GitHub Secrets: `ANTHROPIC_API_KEY`.
+2. Confirmar que `anthropics/claude-code-action@v1` es el nombre/versión
+   correcta hoy (la referencié de memoria/documentación pública, no la
+   probé).
+3. Probar con UN ticket verde tonto (como pide el punto 12.2), mirando el
+   Issue, el Action y el PR en vivo.
+
+**El modo simulación, en cambio, SÍ está probado de punta a punta** — 4
+tests e2e nuevos (`e2e/agente-tickets-simulacion.spec.js`) cubren: ticket
+verde → Tests OK, ticket rojo bloqueado, ticket con migración → aprobación
+→ confirmación manual → deployado, y ticket que falla → reintentar. Podés
+probarlo hoy mismo en la pantalla sin gastar nada, tal como pide el punto
+12.1.
+
+### Portal Asociado probablemente roto (hallazgo de esta sesión, no de esta feature)
+Al investigar RLS para otro tema encontré que el login del Portal Asociado
+depende de `signInAnonymously()`, y que el proveedor anónimo de Supabase
+está **deshabilitado** en el proyecto. Es decir, ese login probablemente no
+funcione en producción ahora mismo. No lo confirmé con una prueba completa
+del flujo (no toqué nada), y no es parte de este ticket — lo dejo anotado
+para que lo mires cuando puedas.
+
+### `CLAUDE.md` desactualizado en dos puntos
+1. Dice "6 perfiles" — hay 11 reales (`PERFILES` en `state.js`).
+2. Dice "la autenticación es local... no usa Supabase Auth" — sí lo usa
+   (`SUPA.auth.signInWithPassword` / `signInAnonymously`, `src/shared/auth.js`).
+   No lo corregí porque no me lo pediste y no quería tocar un archivo de
+   referencia del proyecto sin que lo veas primero.
+
+---
+
+## Qué se construyó (Fase 1 completa según el checklist del spec)
+
+- ✅ Sección "Agente" solo para DEVELOPER (`src/modules/agente/`), oculta en
+  el menú para cualquier otro perfil y protegida de verdad en el backend vía
+  RLS (`sql/v172_agente_tickets.sql`: `corridas_agente` y
+  `agente_audit_log` solo aceptan lectura/escritura de un `auth.uid()` cuyo
+  perfil en `usuarios` sea `DEVELOPER` — no es solo ocultar la UI).
+- ✅ Listado de tickets con clasificación de riesgo automática
+  (`src/modules/agente/riesgo.js`, 13 tests) y selección — los rojos
+  aparecen con el checkbox deshabilitado y el motivo.
+- ✅ Entidad `CorridaAgente` (`corridas_agente`) con su máquina de estados
+  (`src/modules/agente/estados.js`, 15 tests) + el estado intermedio de
+  migración explicado arriba.
+- ✅ `dispararAgente(corrida)` (`src/modules/agente/dispatcher.js`) — una
+  sola interfaz para simulación y disparo real.
+- ✅ Endpoint de callback (`api/agente-callback.js`), con token de un solo
+  uso y vencimiento.
+- ✅ Tests como barrera: `tests_corridos <= 0` siempre cuenta como fallo,
+  cableado tanto en `estados.js` como en el workflow.
+- ✅ Deploy automático cuando los tests pasan y no hay migración (vía merge
+  automático + el auto-deploy ya existente de Vercel).
+- ✅ Pantalla de aprobación de migración pensada para celular, con el paso
+  extra de confirmación de aplicación manual.
+- ✅ Generación de la resolución (`src/modules/agente/resolucion.js`, 3
+  tests) + botón Copiar (WhatsApp real: pendiente, ver arriba).
+- ✅ Modo simulación completo y probado (4 tests e2e).
+- ✅ Máximo 3 tickets por envío, tope de 2 intentos — ambos cableados.
+- ✅ Todo el audit log (`agente_audit_log`) — envío, callback, aprobación,
+  rechazo, confirmación de migración, comunicación.
+
+## Qué falta (explícitamente fuera de la Fase 1, según el spec)
+
+- ❌ Reintento automático de tickets fallidos — el spec lo excluye a propósito.
+- ❌ Clasificación de riesgo con modelo — el spec pide solo palabras clave.
+- ❌ Envío de más de 3 tickets por vez.
+
+## Migración pendiente de aplicar
+
+`sql/v172_agente_tickets.sql` — ya está probada contra staging (corrió
+limpio las 172 migraciones desde cero). Está lista para que la apliques vos
+a mano en producción cuando quieras activar el módulo — como siempre, no la
+corrí yo.

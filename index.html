@@ -879,6 +879,7 @@
     <button class="tab-btn" onclick="cfgTab('medico-cfg',this)" style="padding:12px 18px;">🏥 Médico</button>
     <button class="tab-btn" onclick="cfgTab('servicios-cfg',this)" style="padding:12px 18px;">🧾 Servicios (código→supervisor)</button>
     <button class="tab-btn" onclick="cfgTab('operaciones-cfg',this)" style="padding:12px 18px;">⚙️ Operaciones</button>
+    <button class="tab-btn" id="cfg-tab-btn-agente" onclick="cfgTab('agente-cfg',this)" style="padding:12px 18px;display:none;">🤖 Agente</button>
   </div>
 
   <!-- TAB: MEDIOS DE CONTACTO -->
@@ -1415,6 +1416,36 @@
 
     </div>
 
+  </div>
+
+  <!-- TAB: AGENTE DE TICKETS (solo visible para DEVELOPER — ver mostrarTabAgenteCfgSiCorresponde() en agente.js) -->
+  <div id="cfg-tab-agente-cfg" class="tab-content">
+    <p style="font-size:12px;color:var(--texto-suave);margin-bottom:14px;">
+      Listas que usa la clasificación automática de riesgo del módulo Agente (Verde/Amarillo/Rojo). Un ticket cuyo título o módulo matchea una palabra de "Rojo" o cuyo módulo está en "Módulos rojos" queda bloqueado — no se puede enviar al agente.
+    </p>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:18px;">
+      <div class="card">
+        <div class="card-header"><h3>🔴 Módulos rojos</h3><span class="text-muted">Bloqueados por completo</span></div>
+        <div class="card-body">
+          <div class="config-list" id="lista-agente-modulos-rojos"></div>
+          <div class="config-add"><input type="text" id="nuevo-agente-modulo-rojo" placeholder="Ej: monotributo..."><button class="btn btn-primary btn-sm" onclick="agregarItem('agenteModulosRojos','nuevo-agente-modulo-rojo','lista-agente-modulos-rojos')">Agregar</button></div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-header"><h3>🔴 Palabras clave — Rojo</h3><span class="text-muted">En título o descripción</span></div>
+        <div class="card-body">
+          <div class="config-list" id="lista-agente-palabras-rojo"></div>
+          <div class="config-add"><input type="text" id="nuevo-agente-palabra-rojo" placeholder="Ej: migración..."><button class="btn btn-primary btn-sm" onclick="agregarItem('agentePalabrasClaveRojo','nuevo-agente-palabra-rojo','lista-agente-palabras-rojo')">Agregar</button></div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-header"><h3>🟡 Palabras clave — Amarillo</h3><span class="text-muted">En título o descripción</span></div>
+        <div class="card-body">
+          <div class="config-list" id="lista-agente-palabras-amarillo"></div>
+          <div class="config-add"><input type="text" id="nuevo-agente-palabra-amarillo" placeholder="Ej: cálculo..."><button class="btn btn-primary btn-sm" onclick="agregarItem('agentePalabrasClaveAmarillo','nuevo-agente-palabra-amarillo','lista-agente-palabras-amarillo')">Agregar</button></div>
+        </div>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -6884,6 +6915,32 @@
   <div class="card">
     <div class="card-header"><h4 style="margin:0;">🕓 Actividad reciente</h4></div>
     <div id="dev-seguridad-actividad"></div>
+  </div>
+</div>
+
+<div class="screen" id="screen-agente">
+  <div style="background:#fff3cd;border:1px solid #ffc107;border-radius:8px;padding:10px 14px;margin-bottom:14px;font-size:12.5px;display:flex;align-items:center;gap:10px;justify-content:space-between;flex-wrap:wrap;">
+    <span>🧪 <b>Modo simulación</b> — no toca el repo ni gasta nada, responde solo con datos de mentira.</span>
+    <label style="display:flex;align-items:center;gap:6px;cursor:pointer;white-space:nowrap;">
+      <input type="checkbox" id="agente-modo-simulacion" checked onchange="toggleModoSimulacionAgente()"> Activado
+    </label>
+  </div>
+  <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px;">
+    <input type="text" id="agente-buscar" placeholder="🔍 Buscar ticket..." oninput="renderAgente()" style="flex:1;min-width:160px;padding:8px;border:1px solid #d1d5db;border-radius:6px;">
+    <select id="agente-filtro-estado" onchange="renderAgente()" style="padding:8px;border:1px solid #d1d5db;border-radius:6px;">
+      <option value="">Todos los tickets</option>
+      <option value="sin_corrida">Sin corrida todavía</option>
+      <option value="con_corrida">Con corrida</option>
+    </select>
+  </div>
+  <div id="agente-lista-tickets"></div>
+  <div id="agente-barra-envio" style="position:sticky;bottom:0;background:#fff;border-top:1px solid #e5e7eb;padding:10px 4px;margin-top:10px;display:none;">
+    <button class="btn btn-primary" style="width:100%;" onclick="enviarSeleccionAlAgente()" id="agente-btn-enviar">Enviar al agente (0)</button>
+  </div>
+
+  <div class="card" style="margin-top:18px;">
+    <div class="card-header"><h3>🏃 Corridas</h3></div>
+    <div id="agente-lista-corridas"></div>
   </div>
 </div>
 

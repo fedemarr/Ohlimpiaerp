@@ -28,6 +28,26 @@
 
 BEGIN;
 
+-- Guarda agregada 29/09/2026 (reset de staging): esta migración no sabía
+-- que v092 ya había creado `mono_tablas` con un esquema totalmente
+-- distinto (id text = vigencia, tabla_data jsonb) — nunca se usó (0 filas
+-- reales en ese diseño), y el CREATE TABLE IF NOT EXISTS de acá quedaba de
+-- adorno contra el esquema viejo en cualquier replay desde cero. En
+-- producción esto ya no aplica (la tabla real tiene el esquema de más
+-- abajo, con "organismo", 35 filas) — mismo patrón defensivo que usa v040
+-- para grillas_liq: solo dropea si está vacía, si no aborta para revisar.
+DO $$
+DECLARE filas int;
+BEGIN
+  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema='public' AND table_name='mono_tablas') THEN
+    EXECUTE 'SELECT count(*) FROM public.mono_tablas' INTO filas;
+    IF filas > 0 THEN
+      RAISE EXCEPTION 'public.mono_tablas ya tiene % fila(s) con otro esquema — abortando, revisar antes de dropear', filas;
+    END IF;
+    EXECUTE 'DROP TABLE public.mono_tablas CASCADE';
+  END IF;
+END $$;
+
 -- ============================================================
 -- Tabla de categorías por organismo y vigencia
 -- ============================================================
@@ -53,6 +73,11 @@ CREATE TABLE IF NOT EXISTS public.mono_tablas (
 
 ALTER TABLE public.mono_tablas ENABLE ROW LEVEL SECURITY;
 
+-- Guarda agregada 29/09/2026 (reset de staging): v092 ya crea mono_tablas y
+-- esta misma policy — sin el DROP acá, un replay desde cero corta con
+-- "policy already exists". Contra producción no cambia nada (ya existe
+-- idéntica desde v092).
+DROP POLICY IF EXISTS "Solo usuarios autenticados" ON public.mono_tablas;
 CREATE POLICY "Solo usuarios autenticados" ON public.mono_tablas
   FOR ALL TO authenticated USING (true) WITH CHECK (true);
 

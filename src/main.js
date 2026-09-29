@@ -4,7 +4,7 @@
 import './styles/main.css';
 
 // ── Shared ──
-import { SUPA, supaInit, supaSync, supaDel, fetchCandidatosYTurnos, fetchSugerencias, fetchAccesosVigentes, fetchDotacionRefresh } from '@shared/supabase.js';
+import { SUPA, supaInit, supaSync, supaDel, fetchCandidatosYTurnos, fetchSugerencias, fetchAccesosVigentes, fetchDotacionRefresh, fetchCorridasAgenteVigentes } from '@shared/supabase.js';
 import { puedeVer } from '@modules/accesos/runtime.js';
 import { DB, PERFILES, MENU, BADGE_MAP, AREAS, LOCALIDADES_BA, currentUser } from '@shared/state.js';
 import { $, initials, avatarEl, badge, formatPeriodo, hoyStr, esFeriado, esFinde, getDiasDelMes, calcularDiasEntre, toTitleCase, cleanText, applyTitleCase, validarCampos, fillSelect, fillDL } from '@shared/helpers.js';
@@ -62,6 +62,7 @@ import { gestionHorasScreenConfig } from './modules/gestion_horas/index.js';
 import { dotacionScreenConfig } from './modules/dotacion/index.js';
 import { proveedoresScreenConfig } from './modules/proveedores/index.js';
 import { resumenHorasScreenConfig, poblarSelectsResumenHoras } from './modules/resumen_horas/index.js';
+import { agenteScreenConfig } from './modules/agente/index.js';
 // v098 — Tab "Acceso y perfiles" (no registra screen: la engancha legacy.js
 // en cfgTab). El import temprano garantiza window.renderTabAccesosPerfiles.
 import './modules/accesos/index.js';
@@ -132,6 +133,7 @@ registerScreens(gestionHorasScreenConfig);
 registerScreens(dotacionScreenConfig);
 registerScreens(proveedoresScreenConfig);
 registerScreens(resumenHorasScreenConfig);
+registerScreens(agenteScreenConfig);
 
 // ========== REGISTRAR FILTROS DE BÚSQUEDA GLOBAL ==========
 
@@ -361,6 +363,36 @@ function detenerPollingDotacion() {
   if (pollingDotacionId) { clearInterval(pollingDotacionId); pollingDotacionId = null; }
 }
 
+// Agente de tickets (AGENTE_TICKETS_OHLIMPIA.md): el resultado (real o
+// simulado) puede escribirse en Supabase desde OTRO proceso por completo
+// (api/agente-callback.js, o el timer de simulación de otra pestaña) — sin
+// esto, la corrida cambia de estado en la base pero la pantalla se queda
+// mostrando el estado viejo. Intervalo más corto que el resto (10s en vez
+// de 20-25s): acá el desarrollador está mirando la pantalla esperando
+// activamente un resultado, no es una notificación de fondo. Configurable
+// por window.__AGENTE_POLL_MS solo para achicarlo en tests e2e.
+const INTERVALO_POLLING_AGENTE_MS = () => (typeof window !== 'undefined' && window.__AGENTE_POLL_MS) || 10000;
+let pollingAgenteId = null;
+
+async function chequearCorridasAgenteActualizadas() {
+  if (!currentUser || currentUser.perfil !== 'DEVELOPER') return;
+  const datos = await fetchCorridasAgenteVigentes();
+  if (!datos) return;
+  const antes = JSON.stringify(DB.corridasAgente || []);
+  const despues = JSON.stringify(datos);
+  if (antes === despues) return;
+  DB.corridasAgente = datos;
+  if (currentScreen === 'agente' && SCREEN_CONFIG[currentScreen]) SCREEN_CONFIG[currentScreen].render();
+}
+
+function iniciarPollingAgente() {
+  if (pollingAgenteId) return;
+  pollingAgenteId = setInterval(chequearCorridasAgenteActualizadas, INTERVALO_POLLING_AGENTE_MS());
+}
+function detenerPollingAgente() {
+  if (pollingAgenteId) { clearInterval(pollingAgenteId); pollingAgenteId = null; }
+}
+
 registerAuthCallbacks({
   construirMenu() {
     construirMenu();
@@ -432,6 +464,7 @@ registerAuthCallbacks({
       // Tiempo real (v041): el ticket aparece al instante por websocket;
       // el polling de arriba queda como red de seguridad ante cortes.
       iniciarRealtimeDev();
+      iniciarPollingAgente();
     }
     else iniciarPolling();
     iniciarPollingCampana();
@@ -444,6 +477,7 @@ registerAuthCallbacks({
     detenerPollingCampana();
     detenerPollingAccesos();
     detenerPollingDotacion();
+    detenerPollingAgente();
     detenerRealtimeDev();
     ocultarBotonReporte();
   },

@@ -114,6 +114,16 @@ DECLARE
   ];
 BEGIN
   FOREACH t IN ARRAY tablas LOOP
+    -- Guarda agregada 29/09/2026 (OHLIMPIA_TESTS_STAGING.md, Parte 1): esta
+    -- lista se fue ampliando con el tiempo a medida que se sumaban tablas
+    -- nuevas, así que como texto único incluye nombres (grillas_liq,
+    -- monotributos, etc.) que en el historial real se crean en migraciones
+    -- muy posteriores a v013. Contra producción no cambia nada (ahí las 22
+    -- tablas ya existen todas). Solo importa al reproducir el schema desde
+    -- cero en orden estricto (staging): sin esto, el replay corta acá
+    -- porque la tabla todavía no existe — se saltea sin problema porque su
+    -- propia migración de creación ya deja RLS + policy configurados.
+    CONTINUE WHEN to_regclass('public.' || t) IS NULL;
     EXECUTE format('ALTER TABLE public.%I ENABLE ROW LEVEL SECURITY;', t);
 
     FOR pol IN

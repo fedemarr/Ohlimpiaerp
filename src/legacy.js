@@ -130,6 +130,18 @@ function renderConfiguracion(){
   renderConfigComercial();
   if (window.renderPersonalRrhh) window.renderPersonalRrhh();
   if (window.renderServiciosSupervisor) window.renderServiciosSupervisor();
+  // Tab "Agente" — solo visible/renderizada para DEVELOPER (AGENTE_TICKETS_OHLIMPIA.md
+  // punto 9.1: la sección no debe aparecer para otros perfiles).
+  const btnAgenteCfg = $('cfg-tab-btn-agente');
+  if (btnAgenteCfg) {
+    const esDeveloper = currentUser?.perfil === 'DEVELOPER';
+    btnAgenteCfg.style.display = esDeveloper ? '' : 'none';
+    if (esDeveloper) {
+      renderConfigLista('agenteModulosRojos', 'lista-agente-modulos-rojos');
+      renderConfigLista('agentePalabrasClaveRojo', 'lista-agente-palabras-rojo');
+      renderConfigLista('agentePalabrasClaveAmarillo', 'lista-agente-palabras-amarillo');
+    }
+  }
   cfgTab('personal', document.querySelector('#screen-configuracion .tab-btn'));
 }
 
@@ -195,6 +207,8 @@ const CFG_LISTA_POR_ELID = {
   'lista-categorias':'categorias','lista-movimientos':'movimientos','lista-estados-legales':'estadosLegales',
   'lista-tipos-legales':'tiposLegales','lista-abogados':'abogados','lista-tipos-medicos':'tiposMedicos',
   'lista-estados-medicos':'estadosMedicos','lista-medicos-cfg':'medicosCfg','lista-funciones-usuario':'funcionesUsuario',
+  'lista-agente-modulos-rojos':'agenteModulosRojos','lista-agente-palabras-rojo':'agentePalabrasClaveRojo',
+  'lista-agente-palabras-amarillo':'agentePalabrasClaveAmarillo',
 };
 async function eliminarValorPorLista(listId,valor){
   const clave=CFG_LISTA_POR_ELID[listId] || Object.keys(DB).find(k=>Array.isArray(DB[k])&&DB[k].includes(valor));
