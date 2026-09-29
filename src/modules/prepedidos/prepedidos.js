@@ -123,8 +123,22 @@ export function sembrarPrepedido(o, { notificar = false } = {}) {
   };
   if (!DB.prepedidos) DB.prepedidos = [];
   DB.prepedidos.push(pre);
+  // FIX (bug "pérdida de datos al recargar", ticket 29/09/2026): antes, si
+  // Supabase rechazaba el guardado, solo quedaba un console.warn que nadie
+  // ve — el prepedido seguía en DB.prepedidos (visible en la bandeja) hasta
+  // el próximo refresh, momento en el que desaparecía sin explicación. Esta
+  // función se sigue llamando de forma síncrona desde muchos lugares (el
+  // alta de servicio entre ellos) así que no se puede convertir todo el
+  // llamado a async sin auditar cada caller — se mantiene el retorno
+  // optimista de siempre, pero ahora si falla se hace rollback real y se
+  // avisa en pantalla, no solo en la consola.
   supaSync('prepedidos', pre).then(ok => {
-    if (!ok) console.warn('No se pudo guardar el prepedido', numeroPreTxt(pre));
+    if (ok) return;
+    console.warn('No se pudo guardar el prepedido', numeroPreTxt(pre));
+    const idx = (DB.prepedidos || []).indexOf(pre);
+    if (idx >= 0) DB.prepedidos.splice(idx, 1);
+    toast(`⚠️ No se pudo guardar ${numeroPreTxt(pre)} en el servidor — recargá la página e intentá de nuevo`);
+    if (typeof window.renderPrepedidos === 'function') window.renderPrepedidos();
   });
   if (notificar) notificarNacimiento(pre, o);
   return pre;
@@ -376,7 +390,7 @@ export function cubrirVacanteConInterno(preId, idx) {
   });
 }
 
-export function incorporarVacante(preId, idx) {
+export async function incorporarVacante(preId, idx) {
   if (!puedeDecidirPrepedidos()) { toast('⛔ Solo Operaciones decide la dotación'); return; }
   const pre = preDeId(preId);
   const o = pre && objetivoDePrepedido(pre);
@@ -389,7 +403,12 @@ export function incorporarVacante(preId, idx) {
   const inicioISO = aISO(o.fechaInicio);
   const dias = diasHasta(inicioISO);
   const horarioSemanal = { dias: { ...v.dias }, horarioDesde: v.horarioDesde, horarioHasta: v.horarioHasta, tipoHorario: v.tipoHorario };
-  const pedido = window.crearPedidoDesdePrepedido({
+  // FIX (bug "pérdida de datos al recargar", ticket 29/09/2026):
+  // crearPedidoDesdePrepedido() ahora es async y puede devolver null si
+  // Supabase rechazó el guardado — antes se asumía éxito siempre y se
+  // mandaban notificaciones/toast de un pedido que en realidad no había
+  // quedado guardado.
+  const pedido = await window.crearPedidoDesdePrepedido({
     supervisor: o.supervisorAsignado || 'A designar',
     servicio: o.codigo,
     zona: o.localidad || o.jurisdiccion || '',
@@ -404,6 +423,7 @@ export function incorporarVacante(preId, idx) {
     prepedidoIdLocal: idLocal(pre.id),
     prepedidoVacante: idx,
   }, numeroPreTxt(pre));
+  if (!pedido) return; // el error ya se avisó adentro de crearPedidoDesdePrepedido()
   nombresConPerfil(['RRHH']).forEach(nombre => crearNotificacion({
     tipo: 'pedido_desde_prepedido', entidadTipo: 'pedido', entidadIdLocal: idLocal(pedido.id), destinatarioNombre: nombre,
     mensaje: `Nuevo pedido PP-${pedido.numero} (${o.nombre}) desde ${numeroPreTxt(pre)}: ${v.puesto || 'vacante'} — RRHH inicia la búsqueda.`,

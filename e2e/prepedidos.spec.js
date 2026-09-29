@@ -6,7 +6,30 @@ import { loginComoAdmin } from './helpers.js';
 // con una vacante por persona; Operaciones decide por vacante (Cubrir con
 // interno → Reasignaciones precargado / Incorporar → Activos); el estado de
 // cada vacante se deriva de los registros vinculados.
+
+// Este spec NO inyecta sesión real, así que las ESCRITURAS contra Supabase
+// las rechaza RLS (por eso los tests sin mock logueaban
+// "supaSync insert error: prepedidos new row violates row-level security").
+// Desde el fix de "pérdida de datos al recargar" (29/09/2026) eso ya NO es
+// inocuo: si supaSync falla se hace rollback real del registro en DB — que es
+// justo lo que hay que verificar acá, no el camino de error. Por eso se
+// interceptan solo los POST/PATCH de las 2 tablas que este test escribe; los
+// GET siguen contra producción, como antes, para no alterar el resto.
+async function mockEscriturasOk(page) {
+  await page.route('**/rest/v1/**', (route) => {
+    const req = route.request();
+    // Anclado con \?|$ porque el INSERT de PostgREST va a "/pedidos" pelado
+    // (sin query) — y sin el ancla "/pedidos" también matchearía "/prepedidos".
+    const esEscritura = req.method() !== 'GET' && /\/rest\/v1\/(pedidos|prepedidos)(\?|$)/.test(req.url());
+    if (esEscritura) {
+      return route.fulfill({ status: 201, contentType: 'application/json', body: '{}' });
+    }
+    return route.continue();
+  });
+}
+
 test('Prepedidos — siembra idempotente, decisión por vacante, historial y chips', async ({ page }) => {
+  await mockEscriturasOk(page);
   await loginComoAdmin(page);
 
   const { preId } = await page.evaluate(async () => {

@@ -2,7 +2,7 @@ import { DB, currentUser } from '@shared/state.js';
 import { $, badge, calcularDiasEntre } from '@shared/helpers.js';
 import { esMismoSupervisor } from '@modules/supervision/supervision.js';
 import { toast, cerrarModal, abrirModal } from '@shared/ui.js';
-import { supaSync, SUPA } from '@shared/supabase.js';
+import { supaSync, SUPA, getLastSupaSyncError } from '@shared/supabase.js';
 import { checklistDiasHtml, formatearHorarioSemanal } from '@shared/horarioDias.js';
 import { getSupervisorDeCodigo, serviciosDeSupervisor, direccionDeServicio } from '@modules/servicios_supervisor/index.js';
 import { calcularKpisSeguimiento } from './seguimiento.js';
@@ -608,7 +608,7 @@ export function filtrarPedidos() {
 
 // Alta de un pedido que nace de una vacante de prepedido ("Incorporar"):
 // mismo pedido de siempre, con el vínculo prepedidoIdLocal/prepedidoVacante.
-export function crearPedidoDesdePrepedido(datos, origenTxt) {
+export async function crearPedidoDesdePrepedido(datos, origenTxt) {
   // Sigue llegando con los campos planos de siempre (puesto/cantidad/
   // horarioSemanal/perfil: una vacante de prepedido = un puesto) —
   // prepedidos.js no cambió, se envuelve acá en una línea (v158) para que
@@ -629,7 +629,20 @@ export function crearPedidoDesdePrepedido(datos, origenTxt) {
     estado: 'Pendiente',
   };
   DB.pedidos.push(nuevo);
-  supaSync('pedidos', nuevo);
+  // FIX (bug "pérdida de datos al recargar", ticket 29/09/2026): esto era
+  // fire-and-forget — ni se esperaba ni se chequeaba el resultado, así que
+  // un rechazo de PostgREST (acá: la migración v158 nunca aplicada en
+  // producción, `lineas` no existía como columna) dejaba el pedido SOLO en
+  // memoria, visible hasta el próximo refresh y desaparecido después. Mismo
+  // fix que ya tiene guardarObjetivo() (09/09) para el mismo síntoma.
+  const ok = await supaSync('pedidos', nuevo);
+  if (!ok) {
+    const idx = DB.pedidos.findIndex((p) => p.id === nuevo.id);
+    if (idx >= 0) DB.pedidos.splice(idx, 1);
+    const err = getLastSupaSyncError();
+    toast('⚠️ No se pudo guardar el pedido en el servidor' + (err?.message ? ' (' + err.message + ')' : '') + ' — reintentá o avisá a sistemas');
+    return null;
+  }
   agregarEvento(nuevo, 'creado', `Desde ${origenTxt}`);
   return nuevo;
 }
@@ -643,7 +656,10 @@ export function abrirNuevoPedido() {
   abrirModal('modal-pedido');
 }
 
-export function guardarPedido() {
+let _guardandoPedido = false;
+
+export async function guardarPedido() {
+  if (_guardandoPedido) return; // evita doble envío por doble click
   const s = $('p-servicio').value.trim();
   if (!s) { toast('Ingresá el servicio'); return; }
   if (!lineasPedidoTemp.length) { toast('Agregá al menos una línea de puesto'); return; }
@@ -669,32 +685,61 @@ export function guardarPedido() {
     urgencia: $('p-urgencia').value,
     obs: $('p-obs').value,
   };
-  if (_pedidoEditId) {
-    const p = DB.pedidos.find(x => String(x.id) === String(_pedidoEditId));
-    if (!p) { toast('No se encontró el pedido'); return; }
-    Object.assign(p, datos);
-    _pedidoEditId = null;
+  _guardandoPedido = true;
+  const btnGuardar = $('btn-guardar-pedido');
+  const textoOriginalBtn = btnGuardar?.textContent;
+  if (btnGuardar) { btnGuardar.disabled = true; btnGuardar.textContent = 'Guardando...'; }
+  try {
+    if (_pedidoEditId) {
+      const p = DB.pedidos.find(x => String(x.id) === String(_pedidoEditId));
+      if (!p) { toast('No se encontró el pedido'); return; }
+      const snapshot = { ...p };
+      Object.assign(p, datos);
+      // FIX (bug "pérdida de datos al recargar", ticket 29/09/2026): antes
+      // esto era fire-and-forget — el toast de éxito salía igual aunque
+      // Supabase rechazara el guardado (pasó de verdad: la migración v158
+      // nunca se había aplicado en producción, la columna `lineas` no
+      // existía, y CUALQUIER alta/edición de pedido se perdía sin aviso al
+      // primer refresh). Mismo fix ya aplicado en guardarObjetivo() (09/09).
+      const ok = await supaSync('pedidos', p);
+      if (!ok) {
+        Object.assign(p, snapshot);
+        const err = getLastSupaSyncError();
+        toast('⚠️ No se pudo guardar el pedido en el servidor' + (err?.message ? ' (' + err.message + ')' : '') + ' — reintentá o avisá a sistemas');
+        return;
+      }
+      _pedidoEditId = null;
+      cerrarModal('modal-pedido');
+      agregarEvento(p, 'editado', '');
+      renderPedidos();
+      toast('✓ Pedido actualizado');
+      return;
+    }
+    const nuevo = {
+      id: Date.now(),
+      numero: siguienteNumeroPedido(),
+      fecha: hoyDDMMAAAA(),
+      cargadoPor: currentUser?.nombre || 'Sistema',
+      ...datos,
+      estado: 'Pendiente',
+    };
+    DB.pedidos.push(nuevo);
+    const ok = await supaSync('pedidos', nuevo);
+    if (!ok) {
+      const idx = DB.pedidos.findIndex((x) => x.id === nuevo.id);
+      if (idx >= 0) DB.pedidos.splice(idx, 1);
+      const err = getLastSupaSyncError();
+      toast('⚠️ No se pudo guardar el pedido en el servidor' + (err?.message ? ' (' + err.message + ')' : '') + ' — reintentá o avisá a sistemas');
+      return;
+    }
     cerrarModal('modal-pedido');
-    agregarEvento(p, 'editado', '');
     renderPedidos();
-    supaSync('pedidos', p);
-    toast('✓ Pedido actualizado');
-    return;
+    agregarEvento(nuevo, 'creado', `Cargado por ${nuevo.cargadoPor}`);
+    toast(`✓ Pedido ${numeroPedidoTxt(nuevo)} guardado`);
+  } finally {
+    _guardandoPedido = false;
+    if (btnGuardar) { btnGuardar.disabled = false; btnGuardar.textContent = textoOriginalBtn; }
   }
-  const nuevo = {
-    id: Date.now(),
-    numero: siguienteNumeroPedido(),
-    fecha: hoyDDMMAAAA(),
-    cargadoPor: currentUser?.nombre || 'Sistema',
-    ...datos,
-    estado: 'Pendiente',
-  };
-  DB.pedidos.push(nuevo);
-  cerrarModal('modal-pedido');
-  renderPedidos();
-  supaSync('pedidos', nuevo);
-  agregarEvento(nuevo, 'creado', `Cargado por ${nuevo.cargadoPor}`);
-  toast(`✓ Pedido ${numeroPedidoTxt(nuevo)} guardado`);
 }
 
 // Reinicia el estado del modal para un alta nueva (botón "+ Nuevo pedido").
