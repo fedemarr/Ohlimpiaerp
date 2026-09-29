@@ -19,7 +19,7 @@
 import { DB, currentUser } from '@shared/state.js';
 import { $, avatarEl, badge, cleanText } from '@shared/helpers.js';
 import { toast, abrirModal, cerrarModal, abrirModalInput } from '@shared/ui.js';
-import { supaSync } from '@shared/supabase.js';
+import { supaSync, getLastSupaSyncError } from '@shared/supabase.js';
 import { construirMenu } from '@shared/nav.js';
 import { crearNotificacion } from '@shared/notificaciones.js';
 import { sugerirServicioDestino } from './sugeridor.js';
@@ -95,17 +95,22 @@ export function renderReasignacionesInicial() {
 // abriera este módulo puntual. Se llama también al abrir Liquidación de
 // horas (legacy.js) y al iniciar sesión (main.js), sin cron real todavía
 // pero con muchos más puntos de entrada que la disparan.
-export function chequearEjecucionesPendientes() {
+export async function chequearEjecucionesPendientes() {
   const hoy = hoyISO();
   const aEjecutar = (DB.reasignaciones || []).filter(r =>
     !r.anulado && r.estado === 'Aprobada esperando fecha efectiva' && r.fechaEfectiva && r.fechaEfectiva <= hoy
   );
-  aEjecutar.forEach(r => {
+  for (const r of aEjecutar) {
     r.estado = 'Aprobada ejecutada';
     r.fechaEjecucion = hoy;
     ejecutarReasignacion(r);
-    supaSync('reasignaciones', r);
-  });
+    // FIX (misma familia, 29/09/2026): ejecutarReasignacion() ya movió el
+    // legajo antes de esto — si el guardado falla no se puede deshacer ese
+    // movimiento solo revirtiendo el estado acá, así que se avisa fuerte en
+    // vez de fallar en silencio (antes ni eso: fire-and-forget).
+    const ok = await supaSync('reasignaciones', r);
+    if (!ok) toast(`⚠️ Se ejecutó la reasignación de ${r.nombreAsociado} pero no se pudo guardar el estado — avisá a sistemas`, 8000);
+  }
 }
 
 // Aplica el cambio real al legajo y marca el pedido vinculado como
@@ -828,7 +833,10 @@ export function abrirBorradorReasignacionPorId(id) {
 
 // ========== GUARDAR (Borrador o Elevar) ==========
 
-export function guardarReasignacion(estadoDestino) {
+let _guardandoReas = false;
+
+export async function guardarReasignacion(estadoDestino) {
+  if (_guardandoReas) return; // evita doble envío por doble click
   const nroVal = ($('reas-nro') || { value: '' }).value;
   const leg = (DB.legajos || []).find(l => String(l.nro) === String(nroVal));
   const dest = cleanText(($('reas-serv-dest') || { value: '' }).value);
@@ -892,15 +900,39 @@ export function guardarReasignacion(estadoDestino) {
   r.estado = estadoDestino;
   if (editId) { r.editadoPor = currentUser?.nombre || ''; r.editadoEn = new Date().toISOString(); }
 
+  const snapshot = editId ? { ...r } : null;
   if (!editId) DB.reasignaciones.push(r);
   if (modal) delete modal.dataset.editId;
 
-  supaSync('reasignaciones', r);
-  cerrarModal('modal-reasignacion');
-  aplicarModoPrepedido(null);
-  resetModoReas();
-  construirMenu(); renderReasignaciones(); refrescarPrepedidos();
-  toast(estadoDestino === 'Borrador' ? '✓ Borrador guardado' : '✓ Reasignación elevada para aprobación');
+  _guardandoReas = true;
+  const botones = document.querySelectorAll('.reas-btn-guardar');
+  botones.forEach((b) => { b.disabled = true; });
+  try {
+    // FIX (misma familia de bug que pedidos/prepedidos, 29/09/2026): esto
+    // era fire-and-forget — el toast de éxito salía igual aunque Supabase
+    // rechazara el guardado. Pasó de verdad acá: la migración v156 (columnas
+    // tipo/consultado_acepta/consultado_por) nunca se había aplicado en
+    // producción, así que NINGUNA reasignación se guardó nunca (0 filas
+    // reales) desde que existe esta modalidad (23/09) — "Cubrir con interno"
+    // parecía funcionar (la vacante del prepedido se marcaba) pero se perdía
+    // siempre al refrescar.
+    const ok = await supaSync('reasignaciones', r);
+    if (!ok) {
+      if (editId && snapshot) Object.assign(r, snapshot);
+      else { const idx = DB.reasignaciones.indexOf(r); if (idx >= 0) DB.reasignaciones.splice(idx, 1); }
+      const err = getLastSupaSyncError();
+      toast('⚠️ No se pudo guardar la reasignación en el servidor' + (err?.message ? ' (' + err.message + ')' : '') + ' — reintentá o avisá a sistemas');
+      return;
+    }
+    cerrarModal('modal-reasignacion');
+    aplicarModoPrepedido(null);
+    resetModoReas();
+    construirMenu(); renderReasignaciones(); refrescarPrepedidos();
+    toast(estadoDestino === 'Borrador' ? '✓ Borrador guardado' : '✓ Reasignación elevada para aprobación');
+  } finally {
+    _guardandoReas = false;
+    botones.forEach((b) => { b.disabled = false; });
+  }
 }
 
 // ========== APROBAR / RECHAZAR / ANULAR (por id, con guard de idempotencia) ==========
@@ -919,7 +951,7 @@ export function puedeAprobarReasignacion() {
   return (DB.aprobadoresReas || []).some(a => a === currentUser.funcion);
 }
 
-export function aprobarReasignacionPorId(id) {
+export async function aprobarReasignacionPorId(id) {
   if (!puedeAprobarReasignacion()) {
     toast(`⛔ Solo pueden aprobar: ${(DB.aprobadoresReas || []).join(' y ')}`);
     return;
@@ -928,6 +960,7 @@ export function aprobarReasignacionPorId(id) {
   if (!r) { toast('⚠️ Reasignación no encontrada'); return; }
   if (r.estado !== 'Pendiente') { toast(`⚠️ Esta reasignación ya fue resuelta (estado actual: ${r.estado})`); return; }
 
+  const snapshot = { ...r };
   const hoy = hoyISO();
   const ejecutaYa = r.fechaEfectiva <= hoy;
   r.estado = ejecutaYa ? 'Aprobada ejecutada' : 'Aprobada esperando fecha efectiva';
@@ -937,7 +970,19 @@ export function aprobarReasignacionPorId(id) {
     r.fechaEjecucion = hoy;
     ejecutarReasignacion(r);
   }
-  supaSync('reasignaciones', r);
+  // FIX (misma familia de bug, 29/09/2026): fire-and-forget — aprobar
+  // "funcionaba" en pantalla y se perdía al refrescar si Supabase rechazaba
+  // el guardado (acá, ejecutarReasignacion() ya movió al legajo de servicio
+  // ANTES del guardado — si el guardado de la reasignación falla, el legajo
+  // ya se movió y hay que avisarlo explícito, no solo revertir el estado).
+  const ok = await supaSync('reasignaciones', r);
+  if (!ok) {
+    Object.assign(r, snapshot);
+    const err = getLastSupaSyncError();
+    toast('⚠️ No se pudo guardar la aprobación en el servidor' + (err?.message ? ' (' + err.message + ')' : '') + (ejecutaYa ? ' — OJO: el legajo puede haberse movido igual, revisá a mano' : '') + ' — reintentá o avisá a sistemas', 7000);
+    renderReasignaciones();
+    return;
+  }
   construirMenu(); renderReasignaciones(); refrescarPrepedidos();
   toast(ejecutaYa
     ? `✅ Aprobada y ejecutada — ${r.nombreAsociado} → ${r.servicioDestino}`
@@ -953,18 +998,26 @@ export function rechazarReasignacionPorId(id) {
   if (!r) { toast('⚠️ Reasignación no encontrada'); return; }
   if (r.estado !== 'Pendiente') { toast(`⚠️ Ya fue resuelta (estado actual: ${r.estado})`); return; }
 
-  abrirModalInput({ titulo: 'Rechazar reasignación', etiqueta: 'Motivo del rechazo' }, (motivo) => {
+  abrirModalInput({ titulo: 'Rechazar reasignación', etiqueta: 'Motivo del rechazo' }, async (motivo) => {
+    const snapshot = { ...r };
     r.estado = 'Rechazada';
     r.motivoRechazo = motivo;
     r.aprobadoPor = currentUser?.nombre || 'Administrador';
     r.fechaRechazo = new Date().toISOString();
-    supaSync('reasignaciones', r);
+    const ok = await supaSync('reasignaciones', r);
+    if (!ok) {
+      Object.assign(r, snapshot);
+      const err = getLastSupaSyncError();
+      toast('⚠️ No se pudo guardar el rechazo en el servidor' + (err?.message ? ' (' + err.message + ')' : '') + ' — reintentá o avisá a sistemas');
+      renderReasignaciones();
+      return;
+    }
     construirMenu(); renderReasignaciones(); refrescarPrepedidos();
     toast(`❌ Reasignación de ${r.nombreAsociado} rechazada`);
   });
 }
 
-export function anularReasignacionPorId(id) {
+export async function anularReasignacionPorId(id) {
   const r = getReasById(id);
   if (!r) return;
   if (!['Borrador', 'Pendiente'].includes(r.estado)) {
@@ -972,10 +1025,18 @@ export function anularReasignacionPorId(id) {
     return;
   }
   if (!confirm(`¿Anular la reasignación de ${r.nombreAsociado}?`)) return;
+  const snapshot = { ...r };
   r.estado = 'Anulada';
   r.anuladoPor = currentUser?.nombre || 'Administrador';
   r.fechaAnulacion = new Date().toISOString();
-  supaSync('reasignaciones', r);
+  const ok = await supaSync('reasignaciones', r);
+  if (!ok) {
+    Object.assign(r, snapshot);
+    const err = getLastSupaSyncError();
+    toast('⚠️ No se pudo guardar la anulación en el servidor' + (err?.message ? ' (' + err.message + ')' : '') + ' — reintentá o avisá a sistemas');
+    renderReasignaciones();
+    return;
+  }
   construirMenu(); renderReasignaciones(); refrescarPrepedidos();
   toast('✓ Reasignación anulada');
 }

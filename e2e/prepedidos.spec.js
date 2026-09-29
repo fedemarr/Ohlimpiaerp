@@ -20,7 +20,10 @@ async function mockEscriturasOk(page) {
     const req = route.request();
     // Anclado con \?|$ porque el INSERT de PostgREST va a "/pedidos" pelado
     // (sin query) — y sin el ancla "/pedidos" también matchearía "/prepedidos".
-    const esEscritura = req.method() !== 'GET' && /\/rest\/v1\/(pedidos|prepedidos)(\?|$)/.test(req.url());
+    // "reasignaciones" sumado 29/09: "Cubrir con interno" pasa por
+    // guardarReasignacion(), que desde el fix de reasignaciones (misma
+    // familia de bug) también hace rollback real si el guardado falla.
+    const esEscritura = req.method() !== 'GET' && /\/rest\/v1\/(pedidos|prepedidos|reasignaciones)(\?|$)/.test(req.url());
     if (esEscritura) {
       return route.fulfill({ status: 201, contentType: 'application/json', body: '{}' });
     }

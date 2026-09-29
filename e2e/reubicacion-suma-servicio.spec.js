@@ -31,6 +31,21 @@ async function abrirModuloYNueva(page) {
   await page.waitForTimeout(100);
 }
 
+// Este spec no inyecta sesión real, así que la escritura a `reasignaciones`
+// la rechaza RLS. Desde el fix de "pérdida de datos al recargar" (29/09/2026,
+// misma familia que pedidos/prepedidos) eso ya no es inocuo: guardarReasignacion()
+// hace rollback real si supaSync falla, y estos tests SÍ necesitan que el
+// guardado "pegue" para poder seguir el flujo (aprobar, ejecutar, etc.).
+// Mismo patrón que ya usa e2e/prepedidos.spec.js.
+async function mockEscriturasOk(page) {
+  await page.route('**/rest/v1/**', (route) => {
+    const req = route.request();
+    const esEscritura = req.method() !== 'GET' && /\/rest\/v1\/(reasignaciones|legajos|notificaciones_sistema|pedidos)(\?|$)/.test(req.url());
+    if (esEscritura) return route.fulfill({ status: 201, contentType: 'application/json', body: '{}' });
+    return route.continue();
+  });
+}
+
 test('Reubicación — el menú y el título del módulo dicen "Reubicación" (solo texto visible)', async ({ page }) => {
   await loginComoAdmin(page);
   await page.evaluate(() => window.navTo('reasignaciones'));
@@ -91,6 +106,7 @@ test('Reubicación — exige "asociado consultado" antes de elevar', async ({ pa
 });
 
 test('Reubicación clásica — mueve el legajo al servicio nuevo y avisa al supervisor de origen', async ({ page }) => {
+  await mockEscriturasOk(page);
   await loginComoAdmin(page);
   const leg = await inyectarLegajo(page, { servicio: 'ORIG.REUB', supervisor: 'Sup Origen Reub', funcion: 'Operario A' });
   await seedServicioDestino(page, { codigo: 'DEST.REUB', nombre: 'Servicio Destino Reub', supervisor: 'Sup Destino Reub' });
@@ -145,6 +161,7 @@ test('Reubicación clásica — mueve el legajo al servicio nuevo y avisa al sup
 });
 
 test('Suma de servicio — NO mueve el legajo de su servicio actual y no avisa "dotación incompleta"', async ({ page }) => {
+  await mockEscriturasOk(page);
   await loginComoAdmin(page);
   const leg = await inyectarLegajo(page, { servicio: 'ORIG.SUMA', supervisor: 'Sup Origen Suma', funcion: 'Operario A' });
   await seedServicioDestino(page, { codigo: 'DEST.SUMA', nombre: 'Servicio Destino Suma', supervisor: 'Sup Destino Suma' });
