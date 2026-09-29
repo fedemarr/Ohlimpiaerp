@@ -9,7 +9,10 @@
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "test:staging": "vitest run --config vitest.staging.config.js",
+    "staging:reset": "node scripts/reset_staging.mjs",
+    "staging:seed": "node scripts/seed_staging.mjs"
   },
   "repository": {
     "type": "git",

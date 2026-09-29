@@ -79,13 +79,21 @@ export const miModuloScreenConfig = {
 
 ### Sistema de permisos
 
-6 perfiles con acceso a módulos específicos:
+13 perfiles reales (`PERFILES` en `state.js` — este número cambia con el
+tiempo, si no coincide con el archivo real gana el archivo):
 - **Administrador total:** acceso completo
 - **RRHH:** selección, legajos, liquidación, etc.
 - **Operaciones:** pedidos, clientes, liquidación de horas
 - **Finanzas:** legajos, cobros, liquidaciones
 - **Supervisor:** pedidos, legajos, competencia
-- **Asociado:** portal de adelantos (login por nro socio + apellido)
+- **Comercial:** clientes, objetivos, precios, CRM, negociación, reclamos, comisiones
+- **Logística:** pedido de productos, compras
+- **Gerencia General / Consejo Directivo:** roles de dirección
+- **Auditor:** auditoría interna — lectura de pedidos, stock e inventario
+- **Asociado:** portal de adelantos (login por nro socio + apellido — ver
+  nota de Supabase Auth más abajo, este login depende de `signInAnonymously()`)
+- **DEVELOPER:** panel de desarrollo (tickets, agente, seguridad, empresas clientes) — es el usuario real de Fede
+- **Superadmin:** alta de empresas clientes (venta del ERP a otras cooperativas)
 
 ### Patrón de callbacks para evitar dependencias circulares
 
@@ -278,7 +286,7 @@ Mapa de claves JS → tablas (definido en `supabase.js`):
 ### Conocidos / pendientes
 - **`prompt()` para inputs:** `rechazarCandidatoPorId()`, `rechazarPsico()` y `agendarTurno()` usan `prompt()` del navegador en vez de modales propios.
 - **Estilos inline excesivos:** Los renders generan HTML con estilos inline que dificultan el mantenimiento y la consistencia visual.
-- **Contraseñas en texto plano:** `DB.usuarios` tiene passwords en plain text. La autenticación es local contra ese array, no usa Supabase Auth.
+- **Sí usa Supabase Auth (corregido 30/09/2026 — esta sección decía lo contrario):** `src/shared/auth.js` usa `SUPA.auth.signInWithPassword()` para el login de personal (real, no un array local) y `SUPA.auth.signInAnonymously()` como fallback del Portal Asociado (para poder leer `legajos` bajo RLS sin pedirle password al asociado — hoy este camino está roto en producción porque el proveedor anónimo está deshabilitado en el proyecto, ver `PENDIENTES_FEDE.md`). RLS en casi todas las tablas es `FOR ALL TO authenticated USING (true)` — sin sesión no se lee ni escribe nada (confirmado con pruebas reales, ver `TICKET_RLS_ROL_ANON_AUTHENTICATED.md`).
 - **Sin validación de unicidad de DNI en legajos:** Se puede crear legajos con DNI duplicado (en candidatos ya se valida formato 6-8 dígitos + unicidad al crear/editar).
 - **Campos `identificacion`, `domicilio`, etc. en `catAltPendientes`:** Se guardan como `{}` vacío (jsonb). El modal de alta no los llena — los datos van directo al legajo.
 - **Schema drift en `psicos.id`:** La columna `id` real en la base es `uuid`, pero el SQL versionado (`crear_tablas.sql`, `setup_supabase.sql`) la declara `bigint generated always as identity`. Inofensivo en runtime porque `_toCamel` descarta `id` y todo opera por `id_local`, pero confirma que los `.sql` no reflejan exactamente la base. Pendiente: regenerar el SQL desde la base real o actualizar `v002`.

@@ -125,13 +125,39 @@ verde → Tests OK, ticket rojo bloqueado, ticket con migración → aprobación
 probarlo hoy mismo en la pantalla sin gastar nada, tal como pide el punto
 12.1.
 
-### Portal Asociado probablemente roto (hallazgo de esta sesión, no de esta feature)
-Al investigar RLS para otro tema encontré que el login del Portal Asociado
-depende de `signInAnonymously()`, y que el proveedor anónimo de Supabase
-está **deshabilitado** en el proyecto. Es decir, ese login probablemente no
-funcione en producción ahora mismo. No lo confirmé con una prueba completa
-del flujo (no toqué nada), y no es parte de este ticket — lo dejo anotado
-para que lo mires cuando puedas.
+### Portal Asociado — CONFIRMADO roto en producción (30/09/2026)
+Probado en vivo contra `ohlimpia-gestia.vercel.app` con un legajo real y
+activo (nro 2, Peretti Juan Carlos — sin tocar nada, solo login):
+
+- El asociado escribe su nro de socio y apellido REALES y correctos.
+- La red muestra: `422 https://.../auth/v1/signup → {"code":"anonymous_provider_disabled","message":"Anonymous sign-ins are disabled"}`.
+- La pantalla le dice **"Número de socio o apellido incorrecto."** — mensaje
+  engañoso: no es que se equivocó, es que `loginAsociado()`
+  (`src/shared/auth.js`) depende de `signInAnonymously()` para poder leer
+  `legajos` bajo RLS, y ese proveedor está deshabilitado en el proyecto.
+  Nadie puede entrar al Portal Asociado hoy.
+
+**Por qué NO recomiendo la solución obvia (habilitar "Allow anonymous
+sign-ins" en Supabase):** reabre exactamente el agujero que se descartó en
+`TICKET_RLS_ROL_ANON_AUTHENTICATED.md`. Ese ticket se cerró como "seguro"
+*porque* el proveedor anónimo estaba deshabilitado — es la única barrera
+real hoy entre "cualquiera con DevTools" y una sesión `authenticated` que,
+combinada con las policies `USING (true)` de casi todas las tablas, lee y
+escribe TODO sin login. Habilitarlo para arreglar el Portal Asociado
+reabriría ese acceso público a toda la base para cualquier visitante del
+sitio, no solo para el Portal Asociado.
+
+**Lo que hay que tocar no es un toggle de Supabase — es código.** El fix
+correcto sanea esto con una función serverless (mismo patrón que
+`api/crear-usuario.js`) que valide nro+apellido con `service_role` del lado
+del servidor y no dependa de que el navegador tenga una sesión de Supabase
+Auth. Pero eso solo resuelve el LOGIN — las pantallas del portal (Mis
+adelantos, etc.) hoy asumen `DB.*` cargado por queries directas del
+navegador, que también las bloquea la misma RLS sin sesión. Arreglarlo
+completo es un rediseño chico pero real de cómo el portal lee sus datos, no
+un cambio de una línea — no lo hice sin que lo veas primero porque toca el
+mismo tema de seguridad que ya es sensible en este proyecto. Avisame si
+querés que lo arme como ticket aparte.
 
 ### `CLAUDE.md` desactualizado en dos puntos
 1. Dice "6 perfiles" — hay 11 reales (`PERFILES` en `state.js`).
