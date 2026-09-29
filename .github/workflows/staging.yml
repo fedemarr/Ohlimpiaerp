@@ -1,0 +1,114 @@
+# OHLIMPIA_TESTS_STAGING.md, Parte 3 — pipeline de staging.
+#
+# push a staging
+#   → vitest (unit + Nivel 1 contra la base de staging real)
+#   → build (con las env vars de staging)
+#   → deploy a staging (Vercel, vía CLI — el auto-deploy nativo de Vercel
+#     queda desconectado a propósito, ver PENDIENTES_FEDE.md)
+#   → smoke check post-deploy (datos reales, no solo "no hay 500")
+#   → [pendiente, ver abajo] playwright contra la URL ya deployada
+#
+# Innegociable #3 (tests bloqueantes) — si CUALQUIER paso anterior falla,
+# los siguientes no corren (comportamiento default de GitHub Actions, sin
+# `continue-on-error` en ningún lado de este archivo).
+#
+# ⚠️ NO VERIFICADO EN VIVO — nunca se disparó una corrida real de este
+# workflow (no hay forma de observar un GitHub Action desde esta sesión).
+# Cada pieza individual (los comandos npm, scripts/smoke_check.mjs) SÍ se
+# probó de verdad contra la staging real antes de escribir esto.
+
+name: Pipeline de staging
+
+on:
+  push:
+    branches: [staging]
+
+jobs:
+  pipeline:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Instalar dependencias
+        run: npm ci
+
+      - name: Tests unitarios (Vitest)
+        id: unit
+        run: |
+          npm test -- --reporter=verbose 2>&1 | tee vitest.log
+          echo "corridos=$(grep -oP '\d+(?= passed)' vitest.log | tail -1)" >> "$GITHUB_OUTPUT"
+
+      # Innegociable #2 del spec del agente, aplica igual acá: "si
+      # tests_corridos es 0, se trata como fallo" — un comando en verde sin
+      # haber corrido nada es peor que no tener tests.
+      - name: Verificar que de verdad corrieron tests unitarios
+        run: |
+          if [ -z "${{ steps.unit.outputs.corridos }}" ] || [ "${{ steps.unit.outputs.corridos }}" -eq 0 ]; then
+            echo "::error::vitest reportó 0 tests corridos — se trata como fallo, no como éxito vacío."
+            exit 1
+          fi
+          echo "Tests unitarios corridos: ${{ steps.unit.outputs.corridos }}"
+
+      - name: Tests de Nivel 1 contra la base de staging real
+        id: nivel1
+        env:
+          STAGING_PROJECT_REF: ${{ secrets.STAGING_PROJECT_REF }}
+          STAGING_DB_HOST: ${{ secrets.STAGING_DB_HOST }}
+          STAGING_DB_PORT: ${{ secrets.STAGING_DB_PORT }}
+          STAGING_DB_USER: ${{ secrets.STAGING_DB_USER }}
+          STAGING_DB_PASSWORD: ${{ secrets.STAGING_DB_PASSWORD }}
+        run: |
+          npm run test:staging -- --reporter=verbose 2>&1 | tee vitest-staging.log
+          echo "corridos=$(grep -oP '\d+(?= passed)' vitest-staging.log | tail -1)" >> "$GITHUB_OUTPUT"
+
+      - name: Verificar que de verdad corrieron tests de Nivel 1
+        run: |
+          if [ -z "${{ steps.nivel1.outputs.corridos }}" ] || [ "${{ steps.nivel1.outputs.corridos }}" -eq 0 ]; then
+            echo "::error::Los tests de Nivel 1 reportaron 0 corridos — se trata como fallo."
+            exit 1
+          fi
+
+      - name: Build (con las variables de staging)
+        env:
+          VITE_SUPABASE_URL: ${{ secrets.STAGING_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.STAGING_SUPABASE_ANON_KEY }}
+        run: npm run build
+
+      - name: Deploy a staging (Vercel CLI)
+        id: deploy
+        run: |
+          npm i -g vercel@latest
+          URL=$(vercel deploy --token=${{ secrets.VERCEL_TOKEN }} --scope=${{ secrets.VERCEL_ORG_ID }} --yes ./dist)
+          echo "url=$URL" >> "$GITHUB_OUTPUT"
+        env:
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID_STAGING }}
+
+      - name: Smoke check post-deploy (datos reales, no solo status 200)
+        env:
+          STAGING_DB_HOST: ${{ secrets.STAGING_DB_HOST }}
+          STAGING_DB_PORT: ${{ secrets.STAGING_DB_PORT }}
+          STAGING_DB_USER: ${{ secrets.STAGING_DB_USER }}
+          STAGING_DB_PASSWORD: ${{ secrets.STAGING_DB_PASSWORD }}
+        run: node scripts/smoke_check.mjs staging
+
+      # ⚠️ PENDIENTE — no incluido todavía (ver PENDIENTES_FEDE.md):
+      # Playwright contra la URL de staging YA DEPLOYADA (no el dev server
+      # local que usa `npm run test:e2e` hoy). El atajo de login que usan
+      # los 150 e2e actuales (setCurrentUser vía import directo de
+      # /src/shared/state.js) solo funciona contra el dev server sirviendo
+      # el código fuente sin bundlear — contra un build de Vercel ya
+      # compilado, ese import falla ("Failed to fetch dynamically imported
+      # module"), lo confirmé probando contra producción real. Hace falta
+      # un usuario de prueba real (Supabase Auth) sembrado en staging para
+      # poder loguearse de verdad por el formulario — necesito la
+      # service_role key de staging (o que Fede cree el usuario a mano)
+      # para poder armarlo.
+
+      - name: Listo para mergear
+        run: echo "✓ Pipeline de staging OK — vitest + Nivel 1 + build + deploy + smoke check, todo en verde."

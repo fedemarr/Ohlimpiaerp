@@ -1,0 +1,132 @@
+# OHLIMPIA_TESTS_STAGING.md, Parte 3 — pipeline de producción.
+#
+# merge a main
+#   → mismos tests (unit + Nivel 1 — contra STAGING, nunca contra
+#     producción: no hay datos sintéticos con montos conocidos en
+#     producción, y no tiene sentido correr un test que compara contra un
+#     monto fijo sobre datos reales que cambian todo el tiempo)
+#   → build (con las variables de producción)
+#   → deploy a producción (Vercel CLI --prod)
+#   → smoke check post-deploy (datos reales de producción, tabla no
+#     sensible — feriados, nunca legajos/monotributo/liquidaciones)
+#   → si falla el smoke check → ROLLBACK AUTOMÁTICO (innegociable #10 del
+#     spec del agente, y faltaba incluso en .github/workflows/agente-tickets.yml
+#     — corregido acá y debería replicarse ahí)
+#
+# Regla de oro (innegociable #9, Fede lo repitió varias veces en la
+# sesión): "ninguna migración corre sin mi aprobación explícita, ni en
+# staging ni en producción". Este workflow NUNCA aplica sql/*.sql — si el
+# PR trae una migración nueva, este paso solo lo señala en el log para que
+# alguien la aplique a mano, como siempre.
+#
+# ⚠️ NO VERIFICADO EN VIVO — mismo disclaimer que staging.yml: cada
+# comando se probó suelto contra las bases reales, pero nunca corrió el
+# workflow completo en GitHub Actions.
+
+name: Pipeline de producción
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  pipeline:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 2 # para poder diffear contra el commit anterior (aviso de migración)
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Instalar dependencias
+        run: npm ci
+
+      - name: Avisar si este push trae una migración nueva (informativo, no bloquea)
+        run: |
+          NUEVOS_SQL=$(git diff --name-only --diff-filter=A HEAD~1 HEAD -- 'sql/*.sql' || true)
+          if [ -n "$NUEVOS_SQL" ]; then
+            echo "::warning::Este merge trae migraciones nuevas que NADIE debe aplicar solo: $NUEVOS_SQL — avisale a Fede para que las corra a mano en Supabase."
+          fi
+
+      - name: Tests unitarios (Vitest)
+        id: unit
+        run: |
+          npm test -- --reporter=verbose 2>&1 | tee vitest.log
+          echo "corridos=$(grep -oP '\d+(?= passed)' vitest.log | tail -1)" >> "$GITHUB_OUTPUT"
+
+      - name: Verificar que de verdad corrieron tests unitarios
+        run: |
+          if [ -z "${{ steps.unit.outputs.corridos }}" ] || [ "${{ steps.unit.outputs.corridos }}" -eq 0 ]; then
+            echo "::error::vitest reportó 0 tests corridos — se trata como fallo."
+            exit 1
+          fi
+
+      - name: Tests de Nivel 1 (contra staging, no contra producción — ver comentario arriba)
+        id: nivel1
+        env:
+          STAGING_PROJECT_REF: ${{ secrets.STAGING_PROJECT_REF }}
+          STAGING_DB_HOST: ${{ secrets.STAGING_DB_HOST }}
+          STAGING_DB_PORT: ${{ secrets.STAGING_DB_PORT }}
+          STAGING_DB_USER: ${{ secrets.STAGING_DB_USER }}
+          STAGING_DB_PASSWORD: ${{ secrets.STAGING_DB_PASSWORD }}
+        run: |
+          npm run test:staging -- --reporter=verbose 2>&1 | tee vitest-staging.log
+          echo "corridos=$(grep -oP '\d+(?= passed)' vitest-staging.log | tail -1)" >> "$GITHUB_OUTPUT"
+
+      - name: Verificar que de verdad corrieron tests de Nivel 1
+        run: |
+          if [ -z "${{ steps.nivel1.outputs.corridos }}" ] || [ "${{ steps.nivel1.outputs.corridos }}" -eq 0 ]; then
+            echo "::error::Los tests de Nivel 1 reportaron 0 corridos — se trata como fallo."
+            exit 1
+          fi
+
+      - name: Build (con las variables de producción)
+        env:
+          VITE_SUPABASE_URL: ${{ secrets.PROD_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.PROD_SUPABASE_ANON_KEY }}
+        run: npm run build
+
+      - name: Deploy a producción (Vercel CLI --prod)
+        id: deploy
+        run: |
+          npm i -g vercel@latest
+          vercel deploy --token=${{ secrets.VERCEL_TOKEN }} --scope=${{ secrets.VERCEL_ORG_ID }} --prod --yes ./dist > deploy.log
+          DEPLOYMENT_URL=$(tail -1 deploy.log)
+          echo "url=$DEPLOYMENT_URL" >> "$GITHUB_OUTPUT"
+        env:
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID_PROD }}
+
+      - name: Smoke check post-deploy (datos reales — tabla no sensible)
+        id: smoke
+        continue-on-error: true # si falla, el paso siguiente dispara el rollback — no corta el job antes de tiempo
+        env:
+          PROD_SMOKE_DB_HOST: ${{ secrets.PROD_SMOKE_DB_HOST }}
+          PROD_SMOKE_DB_PORT: ${{ secrets.PROD_SMOKE_DB_PORT }}
+          PROD_SMOKE_DB_USER: ${{ secrets.PROD_SMOKE_DB_USER }}
+          PROD_SMOKE_DB_PASSWORD: ${{ secrets.PROD_SMOKE_DB_PASSWORD }}
+        run: node scripts/smoke_check.mjs produccion
+
+      # Rollback automático (innegociable #10) — Vercel guarda el
+      # deployment anterior; "promover" ese de nuevo a producción es
+      # instantáneo y no requiere revertir el commit de git.
+      - name: Rollback automático si el smoke check falló
+        if: steps.smoke.outcome == 'failure'
+        run: |
+          echo "::error::Smoke check post-deploy falló — haciendo rollback automático al deployment anterior."
+          npm i -g vercel@latest
+          vercel rollback --token=${{ secrets.VERCEL_TOKEN }} --scope=${{ secrets.VERCEL_ORG_ID }} --yes
+        env:
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID_PROD }}
+
+      - name: Fallar el job si hubo que hacer rollback
+        if: steps.smoke.outcome == 'failure'
+        run: exit 1
+
+      - name: Deploy confirmado
+        if: steps.smoke.outcome == 'success'
+        run: echo "✓ Pipeline de producción OK — deploy confirmado con datos reales, ${{ steps.deploy.outputs.url }}"

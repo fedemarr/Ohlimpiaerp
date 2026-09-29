@@ -159,6 +159,13 @@ jobs:
           title: "Agente: ${{ github.event.issue.title }}"
           body: "Resuelve #${{ github.event.issue.number }}. Corrida ${{ steps.datos.outputs.corrida_id }}."
 
+      # Rollback automático (innegociable #10) — deliberadamente NO se
+      # duplica acá el smoke check + rollback: este merge empuja a `main`,
+      # lo que dispara .github/workflows/production.yml (mismo trigger,
+      # push a main) — ESE workflow ya corre el smoke check post-deploy y
+      # hace `vercel rollback` solo si falla. Repetirlo acá sería la misma
+      # lógica dos veces, con dos fuentes de verdad de si el deploy quedó
+      # bien. Antes de esta sesión esto faltaba en los dos lados a la vez.
       - name: Mergear si todo salió verde y no hay migración (punto 2.A — "100% automático")
         if: steps.rutas.outputs.bloqueado == 'false' && steps.tests.outputs.vitest_exit == '0' && steps.tests.outputs.playwright_exit == '0' && steps.migracion.outputs.tiene_migracion == 'false'
         run: gh pr merge "agente/${{ steps.datos.outputs.corrida_id }}" --squash --auto

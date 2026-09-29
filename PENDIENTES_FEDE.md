@@ -3,42 +3,44 @@
 Documento vivo con las decisiones conservadoras tomadas sin preguntar (regla
 general de la sesión: "si es ambigua, tomá la opción más conservadora,
 anotala acá y seguí") y los gaps reales que quedaron. Última actualización:
-29/09/2026, al cerrar la Fase 1 de `AGENTE_TICKETS_OHLIMPIA.md`.
+30/09/2026, al cerrar la Parte 3 de `OHLIMPIA_TESTS_STAGING.md`.
 
 ---
 
 ## 🔴 Lo más importante — leer esto primero
 
-**El pipeline de CI/CD de `OHLIMPIA_TESTS_STAGING.md` (Parte 3) NO está
-construido**, aunque `AGENTE_TICKETS_OHLIMPIA.md` (punto 0) dice
-explícitamente "si todavía no existen los tests de humo y el entorno de
-staging, construí eso primero" y vos me confirmaste "ya están hechos los
-tests, el staging y el pipeline del otro spec". Verifiqué el estado real del
-repo antes de arrancar la Fase 1 del agente y esto es lo que hay:
+**Estado real de `OHLIMPIA_TESTS_STAGING.md` a hoy** (la Parte 3 ya está
+construida, cerrando el gap que reportaba esta misma sección antes):
 
 | Pieza | Estado real |
 |---|---|
-| Tests de humo (Vitest + Playwright) | ✅ Existen — 18 archivos Vitest (206 tests), 51 specs de Playwright |
+| Tests de humo (Vitest + Playwright) | ✅ 18 archivos Vitest (206 tests), 51 specs de Playwright |
 | Rama `staging` | ✅ Existe |
-| Base de datos de staging separada | ✅ Existe (proyecto Supabase `ddhsnukcgliunolbrfuf`, distinto de producción) |
-| Schema de staging reproducible desde cero | ✅ `scripts/reset_staging.mjs` — corre las 173 migraciones limpio |
-| Seed sintético (20-30 colaboradores falsos, etc.) | ❌ **No existe** `scripts/seed_staging.mjs` |
-| `.github/workflows/` que corra lint+build+tests antes de deployar | ❌ **No existía** — recién con esta sesión existe `.github/workflows/agente-tickets.yml`, pero es específico del agente, no el pipeline general de staging→main |
-| Vercel con auto-deploy desconectado a favor del pipeline | ❌ No se tocó — Vercel sigue deployando automático en cada push, sin gate de tests |
-| Branch protection en `main` | ❌ No configurado |
+| Base de datos de staging separada | ✅ Proyecto Supabase `ddhsnukcgliunolbrfuf`, distinto de producción |
+| Schema de staging reproducible desde cero | ✅ `scripts/reset_staging.mjs` |
+| Seed sintético con montos verificables a mano | ✅ `scripts/seed_staging.mjs` + 17 tests de Nivel 1 (`npm run test:staging`) |
+| `.github/workflows/` de staging (tests+build+deploy+smoke) | ✅ `.github/workflows/staging.yml` — **sin verificar en vivo**, ver abajo |
+| `.github/workflows/` de producción (tests+deploy+smoke+rollback) | ✅ `.github/workflows/production.yml` — **sin verificar en vivo**, ver abajo |
+| Rollback automático | ✅ Escrito (`vercel rollback` si el smoke check post-deploy falla) — el mismo workflow cubre también el merge del agente (ver `agente-tickets.yml`) |
+| Vercel con auto-deploy desconectado a favor del pipeline | ❌ **Pendiente que lo hagas vos** — ver sección de abajo |
+| Branch protection en `main` | ❌ **Pendiente que lo configures vos** — ver sección de abajo |
+| Playwright contra la URL de staging YA deployada (no el dev server) | ❌ **Bloqueado** — necesita un usuario de prueba real en staging, ver abajo |
 
-**Consecuencia concreta:** el workflow `.github/workflows/agente-tickets.yml`
-que armé para la Fase 1 del agente corre sus propios tests DENTRO de la
-misma corrida (no depende del pipeline general), así que el caso "A · Verde,
-sin migración → 100% automático" SÍ tiene una barrera de tests real. Pero
-fuera del agente, cualquier otro push a `main` (tuyo, mío, o de Opencode)
-sigue deployando a producción sin que nada lo frene si rompe algo — la
-promesa de "sin tests en verde no hay deploy" (innegociable #2 de este
-spec) hoy solo aplica al camino del agente, no al repo en general.
+### Lo que necesito que hagas vos para que estos 2 workflows funcionen
 
-**Qué hacer con esto:** no lo resolví porque no era lo que se me pidió
-ahora (se pidió la Fase 1 del agente) y hubiera sido un scope creep grande.
-Queda como el pendiente de mayor prioridad real del proyecto completo.
+Ninguna de estas cosas la puedo hacer yo (necesitan tu cuenta/acceso):
+
+1. **Secrets del repo** (GitHub → Settings → Secrets and variables →
+   Actions) — todos nuevos, ninguno vive en el código:
+   - `STAGING_PROJECT_REF`, `STAGING_DB_HOST`, `STAGING_DB_PORT`, `STAGING_DB_USER`, `STAGING_DB_PASSWORD` — los mismos valores que ya tenés en tu `.env.staging` local.
+   - `STAGING_SUPABASE_URL`, `STAGING_SUPABASE_ANON_KEY` — de tu proyecto de staging.
+   - `PROD_SUPABASE_URL`, `PROD_SUPABASE_ANON_KEY` — **atención**: hoy están hardcodeadas como fallback en `src/shared/supabase.js` (el problema de seguridad que ya identificamos — quedaron en el historial de Git). Cuando las rotes, actualizá el secret acá también.
+   - `PROD_SMOKE_DB_HOST/PORT/USER/PASSWORD` — connection string de **solo lectura si podés crear un rol así en Supabase**; si no, la misma de siempre, pero tené en cuenta que queda en un secret de GitHub con acceso de escritura completo a producción. El smoke check en sí solo hace un `SELECT` a `feriados`, nunca escribe nada.
+   - `VERCEL_TOKEN`, `VERCEL_ORG_ID`, `VERCEL_PROJECT_ID_STAGING`, `VERCEL_PROJECT_ID_PROD` — de tu cuenta de Vercel (confirmame primero cuál de las 2 cuentas es la real, como quedamos).
+   - `GITHUB_TOKEN` y `ANTHROPIC_API_KEY` — ya anotados en la sección del agente, abajo.
+2. **Desconectar el auto-deploy nativo de Vercel** para el proyecto de producción (Vercel Dashboard → Project Settings → Git → desactivar el deploy automático en push) — si no, cada push a `main` deploya DOS VECES en paralelo: el de Vercel (sin ningún gate) y el de `production.yml` (con todos los gates). Mientras esto no esté desconectado, **el pipeline nuevo no protege nada de verdad** — el deploy de Vercel llega antes e igual.
+3. **Branch protection en `main`** (Settings → Branches → Add rule): exigir que el check de `production.yml` esté en verde antes de poder mergear. Sin esto, alguien puede mergear con tests en rojo igual.
+4. **Un usuario de prueba real en staging** (Supabase Auth) para desbloquear el Playwright contra la URL ya deployada — la única pieza que falta de la Parte 3. Necesito la `service_role` key de tu proyecto de staging para crearlo por API (mismo patrón que `api/crear-usuario.js`), o si preferís, lo creás vos a mano (Authentication → Users → Add user) y me pasás el email/password para que arme el test contra ese usuario.
 
 ---
 
