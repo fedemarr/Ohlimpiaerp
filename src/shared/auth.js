@@ -131,26 +131,59 @@ export async function doLogout() {
 
 // ========== PORTAL ASOCIADO ==========
 
+function _mostrarErrorAsociado(msg) {
+  const el = $('asoc-login-error');
+  if (!el) return;
+  el.textContent = msg;
+  el.style.display = 'block';
+}
+
+// FIX (30/09/2026, Portal Asociado roto en producción): antes esto abría
+// una sesión anónima de Supabase del lado del cliente — roto porque el
+// proveedor anónimo está deshabilitado (y a propósito: habilitarlo le daría
+// una sesión `authenticated` a cualquier visitante sin pedir NADA, no solo
+// a quien pase por acá). Ahora la identidad (nro + apellido) se valida del
+// lado del servidor con service_role (api/portal-asociado-login.js, que
+// nunca expone esa key al cliente) y el navegador solo canjea un token de
+// un solo uso para obtener una sesión real — mismo patrón que un login por
+// link mágico.
+//
+// El otro pedido explícito: el mensaje de error ahora dice la verdad. Si
+// el servidor no pudo verificar nada (caído, mal configurado), el mensaje
+// lo dice tal cual — ya no dice "número de socio incorrecto" cuando el
+// problema fue del sistema, no del dato que tipeó el asociado.
 export async function loginAsociado() {
   const nro = parseInt($('asoc-nro-socio')?.value) || 0;
-  const apellido = ($('asoc-apellido')?.value || '').trim().toLowerCase();
-  if (!nro || !apellido) { $('asoc-login-error').style.display = 'block'; return; }
+  const apellido = ($('asoc-apellido')?.value || '').trim();
+  if (!nro || !apellido) { _mostrarErrorAsociado('Completá el número de socio y el apellido.'); return; }
 
-  // El portal asociado no tiene password propia — para poder leer legajos
-  // bajo el RLS "solo autenticados" se abre una sesión anónima de Supabase
-  // (requiere tener "Allow anonymous sign-ins" habilitado en el proyecto).
-  const { data: sesion } = await SUPA.auth.getSession();
-  if (!sesion?.session) {
-    const { error } = await SUPA.auth.signInAnonymously();
-    if (error) { $('asoc-login-error').style.display = 'block'; return; }
+  let resp, data;
+  try {
+    resp = await fetch('/api/portal-asociado-login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ nroSocio: nro, apellido }),
+    });
+    data = await resp.json();
+  } catch {
+    _mostrarErrorAsociado('No pudimos conectar con el servidor — revisá tu conexión e intentá de nuevo.');
+    return;
   }
+  if (!resp.ok || !data?.ok) {
+    _mostrarErrorAsociado(data?.error || 'No pudimos iniciar tu sesión — probá de nuevo en un rato.');
+    return;
+  }
+
+  const { error: errOtp } = await SUPA.auth.verifyOtp({ token_hash: data.tokenHash, type: data.tipoOtp });
+  if (errOtp) {
+    _mostrarErrorAsociado('No pudimos confirmar tu sesión — probá de nuevo en un rato.');
+    return;
+  }
+
+  $('asoc-login-error').style.display = 'none';
   await _callbacks.cargarDatos();
 
-  const legajo = (DB.legajos || []).find(l =>
-    l.nro === nro && l.nombre.toLowerCase().includes(apellido) && l.estado === 'Activo'
-  );
-  if (!legajo) { $('asoc-login-error').style.display = 'block'; return; }
-  $('asoc-login-error').style.display = 'none';
+  const legajo = data.legajo;
   const usrAsoc = {
     id: 9000 + legajo.nro,
     nombre: legajo.nombre,
