@@ -309,7 +309,7 @@ export function renderResumenHoras() {
                   <td style="padding:4px 8px;"><span class="badge ${info.clase}">${info.label}</span>${f.motivoTipo ? ' <span style="font-size:10px;color:var(--texto-suave);">' + f.motivoTipo + '</span>' : ''}</td>
                   <td style="padding:4px 8px;text-align:right;">${fmtDecimal(f.totalHs, 0)}</td>
                   <td style="padding:4px 8px;text-align:right;font-weight:600;">$${f.totalPagar.toLocaleString('es-AR')}</td>
-                  <td style="padding:4px 8px;"><span onclick="event.stopPropagation();navTo('liquidacion');toggleGrilla&&toggleGrilla('${f.servicioCodigo}')" style="font-size:10.5px;color:var(--azul);cursor:pointer;">✏ corregir en la grilla</span></td>
+                  <td style="padding:4px 8px;"><span onclick="event.stopPropagation();abrirCorreccionGrillaDesdeResumen('${f.servicioCodigo}','${mes}')" style="font-size:10.5px;color:var(--azul);cursor:pointer;">✏ corregir en la grilla</span></td>
                 </tr>
                 <tr style="${diasAbierto ? '' : 'display:none;'}">
                   <td colspan="6" style="padding:6px 8px 10px;width:0;">
@@ -349,6 +349,38 @@ export function toggleFilaResumenHoras(nro) {
 export function toggleDiasResumenHoras(diasId) {
   if (_diasAbiertos.has(diasId)) _diasAbiertos.delete(diasId); else _diasAbiertos.add(diasId);
   renderResumenHoras();
+}
+
+// FIX (bug "Corregir grilla abre otro servicio", 30/09/2026) — causa raíz:
+// el botón llamaba a `toggleGrilla('${f.servicioCodigo}')`, una función que
+// NUNCA existió en el código (no hay ningún `function toggleGrilla` ni
+// `window.toggleGrilla` en todo el repo). El onclick la invocaba con la
+// guarda `toggleGrilla&&toggleGrilla(...)`, así que al ser `undefined` no
+// pasaba nada — ni un error en consola. `navTo('liquidacion')` sí corría,
+// dejando la pantalla de Liquidación en el estado en el que haya quedado
+// la última vez (otro servicio, u otro mes) — el usuario lo veía como "me
+// abrió el servicio equivocado", pero en realidad no abrió ninguno.
+//
+// No era un bug de índices vs ID ni de closures en el loop — el
+// `f.servicioCodigo` que llega acá siempre fue el código correcto (se
+// interpola directo en el string del onclick, una vez por fila, sin
+// variable compartida). El fix es usar la función real que ya existe para
+// esto en el módulo de Liquidación de horas: `abrirDetalleServicioGrilla`
+// (legacy.js, bindeada a window), que sí busca el objetivo por `codigo`
+// (nunca por índice) y abre su modal de detalle. Se sincroniza además el
+// selector de mes de Liquidación con el mes que se estaba mirando acá —
+// si no, `abrirDetalleServicioGrilla` cae al mes actual por default y
+// podía mostrar el período equivocado aunque el servicio ya fuera el
+// correcto.
+export function abrirCorreccionGrillaDesdeResumen(servicioCodigo, mes) {
+  window.navTo('liquidacion');
+  const selMes = $('liq-mes-sel');
+  if (selMes && mes) selMes.value = mes;
+  if (typeof window.abrirDetalleServicioGrilla === 'function') {
+    window.abrirDetalleServicioGrilla(servicioCodigo);
+  } else {
+    toast('⚠️ No se pudo abrir la grilla del servicio — recargá la página e intentá de nuevo');
+  }
 }
 
 // Agrupa la lista plana de faltantes por supervisor (getSupervisorDeCodigo,

@@ -11,6 +11,7 @@ import {
   guardarRevisionRetiro,
   abrirRevisarSolicitud, actualizarAjusteLinea, decidirRevisionSolicitud,
   abrirConfirmarPagoRevisionRetiro, confirmarPagoRevisionRetiro,
+  abrirCorreccionGrillaDesdeResumen,
 } from './resumen_horas.js';
 
 export {
@@ -24,6 +25,7 @@ export {
   guardarRevisionRetiro,
   abrirRevisarSolicitud, actualizarAjusteLinea, decidirRevisionSolicitud,
   abrirConfirmarPagoRevisionRetiro, confirmarPagoRevisionRetiro,
+  abrirCorreccionGrillaDesdeResumen,
 };
 
 // ========== SCREEN CONFIG ==========
@@ -64,3 +66,4 @@ window.actualizarAjusteLinea = actualizarAjusteLinea;
 window.decidirRevisionSolicitud = decidirRevisionSolicitud;
 window.abrirConfirmarPagoRevisionRetiro = abrirConfirmarPagoRevisionRetiro;
 window.confirmarPagoRevisionRetiro = confirmarPagoRevisionRetiro;
+window.abrirCorreccionGrillaDesdeResumen = abrirCorreccionGrillaDesdeResumen;
