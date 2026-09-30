@@ -7,6 +7,54 @@ anotala acá y seguí") y los gaps reales que quedaron. Última actualización:
 
 ---
 
+## 🔴🔴 Bug crítico real: legajos se creaban bien, pero "Alta de asociados" nunca los marcaba completados (30/09/2026)
+
+Reportado por Fede con captura de pantalla real. Confirmado con una consulta
+directa a producción sobre 10 personas al azar de la bandeja de Altas: **9 de
+10 ya tenían un legajo ACTIVO** (`nro` asignado, `estado: 'Activo'`) mientras
+su registro en `cat_alt_pendientes` seguía en **"Pendiente de alta"** — es
+decir, para RRHH parecía que esas personas seguían esperando el alta, cuando
+en realidad ya estaban adentro con legajo completo.
+
+**Causa raíz** (`src/modules/altas/altas.js`, `abrirModalAlta()` línea ~395 y
+`confirmarAlta()` línea ~1198): `_toCamel()` (`src/shared/supabase.js`)
+reconstruye el `id` de cualquier fila recargada desde Supabase a partir de
+`id_local` — un **string** truncado a 9 dígitos. Un registro de
+`cat_alt_pendientes` creado en la misma sesión tiene `id: Date.now()` (un
+**number**). En cuanto hay UN reload de por medio entre que Documentación
+aprueba y RRHH completa el Alta (el caso normal — casi nunca pasa en la
+misma sesión de navegador), `a.id` pasa a ser string. La comparación
+`a.id === altaId` (con `altaId` forzado a number vía `parseInt`) daba
+**siempre false**: el legajo se creaba igual (esa parte no depende de esto),
+pero el bloque que marca `cat_alt_pendientes.estado = 'Alta completada'`
+nunca se ejecutaba — quedaba huérfano en "Pendiente" para siempre. Mismo
+problema, más sutil, en la precarga del modal (`abrirModalAlta`): el `find`
+tampoco encontraba el registro, así que el modal precargaba solo desde el
+psicotécnico y perdía los datos ya guardados en `cat_alt_pendientes`
+(uniforme, domicilio, etc. de una sesión anterior).
+
+**Fix**: comparar con `String(a.id) === String(altaId)` en los dos lugares
+— mismo criterio que ya usa el resto del repo para este exacto problema
+(ver más abajo, "Leading-zero en onclick y getXById"). Sin migración, es
+puro código. Test nuevo `e2e/altas-marca-pendiente-completada.spec.js`
+reproduce el escenario exacto (id string simulando un reload) — confirmado
+con git-stash que falla en el código anterior y pasa con el fix.
+
+### ⚠️ Dato real en producción que quedó mal — necesito tu OK para corregirlo
+
+Las personas que ya están en este estado (legajo activo + `cat_alt_pendientes`
+en "Pendiente de alta") **NO se corrigen solas** con este fix — el fix evita
+que seguir pasando de acá en más, pero los que ya quedaron atascados siguen
+atascados hasta que alguien actualice esos registros a mano. Puedo escribir
+un script de una sola corrida que: para cada fila de `cat_alt_pendientes` en
+"Pendiente de alta", si existe un legajo con el mismo DNI y `estado='Activo'`,
+la pasa a "Alta completada" (no toca nada más, no crea ni borra nada). ¿Querés
+que lo corra? Necesitaría tu OK explícito porque es una escritura directa
+sobre datos reales de producción, no solo código — decime y lo hago apenas
+confirmes (o corré vos la consulta si preferís verla antes).
+
+---
+
 ## 🔴 Lo más importante — leer esto primero
 
 **Estado real de `OHLIMPIA_TESTS_STAGING.md` a hoy** (la Parte 3 ya está

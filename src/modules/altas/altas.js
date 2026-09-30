@@ -392,7 +392,14 @@ function crearHTMLModalAlta() {
 export function abrirModalAlta(psicoIdx, altaId) {
   ensureModal();
   const p = psicoIdx >= 0 ? (DB.psicos || [])[psicoIdx] : null;
-  const altaReg = altaId ? (DB.catAltPendientes || []).find(a => a.id === altaId) : null;
+  // String() en la comparación: `altaId` llega desde un onclick inline
+  // (`abrirModalAlta(${psicoIdx}, ${a.id})`) — si `a.id` es un string (todo
+  // registro que ya pasó por un reload, ver comentario largo en
+  // confirmarAlta() más abajo), el HTML lo interpola SIN comillas y el
+  // navegador lo pasa como number al ejecutar el onclick. Sin normalizar,
+  // este find() nunca matcheaba y el modal precargaba solo desde el
+  // psicotécnico, perdiendo lo ya guardado en catAltPendientes.
+  const altaReg = altaId ? (DB.catAltPendientes || []).find(a => String(a.id) === String(altaId)) : null;
   const src = altaReg || p;
 
   // Limpiar todos los campos
@@ -1195,11 +1202,30 @@ export async function confirmarAlta() {
     supaSync('psicos', DB.psicos[psicoIdx]);
   }
 
-  // Marcar registro de catAltPendientes como completado
+  // Marcar registro de catAltPendientes como completado.
+  //
+  // BUG CRÍTICO real encontrado y corregido (30/09/2026, reporte de Fede:
+  // "pasan la etapa anterior y ya se les hace un legajo sin ser aprobados
+  // en Alta"): esta comparación usaba `a.id === altaId` con `altaId` forzado
+  // a number vía parseInt(). El `id` de un registro de catAltPendientes
+  // creado en la MISMA sesión es un number (Date.now()), pero _toCamel()
+  // (supabase.js) reconstruye el `id` de cualquier fila recargada desde
+  // Supabase a partir de `id_local` — un STRING truncado a 9 dígitos (ver
+  // el comentario "Restaurar id desde id_local" en _toCamel). Apenas hay un
+  // reload de por medio (el caso normal: Documentación aprueba en una
+  // sesión, RRHH completa el Alta en otra), `a.id` pasa a ser string y
+  // `a.id === altaId` (number) da SIEMPRE false — el legajo se crea bien
+  // (no depende de esto) pero el catAltPendientes correspondiente se queda
+  // marcado "Pendiente de alta" para siempre, aunque ya tenga legajo activo.
+  // Confirmado en producción: 9 de 10 altas recientes revisadas tenían
+  // legajo activo con su catAltPendientes todavía en "Pendiente de alta".
+  // Fix: comparar por String() en los dos lados, mismo criterio ya usado en
+  // el resto del repo para este exacto problema (ver CLAUDE.md, "Leading-zero
+  // en onclick y getXById").
   const modal = $('modal-alta-nuevo');
-  const altaId = modal && modal.dataset.altaId ? parseInt(modal.dataset.altaId) : null;
+  const altaId = modal && modal.dataset.altaId ? modal.dataset.altaId : null;
   if (altaId) {
-    const altaReg = (DB.catAltPendientes || []).find(a => a.id === altaId);
+    const altaReg = (DB.catAltPendientes || []).find(a => String(a.id) === String(altaId));
     if (altaReg) {
       // Deja copia histórica de lo que se cargó en cada tab del modal — antes
       // se descartaba y solo quedaba lo que terminó en el legajo.
