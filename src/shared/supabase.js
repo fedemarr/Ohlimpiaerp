@@ -467,6 +467,10 @@ export function _toSnake(obj) {
     motivoGeneracion: 'motivo_generacion',
     // PRESTAMOS_para_Fede.md (18/09) — interés + plan de cuotas del préstamo
     tasaInteres: 'tasa_interes', planCuotas: 'plan_cuotas', historialReprogramaciones: 'historial_reprogramaciones',
+    // v174 — Gestión de horas v2: tipo de regla de la VIGENCIA.
+    // 'calendario' = puestos × calendario real (como siempre); 'fija' =
+    // banco de horas mensual plano que NO varía con feriados/mes.
+    tipoRegla: 'tipo_regla', horasFijasMes: 'horas_fijas_mes',
     // v084 — Descuentos por asociado
     conceptoIdLocal: 'concepto_id_local', periodoInicio: 'periodo_inicio',
     cuotasMaximas: 'cuotas_maximas', activo: 'activo',
@@ -930,6 +934,8 @@ export function _toCamel(obj) {
     pct_comision: 'pctComision', supervisores_asignados: 'supervisoresAsignados',
     // v086 — Supervisión de servicios (% por servicio, vigencias, ajuste)
     pct_supervision: 'pctSupervision', alcance_nombre: 'alcanceNombre',
+    // v174 — Gestión de horas v2 (tipo de regla de la vigencia)
+    tipo_regla: 'tipoRegla', horas_fijas_mes: 'horasFijasMes',
     vigente_desde: 'vigenteDesde', vigente_hasta: 'vigenteHasta',
     ajuste_nivelacion: 'ajusteNivelacion', ajuste_motivo: 'ajusteMotivo',
     ajuste_usuario: 'ajusteUsuario', ajuste_fecha: 'ajusteFecha',
@@ -1267,6 +1273,8 @@ export function _toCamel(obj) {
     // v097 — Precios LIGE
     sucursal_id: 'sucursalId', codigo_objetivo: 'codigoObjetivo',
     precio_hora: 'precioHora', precio_hora_b: 'precioHoraB',
+    // v174 — Gestión de horas v2 (tipo de regla de la vigencia)
+    tipo_regla: 'tipoRegla', horas_fijas_mes: 'horasFijasMes',
     horas_vendidas: 'horasVendidas', tipo_precio: 'tipoPrecio',
     tipo_servicio: 'tipoServicio', escala_id: 'escalaId',
     vigente_desde: 'vigenteDesde', vigente_hasta: 'vigenteHasta',

@@ -7893,15 +7893,16 @@
             <span id="obj-modelo-precio-hint" style="font-size:11px;color:var(--texto-suave);"></span>
           </div>
           <div id="obj-precio-por-hora-row" class="form-grid form-grid-3">
-            <div class="form-group"><label id="obj-efts-label">Cantidad de horas *</label><input type="number" id="obj-efts" step="0.5" placeholder="Ej: 200" oninput="recalcularPrecioObjetivo()"></div>
+            <div class="form-group"><label id="obj-efts-label">Cantidad de horas *</label> <span class="chip" id="obj-horas-ref-1" style="display:none;font-size:9px;background:var(--verde-claro);color:var(--verde);cursor:pointer;" title="Las horas de este servicio se administran en Gestión de horas. Click para ver la regla." onclick="verGestionHorasDesdeObjetivo()">= Gestión de horas ↗</span><input type="number" id="obj-efts" step="0.5" placeholder="Ej: 200" oninput="recalcularPrecioObjetivo()"></div>
             <div class="form-group"><label>Valor hora *</label><input type="number" id="obj-valor-hora" placeholder="$ por hora" oninput="recalcularPrecioObjetivo()"></div>
             <div class="form-group"><label id="obj-valor-calculado-label">Valor mensual (calculado)</label><input type="text" id="obj-valor-calculado" disabled style="background:var(--fondo);font-weight:700;"></div>
           </div>
           <div id="obj-precio-fijo-row" class="form-grid form-grid-3">
             <div class="form-group"><label>Valor mensual *</label><input type="number" id="obj-valor" placeholder="$" oninput="recalcularPrecioObjetivo()"></div>
-            <div class="form-group"><label>Cantidad de horas (EFT)</label><input type="number" id="obj-efts-fijo" step="0.5" placeholder="Ej: 200" oninput="recalcularPrecioObjetivo()"></div>
+            <div class="form-group"><label>Cantidad de horas (EFT)</label> <span class="chip" id="obj-horas-ref-2" style="display:none;font-size:9px;background:var(--verde-claro);color:var(--verde);cursor:pointer;" title="Las horas de este servicio se administran en Gestión de horas. Click para ver la regla." onclick="verGestionHorasDesdeObjetivo()">= Gestión de horas ↗</span><input type="number" id="obj-efts-fijo" step="0.5" placeholder="Ej: 200" oninput="recalcularPrecioObjetivo()"></div>
             <div class="form-group"><label>Valor hora de referencia (calculado)</label><input type="text" id="obj-valor-hora-calculado" disabled style="background:var(--fondo);font-weight:700;"></div>
           </div>
+          <div id="obj-horas-ref-hint" style="display:none;font-size:11px;color:var(--verde);background:var(--verde-claro);border:1px solid var(--verde);border-radius:var(--radio);padding:7px 10px;margin-bottom:10px;"></div>
           <div id="obj-vencimiento-row" class="form-grid form-grid-2">
             <div class="form-group"><label>Fecha de vencimiento / fin de obra</label><input type="date" id="obj-fecha-fin"></div>
             <div class="form-group"><label>Tipo de contrato</label>

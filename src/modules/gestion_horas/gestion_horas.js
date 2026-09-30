@@ -22,7 +22,7 @@ import { toast, abrirModal, cerrarModal } from '@shared/ui.js';
 import { supaSync } from '@shared/supabase.js';
 import { checklistDiasHtml, diasMarcadosTexto } from '@shared/horarioDias.js';
 import {
-  horasPuestosMes, composicionMes, mesActualStr, mesAnterior, mesSiguiente,
+  horasPuestosMes, horasVigenciaMes, composicionMes, mesActualStr, mesAnterior, mesSiguiente,
   rangoMeses, mesLabel, mesDeFechaArg,
 } from './calculo.js';
 
@@ -64,13 +64,34 @@ function ultimaVigencia(objCodigo) {
 export function tieneRegla(objCodigo) { return vigenciasDe(objCodigo).length > 0; }
 export function horasServicioMes(objCodigo, mes) {
   const v = vigenciaParaMes(objCodigo, mes);
-  return v ? horasPuestosMes(v.puestos, mes) : 0;
+  return v ? horasVigenciaMes(v, mes) : 0;
+}
+
+// El alta de un servicio trae DOS fuentes de "cuántas horas" y la v2 las
+// usa según el modelo de precio (ticket v2 §1/§2):
+//  - Modelo de precio 'Por EFT' o 'Abono mensual fijo' + Cantidad de horas →
+//    contrato de BANCO MENSUAL: un número plano que no tiene sentido
+//    desglosado en puestos/horario/días (y que la fórmula por calendario
+//    haría bailar mes a mes). Va como tipoRegla 'fija'.
+//  - Sin modelo de precio, o 'Por horas variables' → la carga real es
+//    "Personal necesario" (o.puestos): va como 'calendario'.
+// Devuelve null si el alta no tiene NINGUNA de las dos (no hay nada que leer).
+function reglaDesdeAlta(objetivo) {
+  const esBancoFijo = ['Por EFT', 'Abono mensual fijo'].includes(objetivo?.modeloPrecio);
+  const efts = Number(objetivo?.efts) || 0;
+  if (esBancoFijo && efts > 0) {
+    return { tipoRegla: 'fija', horasFijasMes: efts, puestos: [] };
+  }
+  if (objetivo?.puestos?.length) {
+    return { tipoRegla: 'calendario', horasFijasMes: null, puestos: JSON.parse(JSON.stringify(objetivo.puestos)) };
+  }
+  return null;
 }
 
 // Abre una nueva vigencia desde `desde`: cierra la abierta (vigenteHasta
 // = mes anterior) y crea la nueva. Nunca pisa lo anterior — el historial
 // completo queda en DB.horasVigencias.
-export async function abrirNuevaVigenciaHoras(objCodigo, puestos, desde, usuario, motivo, origen) {
+export async function abrirNuevaVigenciaHoras(objCodigo, puestos, desde, usuario, motivo, origen, tipoRegla = 'calendario', horasFijasMes = null) {
   const abierta = vigenciasDe(objCodigo).find(v => !v.vigenteHasta);
   if (abierta) {
     abierta.vigenteHasta = mesAnterior(desde);
@@ -79,6 +100,8 @@ export async function abrirNuevaVigenciaHoras(objCodigo, puestos, desde, usuario
   }
   const nueva = {
     id: Date.now(), objCodigo, puestos: JSON.parse(JSON.stringify(puestos || [])),
+    tipoRegla: tipoRegla === 'fija' ? 'fija' : 'calendario',
+    horasFijasMes: tipoRegla === 'fija' ? (Number(horasFijasMes) || 0) : null,
     vigenteDesde: desde, vigenteHasta: null,
     usuario: usuario || currentUser?.nombre || '', fecha: hoyStrArg(),
     motivo: motivo || '', origen: origen || 'operaciones',
@@ -91,17 +114,24 @@ export async function abrirNuevaVigenciaHoras(objCodigo, puestos, desde, usuario
 
 // "El alta siembra la regla" (doc §3) — llamada desde legacy.js vía
 // window binding (mismo patrón que window.sembrarPrepedido) apenas se
-// guarda un servicio nuevo con Personal necesario cargado.
+// guarda un servicio nuevo. v2: se sembró de "Personal necesario" O del
+// "Modelo de precio + Cantidad de horas" (banco mensual fijo), según lo
+// que traiga el alta.
 export function sembrarVigenciaHorasDesdeAlta(objetivo) {
   const objCodigo = alcanceServicio(objetivo);
   if (vigenciasDe(objCodigo).length) return null; // ya tiene vigencia, no duplicar
-  if (!objetivo.puestos?.length) return null;
+  const regla = reglaDesdeAlta(objetivo);
+  if (!regla) return null;
   const desde = mesDeFechaArg(objetivo.fechaInicio) || mesActualStr();
   const nueva = {
-    id: Date.now(), objCodigo, puestos: JSON.parse(JSON.stringify(objetivo.puestos)),
+    id: Date.now(), objCodigo, puestos: regla.puestos,
+    tipoRegla: regla.tipoRegla, horasFijasMes: regla.horasFijasMes,
     vigenteDesde: desde, vigenteHasta: null,
     usuario: objetivo.cargadoPor || '', fecha: hoyStrArg(),
-    motivo: 'Alta del servicio — bloque Personal necesario', origen: 'alta',
+    motivo: regla.tipoRegla === 'fija'
+      ? 'Alta del servicio — banco mensual (modelo de precio + cantidad de horas)'
+      : 'Alta del servicio — bloque Personal necesario',
+    origen: 'alta',
   };
   if (!DB.horasVigencias) DB.horasVigencias = [];
   DB.horasVigencias.push(nueva);
@@ -109,23 +139,29 @@ export function sembrarVigenciaHorasDesdeAlta(objetivo) {
   return nueva;
 }
 
-// Backfill (mismo patrón que sincronizarPrepedidos en prepedidos.js):
+// Backfill masivo (mismo patrón que sincronizarPrepedidos en prepedidos.js):
 // todo servicio vigente sin ninguna vigencia todavía la recibe, sembrada
-// desde su Personal necesario ACTUAL — así el módulo no arranca vacío
-// para los servicios cargados antes de este ticket. Se llama en cada
-// render(): idempotente, silenciosa, sin costo para lo que ya tiene.
+// desde su alta — antes solo desde "Personal necesario", por eso los
+// servicios de banco mensual (modelo Por EFT / Abono mensual fijo, que
+// normalmente no cargan Personal necesario) quedaban sin regla. Se llama en
+// cada render(): idempotente, silenciosa, sin costo para lo que ya tiene.
 export function sincronizarVigenciasHoras() {
   let n = 0;
   (DB.objetivos || []).forEach(o => {
     if (o.anulado || o.estado === 'Baja') return;
-    if (!o.puestos?.length) return;
+    const regla = reglaDesdeAlta(o);
+    if (!regla) return;
     const objCodigo = alcanceServicio(o);
     if (vigenciasDe(objCodigo).length) return;
     const nueva = {
-      id: Date.now() + n, objCodigo, puestos: JSON.parse(JSON.stringify(o.puestos)),
+      id: Date.now() + n, objCodigo, puestos: regla.puestos,
+      tipoRegla: regla.tipoRegla, horasFijasMes: regla.horasFijasMes,
       vigenteDesde: mesActualStr(), vigenteHasta: null,
       usuario: 'Sistema', fecha: hoyStrArg(),
-      motivo: 'Backfill — vigencia inicial sembrada desde Personal necesario actual', origen: 'backfill',
+      motivo: regla.tipoRegla === 'fija'
+        ? 'Backfill — banco mensual sembrado desde Modelo de precio + Cantidad de horas del alta'
+        : 'Backfill — vigencia inicial sembrada desde Personal necesario actual',
+      origen: 'backfill',
     };
     DB.horasVigencias.push(nueva);
     supaSync('horasVigencias', nueva);
@@ -156,6 +192,14 @@ function reglaTxt(puestos) {
     const ds = diasMarcadosTexto(p.dias) || '—';
     return `${p.cantidad || 1}× ${p.puesto || '—'} · ${p.horarioDesde || '?'}–${p.horarioHasta || '?'} · ${ds}${p.dias?.feriados ? ' +Fer' : ''}`;
   }).join(' · ');
+}
+// v2: una vigencia 'fija' no se describe con puestos (no los tiene) sino
+// con su número de banco mensual. Todo lo que muestra o explica una
+// vigencia (título de celda, detalle, historial) pasa por acá.
+function vigenciaTxt(v) {
+  if (!v) return '—';
+  if (v.tipoRegla === 'fija') return `FT fija — ${fmt(v.horasFijasMes || 0)} hs/mes (banco mensual, no varía con el calendario)`;
+  return reglaTxt(v.puestos) || 'Sin puestos cargados';
 }
 
 export function renderGestionHoras() {
@@ -204,7 +248,7 @@ export function renderGestionHoras() {
           + `<td style="text-align:right;font-size:11px;color:var(--texto-suave);">—</td>`;
         return;
       }
-      const hs = horasPuestosMes(v.puestos, m);
+      const hs = horasVigenciaMes(v, m);
       totales[m] = (totales[m] || 0) + hs;
       const hsAnt = horasServicioMes(objCodigo, mesAnterior(m));
       const delta = hs - hsAnt;
@@ -217,8 +261,9 @@ export function renderGestionHoras() {
       const deltaHtml = delta === 0
         ? '<span style="color:#c3c9d6;">=</span>'
         : (delta > 0 ? `<span style="color:var(--verde);font-weight:600;">+${fmt(delta)}</span>` : `<span style="color:var(--rojo);font-weight:600;">${fmt(delta)}</span>`);
-      const titulo = reglaTxt(v.puestos) + (esVigNueva ? ' — ✎ vigencia nueva este mes' : '');
-      filas += `<td class="hor-hs${clase}" title="${titulo.replace(/"/g, '&quot;')}" style="text-align:right;font-weight:700;font-variant-numeric:tabular-nums;white-space:nowrap;">${fmt(hs)}${esVigNueva ? ' ✎' : ''}</td>`
+      const titulo = vigenciaTxt(v) + (esVigNueva ? ' — ✎ vigencia nueva este mes' : '');
+      const marcaFija = v.tipoRegla === 'fija' ? ' <span class="badge badge-azul" style="font-size:9px;">FT</span>' : '';
+      filas += `<td class="hor-hs${clase}" title="${titulo.replace(/"/g, '&quot;')}" style="text-align:right;font-weight:700;font-variant-numeric:tabular-nums;white-space:nowrap;">${fmt(hs)}${esVigNueva ? ' ✎' : ''}${marcaFija}</td>`
         + `<td style="text-align:right;font-size:11px;">${deltaHtml}</td>`;
     });
     filas += '</tr>';
@@ -244,17 +289,26 @@ export function renderGestionHoras() {
 
 function filaDetalleHoras(o, objCodigo, totalMeses) {
   const ult = ultimaVigencia(objCodigo);
-  const puestosHtml = ult
-    ? (ult.puestos || []).map(p => `<span class="chip" style="margin:0 6px 6px 0;display:inline-block;">`
-      + `<b>${p.cantidad || 1}× ${p.puesto || '—'}</b> `
-      + `<span class="badge badge-azul" style="font-size:10px;">${p.horarioDesde || '?'}–${p.horarioHasta || '?'}</span> `
-      + `<span class="badge badge-gris" style="font-size:10px;">${diasMarcadosTexto(p.dias) || '—'}</span>`
-      + `${p.dias?.feriados ? ' <span class="badge badge-acento" style="font-size:10px;">+Fer</span>' : ''}`
-      + `</span>`).join('')
-    : '<p class="text-muted" style="font-size:12px;">⚠ Este servicio operativo todavía no tiene ninguna regla de horas cargada.</p>';
+  // v2: si la última vigencia es FT fija no hay puestos que listar — se
+  // muestra el número del banco mensual con su chip, que es la regla real.
+  const esFijaUlt = ult?.tipoRegla === 'fija';
+  const puestosHtml = esFijaUlt
+    ? `<div style="background:var(--azul-claro);border:1px solid var(--azul);border-radius:var(--radio);padding:10px 12px;`
+      + `font-size:13px;display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;">`
+      + `<span><span class="badge badge-azul" style="font-size:10px;">FT FIJA</span> Banco de horas mensual — `
+      + `no varía con feriados ni con los días hábiles del mes.</span>`
+      + `<b style="font-size:17px;font-variant-numeric:tabular-nums;">${fmt(ult.horasFijasMes || 0)} hs/mes</b></div>`
+    : (ult
+      ? (ult.puestos || []).map(p => `<span class="chip" style="margin:0 6px 6px 0;display:inline-block;">`
+        + `<b>${p.cantidad || 1}× ${p.puesto || '—'}</b> `
+        + `<span class="badge badge-azul" style="font-size:10px;">${p.horarioDesde || '?'}–${p.horarioHasta || '?'}</span> `
+        + `<span class="badge badge-gris" style="font-size:10px;">${diasMarcadosTexto(p.dias) || '—'}</span>`
+        + `${p.dias?.feriados ? ' <span class="badge badge-acento" style="font-size:10px;">+Fer</span>' : ''}`
+        + `</span>`).join('')
+      : '<p class="text-muted" style="font-size:12px;">⚠ Este servicio operativo todavía no tiene ninguna regla de horas cargada.</p>');
   const historial = vigenciasDe(objCodigo).slice().sort((a, b) => (b.vigenteDesde || '').localeCompare(a.vigenteDesde || '')).map((v, i) => `
     <div style="border-left:3px solid ${i === 0 ? 'var(--verde)' : 'var(--borde-fuerte)'};padding:5px 12px;margin-bottom:6px;font-size:12px;${i === 0 ? 'background:var(--verde-claro);' : ''}">
-      <b>Desde ${v.vigenteDesde}</b> — ${reglaTxt(v.puestos)}
+      <b>Desde ${v.vigenteDesde}</b>${v.tipoRegla === 'fija' ? ' <span class="badge badge-azul" style="font-size:9px;">FT FIJA</span>' : ''} — ${vigenciaTxt(v)}
       <div style="color:var(--texto-suave);font-size:11px;">${v.usuario || '—'} · ${v.fecha || ''} · ${v.motivo || ''}</div>
     </div>`).join('') || '<p class="text-muted" style="font-size:12px;">Sin vigencias todavía.</p>';
   const btnEditar = puedeEditarHoras()
@@ -275,6 +329,15 @@ export function toggleDetalleHoras(objCodigo) {
   renderGestionHoras();
 }
 
+// Igual que toggleDetalleHoras pero ASEGURA el estado expandido (no lo
+// invierte). Lo usa el chip "= Gestión de horas ↗" de la ficha del
+// servicio: con un toggle, si la fila ya estaba abierta al volver, el chip
+// la cerraba en vez de mostrarla.
+export function expandirServicioHoras(objCodigo) {
+  _expandidos.add(objCodigo);
+  renderGestionHoras();
+}
+
 // ========== MODAL "NUEVA VIGENCIA" ==========
 
 let _vigObjCodigo = null;
@@ -286,10 +349,36 @@ let _vigObjCodigo = null;
 // "Backfill" (ese lo pone el sistema solo; esto lo carga una persona).
 let _vigEsCargaInicial = false;
 let EDIT_PUESTOS = [];
-// Bindeado a window: los onchange/oninput inline del editor de puestos
-// (EDIT_PUESTOS[i].cantidad=..., mismo patrón que puestosObjTemp en
-// legacy.js) corren en scope global.
+// v2: estado del editor de la nueva vigencia. EDIT_TIPO decide si el mes se
+// calcula por puestos×calendario ('calendario') o es un banco mensual plano
+// ('fija', con EDIT_HORAS_FIJAS). Ambos van a window porque los handlers
+// inline del modal (onchange/oninput) corren en scope global.
+let EDIT_TIPO = 'calendario';
+// Solo guarda el valor con el que se ABRIÓ el modal (para pre-llenar el
+// input al editar una vigencia existente). No se lee del window en los
+// handlers: EDIT_HORAS_FIJAS es un primitivo y quedaría desactualizado
+// frente al input — el valor vivo se lee siempre de $('hor-vig-fijas').
+let EDIT_HORAS_FIJAS = null;
 window.EDIT_PUESTOS = EDIT_PUESTOS;
+window.EDIT_TIPO = EDIT_TIPO;
+
+// Mostrar/ocultar la sección de Puestos según el tipo elegido, y dejar el
+// hint explicando la diferencia (los dos son reglas válidas, no es que una
+// sea "menos correcta" — el banco mensual es lo que dice el contrato).
+export function onChangeTipoReglaHoras() {
+  EDIT_TIPO = $('hor-vig-tipo')?.value === 'fija' ? 'fija' : 'calendario';
+  window.EDIT_TIPO = EDIT_TIPO;
+  const esFija = EDIT_TIPO === 'fija';
+  if ($('hor-vig-fija-row')) $('hor-vig-fija-row').style.display = esFija ? '' : 'none';
+  if ($('hor-vig-seccion-puestos')) $('hor-vig-seccion-puestos').style.display = esFija ? 'none' : '';
+  const hint = $('hor-vig-tipo-hint');
+  if (hint) {
+    hint.textContent = esFija
+      ? 'Para contratos con banco de horas fijo por mes. Las horas no se calculan: se cargan.'
+      : 'Para contratos con turnos y días definidos. Las horas salen de la regla contra el calendario real.';
+  }
+  previewVigenciaHoras();
+}
 
 function ensureModalVigenciaHoras() {
   if ($('modal-vigencia-horas')) return;
@@ -306,9 +395,25 @@ function ensureModalVigenciaHoras() {
           </div>
           <div class="form-group"><label>Cargado por *</label><input type="text" id="hor-vig-quien" placeholder="Nombre"></div>
         </div>
-        <div class="form-section">Puestos</div>
-        <div id="hor-vig-puestos"></div>
-        <button type="button" class="btn btn-secondary btn-sm" onclick="agregarPuestoHoras()">+ Agregar puesto</button>
+        <div class="form-section">Tipo de regla *</div>
+        <div class="form-grid form-grid-2">
+          <div class="form-group"><label>Cómo se calcula el mes</label>
+            <select id="hor-vig-tipo" onchange="onChangeTipoReglaHoras()">
+              <option value="calendario">Por puestos y calendario (puestos × horario × días × feriados)</option>
+              <option value="fija">FT fija — banco de horas mensual (un número fijo, no varía)</option>
+            </select>
+            <span class="form-hint" id="hor-vig-tipo-hint"></span>
+          </div>
+          <div class="form-group" id="hor-vig-fija-row" style="display:none;"><label>Horas fijas del mes *</label>
+            <input type="number" id="hor-vig-fijas" min="0" step="0.01" placeholder="Ej.: 1118" oninput="previewVigenciaHoras()">
+            <span class="form-hint">El mismo número todos los meses, llueva o haya feriados.</span>
+          </div>
+        </div>
+        <div id="hor-vig-seccion-puestos">
+          <div class="form-section">Puestos</div>
+          <div id="hor-vig-puestos"></div>
+          <button type="button" class="btn btn-secondary btn-sm" onclick="agregarPuestoHoras()">+ Agregar puesto</button>
+        </div>
         <div class="alerta alerta-ok" id="hor-vig-preview" style="margin-top:12px;font-size:13px;">—</div>
         <div class="form-group" style="margin-top:10px;"><label>Motivo (obligatorio — queda en el historial)</label><input type="text" id="hor-vig-motivo" placeholder="Ej.: reducción de horas pedida por el cliente desde octubre"></div>
       </div>
@@ -339,6 +444,16 @@ export function abrirVigenciaHoras(objCodigo) {
       : 'Solo períodos futuros/vigentes — los ya liquidados quedan congelados.';
   }
   if ($('hor-vig-btn-guardar')) $('hor-vig-btn-guardar').textContent = _vigEsCargaInicial ? 'Guardar regla inicial' : 'Guardar nueva vigencia';
+  // Precarga el tipo desde la vigencia vigente: si el servicio ya tiene un
+  // banco mensual fijo, al abrir para modificarlo arranca en 'fija' con su
+  // número (si arrancara en 'calendario' con la lista de puestos vacía, se
+  // vería como si le hubieran borrado la regla).
+  EDIT_TIPO = ult?.tipoRegla === 'fija' ? 'fija' : 'calendario';
+  window.EDIT_TIPO = EDIT_TIPO;
+  EDIT_HORAS_FIJAS = ult?.tipoRegla === 'fija' ? (ult.horasFijasMes || 0) : null;
+  if ($('hor-vig-tipo')) $('hor-vig-tipo').value = EDIT_TIPO;
+  if ($('hor-vig-fijas')) $('hor-vig-fijas').value = EDIT_HORAS_FIJAS ?? '';
+  onChangeTipoReglaHoras();
   poblarSelectPeriodoHoras();
   $('hor-vig-motivo').value = _vigEsCargaInicial ? 'Carga inicial manual' : '';
   $('hor-vig-quien').value = currentUser?.nombre || '';
@@ -408,13 +523,24 @@ export function previewVigenciaHoras() {
   const prev = $('hor-vig-preview');
   if (!prev || !desde || !_vigObjCodigo) return;
   const actual = horasServicioMes(_vigObjCodigo, desde);
-  const nuevo = horasPuestosMes(EDIT_PUESTOS, desde);
+  // Se calcula el "nuevo" con la misma función pura que usa la matriz, así
+  // el preview no puede mentir: misma fórmula, mismo número.
+  const esFija = EDIT_TIPO === 'fija';
+  const fijas = Number($('hor-vig-fijas')?.value) || 0;
+  const nuevo = esFija ? fijas : horasPuestosMes(EDIT_PUESTOS, desde);
   const d = nuevo - actual;
-  prev.innerHTML = `<b>${mesLabel(desde)}:</b> pactado pasa de <b>${fmt(actual)} hs</b> a <b>${fmt(nuevo)} hs</b> (${d >= 0 ? '+' : ''}${fmt(d)} hs) — calculado con el calendario real, feriados incluidos. Aplica de ese mes en adelante.`;
+  prev.innerHTML = `<b>${mesLabel(desde)}:</b> pactado pasa de <b>${fmt(actual)} hs</b> a <b>${fmt(nuevo)} hs</b> (${d >= 0 ? '+' : ''}${fmt(d)} hs) — `
+    + (esFija
+      ? 'banco mensual fijo, no se recalcula con el calendario. Aplica de ese mes en adelante.'
+      : 'calculado con el calendario real, feriados incluidos. Aplica de ese mes en adelante.');
+  // El aviso de dotación solo tiene sentido con una regla por puestos: en
+  // FT fija no hay desglose de gente, así que se apaga en vez de mentir.
+  const warn = $('hor-vig-warn');
+  if (!warn) return;
+  if (esFija) { warn.textContent = ''; return; }
   const cantAntes = (ultimaVigencia(_vigObjCodigo)?.puestos || []).reduce((a, p) => a + (parseInt(p.cantidad, 10) || 0), 0);
   const cantAhora = EDIT_PUESTOS.reduce((a, p) => a + (parseInt(p.cantidad, 10) || 0), 0);
-  const warn = $('hor-vig-warn');
-  if (warn) warn.textContent = cantAhora > cantAntes
+  warn.textContent = cantAhora > cantAntes
     ? '⚠ Suma puestos — puede necesitar sumar gente (revisar en Pedidos de personal).'
     : (cantAhora < cantAntes ? '⚠ Reduce dotación — revisar reasignaciones del personal que sobra.' : '');
 }
@@ -422,12 +548,26 @@ export function previewVigenciaHoras() {
 export async function guardarVigenciaHoras() {
   const motivo = ($('hor-vig-motivo')?.value || '').trim();
   if (!motivo) { toast('El motivo es obligatorio — queda en el historial de vigencias.'); return; }
-  if (!EDIT_PUESTOS.length || EDIT_PUESTOS.some(p => !p.puesto)) { toast('⚠️ Elegí el puesto en todas las líneas.'); return; }
+  const esFija = EDIT_TIPO === 'fija';
+  // v2 §3: con FT fija NO hace falta ningún puesto (no hay desglose por
+  // calcular) — solo el número del banco mensual. Con tipo calendario sigue
+  // haciendo falta al menos una línea con horario/días, pero la CATEGORÍA
+  // del puesto deja de ser obligatoria por fila: el cálculo depende de
+  // cantidad/horario/días, no del texto de la categoría.
+  if (esFija) {
+    if (!(Number($('hor-vig-fijas')?.value) > 0)) { toast('⚠️ Cargá las horas fijas del mes (tiene que ser un número mayor a 0).'); return; }
+  } else {
+    if (!EDIT_PUESTOS.length) { toast('⚠️ Agregá al menos un puesto, o cambiá el tipo de regla a FT fija.'); return; }
+    if (EDIT_PUESTOS.some(p => !p.horarioDesde || !p.horarioHasta)) { toast('⚠️ Completá el horario (desde/hasta) en todas las líneas.'); return; }
+  }
   const desde = $('hor-vig-desde')?.value;
   if (!desde) { toast('⚠️ Elegí desde qué período.'); return; }
   const usuario = ($('hor-vig-quien')?.value || '').trim() || currentUser?.nombre || '';
   const cargaInicial = _vigEsCargaInicial;
-  await abrirNuevaVigenciaHoras(_vigObjCodigo, EDIT_PUESTOS, desde, usuario, motivo, cargaInicial ? 'manual' : 'operaciones');
+  await abrirNuevaVigenciaHoras(
+    _vigObjCodigo, esFija ? [] : EDIT_PUESTOS, desde, usuario, motivo,
+    cargaInicial ? 'manual' : 'operaciones', EDIT_TIPO, Number($('hor-vig-fijas')?.value) || 0,
+  );
   cerrarModal('modal-vigencia-horas');
   _expandidos.add(_vigObjCodigo);
   renderGestionHoras();

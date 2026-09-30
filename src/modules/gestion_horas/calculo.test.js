@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { DB } from '@shared/state.js';
 import {
   horasEntreHHMM, trabajaEseDia, horasPuestoMes, horasPuestosMes, horasPuestosDia,
-  composicionMes, mesAnterior, mesSiguiente, rangoMeses, mesDeFechaArg,
+  composicionMes, mesAnterior, mesSiguiente, rangoMeses, mesDeFechaArg, horasVigenciaMes,
 } from './calculo.js';
 
 // Septiembre 2026 no tiene feriados (verificado contra el mockup del
@@ -126,5 +126,57 @@ describe('mesDeFechaArg', () => {
   it('sin fecha da null', () => {
     expect(mesDeFechaArg('')).toBeNull();
     expect(mesDeFechaArg(null)).toBeNull();
+  });
+});
+
+// Gestión de horas v2 §1: la vigencia tiene DOS tipos de cálculo. El caso
+// que motiva la v2 (Chango Sarandí, 1.118 hs/mes) es un banco mensual que
+// tiene que dar EXACTAMENTE lo mismo en un mes de 22 hábiles que en uno de
+// 21 con feriado — si la fórmula de calendario corriera, daría 176 vs 168
+// y el número pactado "bailaría" cuando en realidad no cambió nada.
+describe('horasVigenciaMes — tipo de regla de la vigencia', () => {
+  const puesto8hs = { cantidad: 1, puesto: 'Operario A', horarioDesde: '06:00', horarioHasta: '14:00', dias: { lunes: true, martes: true, miercoles: true, jueves: true, viernes: true } };
+
+  it('sin vigencia da 0 (no inventa nada)', () => {
+    expect(horasVigenciaMes(null, '2026-09')).toBe(0);
+  });
+
+  it("tipo 'calendario' se comporta como siempre: puestos × calendario real", () => {
+    const v = { tipoRegla: 'calendario', puestos: [puesto8hs] };
+    // 8hs × 22 hábiles (septiembre 2026) = 176
+    expect(horasVigenciaMes(v, '2026-09')).toBe(176);
+    // 8hs × 21 hábiles (octubre 2026, resta el feriado del 12) = 168
+    expect(horasVigenciaMes(v, '2026-10')).toBe(168);
+  });
+
+  it("una vigencia vieja SIN tipoRegla (creada antes de la v2) sigue siendo calendario", () => {
+    // Compatibilidad: las vigencias pre-v2 en la base no tienen la columna.
+    const vLegacy = { puestos: [puesto8hs] };
+    expect(horasVigenciaMes(vLegacy, '2026-09')).toBe(176);
+    expect(horasVigenciaMes(vLegacy, '2026-10')).toBe(168);
+  });
+
+  it("tipo 'fija': el MISMO número todos los meses, feriado o no", () => {
+    const v = { tipoRegla: 'fija', horasFijasMes: 1118.07, puestos: [] };
+    expect(horasVigenciaMes(v, '2026-09')).toBe(1118.07);
+    expect(horasVigenciaMes(v, '2026-10')).toBe(1118.07); // tiene feriado
+    expect(horasVigenciaMes(v, '2027-02')).toBe(1118.07); // otro mes cualquiera
+  });
+
+  it("tipo 'fija' gana sobre los puestos si vinieran cargados (no debería pasar, pero no puede mentir)", () => {
+    const v = { tipoRegla: 'fija', horasFijasMes: 1118, puestos: [puesto8hs] };
+    expect(horasVigenciaMes(v, '2026-10')).toBe(1118);
+  });
+
+  it("'fija' sin número o en 0 da 0, no undefined ni NaN", () => {
+    expect(horasVigenciaMes({ tipoRegla: 'fija', horasFijasMes: null }, '2026-09')).toBe(0);
+    expect(horasVigenciaMes({ tipoRegla: 'fija' }, '2026-09')).toBe(0);
+    expect(horasVigenciaMes({ tipoRegla: 'fija', horasFijasMes: 0 }, '2026-09')).toBe(0);
+  });
+
+  it("'calendario' con puestos vacíos da 0 (regla sin desglose = sin precarga diaria)", () => {
+    // Es lo que permite que las grillas de Liquidación.no precarguen nada
+    // en vez de romper: horasPuestosDia([], fecha) ya daba 0.
+    expect(horasVigenciaMes({ tipoRegla: 'calendario', puestos: [] }, '2026-09')).toBe(0);
   });
 });

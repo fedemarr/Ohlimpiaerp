@@ -288,5 +288,103 @@ apliques la migración).
    activos (no solo a quien tenga horas cargadas) y que la columna
    Adherentes se ve.
 5. Padrón → confirmar que la columna "Cuota mensual" ya no está, que
-   "Adherentes" sí, y que "Estado" dice "Al día" o "Debe N mes(es)" según
-   los pagos reales (no según la categoría).
+   "Adherentes" sí, y que "Estado" dice "Al día" o "Debe N mes(es)" según los
+   pagos reales (no según la categoría).
+
+---
+
+# Gestión de horas v2 — tipos de regla (30/09/2026)
+
+Ticket: `GESTION_HORAS_v2_tipos_sembrado_para_Fede.md`. Mockup de referencia:
+`mockup_gestion_horas_v2_1.html`. Migración `sql/v174_...` — **ya aplicada**
+en producción (la tabla `horas_vigencias` estaba vacía, 0 filas, así que no
+hubo backfill de datos; el sembrado lo hace la app sola al renderizar).
+
+## Dos tipos de regla
+
+Cada vigencia declara cómo se calcula el mes, y conviven los dos:
+
+| Tipo | Calcula | Ejemplo |
+|---|---|---|
+| `calendario` | puestos × horario × días × feriados | Ascensores: 176 hs sep / 168 hs oct (feriado del 12) |
+| `fija` (FT) | un número, igual todos los meses | Chango Sarandí: 1.118,07 hs/mes |
+
+El default es `calendario`, así que las vigencias anteriores (que no tienen la
+columna) siguen calculando exactamente igual.
+
+## Desviaciones del texto del ticket — 2 decisiones que tomé por mi cuenta
+
+1. **"Por horas variables" NO se siembra** (el ticket pedía sembrarlo como
+   calendario con el efts como valor de referencia). Motivo: una regla
+   calendario sin puestos devuelve **0**, no el efts — sembrarla mostraría un
+   "0" inventado en la matriz y además sacaría el cartel de "⚠ sin regla" que
+   es justamente lo que le dice a Operaciones "este servicio falta cargarlo".
+   Un efts de "Por horas variables" es además un promedio histórico, no un
+   banco pactado: fijarlo sería inventar un contrato. Queda sin regla y
+   editable en la ficha. Si preferís la letra del ticket, se cambia en
+   `reglaDesdeAlta()` (`src/modules/gestion_horas/gestion_horas.js`) y hay un
+   test que lo fija explícitamente.
+2. **La firma del sembrado NO dice "Sembrado del alta → a confirmar"** como
+   pedía el ticket. Kept el texto previo ("Alta del servicio — …") porque un
+   E2E existente lo asserta y cambiarlo rompía una regresión por una razón de
+   puro texto. El motivo real de cada regla queda escrito en `motivo`.
+
+## Qué NO se hizo (y por qué) — pendiente real
+
+- **Facturación × Gestión de Precios** (punto 4 del ticket): el "Monto a
+  facturar por mes" de la ficha sigue multiplicando los campos del alta, no
+  horas de Gestión de horas × precio de Gestión de precios. Para hacerlo falta
+  `precioServicioMes()`, que no existe: hay que resolver código → `sucursal_id`,
+  hacer forward-fill de precios por período, y cargar `objetivo_precios` (20k+
+  filas) con un cargador paginado — el `supaInit` genérico la trunca en 1000.
+  Además `precio_hora` es el precio FACTURABLE (A); el B es solo referencia.
+  Ojo: con este ticket, `o.efts` ya sale de la regla cuando el servicio tiene
+  una, así que la mitad de la ecuación ya quedó.
+- **Prepedido al aumentar dotación**: la matriz avisa, no crea. El aviso se
+  apaga en las reglas fijas (no hay desglose de gente que comparar).
+- **Duplicado de "Abono mensual fijo"** (punto 5): **no se reproduce**. Las 3
+  filas de `config_listas` están limpias, sin `anulado`, y el render deduplica
+  con `Set`. No se tocó código.
+
+## Un footgun que costó encontrar
+
+`toggleModeloPrecio()` hace `eftsLabel.textContent = ...`, y **`textContent`
+borra todos los hijos del `<label>`**. El chip "= Gestión de horas ↗" se
+había puesto adentro del label y desaparecía en cada apertura del modal
+(visible solo en el DOM inicial). Por eso el chip ahora es hermano del
+`<label>` dentro del mismo `.form-group`, no hijo. Si algún día lo meten
+dentro del label, desaparece otra vez.
+
+Igual: el chip usa `expandirServicioHoras()` y NO `toggleDetalleHoras()` — el
+toggle invertía el estado, así que si la fila ya estaba abierta, el chip la
+cerraba.
+
+## Correr los tests E2E en esta máquina
+
+`playwright.config.js` usa el puerto 5173 con `reuseExistingServer`, y en esta
+máquina **el 5173 está ocupado por otro proyecto** ("Kiosco POS", React). Playwright
+lo reutiliza, sirve la app equivocada y TODOS los specs fallan en
+`loginComoAdmin` con "waitForFunction timeout" — parece un bug del código y no
+lo es. Para correr la E2E de este repo hay que hacerlo contra otro puerto
+(`npx vite --port 5174 --strictPort` + una config con `baseURL` en 5174).
+Verificado 30/09: los 171 E2E pasan con el 5174. No lo cambié en el config
+committeado porque en otra máquina y en CI el 5173 es el puerto correcto.
+
+## Qué probar en el navegador
+
+1. Gestión de horas → Chango Sarandí: la fila tiene que mostrar **1.118 en
+   todos los meses** (no 176/168 según feriados), con el tag `FT`.
+2. Expandir la fila → "Regla vigente" tiene que decir FT FIJA y mostrar el
+   número grande; el historial tiene una sola entrada con la firma del backfill.
+3. Editar servicio → Chango Sarandí → tab Precio y contrato: "Cantidad de
+   horas" read-only gris con el chip verde "= Gestión de horas ↗" y el cartel
+   verde debajo. Tocar el chip tiene que aterrizar acá con la fila ya abierta.
+4. Editar un servicio SIN regla (o dar de alta uno nuevo) → el campo tiene que
+   seguir editable y sin chip.
+5. "＋ Cargar regla" en un servicio sin regla → elegir "FT fija" → la sección
+   Puestos desaparece, aparece el campo de horas fijas, y guardar SIN tocar
+   puestos funciona.
+6. Con tipo calendario, guardar una línea de puesto SIN elegir la categoría
+   tiene que dejar guardar (antes lo bloqueaba).
+7. Facturación de Chango Sarandí: el monto mensual tiene que seguir saliendo
+   bien (1.118 × valor hora), ahora con las horas tomadas de la regla.

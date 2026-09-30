@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Gestión de horas v2 — tipo de regla (FT fija / calendario) + ficha como referencia</title>
+<style>
+  :root{ --azul:#1b2a5e; --fondo:#f4f6fa; --borde:#e3e7ef; --texto:#1f2430; --sub:#6a7080; --verde:#1e7b34; --verde-claro:#dff2e1; }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif; background:var(--fondo); color:var(--texto); font-size:14px;}
+  .wrap{max-width:1250px; margin:18px auto; padding:0 18px;}
+  h1{font-size:19px; margin-bottom:4px;}
+  h2{font-size:15px; margin:22px 0 6px; color:var(--azul);}
+  .lead{color:var(--sub); font-size:13px; margin-bottom:16px;}
+  .nota{background:#fff; border:1px solid var(--borde); border-left:4px solid var(--azul); border-radius:8px; padding:11px 14px; font-size:13px; color:#3a4152; margin-bottom:14px;}
+  .nota b{color:var(--azul);}
+  .chip{display:inline-block; padding:2px 9px; border-radius:20px; font-size:11px; font-weight:600; white-space:nowrap;}
+  .c-verde{background:var(--verde-claro); color:var(--verde);}
+  .c-azul{background:#dde7f8; color:#1b4ea0;}
+  .c-nara{background:#fdebd7; color:#b25b00;}
+  .c-rojo{background:#fbe0dc; color:#b3261e;}
+  .c-gris{background:#eceef2; color:#5a6070;}
+  .card{background:#fff; border:1px solid var(--borde); border-radius:12px; box-shadow:0 1px 3px rgba(20,30,60,.06); margin-bottom:14px; overflow:hidden;}
+  .card .hd{padding:10px 15px; border-bottom:1px solid var(--borde); font-weight:700; font-size:13.5px; display:flex; gap:9px; align-items:center; flex-wrap:wrap;}
+  .card .bd{padding:14px 16px;}
+  table{border-collapse:collapse; font-size:12.5px; width:100%;}
+  th{background:#f7f8fb; padding:7px 9px; font-size:10.5px; text-transform:uppercase; letter-spacing:.3px; color:#555c6e; border-bottom:1px solid var(--borde); text-align:center;}
+  th.mes{background:#eef2fa; color:var(--azul); font-size:11.5px; border-left:2px solid #d7deee;}
+  td{padding:7px 9px; border-bottom:1px solid #f0f2f7; border-right:1px solid #f4f6fa;}
+  td.hs{text-align:right; font-weight:700; font-variant-numeric:tabular-nums; white-space:nowrap;}
+  td.ya{color:var(--verde);}
+  .muted{color:var(--sub); font-weight:400;}
+  .det{background:#fbfcfe;}
+  .banner{display:flex; gap:12px; align-items:flex-start; background:var(--verde-claro); border:1px solid var(--verde); border-radius:8px; padding:9px 12px; font-size:13px; margin-bottom:12px;}
+  .banner b{color:var(--verde);}
+  .row{display:flex; gap:14px; flex-wrap:wrap;}
+  .col{flex:1; min-width:280px;}
+  .sect{font-size:10.5px; text-transform:uppercase; letter-spacing:.4px; color:var(--sub); font-weight:700; margin:0 0 7px;}
+  label{display:block; font-size:11.5px; color:var(--sub); margin-bottom:3px;}
+  .fake-in{width:100%; padding:7px 10px; border:1px solid #c9d0dd; border-radius:7px; background:#fff; font-size:13px;}
+  .fake-in.ro{background:#f2f4f8; color:#7a8190; cursor:not-allowed;}
+  .pill{width:100%; padding:7px 10px; border:1px solid #c9d0dd; border-radius:7px; background:#fff; font-size:13px; display:flex; justify-content:space-between; align-items:center;}
+  .link{color:var(--verde); font-size:10.5px; font-weight:700; background:var(--verde-claro); padding:2px 8px; border-radius:20px; cursor:pointer;}
+  .fake-hist{border-left:3px solid #d7deee; padding:4px 11px; font-size:12px; margin-bottom:6px;}
+  .fake-hist.on{border-left-color:var(--verde); background:var(--verde-claro);}
+  .prev{background:#f2f6fd; border:1px solid #dde7f8; border-radius:8px; padding:9px 12px; font-size:12.5px; color:#26324e;}
+  .ftbox{background:#eef3fd; border:1px solid #9fb8e8; border-radius:8px; padding:10px 12px; font-size:13px; display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap;}
+  .ftbox b.big{font-size:17px;}
+  .hidden-demo{opacity:.42;}
+  .tag{font-size:9.5px; font-weight:700; border:1px solid currentColor; border-radius:4px; padding:1px 5px; letter-spacing:.3px;}
+  ol{padding-left:19px; font-size:13px; color:#3a4152;} ol li{margin:3px 0;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Gestión de horas v2 — tipos de regla + sembrado desde el alta</h1>
+  <div class="lead">Mockup de los 4 cambios de <code>GESTION_HORAS_v2_tipos_sembrado_para_Fede.md</code>. Lo implementado ya está en producción; este archivo es la referencia visual de qué se cambió y por qué.</div>
+
+  <div class="nota">
+    <b>El problema que se resuelve.</b> El módulo solo sabía calcular por calendario (puestos × horario × días × feriados), pero un contrato de banco mensual (Chango Sarandí: 1.118,07 hs/mes) NO se comporta así: el calendario lo haría bailar (−46/+47 hs según cuántos hábiles y feriados tenga el mes), y la ficha mostraba un número viejo (176) mientras se facturaban 1.118. Además había ~107 servicios sin regla porque cargar una exigía puestos/horarios que hay que averiguar por supervisor.
+    <br><br>
+    <b>El criterio.</b> A este módulo solo le importa <b>cuántas horas pactadas tiene el servicio por mes</b>. Quién lo cubre y con qué puestos es del circuito de pedidos de personal. Y los dos datos necesarios —modelo de precio y cantidad de horas— <b>ya están cargados en el alta</b>.
+  </div>
+
+  <h2>1 · La matriz — dos tipos de regla conviviendo</h2>
+  <div class="nota">
+    Cada vigencia declara <b>cómo se calcula el mes</b>. La fila marca <span class="tag" style="color:var(--azul);">FT</span> cuando el mes es un banco fijo, para que se distinga de un vistazo que ese número no va a depender del calendario.
+  </div>
+  <div class="card">
+    <div class="hd">Horas pactadas por servicio — mes <span class="muted" style="font-weight:400;">(agosto 2026 → diciembre 2026)</span></div>
+    <div class="bd" style="padding:0;">
+      <table>
+        <tr><th style="text-align:left;">Servicio</th><th class="mes">Ago</th><th class="mes">Sep</th><th class="mes">Oct</th><th class="mes">Nov</th><th class="mes">Dic</th></tr>
+        <tr>
+          <td><b>Chango Sarandí</b><br><span class="chip c-azul">Por EFT</span> <span class="muted">1.118,07 hs/mes</span></td>
+          <td class="hs ya">1.118 <span class="tag" style="color:var(--azul);">FT</span></td>
+          <td class="hs ya">1.118 <span class="tag" style="color:var(--azul);">FT</span></td>
+          <td class="hs ya">1.118 <span class="tag" style="color:var(--azul);">FT</span></td>
+          <td class="hs ya">1.118 <span class="tag" style="color:var(--azul);">FT</span></td>
+          <td class="hs ya">1.118 <span class="tag" style="color:var(--azul);">FT</span></td>
+        </tr>
+        <tr>
+          <td><b>Ascensores Palermo</b><br><span class="chip c-gris">Por horas variables</span></td>
+          <td class="hs ya">176</td><td class="hs ya">176</td><td class="hs ya">168</td><td class="hs ya">176</td><td class="hs ya">152</td>
+        </tr>
+        <tr>
+          <td><b>Alicorp</b><br><span class="chip c-gris">Abono mensual fijo</span></td>
+          <td class="hs ya">640 <span class="tag" style="color:var(--azul);">FT</span></td>
+          <td class="hs ya">640 <span class="tag" style="color:var(--azul);">FT</span></td>
+          <td class="hs ya">640 <span class="tag" style="color:var(--azul);">FT</span></td>
+          <td class="hs ya">640 <span class="tag" style="color:var(--azul);">FT</span></td>
+          <td class="hs ya">640 <span class="tag" style="color:var(--azul);">FT</span></td>
+        </tr>
+        <tr>
+          <td><b>Supermercado Norte</b> <span class="chip c-nara">sin regla</span></td>
+          <td class="hs muted">—</td><td class="hs muted">—</td><td class="hs muted">—</td><td class="hs muted">—</td><td class="hs muted">—</td>
+        </tr>
+        <tr class="det">
+          <td colspan="6">
+            <div class="row">
+              <div class="col">
+                <div class="sect">Regla vigente (última)</div>
+                <div class="ftbox">
+                  <span><span class="chip c-azul">FT FIJA</span> Banco de horas mensual — no varía con feriados ni con los días hábiles del mes.</span>
+                  <b class="big">1.118 hs/mes</b>
+                </div>
+              </div>
+              <div class="col">
+                <div class="sect">Historial de vigencias</div>
+                <div class="fake-hist on"><b>Desde 2026-01</b> <span class="chip c-azul">FT FIJA</span> — FT fija — 1.118 hs/mes (banco mensual)<div style="color:var(--sub);font-size:11px;">Sistema · 30/09/2026 · Backfill desde modelo de precio + cantidad de horas</div></div>
+              </div>
+            </div>
+          </td>
+        </tr>
+      </table>
+    </div>
+  </div>
+  <div class="nota">
+    <b>Ascensores vs Chango.</b> Los dos modelos conviven sin que nadie tenga que decidir el "tipo" a mano en la matriz: sale del modelo de precio con el que se contrató. Ascensores baja de 176 a 168 en octubre porque tiene el feriado del 12; Chango se queda en 1.118 porque su contrato es plano. <b>Un mismo módulo, dos reglas, ninguna baila.</b>
+  </div>
+
+  <h2>2 · El modal — elegir el tipo de regla</h2>
+  <div class="nota">
+    Es el único lugar donde alguien decide. Al cambiar a <b>FT fija</b> desaparece la grilla de puestos (no hay nada que desglosar) y aparece un único campo: el banco mensual. El preview usa la <b>misma función de cálculo que la matriz</b>, así que no puede mentir.
+  </div>
+  <div class="row">
+    <div class="card col">
+      <div class="hd">Tipo: <b>Por puestos y calendario</b></div>
+      <div class="bd">
+        <label>Cómo se calcula el mes</label>
+        <div class="pill"><span>Por puestos y calendario (puestos × horario × días × feriados)</span></div>
+        <div style="font-size:11px;color:var(--sub);margin:5px 0 13px;">Para contratos con turnos y días definidos.</div>
+        <div class="sect">Puestos</div>
+        <div style="display:flex;gap:8px;align-items:center;margin-bottom:6px;">
+          <span class="chip c-azul">1× Operario A</span><span class="chip c-gris">06:00–14:00</span><span class="chip c-gris">L a V</span>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <span class="chip c-azul">2× Encargado</span><span class="chip c-gris">09:00–18:00</span><span class="chip c-gris">Sáb</span><span class="chip c-nara">+Fer</span>
+        </div>
+        <div class="prev" style="margin-top:13px;"><b>Octubre:</b> pactado pasa de <b>176 hs</b> a <b>216 hs</b> (+40 hs) — calculado con el calendario real, feriados incluidos.</div>
+      </div>
+    </div>
+    <div class="card col">
+      <div class="hd">Tipo: <b>FT fija — banco mensual</b></div>
+      <div class="bd">
+        <label>Cómo se calcula el mes</label>
+        <div class="pill"><span>FT fija — banco de horas mensual (un número fijo)</span></div>
+        <div style="font-size:11px;color:var(--sub);margin:5px 0 13px;">Para contratos con banco fijo por mes.</div>
+        <label>Horas fijas del mes *</label>
+        <div class="fake-in">1.118</div>
+        <div style="font-size:11px;color:var(--sub);margin-top:4px;">El mismo número todos los meses, llueva o haya feriados.</div>
+        <div class="sect" style="margin-top:15px;">Puestos</div>
+        <div class="hidden-demo" style="background:#f2f4f8;border:1px dashed #c9d0dd;border-radius:8px;padding:9px;text-align:center;font-size:12px;color:var(--sub);">
+          (se oculta) no hacen falta puestos: la regla es un número<br>— y por eso el aviso de dotación también se apaga
+        </div>
+        <div class="prev" style="margin-top:13px;"><b>Octubre:</b> pactado pasa de <b>1.118 hs</b> a <b>1.240 hs</b> (+122 hs) — banco mensual fijo, no se recalcula con el calendario.</div>
+      </div>
+    </div>
+  </div>
+
+  <h2>3 · La ficha del servicio — la hora pasa a ser referencia</h2>
+  <div class="nota">
+    Para no crear dos verdades: el sembrado se hace <b>una sola vez</b> y de ahí en adelante las horas pactadas viven en Gestión de horas. El campo "Cantidad de horas" deja de ser editable y muestra el pactado vigente, con un chip que lleva a la pantalla que lo administra. Queda <b>read-only, no disabled</b>, para que el valor se pueda copiar.
+  </div>
+  <div class="card">
+    <div class="hd">Chango Sarandí — <span class="muted" style="font-weight:400;">tab Precio y contrato</span></div>
+    <div class="bd">
+      <div class="banner"><span>🔗</span><div>Las horas de este servicio se administran en <b>Gestión de horas</b>: <b>1.118 hs/mes</b> (FT fija, banco mensual) — vigente desde 2026-01. Este campo está bloqueado; para cambiarlo, entrá a Gestión de horas.</div></div>
+      <div class="row">
+        <div class="col">
+          <label>Cantidad de horas <span class="muted">(referencia)</span> <span class="link">= Gestión de horas ↗</span></label>
+          <div class="fake-in ro">1.118 <span style="color:var(--sub);font-size:11px;">(solo lectura)</span></div>
+        </div>
+        <div class="col">
+          <label>Valor hora *</label>
+          <div class="fake-in">$ 1.250</div>
+        </div>
+        <div class="col">
+          <label>Valor mensual (calculado)</label>
+          <div class="fake-in" style="background:#f2f4f8;">$ 1.397.500</div>
+        </div>
+      </div>
+      <div style="font-size:11.5px;color:var(--sub);margin-top:11px;">Un servicio <b>sin</b> regla todavía deja el campo editable (y sin chip), para poder cargar el banco al darlo de alta.</div>
+    </div>
+  </div>
+
+  <h2>4 · El sembrado — de dónde sale cada regla</h2>
+  <div class="nota">Corre solo, en cada render, y es idempotente: si el servicio ya tiene regla, no hace nada. Con eso los ~107 servicios sin regla se llenan de una pasada leyendo dos campos que ya estaban cargados.</div>
+  <div class="card"><div class="bd">
+    <table>
+      <tr><th style="text-align:left;">Lo que dice el alta</th><th style="text-align:left;">Regla que se siembra</th><th style="text-align:left;">Por qué</th></tr>
+      <tr><td><b>Por EFT</b> · 1.118 hs</td><td><span class="chip c-azul">FT fija</span> 1.118 hs/mes</td><td>El banco mensual pactado ES la cantidad de horas del alta.</td></tr>
+      <tr><td><b>Abono mensual fijo</b> · 640 hs</td><td><span class="chip c-azul">FT fija</span> 640 hs/mes</td><td idem.</td></tr>
+      <tr><td>sin modelo + <b>Personal necesario</b></td><td><span class="chip c-gris">calendario</span> con los puestos</td><td>Acá el desglose SÍ es la información.</td></tr>
+      <tr><td><b>Por horas variables</b> · 800 hs</td><td><span class="chip c-nara">no se siembra</span></td><td>Ese efts es un promedio histórico, no un banco pactado: fijarlo sería inventar un contrato. Queda "sin regla" para que Operaciones lo ajuste.</td></tr>
+      <tr><td>sin modelo, sin puestos</td><td><span class="chip c-nara">no se siembra</span></td><td>No hay nada que leer. Sigue editable en la ficha.</td></tr>
+    </table>
+    <div style="font-size:11.5px;color:var(--sub);margin-top:10px;">Si el alta tiene <b>las dos</b> cosas (modelo de precio + Personal necesario), <b>gana el banco fijo</b>: manda lo que se facturó, no un desglose que dé otro número.</div>
+  </div></div>
+
+  <h2>Lo que NO cambió (a propósito)</h2>
+  <ol>
+    <li><b>Facturación × Gestión de Precios.</b> El monto a facturar sigue usando los campos del alta; leer el precio de la tabla de precios requiere un cargador paginado que todavía no existe. Queda como paso siguiente, no en este ticket.</li>
+    <li><b>La cascada de precarga de grillas.</b> Una regla sin puestos ya estaba contemplada: "sin precarga → cargo a mano", celdas en 0, nada bloqueado. Cuando el servicio gane puestos, la precarga se enciende sola.</li>
+    <li><b>El duplicado de "Abono mensual fijo".</b> No se reproduce: en la base hay una sola fila y el render deduplica. No se tocó código.</li>
+  </ol>
+</div>
+</body>
+</html>

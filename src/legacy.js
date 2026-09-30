@@ -22,7 +22,8 @@ import { DIAS_SEMANA, checklistDiasHtml } from '@shared/horarioDias.js';
 // fabrica ni lo destruye". horasServicioMes/tieneRegla/vigenciaParaMes
 // leen la regla vigente (puestos × horario × días × Fer) para un
 // servicio y mes puntual; horasPuestosDia da la jornada de UN día.
-import { horasServicioMes, tieneRegla, vigenciaParaMes } from './modules/gestion_horas/gestion_horas.js';
+import { horasServicioMes, tieneRegla, vigenciaParaMes, expandirServicioHoras } from './modules/gestion_horas/gestion_horas.js';
+import { navTo } from '@shared/nav.js';
 import { horasPuestosDia } from './modules/gestion_horas/calculo.js';
 
 // ========== ESTADO ==========
@@ -2254,6 +2255,11 @@ function abrirModalObjetivo(idLocal){
     $('obj-valor-hora').value=esHoras?(o.valorHora||''):'';
     $('obj-valor').value=!esHoras?(o.valor||''):'';
     $('obj-efts-fijo').value=!esHoras?(o.efts||''):'';
+    // Gestión de horas v2 §4: si el servicio YA tiene regla, "Cantidad de
+    // horas" se vuelve una referencia de solo lectura — la verdad vive en la
+    // vigencia, acá sólo se muestra. Si no tiene regla (servicio nuevo o que
+    // nunca se cargó), el campo sigue editable para poder sembrar el banco.
+    refrescarReferenciaHorasObj(o.codigo);
     if($('obj-fecha-fin')&&o.fechaFin){const[dd,mm,yy]=o.fechaFin.split('/');$('obj-fecha-fin').value=`${yy}-${mm}-${dd}`;} else if($('obj-fecha-fin')) $('obj-fecha-fin').value='';
     if($('obj-contrato')) $('obj-contrato').value=o.contrato||'';
     if($('obj-productos')) $('obj-productos').value=o.productos||'';
@@ -2303,7 +2309,12 @@ function abrirModalObjetivo(idLocal){
   // editando un servicio ya creado (uno nuevo se guarda con el alta).
   if($('obj-com-guardar-wrap')) $('obj-com-guardar-wrap').style.display=o?'block':'none';
   toggleComisionesObjetivo();toggleObjComExterno();toggleObjComPeriodos();
-  renderRespObjetivoTemp();renderAdjuntosObj();renderPuestosObj();renderComisionesObjTemp();toggleModeloPrecio();
+  renderRespObjetivoTemp();renderAdjuntosObj();renderPuestosObj();renderComisionesObjTemp();
+  // Alta nueva: limpia la referencia de horas del servicio que estuviera
+  // abierto antes — un servicio nuevo NUNCA tiene regla, así que el campo
+  // tiene que quedar editable para poder cargar el banco mensual.
+  if(!o) refrescarReferenciaHorasObj(null);
+  toggleModeloPrecio();
   bloquearCamposObjetivoPendiente(o?.estado==='Pendiente asignación operativa');
   abrirModal('modal-objetivo');
 }
@@ -2330,7 +2341,15 @@ async function guardarObjetivo(){
   // "Abono mensual fijo" carga el mensual directo y deriva la hora de
   // referencia. o.efts siempre termina siendo "cantidad de horas".
   const esHoras=modeloPrecio==='Por EFT'||modeloPrecio==='Por horas variables';
-  const efts=esHoras?(parseFloat($('obj-efts')?.value)||0):(parseFloat($('obj-efts-fijo')?.value)||0);
+  // Gestión de horas v2 §4: si el servicio TIENE regla, las horas no salen
+  // del input (que está read-only) sino de la vigencia vigente en el mes
+  // actual — así la ficha, la grilla de Liquidación y el detalle muestran
+  // SIEMPRE el mismo número y no queda un "efts" viejo hardcodeado que
+  // contradiga la regla (el caso Chango Sarandí: 176 en la ficha vs 1.118
+  // facturados). Sin regla, sigue siendo un campo editable normal para
+  // poder sembrar el banco al dar de alta el servicio.
+  const eftsDeRegla=cod&&tieneRegla(cod)?horasServicioMes(cod,_mesActualISO()):null;
+  const efts=eftsDeRegla!=null?eftsDeRegla:(esHoras?(parseFloat($('obj-efts')?.value)||0):(parseFloat($('obj-efts-fijo')?.value)||0));
   const valorHora=esHoras?(parseFloat($('obj-valor-hora')?.value)||0):0;
   const valor=esHoras?(efts*valorHora):(parseFloat($('obj-valor')?.value)||0);
   const datos={
@@ -2473,6 +2492,58 @@ function tabObjModal(idx,btn){
 // bloqueado — firme en EFT, estimado en horas variables (las etiquetas
 // cambian, el cálculo es el mismo). "Abono mensual fijo" (fila "fijo")
 // carga el mensual directo, la hora de referencia se calcula.
+// ========== Gestión de horas v2 §4 — "Cantidad de horas" como referencia ==
+// Cuando el servicio tiene vigencia en Gestión de horas, el efts de la ficha
+// NO se tipea más: se deriva de la regla del mes actual y se muestra con un
+// chip que salta a la pantalla que la administra. Así las horas quedan en un
+// solo lugar (la vigencia, con su historial) en vez de dos números que se
+// desincronizan — el bug que hizo que Chango Sarandí mostrara 176 hs/mes
+// mientras facturaba 1.118.
+let _objRefHorasCodigo=null;
+window.objRefHorasCodigo=_objRefHorasCodigo;
+
+function refrescarReferenciaHorasObj(codigo){
+  _objRefHorasCodigo=codigo||null;
+  window.objRefHorasCodigo=_objRefHorasCodigo;
+  const conRegla=!!codigo&&tieneRegla(codigo);
+  const inpHora=$('obj-efts'), inpFijo=$('obj-efts-fijo');
+  const hint=$('obj-horas-ref-hint');
+  ['obj-horas-ref-1','obj-horas-ref-2'].forEach(id=>{const el=$(id);if(el)el.style.display=conRegla?'':'none';});
+  [inpHora,inpFijo].forEach(el=>{
+    if(!el) return;
+    // Read-only en vez de disabled: se ve gris pero el valor se selecciona
+    // y se puede copiar, que es justo lo que alguien va a querer hacer.
+    el.readOnly=conRegla;
+    el.style.background=conRegla?'var(--fondo)':'';
+    el.style.cursor=conRegla?'not-allowed':'';
+    el.title=conRegla?'Las horas las administra Gestión de horas (este servicio tiene regla).':'Horas mensuales que se administran acá mientras el servicio no tenga regla en Gestión de horas.';
+  });
+  if(!hint) return;
+  hint.style.display=conRegla?'':'none';
+  if(!conRegla) return;
+  const hs=horasServicioMes(codigo,_mesActualISO());
+  const v=vigenciaParaMes(codigo,_mesActualISO());
+  const esFija=v?.tipoRegla==='fija';
+  // Sin fmt(): en legacy.js ese helper es un const LOCAL a otras funciones
+  // (no está exportado desde helpers.js), así que acá no se puede usar.
+  const hsTxt=Math.round(hs||0).toLocaleString('es-AR');
+  hint.innerHTML=`Las horas de este servicio se administran en <b>Gestión de horas</b>: <b>${hsTxt} hs/mes</b>`
+    +`${esFija?' (FT fija, banco mensual)':''} — vigente desde ${v?.vigenteDesde||'—'}. `
+    +`Este campo está bloqueado; para cambiarlo, entrá a Gestión de horas.`;
+}
+// El chip "= Gestión de horas ↗": cierra la ficha y abre la fila del servicio
+// ya desplegada, que es donde se ve la regla y el historial de vigencias.
+// Usa expandirServicioHoras (no toggleDetalleHoras) porque tiene que ASEGURAR
+// que quede abierta.
+function verGestionHorasDesdeObjetivo(){
+  if(!_objRefHorasCodigo){toast('⚠️ Este servicio todavía no tiene regla en Gestión de horas.');return;}
+  cerrarModal('modal-objetivo');
+  navTo('gestion_horas');
+  setTimeout(()=>expandirServicioHoras(_objRefHorasCodigo),150);
+}
+window.refrescarReferenciaHorasObj=refrescarReferenciaHorasObj;
+window.verGestionHorasDesdeObjetivo=verGestionHorasDesdeObjetivo;
+
 function toggleModeloPrecio(){
   const m=$('obj-modelo-precio')?.value||'';
   const esHoras=m==='Por EFT'||m==='Por horas variables';
@@ -2481,6 +2552,10 @@ function toggleModeloPrecio(){
   if(rowHora) rowHora.style.display=esHoras?'grid':'none';
   if(rowFijo) rowFijo.style.display=esHoras?'none':'grid';
   const eftsLabel=$('obj-efts-label');
+  // OJO: textContent borra los hijos del <label>. Por eso el chip
+  // "= Gestión de horas ↗" vive FUERA del label (es hermano, en el mismo
+  // .form-group) — si se pone adentro, cada toggle del modelo de precio lo
+  // borra y el chip desaparece de la ficha.
   if(eftsLabel) eftsLabel.textContent=esEstimado?'Cantidad de horas estimada *':'Cantidad de horas *';
   const calcLabel=$('obj-valor-calculado-label');
   if(calcLabel) calcLabel.textContent=esEstimado?'Monto estimado a facturar (calculado)':'Valor mensual (calculado)';

@@ -68,6 +68,18 @@ export function horasPuestosDia(puestos, fechaISO) {
   }, 0);
 }
 
+// Gestión de horas v2 (GESTION_HORAS_v2_tipos_sembrado_para_Fede.md §1):
+// una vigencia puede ser 'calendario' (como siempre, puestos×calendario) o
+// 'fija' — un banco de horas mensual PLANO que no varía con el calendario
+// (ej. 1.118,07 hs/mes siempre, llueva o haya 3 feriados; solo cambia con
+// una vigencia nueva). `horasFijasMes` vive a nivel de la vigencia, no del
+// puesto — una FT fija normalmente no tiene desglose de puestos (puestos:[]).
+export function horasVigenciaMes(vigencia, mesISO) {
+  if (!vigencia) return 0;
+  if (vigencia.tipoRegla === 'fija') return vigencia.horasFijasMes || 0;
+  return horasPuestosMes(vigencia.puestos, mesISO);
+}
+
 // Composición del mes para el encabezado ("21 háb · 1 fer"): hábiles =
 // lunes a viernes sin feriado; fer = feriados del mes (caigan donde caigan).
 export function composicionMes(mesISO) {
