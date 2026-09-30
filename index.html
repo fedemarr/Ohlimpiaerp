@@ -4955,21 +4955,25 @@
     <button class="tab-btn" onclick="tabMonotributos('casos',this)">📌 Casos del import</button>
   </div>
 
-  <!-- TAB PENDIENTES (MONOTRIBUTO_bandeja_para_Fede.md): el alta siembra el trámite -->
+  <!-- TAB PENDIENTES (MONOTRIBUTO_v2_mes_en_curso_para_Fede.md): el alta
+       siembra el trámite — TODO alta pasa por acá, completa o no, con fecha
+       límite editable por Martina. El flujo viejo (sin constancia todavía,
+       SIN INICIAR/EN TRÁMITE) convive al lado, sin cambios. -->
   <div id="mono-tab-pendientes" class="tab-content active" style="padding-top:0;">
-    <div class="stats-grid" style="grid-template-columns:repeat(4,1fr);margin:0 0 12px;">
+    <div class="stats-grid" style="grid-template-columns:repeat(5,1fr);margin:0 0 12px;">
       <div class="stat-card azul"><div class="stat-label">Pendientes</div><div class="stat-valor" id="kpi-mp-pend">0</div></div>
-      <div class="stat-card rojo"><div class="stat-label">⚠ Con horas y sin monotributo</div><div class="stat-valor" id="kpi-mp-horas">0</div></div>
+      <div class="stat-card rojo"><div class="stat-label">⚠ Vencidas / vencen hoy</div><div class="stat-valor" id="kpi-mp-venc">0</div></div>
+      <div class="stat-card acento"><div class="stat-label">Con datos incompletos</div><div class="stat-valor" id="kpi-mp-datos" style="font-size:16px;">0</div></div>
       <div class="stat-card acento"><div class="stat-label">En trámite (prom. días)</div><div class="stat-valor" id="kpi-mp-tram" style="font-size:16px;">0</div></div>
       <div class="stat-card verde"><div class="stat-label">Activos en padrón</div><div class="stat-valor" id="kpi-mp-padron">0</div></div>
     </div>
     <div class="card" style="margin-top:0;border-radius:0 var(--radio-lg) var(--radio-lg) var(--radio-lg);">
       <div class="card-header"><h3>📥 Bandeja de pendientes — monotributo por tramitar</h3></div>
       <div class="tabla-wrap"><table>
-        <thead><tr><th>N° · Asociado</th><th>CUIT</th><th>Fecha de alta</th><th style="text-align:right;">Días en bandeja</th><th>Horas en grillas</th><th>Estado del trámite</th><th></th></tr></thead>
+        <thead><tr><th>N° · Asociado</th><th>CUIT</th><th>Fecha de alta</th><th style="text-align:right;">Días en bandeja</th><th>Fecha límite</th><th>Datos</th><th>Estado del trámite</th><th></th></tr></thead>
         <tbody id="tbody-mono-pendientes"></tbody>
       </table></div>
-      <div class="alerta alerta-info" style="margin:0;border-radius:0 0 var(--radio-lg) var(--radio-lg);font-size:12px;">El alta del asociado siembra el trámite solo: entra a esta bandeja y sale únicamente cuando su monotributo pasa a ACTIVO (entra al Padrón). Los que ya tienen horas cargadas en las grillas del período van primero — van a liquidar sin monotributo. "+ Nuevo monotributista" queda para excepciones (histórico, correcciones).</div>
+      <div class="alerta alerta-info" style="margin:0;border-radius:0 0 var(--radio-lg) var(--radio-lg);font-size:12px;">El alta del asociado siembra el trámite solo: entra a esta bandeja y sale únicamente cuando su monotributo pasa a ACTIVO (entra al Padrón, con el primer comprobante confirmado). "Fecha límite" es el calendario de Martina para pagos fuera de tanda — no bloquea, es editable en la fila. "Faltan datos" no impide asignar fecha límite ni subir el comprobante. "+ Nuevo monotributista" queda para excepciones (histórico, correcciones) y el flujo SIN INICIAR/EN TRÁMITE sigue igual para quien todavía no tiene la constancia.</div>
     </div>
   </div>
 
@@ -4996,8 +5000,8 @@
           <th style="padding:8px;border:1px solid #6b7280;">Zona</th>
           <th style="padding:8px;border:1px solid #6b7280;text-align:center;">Categoría</th>
           <th style="padding:8px;border:1px solid #6b7280;text-align:center;">Condición</th>
+          <th style="padding:8px;border:1px solid #6b7280;text-align:right;">Adherentes</th>
           <th style="padding:8px;border:1px solid #6b7280;text-align:right;">Límite anual</th>
-          <th style="padding:8px;border:1px solid #6b7280;text-align:right;" title="20 impuesto integrado + 21 SIPA + 24 obra social×(1+adherentes) + IIBB unificado">Cuota mensual</th>
           <th style="padding:8px;border:1px solid #6b7280;text-align:right;">Neto último mes</th>
           <th style="padding:8px;border:1px solid #6b7280;text-align:right;">Proyección anual</th>
           <th style="padding:8px;border:1px solid #6b7280;text-align:center;">Estado</th>
@@ -5053,13 +5057,13 @@
           </th>
           <th style="padding:4px 6px;border:1px solid #6b7280;">
             <div style="display:flex;align-items:center;gap:2px;background:white;border-radius:4px;padding:0 4px;">
-              <input type="text" id="mono-fcol-limite" placeholder="Buscar..." oninput="renderMonotributos()" style="flex:1;min-width:0;width:100%;padding:4px 2px;border:none;outline:none;font-size:11px;color:#111;text-align:right;">
+              <input type="text" id="mono-fcol-adherentes" placeholder="Buscar..." oninput="renderMonotributos()" style="flex:1;min-width:0;width:100%;padding:4px 2px;border:none;outline:none;font-size:11px;color:#111;text-align:right;">
               <button onclick="renderMonotributos()" title="Buscar" style="border:none;background:none;cursor:pointer;font-size:11px;padding:2px;">🔍</button>
             </div>
           </th>
           <th style="padding:4px 6px;border:1px solid #6b7280;">
             <div style="display:flex;align-items:center;gap:2px;background:white;border-radius:4px;padding:0 4px;">
-              <input type="text" id="mono-fcol-cuota" placeholder="Buscar..." oninput="renderMonotributos()" style="flex:1;min-width:0;width:100%;padding:4px 2px;border:none;outline:none;font-size:11px;color:#111;text-align:right;">
+              <input type="text" id="mono-fcol-limite" placeholder="Buscar..." oninput="renderMonotributos()" style="flex:1;min-width:0;width:100%;padding:4px 2px;border:none;outline:none;font-size:11px;color:#111;text-align:right;">
               <button onclick="renderMonotributos()" title="Buscar" style="border:none;background:none;cursor:pointer;font-size:11px;padding:2px;">🔍</button>
             </div>
           </th>
@@ -5079,7 +5083,7 @@
             <select id="mono-fcol-estado" onchange="renderMonotributos()" style="width:100%;padding:4px 2px;border:none;border-radius:4px;font-size:11px;outline:none;">
               <option value="">Todos</option>
               <option value="Al día">Al día</option>
-              <option value="Fuera de categoría">Fuera de categoría</option>
+              <option value="Debe">Debe algún mes</option>
               <option value="Baja">Baja</option>
             </select>
           </th>
@@ -5173,18 +5177,20 @@
         </div>
       </div>
       <div class="alerta alerta-info" style="margin:0 20px 12px;font-size:12px;">
-        "Armar lista del mes" trae del padrón a los activos que trabajaron este período (según Liquidación de horas / Administración) y calcula el DESGLOSE completo de la cuota de ESTE mes (20 impuesto integrado · 21 SIPA · 24 obra social con adherentes · IIBB unificado). Mientras una fila NO esté tildada como pagada, cada vez que volvés a "Armar lista" se recalcula con los datos vigentes del padrón (por si corregiste una categoría/condición) — recién queda congelada de verdad al tildarla pagada, y a partir de ahí la liquidación de retiros descuenta ese TOTAL sin volver a tocarlo.
+        Monotributo v2 (se paga en el MES EN CURSO): "Armar lista del mes" trae del padrón a TODOS los activos no dados de baja — ya no depende de quién cargó horas en Liquidación de horas ese período. Calcula el DESGLOSE completo de la cuota de ESTE mes (20 impuesto integrado · 21 SIPA · 24 obra social con adherentes · IIBB unificado). Mientras una fila NO esté tildada como pagada, cada vez que volvés a "Armar lista" se recalcula con los datos vigentes del padrón (por si corregiste una categoría/condición) — recién queda congelada de verdad al tildarla pagada. Subí el comprobante de cada uno (de a uno o en lote): el sistema lee CUIT/período/importe y tilda solo lo que cuadra; lo que no cuadra queda "En revisión", sin tocar nada.
       </div>
       <div class="tabla-wrap">
         <table style="width:100%;border-collapse:collapse;font-size:12px;">
           <thead><tr style="background:#374151;color:white;">
             <th style="padding:8px 14px;border:1px solid #6b7280;text-align:left;">Asociado</th>
             <th style="padding:8px;border:1px solid #6b7280;">N° socio</th>
+            <th style="padding:8px;border:1px solid #6b7280;text-align:right;">Adher.</th>
             <th style="padding:8px;border:1px solid #6b7280;text-align:right;">20 Imp. integrado</th>
             <th style="padding:8px;border:1px solid #6b7280;text-align:right;">21 SIPA</th>
             <th style="padding:8px;border:1px solid #6b7280;text-align:right;">24 Obra social</th>
             <th style="padding:8px;border:1px solid #6b7280;text-align:right;">IIBB</th>
             <th style="padding:8px;border:1px solid #6b7280;text-align:right;">TOTAL congelado</th>
+            <th style="padding:8px;border:1px solid #6b7280;text-align:center;">Comprobante</th>
             <th style="padding:8px;border:1px solid #6b7280;text-align:center;">Método de pago</th>
             <th style="padding:8px;border:1px solid #6b7280;text-align:center;">Pagado</th>
             <th style="padding:8px;border:1px solid #6b7280;text-align:center;"></th>

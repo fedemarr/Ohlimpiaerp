@@ -214,3 +214,79 @@ querés que lo arme como ticket aparte.
 limpio las 172 migraciones desde cero). Está lista para que la apliques vos
 a mano en producción cuando quieras activar el módulo — como siempre, no la
 corrí yo.
+
+---
+
+# Monotributo v2 — pago a mes en curso (30/09/2026)
+
+Ticket real: `MONOTRIBUTO_v2_mes_en_curso_para_Fede.md` + los 2 mockups
+(`mockup_monotributo_v2_5.html`, `mockup_alta_constancia_mt_3.html`).
+Implementadas las 4 fases del "Orden sugerido" del doc: Pago mensual (fuente
+= todos los activos, no solo los que cargaron horas) · Alta con los datos
+del monotributo en la Constancia MT · Bandeja con fecha límite + comprobante
+como gate de salida al Padrón · Padrón con Estado real (Al día / Debe N
+meses) y columna Adherentes.
+
+## Migración pendiente de aplicar
+
+`sql/v173_monotributo_v2_mes_en_curso.sql` — agrega columnas a
+`mono_tramites` (datos del alta + fecha límite) y a `mono_pagos_mes`
+(comprobante + en_revision). **No la corrí yo** — corrétela en el SQL
+Editor de Supabase antes de usar el flujo nuevo. Sin esto, `supaSync` va a
+fallar en silencio contra esas columnas (mismo patrón de "migración escrita
+pero no aplicada" que ya pasó 2 veces esta sesión con pedidos/reasignaciones
+— los `try/catch` que rodean estas piezas nuevas evitan que rompan el alta,
+pero el monotributo de esa persona no va a quedar guardado hasta que
+apliques la migración).
+
+## Decisiones tomadas sin preguntar (conservadoras, documentadas acá)
+
+- **El comprobante se lee con IA (Claude/Gemini) igual que los otros 3
+  documentos del sistema** — se agregó un 4º `tipo` a
+  `api/analizar-documento.js` (`'comprobante-monotributo'`) en vez de armar
+  un parser de PDF nuevo. Mismo costo/latencia que ya aceptás para
+  antecedentes/apto médico/informe psico.
+- **El PDF del comprobante NO se guarda vía `subirAdjunto()`** (la tabla
+  `adjuntos`, pensada para "1 documento vigente por tipo de una persona") —
+  se sube directo a Storage en `mono-comprobantes/{nroSocio}/{periodo}-*.pdf`
+  y el path queda en la propia fila de `mono_pagos_mes`. Es más simple y da
+  trazabilidad exacta por período; el costo es que esos archivos no
+  aparecen en la vista general de "adjuntos" de la persona (solo en
+  Monotributos).
+- **Condición "Jubilado" no se ofrece en el alta nueva** (el mockup solo
+  trae Común/Asoc. cooperativa/No aportante) — sigue existiendo como valor
+  válido en la base (gente ya cargada así) y en el modal viejo "+ Nuevo
+  monotributista", solo no es una opción para altas nuevas. Coincide con el
+  mockup, no es una omisión.
+- **"Estado" del Padrón (Al día / Debe N meses) se computa desde el primer
+  período que la persona tenga en `mono_pagos_mes`** — si todavía no tiene
+  ninguno (por ejemplo, recién migrado a este circuito), cuenta como "Al
+  día" por definición en vez de inventar deuda histórica. Con el cambio de
+  Pago mensual (fase 1, todos los activos entran cada mes) esto se
+  autocompleta solo con el uso.
+- **Se sacaron del código los estados "Verificar monto" y "Define RRHH"**
+  del Padrón (combo + badge) — grep confirmó que ningún lugar del sistema
+  los asigna hoy; si hacían falta para algo que no encontré, avisame y los
+  repongo.
+- **TODO pendiente real (no resuelto, como ya avisaba el mockup):**
+  autocompletar los campos de la Constancia MT leyendo el PDF con IA queda
+  para más adelante — hoy Jimena los tipea a mano mirando el PDF al lado,
+  tal como pide el doc.
+
+## Qué probar en el navegador (con la migración v173 ya aplicada)
+
+1. Alta de un asociado nuevo → tab "📄 Constancia MT" → cargar los datos del
+   monotributo → confirmar el alta → debería aparecer en Monotributos →
+   Pendientes, con "✔ completos" o "⚠ faltan: ..." según lo que hayas
+   cargado.
+2. En esa fila, poné una fecha límite y confirmá que el semáforo (vencida /
+   vence hoy / faltan N días) se pinte bien.
+3. "💲 Subir comprobante" con un PDF real tipo Telerecargas/pago24 — si el
+   CUIT/período/importe cuadran contra la cuota calculada, la persona tiene
+   que pasar al Padrón sola y salir de la bandeja.
+4. Pago mensual → "Armar lista del mes" → confirmar que trae a TODOS los
+   activos (no solo a quien tenga horas cargadas) y que la columna
+   Adherentes se ve.
+5. Padrón → confirmar que la columna "Cuota mensual" ya no está, que
+   "Adherentes" sí, y que "Estado" dice "Al día" o "Debe N mes(es)" según
+   los pagos reales (no según la categoría).
