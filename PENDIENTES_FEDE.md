@@ -7,6 +7,57 @@ anotala acá y seguí") y los gaps reales que quedaron. Última actualización:
 
 ---
 
+## Remito valorizado — Pedido de productos / Entregas (30/09/2026)
+
+Ticket: `REMITO_valorizado_para_Fede.md` (Lautaro) + `mockup_remito_valorizado.html`.
+Reemplaza el remito "sin precios" (`imprimirRemitoPP`, `src/modules/pedido_productos/entregas.js`)
+por uno valorizado siempre, PAGAN y NO PAGAN por igual, igual que la
+consignación de Tango que ya se entrega hoy.
+
+**Cómo se arma hoy** (investigado antes de tocar nada, sin librería de PDF —
+es una ventana de impresión con `window.open()`+`document.write()`, mismo
+patrón que `imprimirLegajo`; no había ninguna dependencia de PDF que
+mantener ni que evitar agregar): al "Completar armado" (`generarRemitoPP`)
+se congela `codigo` (de `producto.codigoMonica`), `precioVenta` (=
+`costoAplicable(item) × precioVentaPP` — el MISMO cálculo que ya usa el
+resto del módulo para las demás pantallas, no uno nuevo) e `importe` por
+línea, para que reimprimir el remito más tarde no cambie lo ya entregado
+aunque el precio de lista suba después. `imprimirRemitoPP` arma la tabla
+(Itm/Código/Descripción/Cantidad/Unid./Precio/Importe), Cliente+CUIT (de
+`objetivo.clienteId` → `DB.clientes`), Subtotal/Impto. informativo/TOTAL
+(el IVA se informa, no se suma aparte — mismo criterio que Tango) y la
+leyenda nueva. Formato de números y fechas: reusa `_money()`/`_fmtFecha()`
+ya existentes (es-AR, separadores de miles, 2 decimales) — de paso corregí
+que la fecha impresa mostraba "hoy" en cada reimpresión en vez de la fecha
+real de armado (`r.armadoEn`). Título de la ventana (y por lo tanto el
+nombre sugerido al "Guardar como PDF") ahora incluye el código de servicio,
+antes solo decía "Remito R-000002".
+
+### A confirmar con Lautaro (documentado, no bloqueé por esto)
+- **Columna "Unidad"**: el catálogo de productos (`ppProductos`) no tiene
+  ningún campo de unidad — se usa "UN" fijo, igual que el mockup. Si hace
+  falta litros/kg/etc., hay que agregar el campo (fuera de esta entrega:
+  el ticket pidió no tocar el modelo de datos salvo que sea imprescindible).
+- **Recargo aplicado**: cuando el servicio no tiene un recargo propio
+  cargado (`ppRecargoServicio`) ni uno general vigente, se usa el 30%
+  hardcodeado que ya existe en el módulo (`RECARGO_GENERAL_DEFAULT`,
+  `pedido_productos.js`) — no es nuevo de este ticket, ya se usaba para
+  "P. VENTA REF." en otras pantallas, solo se reusa acá.
+- **Fix "Hoja de recorrido" no conmuta** (punto 2 del doc, bug de UI
+  reportado el mismo día): **no lo toqué** — el ticket que me pasaron pedía
+  específicamente "ajustes del remito PDF", y ese bug es del subtab de al
+  lado (Planificación por zona / Vista del repartidor apiladas debajo de
+  la tabla de entregas). Si lo querés en la misma tanda, avisame y lo hago
+  en otro commit aparte.
+
+Test nuevo: `e2e/pedido-productos-remito-valorizado.spec.js` — arma un
+pedido con producto/precio/cliente/CUIT reales, genera el remito e
+inspecciona el HTML impreso (código, precio, importe, cliente+CUIT,
+subtotal=total). Confirmado con git-stash que falla contra el código
+anterior (seguía diciendo "Sin precios").
+
+---
+
 ## 🔴🔴 Bug crítico real: legajos se creaban bien, pero "Alta de asociados" nunca los marcaba completados (30/09/2026)
 
 Reportado por Fede con captura de pantalla real. Confirmado con una consulta

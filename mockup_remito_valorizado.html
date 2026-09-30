@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Remito valorizado — R-000002</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: Arial, Helvetica, sans-serif; font-size: 12px; color: #223; background: #9aa2b8; padding: 24px 10px; }
+  .hoja { background: #fff; max-width: 780px; margin: 0 auto; padding: 26px 30px; box-shadow: 0 8px 30px rgba(10,20,50,.3); min-height: 700px; display: flex; flex-direction: column; }
+  .enc { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid #1b2a5e; padding-bottom: 10px; }
+  .enc .emp .n { font-size: 16px; font-weight: bold; color: #1b2a5e; letter-spacing: .5px; }
+  .enc .emp .s { font-size: 10.5px; color: #667; }
+  .enc .rem { text-align: right; }
+  .enc .rem .num { font-size: 15px; font-weight: bold; color: #1b2a5e; }
+  .enc .rem .f { font-size: 10.5px; color: #667; }
+  .datos { display: flex; gap: 18px; flex-wrap: wrap; background: #f4f6fb; border: 1px solid #dde1ec; border-radius: 7px; padding: 8px 12px; margin: 12px 0; font-size: 11.5px; }
+  .datos b { color: #1b2a5e; }
+  table { border-collapse: collapse; width: 100%; }
+  th { text-align: left; font-size: 10px; color: #445; text-transform: uppercase; letter-spacing: .4px; padding: 6px 8px; border-bottom: 2px solid #1b2a5e; background: #f4f6fb; }
+  td { padding: 7px 8px; border-bottom: 1px solid #e8ebf2; }
+  td.num, th.num { text-align: right; }
+  .tot { margin-top: 10px; margin-left: auto; width: 300px; font-size: 12px; }
+  .tot .fila { display: flex; justify-content: space-between; padding: 3px 8px; }
+  .tot .fila.total { border-top: 2px solid #1b2a5e; font-weight: bold; font-size: 14px; color: #1b2a5e; padding-top: 6px; }
+  .tot .fila.sub2 { color: #667; font-size: 11px; }
+  .leyenda { font-size: 10.5px; color: #667; margin-top: 12px; }
+  .firmas { display: flex; gap: 40px; margin-top: auto; padding-top: 46px; }
+  .firmas > div { flex: 1; text-align: center; font-size: 10.5px; color: #445; }
+  .firmas .linea { border-top: 1px solid #888; padding-top: 5px; }
+</style>
+</head>
+<body>
+<div class="hoja">
+  <div class="enc">
+    <div class="emp">
+      <div class="n">COOPERATIVA DE TRABAJO OHLIMPIA LTDA.</div>
+      <div class="s">Aguilar 2835, Colegiales, CABA · Logística — Remito de entrega de productos</div>
+    </div>
+    <div class="rem">
+      <div class="num">REMITO R-000002</div>
+      <div class="f">Fecha: 30/09/2026 · Página 1/1</div>
+    </div>
+  </div>
+
+  <div class="datos">
+    <span><b>Servicio:</b> CHANGO.PERGAMINO — Chango Pergamino</span>
+    <span><b>Zona:</b> Pergamino</span>
+    <span><b>Supervisor:</b> Lorena Unzain</span>
+    <span><b>Cliente:</b> Chango Mas · CUIT 30-71497386-6</span>
+  </div>
+
+  <table>
+    <thead><tr><th>Itm</th><th>Código</th><th>Descripción</th><th class="num">Cantidad</th><th>Unid.</th><th class="num">Precio</th><th class="num">Importe $</th></tr></thead>
+    <tbody id="lineas"></tbody>
+  </table>
+
+  <div class="tot">
+    <div class="fila"><span>Subtotal</span><b id="tSub">—</b></div>
+    <div class="fila sub2"><span>Impto. (IVA incluido, informativo)</span><span id="tIva">—</span></div>
+    <div class="fila total"><span>TOTAL $</span><span id="tTot">—</span></div>
+  </div>
+
+  <p class="leyenda">Valorizado a precios de lista vigentes del período. El remito acompaña la mercadería; el registro y la imputación quedan en el sistema.</p>
+
+  <div class="firmas">
+    <div><div class="linea">Entregó (Logística)<br>firma y aclaración</div></div>
+    <div><div class="linea">Recibió (servicio)<br>firma, aclaración y fecha</div></div>
+  </div>
+</div>
+
+<script>
+function money(n){ return '$ ' + n.toLocaleString('es-AR', {minimumFractionDigits:2, maximumFractionDigits:2}); }
+var lineas = [
+  { cod:'1000210', desc:'8M Express cera x 5 Lts.', cant:2, un:'UN', precio:18500.00 },
+  { cod:'1000215', desc:'8M Removedor x 5 Lts.',    cant:1, un:'UN', precio:15800.00 }
+];
+var tb = document.getElementById('lineas');
+var sub = 0;
+lineas.forEach(function(l, i){
+  var imp = l.cant * l.precio; sub += imp;
+  var tr = document.createElement('tr');
+  tr.innerHTML = '<td>'+(i+1)+'</td><td>'+l.cod+'</td><td>'+l.desc+'</td><td class="num">'+l.cant.toFixed(2)+'</td><td>'+l.un+'</td><td class="num">'+money(l.precio)+'</td><td class="num">'+money(imp)+'</td>';
+  tb.appendChild(tr);
+});
+var iva = sub / 1.21 * 0.21;
+document.getElementById('tSub').textContent = money(sub);
+document.getElementById('tIva').textContent = money(iva);
+document.getElementById('tTot').textContent = money(sub);
+</script>
+</body>
+</html>

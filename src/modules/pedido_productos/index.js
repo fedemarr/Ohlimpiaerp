@@ -12,6 +12,7 @@ export {
   renderAuditoriaPP, abrirAuditoriaPedidoPP, ajustarCantidadAuditoriaPP, aprobarPedidoPP, confirmarDevolverConPropuestaPP,
   abrirHistorialPedidoPP,
   marcarEnCompraPP, marcarEntregadoPP, subTabComprasPP,
+  costoAplicable, precioVentaPP,
 } from './pedido_productos.js';
 
 export {

@@ -13,6 +13,7 @@ import { DB, currentUser } from '@shared/state.js';
 import { $ } from '@shared/helpers.js';
 import { toast, abrirModal, cerrarModal } from '@shared/ui.js';
 import { supaSync } from '@shared/supabase.js';
+import { costoAplicable, precioVentaPP } from './pedido_productos.js';
 
 const _idTrunc = (v) => String(v || '').slice(-9);
 function _id(prefijo) { return prefijo + '-' + Date.now() + '-' + Math.floor(Math.random() * 10000); }
@@ -181,37 +182,91 @@ export function subTabEntregasPP(sub, btn) {
 }
 
 // ========== REMITO PDF (ventana de impresión — mismo patrón que imprimirLegajo) ==========
+//
+// REMITO_valorizado_para_Fede.md (30/09/2026, Lautaro): el remito pasa a
+// ser VALORIZADO siempre (antes decía "sin precios" para todos los
+// servicios) — mismo criterio que la consignación de Tango que ya se
+// entrega hoy. Precio/importe por línea se calculan y CONGELAN en
+// generarRemitoPP() (más abajo) con el mismo costoAplicable()/
+// precioVentaPP() que ya usa el resto del módulo — no se inventa un
+// cálculo de precio nuevo, y reimprimir el remito más tarde sigue
+// mostrando el precio del día en que se armó, no el vigente hoy.
+//
+// TODO a confirmar con el solicitante: no hay campo "unidad" en el
+// catálogo de productos (`ppProductos` solo tiene descripcion/
+// codigoMonica/marca/tipoUso) — se usa "UN" fijo como en el mockup. Si
+// hace falta distinguir litros/kg/etc., hay que agregar el campo al
+// catálogo (fuera del alcance de este ajuste, que pidió no tocar el
+// modelo de datos salvo que sea imprescindible).
 export function imprimirRemitoPP(remitoId) {
   const r = (DB.ppRemitos || []).find(x => _idTrunc(x.id) === _idTrunc(remitoId)); if (!r) return;
   const o = objPP(r.servicioCodigo);
   const zona = o?.localidad || '—';
   const sup = o?.supervisor || o?.supervisorAsignado || '—';
-  const filas = (r.items || []).map(it => `<tr><td>${it.descripcion || it.productoIdLocal}</td><td style="text-align:right;">${it.cantidad}</td></tr>`).join('');
-  const w = window.open('', '_blank', 'width=760,height=800');
-  w.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Remito ${r.numero}</title>
+  const cliente = o?.clienteId != null ? (DB.clientes || []).find(c => c.id === o.clienteId) : null;
+  const clienteTxt = cliente ? `${cliente.nombre}${cliente.cuit ? ' · CUIT ' + cliente.cuit : ''}` : '—';
+
+  let subtotal = 0;
+  const filas = (r.items || []).map((it, i) => {
+    const importe = it.importe != null ? it.importe : (it.cantidad || 0) * (it.precioVenta || 0);
+    subtotal += importe;
+    return `<tr>
+      <td>${i + 1}</td>
+      <td>${it.codigo || '—'}</td>
+      <td>${it.descripcion || it.productoIdLocal}</td>
+      <td style="text-align:right;">${(it.cantidad || 0).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+      <td>${it.unidad || 'UN'}</td>
+      <td style="text-align:right;">${_money(it.precioVenta || 0)}</td>
+      <td style="text-align:right;">${_money(importe)}</td>
+    </tr>`;
+  }).join('');
+  // Impuesto informativo (IVA incluido en el precio, no se suma aparte —
+  // mismo criterio que la consignación de Tango de referencia, ver mockup).
+  const iva = subtotal - (subtotal / 1.21);
+
+  const w = window.open('', '_blank', 'width=800,height=900');
+  w.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Remito ${r.numero} - ${r.servicioCodigo}</title>
   <style>
-    body{font-family:Arial,sans-serif;font-size:13px;padding:32px;max-width:680px;margin:0 auto;color:#1f2430;}
-    .rtop{background:#1b2a5e;color:#fff;padding:14px 18px;display:flex;justify-content:space-between;align-items:flex-start;border-radius:6px 6px 0 0;}
-    .rtop b{font-size:14px;}
-    .rbody{border:1px solid #c9cfdd;border-top:none;padding:16px 18px;border-radius:0 0 6px 6px;}
-    table{width:100%;border-collapse:collapse;margin-top:10px;}
-    th,td{border:1px solid #dfe3ec;padding:6px 9px;font-size:12.5px;}
-    th{background:#f3f5fb;text-align:left;}
-    .firmas{display:grid;grid-template-columns:1fr 1fr;gap:40px;margin-top:52px;text-align:center;font-size:11px;color:#555d75;}
-    .firmas div{border-top:1px solid #8a90a5;padding-top:6px;}
-    .mut{color:#8a90a5;font-size:11px;margin-top:8px;}
+    body{font-family:Arial,sans-serif;font-size:12px;padding:26px 30px;max-width:740px;margin:0 auto;color:#223;}
+    .enc{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:2px solid #1b2a5e;padding-bottom:10px;}
+    .enc .emp .n{font-size:15px;font-weight:bold;color:#1b2a5e;}
+    .enc .emp .s{font-size:10.5px;color:#667;}
+    .enc .rem{text-align:right;}
+    .enc .rem .num{font-size:14px;font-weight:bold;color:#1b2a5e;}
+    .enc .rem .f{font-size:10.5px;color:#667;}
+    .datos{display:flex;gap:16px;flex-wrap:wrap;background:#f4f6fb;border:1px solid #dde1ec;border-radius:6px;padding:8px 12px;margin:12px 0;font-size:11.5px;}
+    .datos b{color:#1b2a5e;}
+    table{border-collapse:collapse;width:100%;margin-top:8px;}
+    th{text-align:left;font-size:10px;color:#445;text-transform:uppercase;letter-spacing:.3px;padding:6px 8px;border-bottom:2px solid #1b2a5e;background:#f4f6fb;}
+    td{padding:6px 8px;border-bottom:1px solid #e8ebf2;font-size:12px;}
+    .tot{margin-top:10px;margin-left:auto;width:280px;font-size:12px;}
+    .tot .fila{display:flex;justify-content:space-between;padding:3px 8px;}
+    .tot .fila.total{border-top:2px solid #1b2a5e;font-weight:bold;font-size:14px;color:#1b2a5e;padding-top:6px;}
+    .tot .fila.sub2{color:#667;font-size:11px;}
+    .mut{color:#667;font-size:10.5px;margin-top:12px;}
+    .firmas{display:grid;grid-template-columns:1fr 1fr;gap:40px;margin-top:52px;text-align:center;font-size:10.5px;color:#445;}
+    .firmas div{border-top:1px solid #888;padding-top:5px;}
   </style></head><body>
-  <div class="rtop">
-    <div><b>COOPERATIVA DE TRABAJO OHLIMPIA LTDA.</b><br><span style="font-size:11px;opacity:.85;">Logística — Remito de entrega de productos</span></div>
-    <div style="text-align:right;font-size:11.5px;">REMITO <b>${r.numero}</b><br>Fecha: ${_fmtFecha(new Date())}</div>
+  <div class="enc">
+    <div class="emp"><div class="n">COOPERATIVA DE TRABAJO OHLIMPIA LTDA.</div><div class="s">Aguilar 2835, Colegiales, CABA · Logística — Remito de entrega de productos</div></div>
+    <div class="rem"><div class="num">REMITO ${r.numero}</div><div class="f">Fecha: ${_fmtFecha(r.armadoEn || new Date())} · Página 1/1</div></div>
   </div>
-  <div class="rbody">
-    <p><b>Servicio:</b> ${r.servicioCodigo}${o ? ' — ' + o.nombre : ''} &nbsp;·&nbsp; <b>Zona:</b> ${zona} &nbsp;·&nbsp; <b>Supervisor:</b> ${sup}</p>
-    <table><tr><th>PRODUCTO</th><th style="text-align:right;">CANTIDAD</th></tr>${filas || '<tr><td colspan="2">Sin productos</td></tr>'}</table>
-    ${(r.faltantes && r.faltantes.length) ? `<p class="mut">Armado parcial — ${r.faltantes.length} producto(s) quedaron pendientes de reposición.</p>` : ''}
-    <p class="mut">Sin precios: el remito acompaña la mercadería. La valorización queda en el sistema.</p>
-    <div class="firmas"><div>Entregó (Logística)<br>firma y aclaración</div><div>Recibió (servicio)<br>firma, aclaración y fecha</div></div>
+  <div class="datos">
+    <span><b>Servicio:</b> ${r.servicioCodigo}${o ? ' — ' + o.nombre : ''}</span>
+    <span><b>Zona:</b> ${zona}</span>
+    <span><b>Supervisor:</b> ${sup}</span>
+    <span><b>Cliente:</b> ${clienteTxt}</span>
   </div>
+  <table><thead><tr><th>Itm</th><th>Código</th><th>Descripción</th><th style="text-align:right;">Cantidad</th><th>Unid.</th><th style="text-align:right;">Precio</th><th style="text-align:right;">Importe $</th></tr></thead>
+  <tbody>${filas || '<tr><td colspan="7">Sin productos</td></tr>'}</tbody></table>
+  <div class="tot">
+    <div class="fila"><span>Subtotal</span><b>${_money(subtotal)}</b></div>
+    <div class="fila sub2"><span>Impto. (IVA incluido, informativo)</span><span>${_money(iva)}</span></div>
+    <div class="fila total"><span>TOTAL $</span><span>${_money(subtotal)}</span></div>
+  </div>
+  ${(r.faltantes && r.faltantes.length) ? `<p class="mut">Armado parcial — ${r.faltantes.length} producto(s) quedaron pendientes de reposición.</p>` : ''}
+  <p class="mut">Valorizado a precios de lista vigentes del período. El remito acompaña la mercadería; el registro y la imputación quedan en el sistema.</p>
+  <div class="firmas"><div>Entregó (Logística)<br>firma y aclaración</div><div>Recibió (servicio)<br>firma, aclaración y fecha</div></div>
   <script>window.onload=()=>window.print();<\/script></body></html>`);
   w.document.close();
 }
@@ -291,7 +346,18 @@ export async function generarRemitoPP() {
     const stock = _stockNivelProd(prodTrunc);
     const arma = Math.max(0, Math.min(pedidoCant, stock));
     const falta = pedidoCant - arma;
-    if (arma > 0) lineasArmadas.push({ productoIdLocal: prodTrunc, descripcion: getProductoPP(i.productoIdLocal)?.descripcion || '', cantidad: arma });
+    if (arma > 0) {
+      const prod = getProductoPP(i.productoIdLocal);
+      // Precio CONGELADO al armar (REMITO_valorizado_para_Fede.md): mismo
+      // costo+recargo que ya usa el resto del módulo (costoAplicable/
+      // precioVentaPP) — reimprimir el remito más tarde no debe cambiar lo
+      // que ya se entregó, aunque el precio de lista se actualice después.
+      const precioVenta = precioVentaPP(costoAplicable(i), pedido.servicioCodigo);
+      lineasArmadas.push({
+        productoIdLocal: prodTrunc, codigo: prod?.codigoMonica || '', descripcion: prod?.descripcion || '',
+        cantidad: arma, precioVenta, importe: arma * precioVenta,
+      });
+    }
     if (falta > 0) faltantes.push({ productoIdLocal: prodTrunc, cantidad: falta });
   }
   if (!lineasArmadas.length) { toast('⚠️ No hay stock de ninguno de los productos — no se puede armar nada todavía'); return; }

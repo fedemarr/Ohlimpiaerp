@@ -97,7 +97,10 @@ function precioVigente(productoId, fechaISO = hoyStr()) {
 function cantEfectiva(item) { return item.cantAutorizada != null ? item.cantAutorizada : item.cantSolicitada; }
 // Antes del cierre no hay costo_congelado todavía — se usa el precio
 // vigente en vivo para que el semáforo se pueda ver mientras se carga.
-function costoAplicable(item) { return item.costoCongelado > 0 ? item.costoCongelado : precioVigente(item.productoIdLocal); }
+// Exportada (REMITO_valorizado_para_Fede.md): el remito valorizado usa
+// exactamente este mismo costo + precioVentaPP para no inventar un cálculo
+// de precio paralelo al que ya usa el resto del módulo.
+export function costoAplicable(item) { return item.costoCongelado > 0 ? item.costoCongelado : precioVigente(item.productoIdLocal); }
 
 function totalPedidoPP(pedidoId) {
   return itemsDePedido(pedidoId).reduce((s, i) => s + cantEfectiva(i) * costoAplicable(i), 0);
