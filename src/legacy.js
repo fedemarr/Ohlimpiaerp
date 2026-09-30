@@ -2765,12 +2765,25 @@ function ensureModalSupervisorObjetivo(){
     </div>`;
   document.body.appendChild(m);
 }
+// FIX (ticket "Lista Supervisores", 30/09/2026 — mismo reporte de Gisela
+// Carballo que ya motivó el ticket #195): este select seguía leyendo
+// legajosSupervisoresActivos() (legajos con función='Supervisor'), una
+// fuente totalmente distinta del catálogo real del módulo Supervisores
+// (DB.supervisoresConfig, ver src/modules/supervisores/supervisores.js).
+// El fix de #195 unificó ~12 selects/datalists detrás de DB.supervisores,
+// pero este —el de "Asignar/Cambiar supervisor" de un servicio— quedó
+// afuera: un supervisor dado de alta SOLO en el módulo Supervisores (sin
+// un legajo propio con función Supervisor, que es el caso normal — el
+// catálogo existe justamente para no depender de un legajo) nunca
+// aparecía acá. Se cambia a la misma fuente y el mismo filtro de activo
+// que ya usa recomendarSupervisoresParaObjetivo() más abajo, para no
+// inventar un tercer criterio de "supervisor activo" en el mismo archivo.
 function _poblarSelectSupervisorObjetivo(actual){
   const sel=$('sup-obj-select');if(!sel)return;
-  const sups=legajosSupervisoresActivos();
+  const sups=(DB.supervisoresConfig||[]).filter(s=>s.activo!==false);
   sel.innerHTML=sups.length
-    ?'<option value="">— Seleccionar —</option>'+sups.map(l=>`<option value="${l.nombre}"${l.nombre===actual?' selected':''}>${l.nombre}</option>`).join('')
-    :'<option value="">Sin legajos con función Supervisor activos</option>';
+    ?'<option value="">— Seleccionar —</option>'+sups.map(s=>`<option value="${s.nombre}"${s.nombre===actual?' selected':''}>${s.nombre}</option>`).join('')
+    :'<option value="">Sin supervisores activos en el catálogo</option>';
 }
 function abrirAsignarSupervisor(idLocal){
   const o=getObjetivoByIdLocal(idLocal);if(!o)return;
