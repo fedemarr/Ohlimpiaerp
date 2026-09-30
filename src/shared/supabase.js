@@ -1486,7 +1486,7 @@ export async function fetchSugerencias() {
 // una vez, al login (supaInit()) — nada los refrescaba después.
 // Agente de tickets (AGENTE_TICKETS_OHLIMPIA.md): el resultado del agente
 // (real o simulado) puede llegar desde OTRO proceso por completo — la
-// función serverless api/agente-callback.js escribe directo en Supabase,
+// función serverless api/agente.js (?accion=callback) escribe directo en Supabase,
 // sin pasar por esta pestaña. Sin polling, la corrida cambia de estado en
 // la base pero la pantalla se queda mostrando el estado viejo hasta un F5.
 // Mismo patrón que fetchAccesosVigentes/fetchDotacionRefresh de arriba.

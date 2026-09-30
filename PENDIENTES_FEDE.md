@@ -104,8 +104,10 @@ porque el otro spec que se suponía que lo iba a dar (Parte 3 de
 ## Gaps reales — no verificado end-to-end
 
 ### El disparo real del agente (GitHub Issue → Action → Claude Code → PR → callback)
-Escribí todo el código (`api/agente-disparar-real.js`,
-`.github/workflows/agente-tickets.yml`, `api/agente-callback.js`) siguiendo
+Escribí todo el código (`api/agente.js` con `?accion=disparar|callback` —
+unificadas en un solo archivo para no pasar el límite de 12 funciones
+serverless del plan Hobby de Vercel, ver más abajo —,
+`.github/workflows/agente-tickets.yml`) siguiendo
 los patrones ya probados del repo (mismo estilo de auth que
 `api/crear-usuario.js`, mismo uso de `service_role` para el callback), pero
 **nunca se disparó una corrida real** — no hay forma de observar un GitHub
@@ -185,8 +187,8 @@ querés que lo arme como ticket aparte.
   migración explicado arriba.
 - ✅ `dispararAgente(corrida)` (`src/modules/agente/dispatcher.js`) — una
   sola interfaz para simulación y disparo real.
-- ✅ Endpoint de callback (`api/agente-callback.js`), con token de un solo
-  uso y vencimiento.
+- ✅ Endpoint de callback (`api/agente.js?accion=callback`), con token de
+  un solo uso y vencimiento.
 - ✅ Tests como barrera: `tests_corridos <= 0` siempre cuenta como fallo,
   cableado tanto en `estados.js` como en el workflow.
 - ✅ Deploy automático cuando los tests pasan y no hay migración (vía merge

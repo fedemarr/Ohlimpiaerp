@@ -88,7 +88,7 @@ export async function dispararAgente(corrida) {
 
   try {
     const session = (await SUPA.auth.getSession()).data.session;
-    const resp = await fetch('/api/agente-disparar-real', {
+    const resp = await fetch('/api/agente?accion=disparar', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session?.access_token || ''}` },
       body: JSON.stringify({

@@ -1,7 +1,7 @@
 // Máquina de estados de CorridaAgente (AGENTE_TICKETS_OHLIMPIA.md, punto 3).
 // CERO imports a propósito: este archivo lo usa tanto el navegador
 // (dispatcher.js, para el callback simulado) como la función serverless
-// api/agente-callback.js (runtime Node de Vercel) — cualquier import de
+// api/agente.js (runtime Node de Vercel, ?accion=callback) — cualquier import de
 // '@shared/...' rompería en uno de los dos lados, así que la lógica de
 // transición vive acá, aislada y pura, importada por ruta relativa desde
 // los dos.

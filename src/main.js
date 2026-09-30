@@ -365,7 +365,7 @@ function detenerPollingDotacion() {
 
 // Agente de tickets (AGENTE_TICKETS_OHLIMPIA.md): el resultado (real o
 // simulado) puede escribirse en Supabase desde OTRO proceso por completo
-// (api/agente-callback.js, o el timer de simulación de otra pestaña) — sin
+// (api/agente.js con ?accion=callback, o el timer de simulación de otra pestaña) — sin
 // esto, la corrida cambia de estado en la base pero la pantalla se queda
 // mostrando el estado viejo. Intervalo más corto que el resto (10s en vez
 // de 20-25s): acá el desarrollador está mirando la pantalla esperando

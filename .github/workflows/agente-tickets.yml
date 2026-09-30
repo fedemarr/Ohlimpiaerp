@@ -1,5 +1,5 @@
 # AGENTE_TICKETS_OHLIMPIA.md — workflow que recibe el disparo real del
-# agente (api/agente-disparar-real.js crea un Issue con la etiqueta
+# agente (api/agente.js?accion=disparar crea un Issue con la etiqueta
 # "agente-ticket"; este workflow arranca cuando eso pasa).
 #
 # ⚠️ NO VERIFICADO EN VIVO (PENDIENTES_FEDE.md). Escrito según la
