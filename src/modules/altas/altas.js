@@ -337,11 +337,32 @@ function crearHTMLModalAlta() {
         // había cableado en ningún lado del formulario: sin migración
         // nueva acá, sólo hacía falta esta pantalla.
         '<div id="alta-section-7" style="display:none;">',
-          '<div style="border:1px dashed #93c5fd;border-radius:8px;padding:12px;background:#eff6ff;">',
+          '<div style="border:1px dashed #93c5fd;border-radius:8px;padding:12px;background:#eff6ff;margin-bottom:12px;">',
             '<label style="font-weight:600;color:#1e3a8a;">📎 Constancia de alta de Monotributo (PDF)</label>',
             '<div id="alt-mt-adjunto-lista" style="margin-top:8px;font-size:13px;color:#64748b;">Sin PDF cargado</div>',
             '<input type="file" id="alt-mt-adjunto-file" accept="application/pdf" style="display:none;" onchange="seleccionarArchivoConstanciaMtAlta()">',
             '<button type="button" class="btn btn-secondary btn-sm" onclick="document.getElementById(\'alt-mt-adjunto-file\').click()" style="margin-top:8px;">⬆️ Subir constancia</button>',
+          '</div>',
+          // Monotributo v2 (MONOTRIBUTO_v2_mes_en_curso_para_Fede.md, punto
+          // 1 — mockup_alta_constancia_mt_3.html): "el alta del monotributo
+          // nace acá". Al confirmar el alta, ESTOS datos (completos o no)
+          // arman la fila de la bandeja de pendientes de Monotributos —
+          // nadie va directo al padrón. La cuota se calcula en vivo con el
+          // MISMO motor validado que usa el módulo Monotributos
+          // (window.calcularCuotaComponentes, legacy.js) — no se reinventa
+          // ninguna tabla de cuotas acá.
+          '<div style="border:1px dashed #c9e3d2;border-radius:8px;padding:12px;background:#f5faf6;">',
+            '<label style="font-weight:600;color:#1e5c33;">🧾 Datos del monotributo</label>',
+            '<div class="form-grid form-grid-3" style="margin-top:8px;">',
+              '<div class="form-group"><label>Fecha de INICIO del monotributo <span style="font-weight:400;color:#667;">· de la constancia</span></label><input type="date" id="alt-mt-fecha-inicio" onchange="recalcMontoAltaMT()"><div style="font-size:11px;color:#778;">≠ fecha de alta del asociado</div></div>',
+              '<div class="form-group"><label>Categoría <span style="font-weight:400;color:#667;">· de la constancia</span></label><select id="alt-mt-categoria" onchange="recalcMontoAltaMT()"><option value="">— elegir —</option><option>A</option><option>B</option><option>C</option><option>D</option><option>E</option><option>F</option><option>G</option><option>H</option><option>I</option><option>J</option><option>K</option></select></div>',
+              '<div class="form-group"><label>Zona / régimen <span style="font-weight:400;color:#667;">· de la constancia</span></label><select id="alt-mt-zona" onchange="recalcMontoAltaMT()"><option value="">— elegir —</option><option value="provincia">Provincia (ARBA)</option><option value="capital">Capital (AGIP)</option></select></div>',
+              '<div class="form-group"><label>IIBB unificado <span style="font-weight:400;color:#667;">· de la constancia</span></label><select id="alt-mt-iibb" onchange="recalcMontoAltaMT()"><option value="">— elegir —</option><option value="no">Exento — no aporta</option><option value="si">Aporta (unificado)</option></select></div>',
+              '<div class="form-group" style="grid-column:span 2;"><label>Condición <span style="font-weight:400;color:#667;">· NO figura en la constancia</span></label><select id="alt-mt-condicion" onchange="recalcMontoAltaMT()"><option value="">— elegir —</option><option value="comun">Común — paga integrado + SIPA + obra social</option><option value="asociado_cooperativa" id="alt-mt-opt-coop">Asoc. cooperativa — no paga impuesto integrado</option><option value="no_aportante">No aportante — no se paga cuota</option></select></div>',
+              '<div class="form-group"><label>Adherentes <span style="font-weight:400;color:#667;">· NO figura — opcional</span></label><input type="number" id="alt-mt-adherentes" value="0" min="0" onchange="recalcMontoAltaMT()"><div style="font-size:11px;color:#778;">no bloquea el alta — se carga cuando el asociado lo pide</div></div>',
+            '</div>',
+            '<div style="background:#eef3fb;border:1px solid #cfdcf3;border-radius:8px;padding:8px 12px;margin:10px 0;font-size:12.5px;color:#2a4470;display:flex;justify-content:space-between;align-items:center;"><span>Cuota mensual calculada</span><b id="alt-mt-cuota">—</b></div>',
+            '<div id="alt-mt-destino" style="border-radius:8px;padding:9px 12px;font-size:12.5px;">—</div>',
           '</div>',
         '</div>',
       '</div>',
@@ -378,9 +399,10 @@ export function abrirModalAlta(psicoIdx, altaId) {
   ['alt-nombre', 'alt-dni', 'alt-cuit', 'alt-clave-fiscal', 'alt-fecnac', 'alt-tel', 'alt-mail',
    'alt-fec-ingreso', 'alt-reingresante-dni', 'alt-direccion', 'alt-cod-postal',
    'alt-banco', 'alt-cbu', 'alt-calzado', 'alt-integracion', 'alt-inaes', 'alt-os-inicio',
-   'alt-obra-social', 'alt-supervisor'].forEach(id => {
+   'alt-obra-social', 'alt-supervisor', 'alt-mt-fecha-inicio'].forEach(id => {
     const el = $(id); if (el) el.value = '';
   });
+  const mtAdhEl = $('alt-mt-adherentes'); if (mtAdhEl) mtAdhEl.value = '0';
   // Pólizas: arranca con una fila vacía (no obliga a clickear "+" antes de
   // poder cargar la primera).
   const polizasCont = $('alt-polizas-lista');
@@ -396,9 +418,11 @@ export function abrirModalAlta(psicoIdx, altaId) {
   // Resetear selects
   ['alt-estado-civil', 'alt-genero', 'alt-nac', 'alt-zona', 'alt-localidad', 'alt-funcion', 'alt-categoria',
    'alt-servicio', 'alt-sector', 'alt-ambo', 'alt-forma-pago', 'alt-seguro',
-   'alt-talle-chomba', 'alt-talle-grafa', 'alt-talle-buzo', 'alt-talle-campera', 'alt-talle-gorra'].forEach(id => {
+   'alt-talle-chomba', 'alt-talle-grafa', 'alt-talle-buzo', 'alt-talle-campera', 'alt-talle-gorra',
+   'alt-mt-categoria', 'alt-mt-zona', 'alt-mt-iibb', 'alt-mt-condicion'].forEach(id => {
     const el = $(id); if (el) el.selectedIndex = 0;
   });
+  if (window.recalcMontoAltaMT) window.recalcMontoAltaMT();
   // Partido/Localidad al estado "sin zona elegida todavía" — se
   // reconstruyen de nuevo más abajo si src trae una zona precargada.
   onChangeZonaAlta();
@@ -762,6 +786,89 @@ export async function eliminarAdjuntoConstanciaMtAlta(id, dni) {
   cargarAdjuntoConstanciaMtAlta(dni);
 }
 
+// ========== DATOS DEL MONOTRIBUTO (Monotributo v2) ==========
+// "Asociado a cooperativa" solo existe para categoría A (mismo criterio que
+// onChangeCategoriaMonoFicha en legacy.js, tab Padrón de Monotributos).
+function _leerDatosMtAlta() {
+  return {
+    fechaInicioMt: ($('alt-mt-fecha-inicio') || {}).value || '',
+    categoria: ($('alt-mt-categoria') || {}).value || '',
+    zona: ($('alt-mt-zona') || {}).value || '',
+    iibbAporta: ($('alt-mt-iibb') || {}).value, // '', 'si' o 'no' — '' = todavía no elegido
+    condicion: ($('alt-mt-condicion') || {}).value || '',
+    adherentesCantidad: parseInt(($('alt-mt-adherentes') || {}).value) || 0,
+  };
+}
+
+export function recalcMontoAltaMT() {
+  const cat = ($('alt-mt-categoria') || {}).value || '';
+  const selCond = $('alt-mt-condicion');
+  const optCoop = $('alt-mt-opt-coop');
+  if (optCoop && selCond) {
+    optCoop.disabled = cat !== 'A';
+    optCoop.textContent = cat === 'A' ? 'Asoc. cooperativa — no paga impuesto integrado' : 'Asoc. cooperativa — solo categoría A';
+    if (cat !== 'A' && selCond.value === 'asociado_cooperativa') selCond.value = '';
+  }
+  const d = _leerDatosMtAlta();
+  const cuotaEl = $('alt-mt-cuota');
+  if (cuotaEl) {
+    if (d.condicion === 'no_aportante') {
+      cuotaEl.textContent = '$0,00 — no aportante';
+    } else if (cat && d.condicion && typeof window.calcularCuotaComponentes === 'function') {
+      const c = window.calcularCuotaComponentes({ categoria: cat, condicion: d.condicion, zona: d.zona || 'provincia', adherentesCantidad: d.adherentesCantidad, iibbAporta: d.iibbAporta === 'si' });
+      cuotaEl.textContent = c.total ? '$' + c.total.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '— (sin tabla de categorías cargada)';
+    } else {
+      cuotaEl.textContent = '— (falta categoría/condición)';
+    }
+  }
+  const destinoEl = $('alt-mt-destino');
+  if (!destinoEl) return;
+  const faltan = [];
+  if (!d.fechaInicioMt) faltan.push('fecha de inicio');
+  if (!cat) faltan.push('categoría');
+  if (!d.zona) faltan.push('zona');
+  if (!d.iibbAporta) faltan.push('IIBB');
+  if (!d.condicion) faltan.push('condición');
+  if (!faltan.length) {
+    destinoEl.style.background = '#e9f5e5'; destinoEl.style.border = '1px solid #bcdcb2'; destinoEl.style.color = '#275c18';
+    destinoEl.innerHTML = '✔ <b>Datos completos.</b> Al confirmar el alta → bandeja de Pendientes de Monotributos, lista para que Martina asigne fecha límite y suba el comprobante.';
+  } else {
+    destinoEl.style.background = '#fdf0dd'; destinoEl.style.border = '1px solid #f0d3a8'; destinoEl.style.color = '#7c4a00';
+    destinoEl.innerHTML = '⚠ <b>Faltan: ' + faltan.join(' · ') + '.</b> El alta se confirma igual → va a la bandeja con el chip "faltan datos" (adherentes NO cuenta como faltante).';
+  }
+}
+
+// Al confirmar el alta (llamado desde confirmarAlta()): crea/actualiza el
+// mono_tramites de este legajo con los datos cargados acá — TODO alta pasa
+// por la bandeja de Monotributos, completa o no (nadie va directo al
+// padrón). No bloquea el alta si falla (mismo patrón que
+// crearFilaAltaCbu/escribirRegistroPadron, más abajo en confirmarAlta()).
+export async function sembrarTramiteMonoDesdeAlta(nro, nombreLegajo) {
+  const d = _leerDatosMtAlta();
+  const tramite = {
+    id: 'MTR' + String(nro),
+    legajoNro: String(nro),
+    nombreAsociado: nombreLegajo,
+    tramitePor: null,
+    tramiteFecha: null,
+    anulado: false,
+    fechaLimite: null,
+    categoria: d.categoria || null,
+    zona: d.zona || null,
+    condicion: d.condicion || null,
+    iibbAporta: d.iibbAporta === '' ? null : d.iibbAporta === 'si',
+    adherentesCantidad: d.adherentesCantidad,
+    fechaInicioMt: d.fechaInicioMt || null,
+  };
+  DB.monoTramites = DB.monoTramites || [];
+  const idx = DB.monoTramites.findIndex(x => String(x.legajoNro) === String(nro));
+  if (idx >= 0) DB.monoTramites[idx] = { ...DB.monoTramites[idx], ...tramite };
+  else DB.monoTramites.push(tramite);
+  const ok = await supaSync('monoTramites', tramite);
+  if (window.renderMonoPendientes) window.renderMonoPendientes();
+  return ok;
+}
+
 // ========== OBRA SOCIAL — INICIO DE TRÁMITE (auto, ingreso + desfase) ==========
 
 // Mismo patrón que recalcularVencAntec()/recalcularVencLibreta() en el
@@ -1066,6 +1173,14 @@ export async function confirmarAlta() {
     const { crearFilaAltaCbu } = await import('@modules/cuentas_cbu/index.js');
     await crearFilaAltaCbu(nro, legajo.nombre, { cbu, banco, cuitTitular: cuit });
   } catch (e) { /* si el módulo Cuentas CBU no está listo, el alta no se bloquea */ }
+
+  // Monotributo v2: TODO alta pasa por la bandeja de Monotributos, con los
+  // datos de la Constancia MT (completos o no) — mismo criterio que arriba
+  // (nace sola, no bloquea el alta si falla).
+  try {
+    const okMt = await sembrarTramiteMonoDesdeAlta(nro, legajo.nombre);
+    if (okMt === false) toast('⚠️ El alta se guardó, pero el monotributo no se pudo registrar en la bandeja — cargalo a mano desde Monotributos');
+  } catch (e) { /* no bloquea el alta */ }
 
   // Uniformes: al dar de alta con talle de ambo/calzado cargado, se
   // genera sola una entrega "Pendiente" (por entregar) — Gabi no tiene

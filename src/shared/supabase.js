@@ -360,6 +360,13 @@ export function _toSnake(obj) {
     // v117 — Monotributo: tabla de categorías por organismo (mono_tablas)
     topeIngresosAnual: 'tope_ingresos_anual', impuestoIntegrado: 'impuesto_integrado',
     iibbAporta: 'iibb_aporta',
+    // v173 — Monotributo v2 (mes en curso): datos en mono_tramites +
+    // comprobante en mono_pagos_mes
+    fechaInicioMt: 'fecha_inicio_mt',
+    comprobantePath: 'comprobante_path', comprobanteTransaccion: 'comprobante_transaccion',
+    comprobanteImporteLeido: 'comprobante_importe_leido', comprobanteFechaPago: 'comprobante_fecha_pago',
+    enRevision: 'en_revision', enRevisionMotivo: 'en_revision_motivo',
+    adherentesCantidadCongelada: 'adherentes_cantidad_congelada',
     // v121 — disponibilidad_entrevistas
     diasHabilitados: 'dias_habilitados', horaDesde: 'hora_desde', horaHasta: 'hora_hasta',
     maxPorTurno: 'max_por_turno',
@@ -910,6 +917,13 @@ export function _toCamel(obj) {
     // v117 — Monotributo: tabla de categorías por organismo (mono_tablas)
     tope_ingresos_anual: 'topeIngresosAnual', impuesto_integrado: 'impuestoIntegrado',
     iibb_aporta: 'iibbAporta',
+    // v173 — Monotributo v2 (mes en curso): datos en mono_tramites +
+    // comprobante en mono_pagos_mes
+    fecha_inicio_mt: 'fechaInicioMt',
+    comprobante_path: 'comprobantePath', comprobante_transaccion: 'comprobanteTransaccion',
+    comprobante_importe_leido: 'comprobanteImporteLeido', comprobante_fecha_pago: 'comprobanteFechaPago',
+    en_revision: 'enRevision', en_revision_motivo: 'enRevisionMotivo',
+    adherentes_cantidad_congelada: 'adherentesCantidadCongelada',
     // v121 — disponibilidad_entrevistas
     dias_habilitados: 'diasHabilitados', hora_desde: 'horaDesde', hora_hasta: 'horaHasta',
     max_por_turno: 'maxPorTurno',

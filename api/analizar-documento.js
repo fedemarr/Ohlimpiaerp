@@ -74,12 +74,29 @@ const SCHEMAS = {
     required: ['resultado', 'detalles', 'confianza', 'nombreDetectado', 'dniDetectado'],
     additionalProperties: false,
   },
+  // Monotributo v2 (MONOTRIBUTO_v2_mes_en_curso_para_Fede.md, punto 3): el
+  // comprobante es el ticket Telerecargas/pago24 de "Cobro de Servicios ·
+  // ARCA MONOTRIBUTO FIS" — formato fijo, siempre trae estos mismos campos.
+  'comprobante-monotributo': {
+    type: 'object',
+    properties: {
+      cuit: { type: 'string', description: 'CUIT/CUIL del campo "Identificacion", solo dígitos (sin guiones). Cadena vacía si no es legible.' },
+      periodo: { type: 'string', description: 'Período facturado, del campo "Nro.Factura" (formato "MM/AAAA"). Cadena vacía si no es legible.' },
+      importe: { type: 'number', description: 'Monto del campo "Importe", en pesos argentinos (ej. 43941.41).' },
+      fechaPago: { type: 'string', description: 'Fecha del pago (campo "Fecha"), formato YYYY-MM-DD. Cadena vacía si no figura.' },
+      transaccion: { type: 'string', description: 'Número del campo "Transaccion". Cadena vacía si no figura.' },
+      confianza: { type: 'string', enum: ['alta', 'media', 'baja'] },
+    },
+    required: ['cuit', 'periodo', 'importe', 'fechaPago', 'transaccion', 'confianza'],
+    additionalProperties: false,
+  },
 };
 
 const PROMPTS = {
   antecedente: 'Este archivo (PDF o foto) es un certificado de antecedentes penales de Argentina. Leelo y determiná si la persona tiene o no antecedentes registrados, la fecha de emisión del certificado, y cualquier detalle relevante (organismo emisor, jurisdicción). También extraé el nombre completo y el DNI de la persona tal como figuran en el documento. Si el documento no es legible o no es un certificado de antecedentes, usá resultado "No se pudo determinar" y explicá por qué en "detalles".',
   'apto-medico': 'Este archivo (PDF o foto) es un certificado de aptitud médica laboral (preocupacional) de Argentina. Leelo y determiná el resultado del examen, la fecha, y cualquier restricción u observación médica relevante. También extraé el nombre completo y el DNI de la persona tal como figuran en el documento. Si el documento no es legible o no es un apto médico, usá resultado "No se pudo determinar" y explicá por qué en "detalles".',
   'informe-psico': 'Este archivo (PDF o foto) es un informe psicotécnico laboral de Argentina. Leelo y determiná el resultado de la evaluación, cualquier observación relevante, y el nombre completo y DNI de la persona evaluada tal como figuran en el documento. Si el documento no es legible o no es un informe psicotécnico, usá resultado "No se pudo determinar" y explicá por qué en "detalles".',
+  'comprobante-monotributo': 'Este archivo es un comprobante de pago de tipo "Telerecargas"/"pago24" de Argentina, de un "Cobro de Servicios" a "ARCA MONOTRIBUTO FIS (MTTF)". Extraé exactamente estos campos tal como figuran impresos: el CUIT/CUIL del campo "Identificacion" (solo los dígitos, sin guiones), el período del campo "Nro.Factura" (formato MM/AAAA), el importe del campo "Importe" (como número, sin el símbolo $ ni separadores de miles), la fecha de pago (campo "Fecha", si no figura una fecha explícita de pago usá la fecha de la transacción), y el número del campo "Transaccion". Si algún campo no es legible o el documento no tiene este formato, dejalo como cadena vacía (o 0 en importe) y bajá la confianza.',
 };
 
 export default async function handler(req, res) {

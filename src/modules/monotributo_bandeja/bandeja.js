@@ -1,11 +1,24 @@
 // Monotributo — 📥 Bandeja de Pendientes (MONOTRIBUTO_bandeja_para_Fede.md +
-// mockup_monotributo_bandeja.html). Mismo patrón que Pendientes de CBU: el
-// alta SIEMBRA el trámite. Es derivado, no una tabla que alguien tenga que
-// llenar: pendiente = asociado ACTIVO sin monotributo en el Padrón. Por eso
-// las altas nuevas caen solas y el backfill de los activos de hoy es
-// automático. Solo el estado EN TRÁMITE (quién + cuándo) se persiste
-// (tabla mono_tramites, sql/v151). Sale de la bandeja cuando su monotributo
-// pasa a ACTIVO, es decir cuando aparece en el Padrón (DB.monotributos).
+// MONOTRIBUTO_v2_mes_en_curso_para_Fede.md). Mismo patrón que Pendientes de
+// CBU: el alta SIEMBRA el trámite. Es derivado, no una tabla que alguien
+// tenga que llenar: pendiente = asociado ACTIVO sin monotributo en el
+// Padrón. Por eso las altas nuevas caen solas y el backfill de los activos
+// de hoy es automático. Sale de la bandeja cuando su monotributo pasa a
+// ACTIVO, es decir cuando aparece en el Padrón (DB.monotributos).
+//
+// Monotributo v2 (pago a mes en curso): TODO alta pasa por acá con los
+// datos de la Constancia MT (sembrados por altas.js,
+// sembrarTramiteMonoDesdeAlta) — completos o no. Conviven en la misma fila
+// `mono_tramites` (sql/v151 + v173) DOS informaciones distintas según de
+// dónde vino la fila:
+//  - Sin datos (categoria=null): el flujo VIEJO, sin constancia todavía —
+//    SIN INICIAR / EN TRÁMITE, sin cambios (ver iniciarTramiteMono/
+//    abrirMonoTramite/cerrarTramiteMono).
+//  - Con datos (categoria set, aunque falten otros campos): el flujo NUEVO
+//    — la acción es "💲 Subir comprobante" (confirmarComprobanteBandeja,
+//    módulo monotributo_comprobantes), que si matchea promueve al Padrón.
+// "Fecha límite" (el calendario de pagos fuera de tanda de Martina) es
+// editable en CUALQUIER fila, tenga datos o no.
 //
 // El módulo Monotributos vive en legacy.js (sin migrar): este archivo solo
 // aporta la bandeja y se engancha por window.
@@ -48,55 +61,74 @@ function _enPadron() {
   };
 }
 
-// Horas cargadas en las grillas del período vigente, por N° de socio —
-// misma regla de "horas cobradas" que Liquidación de horas (F/AI = 0, AJ paga).
-function _horasEnGrillas(mes) {
-  const porNro = {};
-  (DB.grillasLiq || []).filter(g => g.periodo === mes).forEach(g => {
-    (g.asociados || []).forEach(a => {
-      if (a.nro == null) return;
-      let hs = 0;
-      Object.keys(a.horas || {}).forEach(iso => {
-        hs += window.horasCobradasDia ? window.horasCobradasDia(a, iso) : (parseFloat(a.horas[iso]) || 0);
-      });
-      porNro[String(a.nro)] = (porNro[String(a.nro)] || 0) + hs;
-    });
-  });
-  return porNro;
-}
-
 function _tramiteDe(nro) {
   return (DB.monoTramites || []).find(t => !t.anulado && String(t.legajoNro) === String(nro)) || null;
 }
 
-// Filas de la bandeja, ya ordenadas: primero los que tienen horas (más horas
-// arriba) — "el que está por liquidar sin monotributo grita primero" — y
-// después el resto por días en bandeja descendente.
+// "Con datos" = vino de la Constancia MT del alta nueva (aunque falten
+// campos). Distinto de "datos completos" (los 5 obligatorios del punto 2).
+function _tieneDatos(t) { return !!(t && t.categoria); }
+function _camposFaltantes(t) {
+  const faltan = [];
+  if (!t?.fechaInicioMt) faltan.push('fecha de inicio');
+  if (!t?.categoria) faltan.push('categoría');
+  if (!t?.zona) faltan.push('zona');
+  if (t?.iibbAporta == null) faltan.push('IIBB');
+  if (!t?.condicion) faltan.push('condición');
+  return faltan;
+}
+
+// Semáforo de la fecha límite (mismo criterio que el mockup_monotributo_v2).
+function _estadoLimite(fechaLimite) {
+  if (!fechaLimite) return null;
+  const hoy = new Date(); hoy.setHours(0, 0, 0, 0);
+  const d = new Date(fechaLimite + 'T00:00:00');
+  const diff = Math.round((d - hoy) / 86400000);
+  if (diff < 0) return { clase: 'badge-rojo', txt: `⚠ VENCIDA hace ${-diff} d` };
+  if (diff === 0) return { clase: 'badge-naranja', txt: '⏰ vence HOY' };
+  return { clase: 'badge-azul', txt: `faltan ${diff} d` };
+}
+
+// Filas de la bandeja, ordenadas por fecha límite ascendente (vencidas
+// primero, sin fecha límite al final) — reemplaza el orden viejo por horas
+// en grillas (Monotributo v2: se paga en el mes en curso, no depende de
+// quién cargó horas ese período).
 export function filasBandejaMono() {
   const padron = _enPadron();
-  const horas = _horasEnGrillas(_mesActual());
   const filas = (DB.legajos || [])
     .filter(l => l.estado === 'Activo' && !padron.porNro.has(String(l.nro)) && !padron.porNombre.has(_norm(l.nombre)))
     .map(l => {
       const t = _tramiteDe(l.nro);
       const altaISO = _fechaAltaISO(l);
       return {
-        l, altaISO, dias: _diasDesde(altaISO), hs: Math.round((horas[String(l.nro)] || 0) * 10) / 10,
-        tramite: t, diasTramite: t ? _diasDesde(t.tramiteFecha) : null,
+        l, altaISO, dias: _diasDesde(altaISO),
+        tramite: t, diasTramite: t?.tramiteFecha ? _diasDesde(t.tramiteFecha) : null,
       };
     });
-  filas.sort((a, b) => ((b.hs > 0) - (a.hs > 0)) || (b.hs - a.hs) || ((b.dias ?? -1) - (a.dias ?? -1)));
+  filas.sort((a, b) => {
+    const la = a.tramite?.fechaLimite || null;
+    const lb = b.tramite?.fechaLimite || null;
+    if (la && lb) return la.localeCompare(lb);
+    if (la) return -1;
+    if (lb) return 1;
+    return (b.dias ?? -1) - (a.dias ?? -1);
+  });
   return filas;
 }
 
 export function renderMonoPendientes() {
   const filas = filasBandejaMono();
-  const conHoras = filas.filter(f => f.hs > 0).length;
-  const enTramite = filas.filter(f => f.tramite);
+  const enTramite = filas.filter(f => f.tramite?.tramitePor && !_tieneDatos(f.tramite));
   const prom = enTramite.length ? Math.round(enTramite.reduce((s, f) => s + (f.diasTramite || 0), 0) / enTramite.length) : 0;
+  const vencidasOHoy = filas.filter(f => {
+    const e = _estadoLimite(f.tramite?.fechaLimite);
+    return e && (e.clase === 'badge-rojo' || e.clase === 'badge-naranja');
+  }).length;
+  const conDatosIncompletos = filas.filter(f => _tieneDatos(f.tramite) && _camposFaltantes(f.tramite).length).length;
 
   if ($('kpi-mp-pend')) $('kpi-mp-pend').textContent = filas.length;
-  if ($('kpi-mp-horas')) $('kpi-mp-horas').textContent = conHoras;
+  if ($('kpi-mp-venc')) $('kpi-mp-venc').textContent = vencidasOHoy;
+  if ($('kpi-mp-datos')) $('kpi-mp-datos').textContent = conDatosIncompletos;
   if ($('kpi-mp-tram')) $('kpi-mp-tram').textContent = enTramite.length ? `${enTramite.length} (${prom} d)` : '0';
   if ($('kpi-mp-padron')) $('kpi-mp-padron').textContent = _enPadron().cantidad;
   const badge = $('mono-badge-pendientes');
@@ -105,29 +137,63 @@ export function renderMonoPendientes() {
   const tbody = $('tbody-mono-pendientes');
   if (!tbody) return;
   if (!filas.length) {
-    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:24px;opacity:.5;">Bandeja vacía — todos los asociados activos tienen su monotributo ✓</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:24px;opacity:.5;">Bandeja vacía — todos los asociados activos tienen su monotributo ✓</td></tr>';
     return;
   }
   tbody.innerHTML = filas.map(f => {
-    const hsChip = f.hs > 0
-      ? `<span class="badge badge-naranja">⚠ ${f.hs} hs — va a liquidar sin monotributo</span>`
-      : '<span class="badge badge-gris">0 hs</span>';
-    const estado = f.tramite
-      ? `<span class="badge badge-azul">EN TRÁMITE</span> <span style="font-size:11.5px;color:var(--texto-suave);">${f.tramite.tramitePor || ''} · ${_fmtFecha(f.tramite.tramiteFecha)}${f.diasTramite != null ? ' · hace ' + f.diasTramite + ' d' : ''}</span>`
-      : '<span class="badge badge-rojo">SIN INICIAR</span>';
-    const accion = f.tramite
-      ? `<button class="btn btn-sm" style="background:#1e7b34;color:#fff;border:none;" onclick="abrirMonoTramite('${f.l.nro}')">Cargar monotributo</button>`
-      : `<button class="btn btn-primary btn-sm" onclick="iniciarTramiteMono('${f.l.nro}')">Iniciar trámite</button>`;
+    const lim = f.tramite?.fechaLimite || '';
+    const semaforo = _estadoLimite(lim);
+    const limiteHtml = `<input type="date" value="${lim}" style="font-size:11.5px;padding:2px 4px;" onchange="actualizarFechaLimiteMono('${f.l.nro}', this.value)">`
+      + (semaforo ? `<div style="margin-top:2px;"><span class="badge ${semaforo.clase}" style="font-size:9.5px;">${semaforo.txt}</span></div>` : '');
+
+    const tieneDatos = _tieneDatos(f.tramite);
+    const faltan = tieneDatos ? _camposFaltantes(f.tramite) : [];
+    const datosHtml = tieneDatos
+      ? (faltan.length
+          ? `<span class="badge badge-naranja" style="font-size:10px;">⚠ faltan: ${faltan.join(' · ')}</span>`
+          : '<span class="badge badge-verde" style="font-size:10px;">✔ completos</span>')
+      : '<span class="form-hint">—</span>';
+
+    let estado, accion;
+    if (tieneDatos) {
+      estado = '<span class="badge badge-azul">Con datos — falta comprobante</span>';
+      accion = `<button class="btn btn-sm" style="background:#1e7b34;color:#fff;border:none;" onclick="subirComprobanteMonoBandeja('${f.l.nro}')">💲 Subir comprobante</button>`
+        + ` <button class="btn btn-sm btn-secondary" onclick="abrirMonoTramite('${f.l.nro}')" title="Corregir los datos del alta">✎ Completar datos</button>`;
+    } else if (f.tramite?.tramitePor) {
+      estado = `<span class="badge badge-azul">EN TRÁMITE</span> <span style="font-size:11.5px;color:var(--texto-suave);">${f.tramite.tramitePor || ''} · ${_fmtFecha(f.tramite.tramiteFecha)}${f.diasTramite != null ? ' · hace ' + f.diasTramite + ' d' : ''}</span>`;
+      accion = `<button class="btn btn-sm" style="background:#1e7b34;color:#fff;border:none;" onclick="abrirMonoTramite('${f.l.nro}')">Cargar monotributo</button>`;
+    } else {
+      estado = '<span class="badge badge-rojo">SIN INICIAR</span>';
+      accion = `<button class="btn btn-primary btn-sm" onclick="iniciarTramiteMono('${f.l.nro}')">Iniciar trámite</button>`;
+    }
+
     return `<tr>
       <td><b>${f.l.nro}</b> · ${f.l.nombre}</td>
       <td style="font-size:12px;">${f.l.cuit || '—'}</td>
       <td style="font-size:12px;">${_fmtFecha(f.altaISO)}</td>
       <td style="text-align:right;">${f.dias ?? '—'}</td>
-      <td>${hsChip}</td>
+      <td style="white-space:nowrap;">${limiteHtml}</td>
+      <td>${datosHtml}</td>
       <td>${estado}</td>
       <td style="white-space:nowrap;">${accion}</td>
     </tr>`;
   }).join('');
+}
+
+// Fecha límite: calendario libre de Martina para pagos fuera de tanda — no
+// bloquea nada, se puede editar en cualquier fila tenga o no datos.
+export async function actualizarFechaLimiteMono(nro, valor) {
+  let t = _tramiteDe(nro);
+  if (!t) {
+    const l = (DB.legajos || []).find(x => String(x.nro) === String(nro));
+    t = { id: 'MTR' + String(nro), legajoNro: String(nro), nombreAsociado: l?.nombre || '', anulado: false };
+    DB.monoTramites = DB.monoTramites || [];
+    DB.monoTramites.push(t);
+  }
+  t.fechaLimite = valor || null;
+  const ok = await supaSync('monoTramites', t);
+  if (!ok) toast('⚠️ No se pudo guardar la fecha límite en el servidor');
+  renderMonoPendientes();
 }
 
 // Abre el MISMO modal de "+ Nuevo monotributista" precargado desde el alta:
@@ -141,7 +207,8 @@ export function abrirMonoTramite(nro) {
   });
 }
 
-// SIN INICIAR → EN TRÁMITE: guarda quién y cuándo, y abre el modal.
+// SIN INICIAR → EN TRÁMITE: guarda quién y cuándo, y abre el modal. Solo
+// aplica al flujo viejo (sin datos de la Constancia MT nueva).
 export async function iniciarTramiteMono(nro) {
   const l = (DB.legajos || []).find(x => String(x.nro) === String(nro));
   if (!l) return;
@@ -167,4 +234,12 @@ export async function cerrarTramiteMono(nro) {
   const t = _tramiteDe(nro);
   if (t) { t.anulado = true; await supaSync('monoTramites', t); }
   renderMonoPendientes();
+}
+
+// Botón "💲 Subir comprobante" — Monotributo v2, punto 3. Import dinámico
+// (mismo patrón que legacy.js usa para no acoplar módulos entre sí).
+export function subirComprobanteMonoBandeja(legajoNro) {
+  import('@modules/monotributo_comprobantes/comprobantes.js').then(({ elegirArchivoComprobante, confirmarComprobanteBandeja }) => {
+    elegirArchivoComprobante(file => confirmarComprobanteBandeja(legajoNro, file));
+  });
 }
