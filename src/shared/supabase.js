@@ -471,6 +471,15 @@ export function _toSnake(obj) {
     // 'calendario' = puestos × calendario real (como siempre); 'fija' =
     // banco de horas mensual plano que NO varía con feriados/mes.
     tipoRegla: 'tipo_regla', horasFijasMes: 'horas_fijas_mes',
+    // BUG crítico (30/09/2026, ver comentario largo en
+    // src/modules/gestion_horas/gestion_horas.js): `objCodigo` YA está
+    // mapeado más abajo a 'objetivo_codigo' para grillas_liq (v040) — este
+    // diccionario es GLOBAL, no por tabla, así que las vigencias de
+    // horas_vigencias (columna real `obj_codigo`) NUNCA podían usar la
+    // misma clave `objCodigo` sin pisarse. Se renombra a `horasObjCodigo`
+    // exclusivamente para este módulo (mismo criterio que `monoTablasOrg`
+    // cuando chocó con `monoTablas`).
+    horasObjCodigo: 'obj_codigo',
     // v084 — Descuentos por asociado
     conceptoIdLocal: 'concepto_id_local', periodoInicio: 'periodo_inicio',
     cuotasMaximas: 'cuotas_maximas', activo: 'activo',
@@ -936,6 +945,10 @@ export function _toCamel(obj) {
     pct_supervision: 'pctSupervision', alcance_nombre: 'alcanceNombre',
     // v174 — Gestión de horas v2 (tipo de regla de la vigencia)
     tipo_regla: 'tipoRegla', horas_fijas_mes: 'horasFijasMes',
+    // BUG crítico (30/09/2026) — ver comentario largo en _toSnake() y en
+    // gestion_horas.js: `obj_codigo` (horas_vigencias) NO es lo mismo que
+    // `objetivo_codigo` (grillas_liq) — cada uno con su propia clave camel.
+    obj_codigo: 'horasObjCodigo',
     vigente_desde: 'vigenteDesde', vigente_hasta: 'vigenteHasta',
     ajuste_nivelacion: 'ajusteNivelacion', ajuste_motivo: 'ajusteMotivo',
     ajuste_usuario: 'ajusteUsuario', ajuste_fecha: 'ajusteFecha',

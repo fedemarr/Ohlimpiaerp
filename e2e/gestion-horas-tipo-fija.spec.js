@@ -18,6 +18,45 @@ async function mockRestOk(page) {
   });
 }
 
+// BUG CRÍTICO real (30/09/2026): `_toSnake()` (src/shared/supabase.js) ya
+// tenía `objCodigo` mapeado a 'objetivo_codigo' para OTRA tabla (grillas_liq,
+// v040) — el diccionario es global, no por tabla. La columna real de
+// `horas_vigencias` es `obj_codigo`, así que CADA guardado de una vigencia
+// mandaba la columna equivocada y Supabase lo rechazaba en silencio
+// (fire-and-forget, nadie chequeaba el resultado). Confirmado con una
+// consulta directa a producción: 0 filas en `horas_vigencias` a pesar de que
+// el sembrado automático corre en cada render y debería haber creado
+// decenas. Este test inspecciona el PAYLOAD real que se manda a Supabase —
+// los tests que solo miran `DB.horasVigencias` en memoria (como los de
+// arriba) no detectan este bug porque el objeto en memoria siempre estuvo
+// bien armado; lo que fallaba era la traducción a snake_case al guardar.
+test('El POST a horas_vigencias manda la columna real obj_codigo (nunca objetivo_codigo)', async ({ page }) => {
+  let bodyEnviado = null;
+  await page.route('**/rest/v1/**', (route) => {
+    const req = route.request();
+    if (req.method() === 'GET') return route.fulfill({ status: 200, contentType: 'application/json', body: '[]' });
+    if (req.url().includes('/horas_vigencias') && !bodyEnviado) {
+      bodyEnviado = JSON.parse(req.postData() || '{}');
+    }
+    return route.fulfill({ status: 201, contentType: 'application/json', body: '{}' });
+  });
+  await loginComoAdmin(page);
+  await page.evaluate(async () => {
+    const { DB } = await import('/src/shared/state.js');
+    DB.objetivos = DB.objetivos || [];
+    DB.objetivos.push({
+      id: 990990099, codigo: 'HOR.PAYLOAD.1', nombre: 'Payload Test', estado: 'Operativo', anulado: false,
+      modeloPrecio: 'Por EFT', efts: 500, puestos: [],
+    });
+  });
+  await page.evaluate(() => { window.navTo('gestion_horas'); });
+  await page.waitForTimeout(300);
+
+  expect(bodyEnviado).toBeTruthy();
+  expect(bodyEnviado.obj_codigo).toBe('HOR.PAYLOAD.1');
+  expect(bodyEnviado.objetivo_codigo).toBeUndefined();
+});
+
 test('Un servicio "Por EFT" sin Personal necesario se siembra solo como FT fija y muestra el MISMO número en todos los meses', async ({ page }) => {
   await mockRestOk(page);
   await loginComoAdmin(page);
@@ -36,7 +75,7 @@ test('Un servicio "Por EFT" sin Personal necesario se siembra solo como FT fija 
   // El sembrado corrió en el render (sincronizarVigenciasHoras).
   const vigencia = await page.evaluate(async () => {
     const { DB } = await import('/src/shared/state.js');
-    return DB.horasVigencias.find(v => v.objCodigo === 'HOR.FTIJA.1');
+    return DB.horasVigencias.find(v => v.horasObjCodigo === 'HOR.FTIJA.1');
   });
   expect(vigencia).toBeTruthy();
   expect(vigencia.tipoRegla).toBe('fija');
@@ -117,7 +156,7 @@ test('El modal deja elegir FT fija: oculta Puestos, pide el número, y guarda si
 
   const guardado = await page.evaluate(async () => {
     const { DB } = await import('/src/shared/state.js');
-    return DB.horasVigencias.find(v => v.objCodigo === 'HOR.MODALFIJA.1');
+    return DB.horasVigencias.find(v => v.horasObjCodigo === 'HOR.MODALFIJA.1');
   });
   expect(guardado.tipoRegla).toBe('fija');
   expect(guardado.horasFijasMes).toBe(860);
@@ -159,7 +198,7 @@ test('Con tipo calendario ya no es obligatorio elegir la categoría del puesto, 
 
   const guardado = await page.evaluate(async () => {
     const { DB } = await import('/src/shared/state.js');
-    return DB.horasVigencias.find(v => v.objCodigo === 'HOR.SINCATEG.1');
+    return DB.horasVigencias.find(v => v.horasObjCodigo === 'HOR.SINCATEG.1');
   });
   expect(guardado).toBeTruthy();
   expect(guardado.tipoRegla).toBe('calendario');

@@ -229,7 +229,7 @@ describe('sembrarVigenciaHorasDesdeAlta — alta de un servicio nuevo (v2)', () 
   });
 
   it('si el servicio ya tiene vigencia, no siembra otra (no duplica)', () => {
-    DB.horasVigencias = [{ id: 1, objCodigo: 'OBJ.ALTA.EFT', tipoRegla: 'calendario', puestos: [], vigenteDesde: '2026-01', vigenteHasta: null }];
+    DB.horasVigencias = [{ id: 1, horasObjCodigo: 'OBJ.ALTA.EFT', tipoRegla: 'calendario', puestos: [], vigenteDesde: '2026-01', vigenteHasta: null }];
     expect(sembrarVigenciaHorasDesdeAlta({ codigo: 'OBJ.ALTA.EFT', modeloPrecio: 'Por EFT', efts: 1118 })).toBeNull();
     expect(DB.horasVigencias).toHaveLength(1);
   });

@@ -388,3 +388,53 @@ committeado porque en otra máquina y en CI el 5173 es el puerto correcto.
    tiene que dejar guardar (antes lo bloqueaba).
 7. Facturación de Chango Sarandí: el monto mensual tiene que seguir saliendo
    bien (1.118 × valor hora), ahora con las horas tomadas de la regla.
+
+## 🔴 Bug crítico encontrado DESPUÉS del commit de arriba (92647ac) — ya corregido
+
+Mientras investigaba este mismo ticket en paralelo (sesión concurrente, dos
+agentes trabajando el mismo ticket sin saberlo) encontré que **ninguna
+vigencia se estaba guardando de verdad en Supabase**, a pesar de que
+`sincronizarVigenciasHoras()` corre en cada render y de que el commit
+92647ac ya estaba deployado:
+
+- **Causa**: `src/shared/supabase.js` (`_toSnake`/`_toCamel`) es un
+  diccionario GLOBAL camelCase↔snake_case, no por tabla. La clave `objCodigo`
+  ya estaba mapeada a `objetivo_codigo` para **otra** tabla (`grillas_liq`,
+  Liquidación de horas v1.1, v040). Las vigencias de `horas_vigencias` usan
+  la clave `objCodigo` también, pero su columna real es `obj_codigo` (sin
+  "etivo"). Cada `supaSync('horasVigencias', ...)` mandaba `objetivo_codigo`
+  (columna inexistente en esa tabla) y Supabase rechazaba el insert/update
+  — como esas llamadas son fire-and-forget (nadie chequea el `await`), la
+  UI nunca mostró ningún error.
+- **Evidencia**: consulté `public.horas_vigencias` directo en producción
+  DESPUÉS del deploy de 92647ac (que ya incluye el sembrado automático) —
+  **0 filas**, cuando debería haber decenas (hay ~200 servicios operativos).
+  La app "funcionaba" porque `DB.horasVigencias` (memoria) sí tenía las
+  filas — se perdían enteras al recargar la página, y `sincronizarVigenciasHoras()`
+  las recreaba en memoria de nuevo en cada sesión, sin persistir nunca.
+- **Fix**: se renombró la clave a `horasObjCodigo` (mismo criterio que
+  `monoTablas`→`monoTablasOrg` cuando chocó con otra clave existente) y se
+  agregó `horasObjCodigo: 'obj_codigo'` a los dos diccionarios. Sin
+  migración nueva — la columna `obj_codigo` ya existía. Se corrigieron
+  además las fixtures de los e2e existentes que construían vigencias con
+  `objCodigo:` directo (`gestion-horas.spec.js`,
+  `gestion-horas-carga-directa.spec.js`, `grillas-proyectado-gestion-horas.spec.js`) y se
+  agregó `e2e/gestion-horas-tipo-fija.spec.js` → "El POST a horas_vigencias
+  manda la columna real obj_codigo (nunca objetivo_codigo)", que inspecciona
+  el payload real (no solo `DB` en memoria) — confirmado con git-stash que
+  falla en el código pre-fix y pasa después.
+- **Corrección a una nota de la sesión anterior**: el handoff de esta misma
+  sección decía "v172 (agente) y v173 (monotributo) no están aplicadas".
+  Verificado directo en producción: **v173 SÍ está aplicada** (13 columnas +
+  constraint confirmados por consulta, ver sección de Monotributo v2 más
+  abajo). **v172 (agente) SÍ sigue sin aplicar** (confirmado: `corridas_agente`
+  y `agente_audit_log` no existen en producción) — eso sí es correcto, y el
+  módulo del agente ya está en producción esperándola.
+
+**Qué probar además de lo de arriba**: visitá Gestión de horas una vez (para
+que corra el sembrado), después recargá la página completa (F5) — Chango
+Sarandí y el resto de los servicios con banco fijo tienen que SEGUIR
+mostrando su regla después del reload. Antes de este fix, recargar hacía
+que pareciera que todo estaba bien (se re-sembraba en memoria) pero
+`horas_vigencias` en Supabase seguía vacía — no hay forma de notarlo mirando
+solo la pantalla, hace falta mirar la tabla real.

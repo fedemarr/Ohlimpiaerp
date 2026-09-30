@@ -43,8 +43,23 @@ export function puedeEditarHoras() {
 
 // ========== VIGENCIAS ==========
 
+// BUG CRÍTICO encontrado y corregido (30/09/2026): las vigencias se creaban
+// con la propiedad `objCodigo`, pero `_toSnake()` (src/shared/supabase.js)
+// ya tiene esa MISMA clave mapeada a `objetivo_codigo` para otra tabla
+// (Liquidación de horas v1.1, v040, grillas_liq) — el diccionario es
+// GLOBAL, no por tabla. Como la columna real de `horas_vigencias` es
+// `obj_codigo` (no `objetivo_codigo`), CADA `supaSync('horasVigencias', ...)`
+// fallaba en silencio (fire-and-forget, nadie chequeaba el resultado):
+// confirmado con una consulta directa a producción — 0 filas en
+// `horas_vigencias` a pesar de que `sincronizarVigenciasHoras()` corre en
+// cada render y debería haber sembrado ~100+. La vigencia "vivía" solo en
+// memoria (por eso la matriz/ficha se veían bien en la sesión) y se perdía
+// entera al recargar. Se renombra a `horasObjCodigo` (mismo criterio ya
+// usado para `monoTablas`→`monoTablasOrg` cuando chocó con otra clave) y se
+// mapea `horasObjCodigo: 'obj_codigo'` en supabase.js — sin tocar la
+// columna real ni la clave `objCodigo` que ya usa Liquidación de horas.
 function vigenciasDe(objCodigo) {
-  return (DB.horasVigencias || []).filter(v => v.objCodigo === objCodigo && v.anulado !== true);
+  return (DB.horasVigencias || []).filter(v => v.horasObjCodigo === objCodigo && v.anulado !== true);
 }
 // La vigencia que rige en un mes dado (mismo filtro que Supervisión:
 // desde <= mes <= hasta, hasta null = sigue abierta).
@@ -99,7 +114,7 @@ export async function abrirNuevaVigenciaHoras(objCodigo, puestos, desde, usuario
     await supaSync('horasVigencias', abierta);
   }
   const nueva = {
-    id: Date.now(), objCodigo, puestos: JSON.parse(JSON.stringify(puestos || [])),
+    id: Date.now(), horasObjCodigo: objCodigo, puestos: JSON.parse(JSON.stringify(puestos || [])),
     tipoRegla: tipoRegla === 'fija' ? 'fija' : 'calendario',
     horasFijasMes: tipoRegla === 'fija' ? (Number(horasFijasMes) || 0) : null,
     vigenteDesde: desde, vigenteHasta: null,
@@ -124,7 +139,7 @@ export function sembrarVigenciaHorasDesdeAlta(objetivo) {
   if (!regla) return null;
   const desde = mesDeFechaArg(objetivo.fechaInicio) || mesActualStr();
   const nueva = {
-    id: Date.now(), objCodigo, puestos: regla.puestos,
+    id: Date.now(), horasObjCodigo: objCodigo, puestos: regla.puestos,
     tipoRegla: regla.tipoRegla, horasFijasMes: regla.horasFijasMes,
     vigenteDesde: desde, vigenteHasta: null,
     usuario: objetivo.cargadoPor || '', fecha: hoyStrArg(),
@@ -154,7 +169,7 @@ export function sincronizarVigenciasHoras() {
     const objCodigo = alcanceServicio(o);
     if (vigenciasDe(objCodigo).length) return;
     const nueva = {
-      id: Date.now() + n, objCodigo, puestos: regla.puestos,
+      id: Date.now() + n, horasObjCodigo: objCodigo, puestos: regla.puestos,
       tipoRegla: regla.tipoRegla, horasFijasMes: regla.horasFijasMes,
       vigenteDesde: mesActualStr(), vigenteHasta: null,
       usuario: 'Sistema', fecha: hoyStrArg(),

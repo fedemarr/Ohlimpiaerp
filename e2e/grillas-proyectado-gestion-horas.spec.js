@@ -39,7 +39,7 @@ test('Bug 1 — "Servicios del mes" precarga la jornada REAL de Gestión de hora
       efts: 999,
     });
     DB.horasVigencias = DB.horasVigencias || [];
-    DB.horasVigencias.push({ id: Date.now(), objCodigo: 'OBJ-BUG1-E2E', puestos, vigenteDesde: '2026-01', vigenteHasta: null, usuario: 'Test', fecha: '01/01/2026', motivo: 'Carga inicial manual', origen: 'manual' });
+    DB.horasVigencias.push({ id: Date.now(), horasObjCodigo: 'OBJ-BUG1-E2E', puestos, vigenteDesde: '2026-01', vigenteHasta: null, usuario: 'Test', fecha: '01/01/2026', motivo: 'Carga inicial manual', origen: 'manual' });
     window.navTo('liquidacion');
     return horasPuestosMes(puestos, mes);
   }, mes);
@@ -60,7 +60,7 @@ test('Bug 2 — abrir la grilla de un servicio sin operarios NO la crea, y "Serv
     DB.objetivos = DB.objetivos || [];
     DB.objetivos.push({ codigo: 'OBJ-BUG2-E2E', nombre: 'Servicio Bug2 E2E', supervisorAsignado: 'SUP E2E', estado: 'Operativo', anulado: false });
     DB.horasVigencias = DB.horasVigencias || [];
-    DB.horasVigencias.push({ id: Date.now(), objCodigo: 'OBJ-BUG2-E2E', puestos, vigenteDesde: '2026-01', vigenteHasta: null, usuario: 'Test', fecha: '01/01/2026', motivo: 'Carga inicial manual', origen: 'manual' });
+    DB.horasVigencias.push({ id: Date.now(), horasObjCodigo: 'OBJ-BUG2-E2E', puestos, vigenteDesde: '2026-01', vigenteHasta: null, usuario: 'Test', fecha: '01/01/2026', motivo: 'Carga inicial manual', origen: 'manual' });
     // A propósito: SIN legajos asignados a este servicio (ningún operario).
     window.navTo('liquidacion');
   });
@@ -103,7 +103,7 @@ test('Chip "Pactado del mes" — sin carga muestra el pactado solo; con carga co
     DB.objetivos = DB.objetivos || [];
     DB.objetivos.push({ codigo: 'OBJ-CHIP-E2E', nombre: 'Servicio Chip E2E', supervisorAsignado: 'SUP E2E', estado: 'Operativo', anulado: false });
     DB.horasVigencias = DB.horasVigencias || [];
-    DB.horasVigencias.push({ id: Date.now(), objCodigo: 'OBJ-CHIP-E2E', puestos, vigenteDesde: '2026-01', vigenteHasta: null, usuario: 'Test', fecha: '01/01/2026', motivo: 'Carga inicial manual', origen: 'manual' });
+    DB.horasVigencias.push({ id: Date.now(), horasObjCodigo: 'OBJ-CHIP-E2E', puestos, vigenteDesde: '2026-01', vigenteHasta: null, usuario: 'Test', fecha: '01/01/2026', motivo: 'Carga inicial manual', origen: 'manual' });
     // Grilla YA existe, con un asociado y carga que NO coincide con el pactado.
     DB.grillasLiq = DB.grillasLiq || [];
     DB.grillasLiq.push({

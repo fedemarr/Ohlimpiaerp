@@ -49,7 +49,7 @@ test('Backfill automático — un servicio con Personal necesario pero sin vigen
 
   const vigencia = await page.evaluate(async () => {
     const { DB } = await import('/src/shared/state.js');
-    return DB.horasVigencias.find(v => v.objCodigo === 'HOR.BACKFILL.1');
+    return DB.horasVigencias.find(v => v.horasObjCodigo === 'HOR.BACKFILL.1');
   });
   expect(vigencia).toBeTruthy();
   expect(vigencia.origen).toBe('backfill');
@@ -138,7 +138,7 @@ test('Nueva vigencia — vista previa en vivo, motivo obligatorio, y la matriz r
 
   const vigencias = await page.evaluate(async () => {
     const { DB } = await import('/src/shared/state.js');
-    return DB.horasVigencias.filter(v => v.objCodigo === 'HOR.VIGENCIA.1');
+    return DB.horasVigencias.filter(v => v.horasObjCodigo === 'HOR.VIGENCIA.1');
   });
   expect(vigencias.length).toBe(2); // backfill original + la nueva
   const nueva = vigencias.find(v => v.motivo.includes('E2E'));
@@ -169,7 +169,7 @@ test('El alta de un servicio nuevo siembra su vigencia inicial de horas automát
   });
   const vigencia = await page.evaluate(async () => {
     const { DB } = await import('/src/shared/state.js');
-    return DB.horasVigencias.find(v => v.objCodigo === 'HOR.ALTA.1');
+    return DB.horasVigencias.find(v => v.horasObjCodigo === 'HOR.ALTA.1');
   });
   expect(vigencia).toBeTruthy();
   expect(vigencia.origen).toBe('alta');

@@ -86,7 +86,7 @@ test('"＋ Cargar regla" crea la vigencia inicial directo desde la matriz — si
 
   const vigencia = await page.evaluate(async () => {
     const { DB } = await import('/src/shared/state.js');
-    return DB.horasVigencias.find(v => v.objCodigo === 'HOR.CARGADIRECTA.1');
+    return DB.horasVigencias.find(v => v.horasObjCodigo === 'HOR.CARGADIRECTA.1');
   });
   expect(vigencia.origen).toBe('manual');
   expect(vigencia.motivo).toBe('Carga inicial manual');
