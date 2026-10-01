@@ -10938,6 +10938,7 @@ function renderMonotributos(){
       </td>
       <td style="padding:6px 8px;border:1px solid var(--borde);">
         <button class="btn btn-xs btn-secondary" onclick="editarMonotributo('${r.id}')" title="Editar">✏️</button>
+        <button class="btn btn-xs btn-secondary" style="margin-top:2px;" onclick="verHistorialPagosMono('${r.id}')" title="Ver historial de pagos">💰 pagos</button>
         ${fueraCatRow?`<button class="btn btn-xs" style="background:#fef3c7;color:#92400e;border:1px solid #fcd34d;font-size:10px;margin-top:2px;" onclick="recategorizarModal('${r.id}')">↑ Recateg.</button>`:''}
       </td>
     </tr>`;
@@ -11370,7 +11371,7 @@ function renderHistorialMono(){
   const rows = (DB.monoCambios||[]).filter(r=>!filtro||r.resultado===filtro);
   const tbody = $('tbody-mono-hist'); if(!tbody) return;
   if(!rows.length){
-    tbody.innerHTML=`<tr><td colspan="9" style="padding:40px;text-align:center;color:var(--texto-muy-suave);">Sin registros en el historial.</td></tr>`;
+    tbody.innerHTML=`<tr><td colspan="10" style="padding:40px;text-align:center;color:var(--texto-muy-suave);">Sin registros en el historial.</td></tr>`;
     return;
   }
   const resColor={'Aprobado':'badge-verde','Rechazado':'badge-rojo'};
@@ -11393,6 +11394,9 @@ function renderHistorialMono(){
     <td style="padding:6px 8px;border:1px solid var(--borde);font-size:11px;">${r.decidoPor||'—'}</td>
     <td style="padding:6px 8px;border:1px solid var(--borde);text-align:center;">
       <span class="badge ${resColor[r.resultado]||'badge-gris'}" style="font-size:10px;">${r.resultado}</span>
+    </td>
+    <td style="padding:6px 8px;border:1px solid var(--borde);text-align:center;">
+      ${r.comprobantePath?`<span style="cursor:pointer;text-decoration:underline;color:#2563eb;font-size:11px;" onclick="verComprobanteMono('${r.comprobantePath}')">📎 ver</span>`:'<span class="text-muted">—</span>'}
     </td>
   </tr>`).join('');
 }
@@ -11508,10 +11512,17 @@ function eliminarMonoPagoMes(id){
   });
 }
 
+// Ticket "Pago mensual — carga en lote + comprobante clickeable" (30/09):
+// las filas "en revisión" salen de esta tabla y pasan al panel aparte
+// (renderMonoEnRevisionPagos) — la lista principal queda solo con lo
+// resuelto (pagado o pendiente de subir ticket), Martina no tiene que
+// escanear el badge naranja mezclado entre las filas normales.
 function renderMonoPagos(){
   const mes=_mesMonoPagosSel();
   const tbody=$('tbody-mono-pagos'); if(!tbody) return;
-  const rows=(DB.monoPagosMes||[]).filter(p=>p.periodo===mes).sort((a,b)=>a.nombre.localeCompare(b.nombre));
+  const todas=(DB.monoPagosMes||[]).filter(p=>p.periodo===mes);
+  const rows=todas.filter(p=>!p.enRevision).sort((a,b)=>a.nombre.localeCompare(b.nombre));
+  renderMonoEnRevisionPagos(todas.filter(p=>p.enRevision));
   if(!rows.length){
     tbody.innerHTML=`<tr><td colspan="11" style="padding:40px;text-align:center;color:var(--texto-muy-suave);">Sin lista armada para ${mes}. Usá "📥 Armar lista del mes".</td></tr>`;
     return;
@@ -11524,7 +11535,7 @@ function renderMonoPagos(){
     const tieneDesglose = p.impIntegradoCongelado!=null || p.sipaCongelado!=null || p.obraSocialCongelado!=null || p.iibbCongelado!=null;
     const celda = v => tieneDesglose ? '$'+(v||0).toLocaleString('es-AR') : '<span class="form-hint">—</span>';
     const total = p.total||p.curCongelado||0;
-    return `<tr style="background:${p.pagado?'#f0fdf4':p.enRevision?'#fffbeb':'white'};">
+    return `<tr style="background:${p.pagado?'#f0fdf4':'white'};">
     <td style="padding:6px 14px;border:1px solid var(--borde);font-weight:500;">${p.nombre}${p.categoriaCongelada?` <span class="form-hint">(${p.categoriaCongelada}${p.condicionCongelada&&p.condicionCongelada!=='comun'?' · '+(CONDICION_LABEL[p.condicionCongelada]||p.condicionCongelada):''})</span>`:''}</td>
     <td style="padding:6px 8px;border:1px solid var(--borde);font-size:11px;">${p.nroSocio||'—'}</td>
     <td style="padding:6px 8px;border:1px solid var(--borde);text-align:right;"><b>${p.adherentesCantidadCongelada||0}</b></td>
@@ -11535,7 +11546,7 @@ function renderMonoPagos(){
     <td style="padding:6px 8px;border:1px solid var(--borde);text-align:right;font-weight:700;color:#7c3aed;">$${total.toLocaleString('es-AR')}</td>
     <td style="padding:4px 6px;border:1px solid var(--borde);text-align:center;">
       ${p.comprobantePath
-        ? `<div><span class="badge ${p.enRevision?'badge-naranja':'badge-verde'}" style="font-size:10px;">${p.enRevision?'⚠ En revisión':'📎 adjunto'}</span>${p.enRevision?`<div style="font-size:9px;color:#92400e;margin-top:2px;max-width:140px;">${p.enRevisionMotivo||''}</div>`:''}</div>`
+        ? `<span class="badge badge-verde" style="font-size:10px;cursor:pointer;text-decoration:underline;" onclick="verComprobanteMono('${p.comprobantePath}')" title="Ver comprobante">📎 adjunto</span>`
         : p.pagado ? '<span class="form-hint">—</span>'
         : `<button class="btn btn-xs btn-secondary" onclick="subirComprobanteMonoPagoMensual('${p.id}')">📎 Subir ticket</button>`}
     </td>
@@ -11563,6 +11574,28 @@ function renderMonoPagos(){
   </tr>`;
   }).join('');
 }
+
+// Panel "En revisión (N)" — comprobantes que no cuadraron (uno por uno o en
+// lote) y necesitan que Martina decida. "Descartar" reusa eliminarMonoPagoMes
+// tal cual (nunca están pagados, así que su guard no bloquea).
+function renderMonoEnRevisionPagos(filas){
+  const card=$('mono-card-en-revision'), tbody=$('tbody-mono-en-revision'), count=$('mono-en-revision-count');
+  if(!card||!tbody) return;
+  if(count) count.textContent=filas.length;
+  card.style.display=filas.length?'block':'none';
+  if(!filas.length){ tbody.innerHTML=''; return; }
+  tbody.innerHTML=filas.map(p=>`<tr>
+    <td style="padding:6px 14px;border:1px solid #92400e;font-weight:500;">${p.nombre}${p.nroSocio?` <span class="form-hint">N° ${p.nroSocio}</span>`:''}</td>
+    <td style="padding:6px 8px;border:1px solid #92400e;text-align:center;">
+      ${p.comprobantePath?`<span style="cursor:pointer;text-decoration:underline;color:#2563eb;" onclick="verComprobanteMono('${p.comprobantePath}')">📎 ver</span>`:'<span class="form-hint">—</span>'}
+    </td>
+    <td style="padding:6px 8px;border:1px solid #92400e;font-size:11.5px;">${p.enRevisionMotivo||'—'}</td>
+    <td style="padding:4px 6px;border:1px solid #92400e;text-align:center;">
+      <button class="btn btn-xs btn-secondary" title="Descartar este comprobante" onclick="eliminarMonoPagoMes('${p.id}')">🗑️ Descartar</button>
+    </td>
+  </tr>`).join('');
+}
+
 // Monotributo v2, punto 3 (lector de comprobantes) — botón "📎 Subir ticket"
 // del tab Pago mensual. Import dinámico (mismo patrón que altas.js usa para
 // cuentas_cbu/categorias): legacy.js es monolítico y no importa módulos ES
@@ -11573,6 +11606,26 @@ function subirComprobanteMonoPagoMensual(pagoMesId){
   });
 }
 window.subirComprobanteMonoPagoMensual = subirComprobanteMonoPagoMensual;
+
+// Carga en lote — ticket "Pago mensual — carga en lote". Mismo import
+// dinámico de arriba; el reparto por CUIT/período/importe vive en
+// confirmarComprobantesLotePagoMensual (comprobantes.js), acá solo se
+// arma el input múltiple y se le pasa el período seleccionado.
+function subirComprobantesLotePagoMensual(){
+  const mes=_mesMonoPagosSel();
+  import('@modules/monotributo_comprobantes/comprobantes.js').then(({ elegirVariosArchivosComprobante, confirmarComprobantesLotePagoMensual }) => {
+    elegirVariosArchivosComprobante(files => confirmarComprobantesLotePagoMensual(files, mes));
+  });
+}
+window.subirComprobantesLotePagoMensual = subirComprobantesLotePagoMensual;
+
+// Comprobante clickeable (ticket "comprobante clickeable en 3 lugares") —
+// usado desde Pago mensual, el panel En revisión y la ficha del
+// monotributista/Historial de cambios (más abajo).
+function verComprobanteMono(path){
+  import('@modules/monotributo_comprobantes/comprobantes.js').then(({ verComprobanteMono }) => verComprobanteMono(path));
+}
+window.verComprobanteMono = verComprobanteMono;
 // Método de pago elegido en el <select> antes de tildar — vive en memoria
 // de sesión nomás, se consume al tildar (no hace falta persistir el
 // "borrador" de selección).
@@ -12563,6 +12616,53 @@ function verHistorialCat(id){
   lineas.push('Categoría actual: '+r.categoria);
   alert(lineas.join('\n'));
 }
+
+// Ficha/historial de PAGOS del monotributista — ubicación #2 del ticket
+// "comprobante clickeable en 3 lugares" (las otras dos son la fila de Pago
+// mensual y el evento en Historial de cambios, ambas más arriba). Modal
+// creado en JS la primera vez (mismo patrón que ensureModalVigenciaHoras
+// en gestion_horas.js) porque el contenido es 100% dinámico — no hacía
+// falta bloatear index.html con un modal estático más.
+function ensureModalHistorialPagosMono(){
+  if($('modal-hist-pagos-mono')) return;
+  const div=document.createElement('div');
+  div.className='modal-overlay'; div.id='modal-hist-pagos-mono';
+  div.innerHTML=`
+    <div class="modal" style="max-width:640px;">
+      <div class="modal-header"><h3 id="hist-pagos-mono-titulo">Historial de pagos</h3><button class="btn-close" onclick="cerrarModal('modal-hist-pagos-mono')">×</button></div>
+      <div class="modal-body"><div id="hist-pagos-mono-lista"></div></div>
+      <div class="modal-footer"><button class="btn btn-secondary" onclick="cerrarModal('modal-hist-pagos-mono')">Cerrar</button></div>
+    </div>`;
+  document.body.appendChild(div);
+}
+function verHistorialPagosMono(id){
+  const r=getMonoById(id); if(!r) return;
+  ensureModalHistorialPagosMono();
+  $('hist-pagos-mono-titulo').textContent='Historial de pagos — '+r.nombre;
+  const pagos=(DB.monoPagosMes||[])
+    .filter(p=>(r.nroSocio&&String(p.nroSocio)===String(r.nroSocio))||(!r.nroSocio&&p.nombre===r.nombre))
+    .sort((a,b)=>String(b.periodo).localeCompare(String(a.periodo)));
+  const cont=$('hist-pagos-mono-lista');
+  if(!pagos.length){
+    cont.innerHTML='<p class="text-muted" style="font-size:12px;">Sin períodos registrados todavía en Pago mensual.</p>';
+  } else {
+    cont.innerHTML=pagos.map(p=>{
+      const total=p.total||p.curCongelado||0;
+      const estado=p.pagado
+        ?`<span class="badge badge-verde" style="font-size:10px;">✓ Pagado</span>`
+        :p.enRevision?`<span class="badge badge-naranja" style="font-size:10px;">⚠ En revisión</span>`:`<span class="badge badge-gris" style="font-size:10px;">Pendiente</span>`;
+      const comp=p.comprobantePath
+        ?`<span style="cursor:pointer;text-decoration:underline;color:#2563eb;font-size:11px;" onclick="verComprobanteMono('${p.comprobantePath}')">📎 ver comprobante</span>`
+        :'<span class="text-muted" style="font-size:11px;">Sin comprobante</span>';
+      return `<div style="display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--borde);padding:8px 4px;">
+        <div><b>${p.periodo}</b> <span style="font-size:11px;color:var(--texto-suave);">$${total.toLocaleString('es-AR')}</span>${p.enRevision&&p.enRevisionMotivo?`<div style="font-size:10px;color:#92400e;">${p.enRevisionMotivo}</div>`:''}</div>
+        <div style="display:flex;gap:10px;align-items:center;">${comp}${estado}</div>
+      </div>`;
+    }).join('');
+  }
+  abrirModal('modal-hist-pagos-mono');
+}
+window.verHistorialPagosMono = verHistorialPagosMono;
 
 // ── Nueva vigencia de tabla ──
 function abrirModalNuevaVigencia(){

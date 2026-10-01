@@ -5159,6 +5159,7 @@
             <th style="padding:8px;border:1px solid #6b7280;">Motivo</th>
             <th style="padding:8px;border:1px solid #6b7280;">Decidido por</th>
             <th style="padding:8px;border:1px solid #6b7280;text-align:center;">Resultado</th>
+            <th style="padding:8px;border:1px solid #6b7280;text-align:center;">Comprobante</th>
           </tr></thead>
           <tbody id="tbody-mono-hist"></tbody>
         </table>
@@ -5173,6 +5174,7 @@
         <div style="display:flex;gap:8px;align-items:center;">
           <input type="month" id="mono-pagos-mes" onchange="renderMonoPagos()">
           <button class="btn btn-sm btn-secondary" onclick="abrirMesMonoPagos()">📥 Armar lista del mes</button>
+          <button class="btn btn-sm btn-secondary" onclick="subirComprobantesLotePagoMensual()">⬆ Subir comprobantes (varios)</button>
           <button class="btn btn-sm btn-secondary" onclick="exportarMonoPagosCSV()">⬇️ Exportar CSV</button>
         </div>
       </div>
@@ -5196,6 +5198,25 @@
             <th style="padding:8px;border:1px solid #6b7280;text-align:center;"></th>
           </tr></thead>
           <tbody id="tbody-mono-pagos"></tbody>
+        </table>
+      </div>
+    </div>
+    <!-- Carga en lote de comprobantes (ticket "Pago mensual — carga en lote"):
+         comprobantes que no cuadraron por CUIT/período/importe contra
+         ninguna fila de la lista del mes caen acá, con el motivo — nunca se
+         tildan solos, Martina los resuelve a mano (🗑️ descartar) o corrige
+         el dato que corresponda y vuelve a subir el ticket. -->
+    <div class="card" id="mono-card-en-revision" style="margin-top:14px;display:none;">
+      <div class="card-header"><h3>⚠️ En revisión (<span id="mono-en-revision-count">0</span>)</h3></div>
+      <div class="tabla-wrap">
+        <table style="width:100%;border-collapse:collapse;font-size:12px;">
+          <thead><tr style="background:#7c2d12;color:white;">
+            <th style="padding:8px 14px;border:1px solid #92400e;text-align:left;">Asociado / CUIT leído</th>
+            <th style="padding:8px;border:1px solid #92400e;">Comprobante</th>
+            <th style="padding:8px;border:1px solid #92400e;">Motivo</th>
+            <th style="padding:8px;border:1px solid #92400e;text-align:center;"></th>
+          </tr></thead>
+          <tbody id="tbody-mono-en-revision"></tbody>
         </table>
       </div>
     </div>

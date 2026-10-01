@@ -23,6 +23,10 @@ import { SUPA, supaSync } from '@shared/supabase.js';
 import { toast } from '@shared/ui.js';
 import { analizarDocumentoPDF } from '@shared/iaDocumentos.js';
 import { normalizarCuit } from '@modules/proveedores/logica.js';
+// Mismo bucket que ya usa adjuntos.js ('ohlimpia-adjuntos') — obtenerUrlFirmada
+// no depende de la tabla `adjuntos`, solo de un path dentro de ese bucket, así
+// que sirve tal cual para los comprobantes (que no pasan por esa tabla).
+import { obtenerUrlFirmada } from '@shared/adjuntos.js';
 
 const BUCKET_MONO = 'ohlimpia-adjuntos';
 
@@ -35,6 +39,27 @@ export function elegirArchivoComprobante(callback) {
   input.accept = 'application/pdf,image/jpeg,image/png';
   input.onchange = () => { if (input.files[0]) callback(input.files[0]); };
   input.click();
+}
+
+// Igual que elegirArchivoComprobante pero con `multiple` — la tanda entera
+// de tickets de una vez (carga en lote, tab Pago mensual).
+export function elegirVariosArchivosComprobante(callback) {
+  const input = document.createElement('input');
+  input.type = 'file';
+  input.accept = 'application/pdf,image/jpeg,image/png';
+  input.multiple = true;
+  input.onchange = () => { if (input.files.length) callback(Array.from(input.files)); };
+  input.click();
+}
+
+// Abre el comprobante ya subido — mismo patrón que el resto del sistema
+// para "ver" un archivo del bucket privado (obtenerUrlFirmada + window.open),
+// ver p.ej. verAdjuntoConstanciaMtAlta en altas.js.
+export async function verComprobanteMono(path) {
+  if (!path) { toast('⚠️ Este registro no tiene un comprobante adjunto'); return; }
+  const url = await obtenerUrlFirmada(path);
+  if (!url) { toast('⚠️ No se pudo abrir el comprobante'); return; }
+  window.open(url, '_blank');
 }
 
 function _mesActual() {
@@ -210,6 +235,26 @@ export async function confirmarComprobanteBandeja(legajoNro, file) {
   tramite.anulado = true;
   await supaSync('monoTramites', tramite);
 
+  // Historial de cambios (MONOTRIBUTO_v2_mes_en_curso_para_Fede.md §2):
+  // "el registro no se pierde: queda el evento en el tab Historial de
+  // cambios" — mismo shape/tabla que ya usa la recategorización
+  // automática (mono_cambios), con comprobantePath nuevo (v175) para que
+  // el evento tenga el link al PDF. catAnterior=catNueva a propósito: no
+  // es un cambio de categoría, es un alta — el motivo cuenta la historia
+  // real, no se inventa un "cambio" que no existió.
+  const cambioHist = {
+    id: Date.now() + Math.floor(Math.random() * 1000),
+    nombre: registro.nombre, fecha: new Date().toLocaleDateString('es-AR'),
+    catAnterior: registro.categoria, catNueva: registro.categoria,
+    curAnterior: 0, curNuevo: desglose.total, proyeccionAnual: null,
+    motivo: `Alta por bandeja → Padrón · N° socio ${registro.nroSocio} · comprobante ${datosLeidos?.transaccion || path}`,
+    decidoPor: 'Sistema (comprobante verificado)', resultado: 'Aprobado',
+    comprobantePath: path,
+  };
+  DB.monoCambios = DB.monoCambios || [];
+  DB.monoCambios.unshift(cambioHist);
+  await supaSync('monoCambios', cambioHist);
+
   toast(`✅ ${registro.nombre} → monotributo ACTIVO. Comprobante de ${periodo} registrado — salió de la bandeja y entró al Padrón.`);
   _refrescarPantallasMono();
   return { ok: true };
@@ -255,4 +300,91 @@ export async function confirmarComprobantePagoMensual(pagoMesId, file) {
     : '⚠️ En revisión — ' + resultado.motivo + '. No se tildó nada.');
   if (window.renderMonoPagos) window.renderMonoPagos();
   return resultado;
+}
+
+// Fila "en revisión" para un comprobante que no se pudo asociar a NINGUNA
+// fila de la lista del mes (CUIT no reconocido en el padrón, o reconocido
+// pero sin una fila pendiente ese período) — se guarda igual, con
+// nroSocio null, para que Martina lo vea en el panel "En revisión" en vez
+// de perderse.
+async function _registrarEnRevisionSinAsociar({ periodo, path, datosLeidos, motivo }) {
+  const cuitLeido = normalizarCuit(datosLeidos?.cuit);
+  const fila = {
+    id: Date.now() + Math.floor(Math.random() * 1000),
+    periodo, nroSocio: null,
+    nombre: cuitLeido ? `CUIT ${cuitLeido} (no reconocido)` : 'Comprobante ilegible',
+    impIntegradoCongelado: null, sipaCongelado: null, obraSocialCongelado: null, iibbCongelado: null,
+    condicionCongelada: null, categoriaCongelada: null, curCongelado: 0, adherentesMontoCongelado: 0, total: 0,
+    pagado: false, metodoPago: null, pagadoPor: null, pagadoEn: null,
+    comprobantePath: path, comprobanteTransaccion: datosLeidos?.transaccion || '',
+    comprobanteImporteLeido: Number(datosLeidos?.importe) || 0, comprobanteFechaPago: datosLeidos?.fechaPago || null,
+    enRevision: true, enRevisionMotivo: motivo,
+  };
+  if (!DB.monoPagosMes) DB.monoPagosMes = [];
+  DB.monoPagosMes.push(fila);
+  await supaSync('monoPagosMes', fila);
+}
+
+// ── Carga en lote (tab Pago mensual) ──
+// Mismo lector/matcher que confirmarComprobantePagoMensual, pero acá no se
+// sabe de antemano a qué fila corresponde cada PDF — el reparto es por
+// CUIT leído contra el padrón (DB.monotributos) y de ahí a la fila de
+// mono_pagos_mes de ESE período. Todo lo que no cierra (CUIT no
+// reconocido, sin fila pendiente ese mes, período/importe distintos) cae
+// en "en revisión" — nunca se inventa una asociación.
+export async function confirmarComprobantesLotePagoMensual(files, periodo) {
+  const resumen = { tildados: 0, enRevision: 0 };
+  for (const file of files) {
+    let path;
+    try { path = await _subirComprobante('lote', periodo, file); }
+    catch (e) { resumen.enRevision++; await _registrarEnRevisionSinAsociar({ periodo, path: null, motivo: 'No se pudo subir el archivo (' + e.message + ')' }); continue; }
+
+    let datosLeidos;
+    try { datosLeidos = await analizarDocumentoPDF({ tipo: 'comprobante-monotributo', path }); }
+    catch (e) { resumen.enRevision++; await _registrarEnRevisionSinAsociar({ periodo, path, motivo: 'No se pudo leer el PDF (' + e.message + ')' }); continue; }
+
+    const cuitLeido = normalizarCuit(datosLeidos.cuit);
+    const persona = cuitLeido ? (DB.monotributos || []).find(m => normalizarCuit(m.cuit) === cuitLeido) : null;
+    if (!persona) {
+      resumen.enRevision++;
+      await _registrarEnRevisionSinAsociar({
+        periodo, path, datosLeidos,
+        motivo: !cuitLeido ? 'No se pudo leer el CUIT del comprobante' : `El CUIT (${cuitLeido}) no corresponde a ningún monotributista del padrón`,
+      });
+      continue;
+    }
+
+    const fila = (DB.monoPagosMes || []).find(p => p.periodo === periodo && !p.pagado
+      && ((p.nroSocio && persona.nroSocio && String(p.nroSocio) === String(persona.nroSocio)) || (!p.nroSocio && !persona.nroSocio && p.nombre === persona.nombre)));
+    if (!fila) {
+      resumen.enRevision++;
+      await _registrarEnRevisionSinAsociar({
+        periodo, path, datosLeidos,
+        motivo: `${persona.nombre} (CUIT ${cuitLeido}) no tiene una fila pendiente en la lista de ${periodo} — ¿ya está pagado, o falta "Armar lista del mes"?`,
+      });
+      continue;
+    }
+
+    const resultado = matchComprobante(datosLeidos, { cuit: persona.cuit, nombre: persona.nombre, periodoEsperado: periodo, cuotaEsperada: fila.total });
+    fila.comprobantePath = path;
+    fila.comprobanteTransaccion = datosLeidos.transaccion || '';
+    fila.comprobanteImporteLeido = Number(datosLeidos.importe) || 0;
+    fila.comprobanteFechaPago = datosLeidos.fechaPago || null;
+    fila.enRevision = !resultado.ok;
+    fila.enRevisionMotivo = resultado.ok ? null : resultado.motivo;
+    if (resultado.ok) {
+      fila.pagado = true;
+      fila.metodoPago = 'Comprobante';
+      fila.pagadoPor = currentUser?.nombre || '';
+      fila.pagadoEn = new Date().toISOString();
+      resumen.tildados++;
+    } else {
+      resumen.enRevision++;
+    }
+    await supaSync('monoPagosMes', fila);
+  }
+
+  toast(`✓ Lote procesado (${files.length} comprobante${files.length === 1 ? '' : 's'}): ${resumen.tildados} tildado(s), ${resumen.enRevision} en revisión.`);
+  if (window.renderMonoPagos) window.renderMonoPagos();
+  return resumen;
 }
