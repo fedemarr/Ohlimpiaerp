@@ -154,17 +154,22 @@ export function renderMonoPendientes() {
           : '<span class="badge badge-verde" style="font-size:10px;">✔ completos</span>')
       : '<span class="form-hint">—</span>';
 
+    // MONOTRIBUTO_cierre_modulo_para_Fede_1.md §3: "💲 Subir comprobante" es
+    // la puerta de salida al Padrón — tiene que estar en TODA fila, no solo
+    // las que ya vinieron con la Constancia MT (datos completos). Si faltan
+    // los datos, subirComprobanteMonoBandeja() pide los 4 imprescindibles
+    // con un mini-formulario antes de leer el ticket (ver abrirDatosRapidosMono).
+    const btnComprobante = `<button class="btn btn-sm" style="background:#1e7b34;color:#fff;border:none;" onclick="subirComprobanteMonoBandeja('${f.l.nro}')">💲 Subir comprobante</button>`;
     let estado, accion;
     if (tieneDatos) {
       estado = '<span class="badge badge-azul">Con datos — falta comprobante</span>';
-      accion = `<button class="btn btn-sm" style="background:#1e7b34;color:#fff;border:none;" onclick="subirComprobanteMonoBandeja('${f.l.nro}')">💲 Subir comprobante</button>`
-        + ` <button class="btn btn-sm btn-secondary" onclick="abrirMonoTramite('${f.l.nro}')" title="Corregir los datos del alta">✎ Completar datos</button>`;
+      accion = btnComprobante + ` <button class="btn btn-sm btn-secondary" onclick="abrirMonoTramite('${f.l.nro}')" title="Corregir los datos del alta">✎ Completar datos</button>`;
     } else if (f.tramite?.tramitePor) {
       estado = `<span class="badge badge-azul">EN TRÁMITE</span> <span style="font-size:11.5px;color:var(--texto-suave);">${f.tramite.tramitePor || ''} · ${_fmtFecha(f.tramite.tramiteFecha)}${f.diasTramite != null ? ' · hace ' + f.diasTramite + ' d' : ''}</span>`;
-      accion = `<button class="btn btn-sm" style="background:#1e7b34;color:#fff;border:none;" onclick="abrirMonoTramite('${f.l.nro}')">Cargar monotributo</button>`;
+      accion = btnComprobante + ` <button class="btn btn-sm btn-secondary" onclick="abrirMonoTramite('${f.l.nro}')">Cargar monotributo</button>`;
     } else {
       estado = '<span class="badge badge-rojo">SIN INICIAR</span>';
-      accion = `<button class="btn btn-primary btn-sm" onclick="iniciarTramiteMono('${f.l.nro}')">Iniciar trámite</button>`;
+      accion = btnComprobante + ` <button class="btn btn-primary btn-sm" onclick="iniciarTramiteMono('${f.l.nro}')">Iniciar trámite</button>`;
     }
     accion += ` <button class="btn btn-sm btn-secondary" onclick="noVaMonotributoBandeja('${f.l.nro}')" title="No corresponde monotributo">✕</button>`;
 
@@ -239,10 +244,87 @@ export async function cerrarTramiteMono(nro) {
 
 // Botón "💲 Subir comprobante" — Monotributo v2, punto 3. Import dinámico
 // (mismo patrón que legacy.js usa para no acoplar módulos entre sí).
+//
+// MONOTRIBUTO_cierre_modulo_para_Fede_1.md §3: el botón tiene que andar en
+// CUALQUIER fila, tenga o no categoría cargada. El comprobante de pago
+// nunca trae la categoría impresa (y deducirla del importe es ambiguo —
+// investigado, A/B/C pueden dar la misma cuota bajo ciertas condiciones),
+// así que si falta, se pide con un mini-formulario ANTES de elegir el
+// archivo — una sola vez, confirmarComprobanteBandeja() lo guarda en el
+// trámite para la próxima.
 export function subirComprobanteMonoBandeja(legajoNro) {
+  const t = _tramiteDe(legajoNro);
+  if (_tieneDatos(t)) {
+    _elegirYConfirmarComprobante(legajoNro);
+  } else {
+    abrirDatosRapidosMono(legajoNro);
+  }
+}
+
+function _elegirYConfirmarComprobante(legajoNro, datosManual = null) {
   import('@modules/monotributo_comprobantes/comprobantes.js').then(({ elegirArchivoComprobante, confirmarComprobanteBandeja }) => {
-    elegirArchivoComprobante(file => confirmarComprobanteBandeja(legajoNro, file));
+    elegirArchivoComprobante(file => confirmarComprobanteBandeja(legajoNro, file, datosManual));
   });
+}
+
+const _CATEGORIAS_MONO = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K'];
+
+function _ensureModalDatosRapidosMono() {
+  if ($('modal-datos-rapidos-mono')) return;
+  const m = document.createElement('div');
+  m.className = 'modal-overlay';
+  m.id = 'modal-datos-rapidos-mono';
+  m.innerHTML = '<div class="modal" style="max-width:440px;">'
+    + '<div class="modal-header"><h3>💲 Subir comprobante</h3><button class="btn-close" onclick="cerrarModal(\'modal-datos-rapidos-mono\')">×</button></div>'
+    + '<div class="modal-body">'
+      + '<input type="hidden" id="drm-nro">'
+      + '<div id="drm-nombre" style="font-weight:600;margin-bottom:8px;"></div>'
+      + '<div style="font-size:12px;color:var(--texto-suave);margin-bottom:10px;">Todavía no hay categoría cargada para esta persona — completá estos datos para poder validar el comprobante contra la cuota que le corresponde. El resto del alta (fecha de inicio, etc.) se puede completar después.</div>'
+      + '<div class="form-grid form-grid-2">'
+        + '<div class="form-group"><label>Categoría *</label><select id="drm-categoria">' + _CATEGORIAS_MONO.map(c => `<option>${c}</option>`).join('') + '</select></div>'
+        + '<div class="form-group"><label>Zona</label><select id="drm-zona"><option value="provincia">Provincia</option><option value="capital">Capital</option></select></div>'
+      + '</div>'
+      + '<div class="form-grid form-grid-2">'
+        + '<div class="form-group"><label>Condición</label><select id="drm-condicion">'
+          + '<option value="comun">Común</option><option value="asociado_cooperativa">Asociado cooperativa</option><option value="jubilado">Jubilado</option><option value="no_aportante">No aportante</option>'
+        + '</select></div>'
+        + '<div class="form-group"><label>Adherentes</label><input type="number" id="drm-adherentes" min="0" value="0"></div>'
+      + '</div>'
+      + '<label style="display:flex;align-items:center;gap:6px;font-size:13px;margin-top:4px;"><input type="checkbox" id="drm-iibb"> Aporta IIBB</label>'
+    + '</div>'
+    + '<div class="modal-footer">'
+      + '<button class="btn btn-secondary" onclick="cerrarModal(\'modal-datos-rapidos-mono\')">Cancelar</button>'
+      + '<button class="btn btn-primary" onclick="confirmarDatosRapidosMono()">Continuar → elegir comprobante</button>'
+    + '</div>'
+  + '</div>';
+  document.body.appendChild(m);
+}
+
+function abrirDatosRapidosMono(nro) {
+  const l = (DB.legajos || []).find(x => String(x.nro) === String(nro));
+  if (!l) { toast('⚠️ No se encontró el legajo'); return; }
+  _ensureModalDatosRapidosMono();
+  $('drm-nro').value = nro;
+  $('drm-nombre').textContent = `${l.nro} · ${l.nombre}`;
+  $('drm-categoria').selectedIndex = 0;
+  $('drm-zona').value = 'provincia';
+  $('drm-condicion').value = 'comun';
+  $('drm-adherentes').value = '0';
+  $('drm-iibb').checked = false;
+  abrirModal('modal-datos-rapidos-mono');
+}
+
+export function confirmarDatosRapidosMono() {
+  const nro = $('drm-nro').value;
+  const datosManual = {
+    categoria: $('drm-categoria').value,
+    zona: $('drm-zona').value,
+    condicion: $('drm-condicion').value,
+    adherentesCantidad: parseInt($('drm-adherentes').value, 10) || 0,
+    iibbAporta: $('drm-iibb').checked,
+  };
+  cerrarModal('modal-datos-rapidos-mono');
+  _elegirYConfirmarComprobante(nro, datosManual);
 }
 
 // ── Salida "✕ No va a monotributo" (MONOTRIBUTO_cierre_modulo_para_Fede_1.md

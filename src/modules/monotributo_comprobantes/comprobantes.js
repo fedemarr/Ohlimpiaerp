@@ -182,8 +182,37 @@ function _refrescarPantallasMono() {
 // comprobante matchea, esta función la crea ahí y registra el primer
 // período pagado; si no matchea, deja constancia "en revisión" sin tocar
 // el Padrón ni cerrar el trámite (la fila sigue en la bandeja).
-export async function confirmarComprobanteBandeja(legajoNro, file) {
-  const tramite = (DB.monoTramites || []).find(t => !t.anulado && String(t.legajoNro) === String(legajoNro));
+// `datosManual` ({categoria, zona, condicion, adherentesCantidad, iibbAporta})
+// — MONOTRIBUTO_cierre_modulo_para_Fede_1.md §3: el botón tiene que estar
+// disponible en CUALQUIER fila de la bandeja, no solo las que ya vinieron
+// con la Constancia MT cargada. El comprobante de pago NUNCA trae la
+// categoría impresa (solo CUIT/período/importe, ver api/analizar-documento.js
+// 'comprobante-monotributo') y deducirla del importe es ambiguo — la tabla
+// real tiene categorías distintas con la MISMA cuota bajo ciertas
+// condiciones (ej. A/B/C dan el mismo total como "asociado cooperativa").
+// Por eso, si la fila no tiene categoría, el llamador (bandeja.js) junta
+// estos 4 datos con un mini-formulario ANTES de llegar acá — una sola vez,
+// quedan guardados en el trámite para la próxima.
+export async function confirmarComprobanteBandeja(legajoNro, file, datosManual = null) {
+  let tramite = (DB.monoTramites || []).find(t => !t.anulado && String(t.legajoNro) === String(legajoNro));
+  if ((!tramite || !tramite.categoria) && datosManual?.categoria) {
+    const legajoPre = (DB.legajos || []).find(l => String(l.nro) === String(legajoNro));
+    if (!tramite) {
+      tramite = { id: 'MTR' + String(legajoNro), legajoNro: String(legajoNro), nombreAsociado: legajoPre?.nombre || '', anulado: false };
+      DB.monoTramites = DB.monoTramites || [];
+      DB.monoTramites.push(tramite);
+    }
+    // Misma regla de negocio que el resto del módulo: "asociado cooperativa"
+    // es exclusivo de categoría A.
+    let condicion = datosManual.condicion || 'comun';
+    if (condicion === 'asociado_cooperativa' && datosManual.categoria !== 'A') condicion = 'comun';
+    tramite.categoria = datosManual.categoria;
+    tramite.zona = datosManual.zona || 'provincia';
+    tramite.condicion = condicion;
+    tramite.adherentesCantidad = datosManual.adherentesCantidad || 0;
+    tramite.iibbAporta = !!datosManual.iibbAporta;
+    await supaSync('monoTramites', tramite);
+  }
   if (!tramite || !tramite.categoria) {
     toast('⚠️ Esta fila todavía no tiene los datos del monotributo cargados — completá el alta primero');
     return { ok: false };
