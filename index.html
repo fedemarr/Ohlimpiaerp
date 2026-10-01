@@ -4973,7 +4973,6 @@
         <thead><tr><th>N° · Asociado</th><th>CUIT</th><th>Fecha de alta</th><th style="text-align:right;">Días en bandeja</th><th>Fecha límite</th><th>Datos</th><th>Estado del trámite</th><th></th></tr></thead>
         <tbody id="tbody-mono-pendientes"></tbody>
       </table></div>
-      <div class="alerta alerta-info" style="margin:0;border-radius:0 0 var(--radio-lg) var(--radio-lg);font-size:12px;">El alta del asociado siembra el trámite solo: entra a esta bandeja y sale únicamente cuando su monotributo pasa a ACTIVO (entra al Padrón, con el primer comprobante confirmado). "Fecha límite" es el calendario de Martina para pagos fuera de tanda — no bloquea, es editable en la fila. "Faltan datos" no impide asignar fecha límite ni subir el comprobante. "+ Nuevo monotributista" queda para excepciones (histórico, correcciones) y el flujo SIN INICIAR/EN TRÁMITE sigue igual para quien todavía no tiene la constancia.</div>
     </div>
   </div>
 
@@ -5140,8 +5139,20 @@
       <div class="card-header">
         <h3>📜 Historial de cambios</h3>
         <div style="display:flex;gap:8px;align-items:center;">
+          <select id="mono-hist-tipo" onchange="renderHistorialMono()" style="padding:6px 10px;border:1px solid var(--borde-fuerte);border-radius:var(--radio);font-size:13px;outline:none;">
+            <option value="">Todos los tipos</option>
+            <option value="categoria">Categoría</option>
+            <option value="condicion">Condición</option>
+            <option value="adherentes">Adherentes</option>
+            <option value="zona_iibb">Zona / IIBB</option>
+            <option value="alta_bandeja">Alta por bandeja → padrón</option>
+            <option value="no_va_monotributo">No va a monotributo</option>
+            <option value="baja">Baja</option>
+            <option value="estado">Estado</option>
+            <option value="tabla_importada">Tabla importada</option>
+          </select>
           <select id="mono-hist-filtro" onchange="renderHistorialMono()" style="padding:6px 10px;border:1px solid var(--borde-fuerte);border-radius:var(--radio);font-size:13px;outline:none;">
-            <option value="">Todos</option>
+            <option value="">Todos los resultados</option>
             <option value="Aprobado">Aprobados</option>
             <option value="Rechazado">Rechazados</option>
           </select>
@@ -5152,10 +5163,11 @@
           <thead><tr style="background:#374151;color:white;">
             <th style="padding:8px 14px;border:1px solid #6b7280;text-align:left;">Asociado</th>
             <th style="padding:8px;border:1px solid #6b7280;">Fecha</th>
-            <th style="padding:8px;border:1px solid #6b7280;text-align:center;">Cat. anterior</th>
-            <th style="padding:8px;border:1px solid #6b7280;text-align:center;">Cat. nueva</th>
-            <th style="padding:8px;border:1px solid #6b7280;text-align:right;">CUR anterior</th>
-            <th style="padding:8px;border:1px solid #6b7280;text-align:right;">CUR nuevo</th>
+            <th style="padding:8px;border:1px solid #6b7280;">Tipo de cambio</th>
+            <th style="padding:8px;border:1px solid #6b7280;text-align:center;">Antes</th>
+            <th style="padding:8px;border:1px solid #6b7280;text-align:center;">Después</th>
+            <th style="padding:8px;border:1px solid #6b7280;text-align:right;">Cuota anterior</th>
+            <th style="padding:8px;border:1px solid #6b7280;text-align:right;">Cuota nueva</th>
             <th style="padding:8px;border:1px solid #6b7280;">Motivo</th>
             <th style="padding:8px;border:1px solid #6b7280;">Decidido por</th>
             <th style="padding:8px;border:1px solid #6b7280;text-align:center;">Resultado</th>

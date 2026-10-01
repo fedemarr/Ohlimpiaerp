@@ -25,8 +25,8 @@
 
 import { DB, currentUser } from '@shared/state.js';
 import { $ } from '@shared/helpers.js';
-import { supaSync } from '@shared/supabase.js';
-import { toast } from '@shared/ui.js';
+import { supaSync, supaDel } from '@shared/supabase.js';
+import { toast, abrirModal, cerrarModal } from '@shared/ui.js';
 
 function _mesActual() {
   const d = new Date();
@@ -96,7 +96,7 @@ function _estadoLimite(fechaLimite) {
 export function filasBandejaMono() {
   const padron = _enPadron();
   const filas = (DB.legajos || [])
-    .filter(l => l.estado === 'Activo' && !padron.porNro.has(String(l.nro)) && !padron.porNombre.has(_norm(l.nombre)))
+    .filter(l => l.estado === 'Activo' && !l.sinMonotributo && !padron.porNro.has(String(l.nro)) && !padron.porNombre.has(_norm(l.nombre)))
     .map(l => {
       const t = _tramiteDe(l.nro);
       const altaISO = _fechaAltaISO(l);
@@ -166,6 +166,7 @@ export function renderMonoPendientes() {
       estado = '<span class="badge badge-rojo">SIN INICIAR</span>';
       accion = `<button class="btn btn-primary btn-sm" onclick="iniciarTramiteMono('${f.l.nro}')">Iniciar trámite</button>`;
     }
+    accion += ` <button class="btn btn-sm btn-secondary" onclick="noVaMonotributoBandeja('${f.l.nro}')" title="No corresponde monotributo">✕</button>`;
 
     return `<tr>
       <td><b>${f.l.nro}</b> · ${f.l.nombre}</td>
@@ -242,4 +243,96 @@ export function subirComprobanteMonoBandeja(legajoNro) {
   import('@modules/monotributo_comprobantes/comprobantes.js').then(({ elegirArchivoComprobante, confirmarComprobanteBandeja }) => {
     elegirArchivoComprobante(file => confirmarComprobanteBandeja(legajoNro, file));
   });
+}
+
+// ── Salida "✕ No va a monotributo" (MONOTRIBUTO_cierre_modulo_para_Fede_1.md
+// punto 1) ──
+// filasBandejaMono() es derivado de DB.legajos: sin esta marca, un legajo
+// que NO corresponde que tenga monotributo (un registro de prueba, o
+// alguien que de verdad no se va a inscribir) queda "zombie" para siempre
+// — reaparece en cada render porque nunca va a entrar solo al Padrón.
+// Reversible a propósito (sql/v179): guardarMonotributo() en legacy.js
+// limpia la marca si ese nro de socio se vuelve a cargar de verdad.
+const MOTIVOS_NO_VA_MONO = ['No corresponde monotributo', 'Registro de prueba'];
+
+function _ensureModalNoVaMono() {
+  if ($('modal-no-va-mono')) return;
+  const m = document.createElement('div');
+  m.className = 'modal-overlay';
+  m.id = 'modal-no-va-mono';
+  m.innerHTML = '<div class="modal" style="max-width:440px;">'
+    + '<div class="modal-header"><h3>✕ No va a monotributo</h3><button class="btn-close" onclick="cerrarModal(\'modal-no-va-mono\')">×</button></div>'
+    + '<div class="modal-body">'
+      + '<input type="hidden" id="nvm-nro">'
+      + '<div id="nvm-nombre" style="font-weight:600;margin-bottom:10px;"></div>'
+      + '<div class="form-group"><label>Motivo</label>'
+        + '<select id="nvm-motivo" style="width:100%;padding:8px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;">'
+          + MOTIVOS_NO_VA_MONO.map(mo => '<option>' + mo + '</option>').join('')
+        + '</select></div>'
+      + '<div class="form-group" style="margin-top:8px;"><label>Detalle (opcional)</label>'
+        + '<textarea id="nvm-detalle" rows="3" style="width:100%;padding:8px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;box-sizing:border-box;"></textarea></div>'
+      + '<div style="font-size:11.5px;color:var(--texto-suave);margin-top:6px;">Sale de la bandeja. Es reversible: si corresponde, volvé a cargarlo desde "+ Nuevo monotributista".</div>'
+    + '</div>'
+    + '<div class="modal-footer">'
+      + '<button class="btn btn-secondary" onclick="cerrarModal(\'modal-no-va-mono\')">Cancelar</button>'
+      + '<button class="btn btn-danger" onclick="confirmarNoVaMonotributo()">Confirmar</button>'
+    + '</div>'
+  + '</div>';
+  document.body.appendChild(m);
+}
+
+export function noVaMonotributoBandeja(nro) {
+  const l = (DB.legajos || []).find(x => String(x.nro) === String(nro));
+  if (!l) { toast('⚠️ No se encontró el legajo'); return; }
+  _ensureModalNoVaMono();
+  $('nvm-nro').value = nro;
+  $('nvm-nombre').textContent = `${l.nro} · ${l.nombre}`;
+  $('nvm-motivo').selectedIndex = 0;
+  $('nvm-detalle').value = '';
+  abrirModal('modal-no-va-mono');
+}
+
+export async function confirmarNoVaMonotributo() {
+  const nro = $('nvm-nro').value;
+  const l = (DB.legajos || []).find(x => String(x.nro) === String(nro));
+  if (!l) { toast('⚠️ No se encontró el legajo'); return; }
+  const motivo = $('nvm-motivo').value;
+  const detalle = $('nvm-detalle').value.trim();
+
+  l.sinMonotributo = true;
+  l.sinMonotributoMotivo = motivo + (detalle ? ': ' + detalle : '');
+  l.sinMonotributoEn = new Date().toISOString();
+  l.sinMonotributoPor = currentUser?.nombre || 'Admin';
+  // No bloquea ante una falla de guardado (mismo criterio que
+  // actualizarFechaLimiteMono más arriba): la marca ya rige en esta sesión
+  // y sale de la bandeja igual, solo se avisa si no llegó al servidor.
+  const ok = await supaSync('legajos', l);
+  if (!ok) toast('⚠️ No se pudo guardar la marca en el servidor — otros usuarios no van a verla todavía');
+
+  if (motivo === 'Registro de prueba') {
+    // Limpieza de datos de prueba: se borra el trámite si había uno
+    // cargado. No deja evento en el historial — no fue una decisión real
+    // sobre un monotributo, es basura de testeo.
+    const t = _tramiteDe(nro);
+    if (t) {
+      await supaDel('monoTramites', t.id);
+      DB.monoTramites = (DB.monoTramites || []).filter(x => x.id !== t.id);
+    }
+  } else {
+    if (!DB.monoCambios) DB.monoCambios = [];
+    const cambio = {
+      id: Date.now() + Math.floor(Math.random() * 1000),
+      nombre: l.nombre, fecha: new Date().toLocaleDateString('es-AR'),
+      tipo: 'no_va_monotributo',
+      antes: 'Bandeja de pendientes', despues: 'Excluido — ' + motivo,
+      curAnterior: 0, curNuevo: 0, proyeccionAnual: null,
+      motivo: detalle || motivo, decidoPor: currentUser?.nombre || 'Admin', resultado: 'Aprobado',
+    };
+    DB.monoCambios.unshift(cambio);
+    await supaSync('monoCambios', cambio);
+  }
+
+  cerrarModal('modal-no-va-mono');
+  toast(`✅ ${l.nombre} salió de la bandeja de Monotributo.`);
+  renderMonoPendientes();
 }

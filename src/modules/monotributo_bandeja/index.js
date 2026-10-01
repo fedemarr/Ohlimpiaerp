@@ -3,11 +3,13 @@
 import {
   renderMonoPendientes, iniciarTramiteMono, abrirMonoTramite, cerrarTramiteMono, filasBandejaMono,
   actualizarFechaLimiteMono, subirComprobanteMonoBandeja,
+  noVaMonotributoBandeja, confirmarNoVaMonotributo,
 } from './bandeja.js';
 
 export {
   renderMonoPendientes, iniciarTramiteMono, abrirMonoTramite, cerrarTramiteMono, filasBandejaMono,
   actualizarFechaLimiteMono, subirComprobanteMonoBandeja,
+  noVaMonotributoBandeja, confirmarNoVaMonotributo,
 };
 
 window.renderMonoPendientes = renderMonoPendientes;
@@ -16,3 +18,5 @@ window.abrirMonoTramite = abrirMonoTramite;
 window.cerrarTramiteMono = cerrarTramiteMono;
 window.actualizarFechaLimiteMono = actualizarFechaLimiteMono;
 window.subirComprobanteMonoBandeja = subirComprobanteMonoBandeja;
+window.noVaMonotributoBandeja = noVaMonotributoBandeja;
+window.confirmarNoVaMonotributo = confirmarNoVaMonotributo;

@@ -9125,9 +9125,16 @@ if(!DB.monotributos) DB.monotributos = [];
 // [{id, nombre, nroSocio, cuit, categoria, zona('capital'|'provincia'), obraSocial(bool),
 //   cur(monto), fechaAlta, estado, historialCategorias:[{cat, desde, hasta}], obs}]
 
-// Historial de cambios de categoría y CUR
-// DB.monoCambios = [{id, nombre, fecha, catAnterior, catNueva, curAnterior, curNuevo,
-//                   proyeccionAnual, motivo, decidoPor, resultado:'Aprobado'|'Rechazado'}]
+// Historial de cambios de Monotributo (generalizado, v178 — antes solo
+// contemplaba categoría/CUR)
+// DB.monoCambios = [{id, nombre, fecha, tipo('categoria'|'condicion'|
+//                   'adherentes'|'zona_iibb'|'alta_bandeja'|
+//                   'no_va_monotributo'|'baja'|'estado'|'tabla_importada'
+//                   — ausente = 'categoria', dato histórico), catAnterior,
+//                   catNueva, curAnterior, curNuevo, antes, despues
+//                   (genéricos, solo para tipo!=='categoria'),
+//                   proyeccionAnual, motivo, decidoPor,
+//                   resultado:'Aprobado'|'Rechazado'}]
 if(!DB.monoCambios) DB.monoCambios = [];
 
 // Tablas de categorías con vigencia
@@ -11002,7 +11009,15 @@ function renderMonotributos(){
     } else if(fueraCatRow){
       estadoHtml='<span class="badge badge-rojo" style="font-size:10px;">⚠️ Recategorizar</span>';
     } else if(!pago.alDia){
-      estadoHtml=`<span class="badge badge-rojo" style="font-size:10px;">⚠ Debe ${pago.meses.length} mes${pago.meses.length>1?'es':''}</span><div style="font-size:9px;color:var(--texto-suave);margin-top:2px;">${pago.meses.map(_mesLabelCorto).join(' · ')}</div>`;
+      // MONOTRIBUTO_cierre_modulo_para_Fede_1.md §5: listar CADA mes se
+      // vuelve ilegible a partir de 3+ (deuda acumulada real, no un
+      // atraso de uno o dos meses) — a partir de ahí se resume con el mes
+      // más viejo (pago.meses ya viene ordenado cronológicamente desde
+      // estadoPagoReal). Con 1-2 meses se sigue listando igual que antes.
+      const detalleDeuda = pago.meses.length>=3
+        ? `desde ${_mesLabelCorto(pago.meses[0])}`
+        : pago.meses.map(_mesLabelCorto).join(' · ');
+      estadoHtml=`<span class="badge badge-rojo" style="font-size:10px;">⚠ Debe ${pago.meses.length} mes${pago.meses.length>1?'es':''}</span><div style="font-size:9px;color:var(--texto-suave);margin-top:2px;">${detalleDeuda}</div>`;
     } else {
       estadoHtml='<span class="badge badge-verde" style="font-size:10px;">✅ Al día</span>';
     }
@@ -11371,6 +11386,7 @@ function aplicarRecategorizaciones(){
       id: Date.now()+Math.floor(Math.random()*1000),
       nombre: r.nombre,
       fecha,
+      tipo: 'categoria',
       catAnterior: p.catAnterior,
       catNueva: p.catSugerida,
       curAnterior: p.curActual,
@@ -11414,6 +11430,7 @@ function rechazarPropuesta(idxR, catActual, curActual){
     id: Date.now()+Math.floor(Math.random()*1000),
     nombre: r.nombre,
     fecha,
+    tipo: 'categoria',
     catAnterior: catActual,
     catNueva: catActual,
     curAnterior: curActual,
@@ -11470,24 +11487,49 @@ function resolverCasoImport(id){
 }
 
 // ── Historial de cambios ──
+// MONOTRIBUTO_cierre_modulo_para_Fede_1.md §8: de "historial de
+// categorías" a historial de TODO. `tipo` es nuevo (v178) — los registros
+// viejos no lo tienen y se tratan como 'categoria' (lo que siempre
+// fueron), así nada de lo ya guardado queda huérfano. Para tipo='categoria'
+// el ANTES/DESPUÉS sigue leyendo catAnterior/catNueva (compatibilidad); para
+// el resto lee los campos genéricos antes/despues nuevos.
+const MONO_TIPO_LABEL={
+  categoria:'Categoría', condicion:'Condición', adherentes:'Adherentes',
+  zona_iibb:'Zona / IIBB', alta_bandeja:'Alta por bandeja → padrón',
+  no_va_monotributo:'No va a monotributo', baja:'Baja', estado:'Estado',
+  tabla_importada:'Tabla importada',
+};
 function renderHistorialMono(){
-  const filtro = $('mono-hist-filtro')?.value||'';
-  const rows = (DB.monoCambios||[]).filter(r=>!filtro||r.resultado===filtro);
+  const filtroResultado = $('mono-hist-filtro')?.value||'';
+  const filtroTipo = $('mono-hist-tipo')?.value||'';
+  const rows = (DB.monoCambios||[]).filter(r=>{
+    const tipo=r.tipo||'categoria';
+    return (!filtroResultado||r.resultado===filtroResultado) && (!filtroTipo||tipo===filtroTipo);
+  });
   const tbody = $('tbody-mono-hist'); if(!tbody) return;
   if(!rows.length){
-    tbody.innerHTML=`<tr><td colspan="10" style="padding:40px;text-align:center;color:var(--texto-muy-suave);">Sin registros en el historial.</td></tr>`;
+    tbody.innerHTML=`<tr><td colspan="11" style="padding:40px;text-align:center;color:var(--texto-muy-suave);">Sin registros en el historial.</td></tr>`;
     return;
   }
   const resColor={'Aprobado':'badge-verde','Rechazado':'badge-rojo'};
-  tbody.innerHTML = rows.map(r=>`<tr>
-    <td style="padding:6px 14px;border:1px solid var(--borde);font-weight:500;">${r.nombre}</td>
+  tbody.innerHTML = rows.map(r=>{
+    const tipo=r.tipo||'categoria';
+    const esCategoria=tipo==='categoria';
+    const antes=esCategoria?r.catAnterior:(r.antes??'—');
+    const despues=esCategoria?r.catNueva:(r.despues??'—');
+    const huboCambio=String(antes)!==String(despues);
+    return `<tr>
+    <td style="padding:6px 14px;border:1px solid var(--borde);font-weight:500;">${r.nombre||'—'}</td>
     <td style="padding:6px 8px;border:1px solid var(--borde);font-size:11px;">${r.fecha}</td>
-    <td style="padding:6px 8px;border:1px solid var(--borde);text-align:center;">
-      <span style="background:#6b7280;color:white;font-weight:700;border-radius:6px;padding:2px 8px;">${r.catAnterior}</span>
+    <td style="padding:6px 8px;border:1px solid var(--borde);font-size:11px;">
+      <span class="badge badge-azul" style="font-size:10px;">${MONO_TIPO_LABEL[tipo]||tipo}</span>
     </td>
     <td style="padding:6px 8px;border:1px solid var(--borde);text-align:center;">
-      ${r.catNueva!==r.catAnterior
-        ?`<span style="background:#1d4ed8;color:white;font-weight:700;border-radius:6px;padding:2px 8px;">${r.catNueva}</span>`
+      <span style="background:#6b7280;color:white;font-weight:700;border-radius:6px;padding:2px 8px;font-size:11px;">${antes}</span>
+    </td>
+    <td style="padding:6px 8px;border:1px solid var(--borde);text-align:center;">
+      ${huboCambio
+        ?`<span style="background:#1d4ed8;color:white;font-weight:700;border-radius:6px;padding:2px 8px;font-size:11px;">${despues}</span>`
         :`<span style="color:var(--texto-suave);font-size:11px;">Sin cambio</span>`}
     </td>
     <td style="padding:6px 8px;border:1px solid var(--borde);text-align:right;font-size:11px;">$${(r.curAnterior||0).toLocaleString('es-AR')}</td>
@@ -11502,7 +11544,8 @@ function renderHistorialMono(){
     <td style="padding:6px 8px;border:1px solid var(--borde);text-align:center;">
       ${r.comprobantePath?`<span style="cursor:pointer;text-decoration:underline;color:#2563eb;font-size:11px;" onclick="verComprobanteMono('${r.comprobantePath}')">📎 ver</span>`:'<span class="text-muted">—</span>'}
     </td>
-  </tr>`).join('');
+  </tr>`;
+  }).join('');
 }
 
 // ══════════════════════════════════════════════════════════
@@ -12260,9 +12303,15 @@ function confirmarImportPadronRRHH(){
         persona.estado=estado;
         if(estado!==estadoAnterior&&motivoEstado){
           if(!DB.monoCambios) DB.monoCambios=[];
+          // v178: antes esto se taggeaba como tipo 'categoria' con
+          // catAnterior===catNueva (un cambio de ESTADO, no de categoría,
+          // quedaba sin distinguirse en el historial). Ahora usa tipo
+          // propio ('baja' o 'estado') + antes/despues genéricos.
           DB.monoCambios.unshift({
             id:Date.now()+Math.floor(Math.random()*1000),
             nombre:persona.nombre, fecha:new Date().toLocaleDateString('es-AR'),
+            tipo: estado==='Baja'?'baja':'estado',
+            antes: estadoAnterior||'—', despues: estado,
             catAnterior:persona.categoria, catNueva:persona.categoria,
             curAnterior:0, curNuevo:0, proyeccionAnual:0,
             motivo:motivoEstado, decidoPor:currentUser?.nombre||'Admin',
@@ -12972,6 +13021,18 @@ function guardarMonotributo(){
   else DB.monotributos.push(registro);
   cerrarModal('modal-monotributo');
   supaSync('monotributos', registro); toast('✅ Monotributista guardado');
+  // v179 — anti-resembrado: si este nro de socio había quedado marcado
+  // "sin monotributo" (bandeja_no_va_monotributo) y ahora se está cargando
+  // de verdad, la marca queda vieja — se limpia para que no interfiera si
+  // el día de mañana esta persona vuelve a salir del Padrón.
+  if(registro.nroSocio){
+    const legResembrado=(DB.legajos||[]).find(l=>String(l.nro)===String(registro.nroSocio));
+    if(legResembrado && legResembrado.sinMonotributo){
+      legResembrado.sinMonotributo=false; legResembrado.sinMonotributoMotivo=null;
+      legResembrado.sinMonotributoEn=null; legResembrado.sinMonotributoPor=null;
+      supaSync('legajos', legResembrado);
+    }
+  }
   renderMonotributos();
   // Desde la bandeja: pasa a ACTIVO → sale de Pendientes y entra al Padrón.
   if(_monoPre && window.cerrarTramiteMono){ window.cerrarTramiteMono(_monoPre.nro); toast('✅ '+registro.nombre+' → monotributo ACTIVO — salió de la bandeja y entró al Padrón'); }

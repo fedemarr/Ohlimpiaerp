@@ -239,12 +239,13 @@ export async function confirmarComprobanteBandeja(legajoNro, file) {
   // "el registro no se pierde: queda el evento en el tab Historial de
   // cambios" — mismo shape/tabla que ya usa la recategorización
   // automática (mono_cambios), con comprobantePath nuevo (v175) para que
-  // el evento tenga el link al PDF. catAnterior=catNueva a propósito: no
-  // es un cambio de categoría, es un alta — el motivo cuenta la historia
-  // real, no se inventa un "cambio" que no existió.
+  // el evento tenga el link al PDF. tipo='alta_bandeja' (v178): no es un
+  // cambio de categoría, es un alta — antes/despues cuentan la historia
+  // real en vez de simular catAnterior=catNueva.
   const cambioHist = {
     id: Date.now() + Math.floor(Math.random() * 1000),
     nombre: registro.nombre, fecha: new Date().toLocaleDateString('es-AR'),
+    tipo: 'alta_bandeja', antes: 'Bandeja de pendientes', despues: `Padrón — Cat. ${registro.categoria}`,
     catAnterior: registro.categoria, catNueva: registro.categoria,
     curAnterior: 0, curNuevo: desglose.total, proyeccionAnual: null,
     motivo: `Alta por bandeja → Padrón · N° socio ${registro.nroSocio} · comprobante ${datosLeidos?.transaccion || path}`,

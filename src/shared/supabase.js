@@ -345,6 +345,9 @@ export function _toSnake(obj) {
     // Monotributos / Uniformes / Retenciones
     nroSocio: 'nro_socio', fechaAlta: 'fecha_alta', historialCategorias: 'historial_categorias',
     fechaLiberacion: 'fecha_liberacion',
+    // v179 — Legajos: marca "sin monotributo" (anti-resembrado de la bandeja)
+    sinMonotributo: 'sin_monotributo', sinMonotributoMotivo: 'sin_monotributo_motivo',
+    sinMonotributoEn: 'sin_monotributo_en', sinMonotributoPor: 'sin_monotributo_por',
     // v080 — Monotributo completo
     curManual: 'cur_manual', adherentesCantidad: 'adherentes_cantidad', adherentesMonto: 'adherentes_monto',
     catAnterior: 'cat_anterior', catNueva: 'cat_nueva', curAnterior: 'cur_anterior', curNuevo: 'cur_nuevo',
@@ -926,6 +929,9 @@ export function _toCamel(obj) {
     // Monotributos / Uniformes / Retenciones
     nro_socio: 'nroSocio', fecha_alta: 'fechaAlta', historial_categorias: 'historialCategorias',
     fecha_liberacion: 'fechaLiberacion',
+    // v179 — Legajos: marca "sin monotributo" (anti-resembrado de la bandeja)
+    sin_monotributo: 'sinMonotributo', sin_monotributo_motivo: 'sinMonotributoMotivo',
+    sin_monotributo_en: 'sinMonotributoEn', sin_monotributo_por: 'sinMonotributoPor',
     // v080 — Monotributo completo
     cur_manual: 'curManual', adherentes_cantidad: 'adherentesCantidad', adherentes_monto: 'adherentesMonto',
     cat_anterior: 'catAnterior', cat_nueva: 'catNueva', cur_anterior: 'curAnterior', cur_nuevo: 'curNuevo',
