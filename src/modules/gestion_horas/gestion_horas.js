@@ -225,12 +225,24 @@ export function renderGestionHoras() {
   const hoy = mesActualStr();
   const q = ($('hor-buscar')?.value || '').toLowerCase();
 
-  let h1 = '<tr><th class="svc" rowspan="2" style="text-align:left;">Servicio / Cliente</th>';
-  let h2 = '<tr>';
+  // FIX (ticket "sticky header + alineación", 01/10/2026): el thead tiene 2
+  // filas (meses arriba, HS/Δ abajo) — la regla genérica .tabla-wrap thead
+  // th les daba top:0 a las DOS por igual, así que al scrollear la fila de
+  // HS/Δ quedaba pintada ENCIMA de la de meses en la misma posición (no es
+  // que el sticky fallara, es que una tapaba a la otra). Clases
+  // hor-thead-r1/r2 para que el CSS scopeado (#screen-gestion_horas) les dé
+  // un `top` distinto y las apile en vez de superponerlas — mismo patrón
+  // que ya usa Gestión de precios (.mes-grp/.sub en main.css).
+  let h1 = '<tr class="hor-thead-r1"><th class="svc" rowspan="2" style="text-align:left;">Servicio / Cliente</th>';
+  let h2 = '<tr class="hor-thead-r2">';
   meses.forEach(m => {
     const comp = composicionMes(m);
     h1 += `<th colspan="2">${mesLabel(m)}<div style="font-weight:400;font-size:9.5px;color:var(--texto-suave);text-transform:none;letter-spacing:0;">${comp.habiles} háb${comp.feriados ? ' · ' + comp.feriados + ' fer' : ''}</div></th>`;
-    h2 += '<th>HS</th><th>Δ</th>';
+    // text-align:right a propósito: coincide con el align de las celdas de
+    // datos (gestion_horas.js, hs/Δ más abajo) — antes el header heredaba
+    // text-align:left de la regla genérica "thead th" y quedaba pegado a la
+    // izquierda mientras los valores quedaban a la derecha.
+    h2 += '<th style="text-align:right;">HS</th><th style="text-align:right;">Δ</th>';
   });
   thead.innerHTML = h1 + '</tr>' + h2 + '</tr>';
 

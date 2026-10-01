@@ -1112,6 +1112,21 @@ thead .acc-mod { z-index: 3; }
    colores que el mockup: negro = real, gris = proyectado, naranja =
    vigencia nueva ese mes. */
 #screen-gestion_horas th.svc, #screen-gestion_horas td.svc { text-align: left; min-width: 200px; }
+/* FIX sticky header de 2 filas (ticket 01/10/2026): la regla genérica
+   .tabla-wrap thead th (línea ~137) le da top:0 a TODAS las filas del
+   thead por igual — acá hay 2 (meses arriba, HS/Δ abajo), así que al
+   scrollear la fila de abajo quedaba pintada encima de la de arriba en la
+   misma posición ("los meses desaparecen"). Mismo patrón ya usado en
+   Gestión de precios (#screen-precios .mes-grp/.sub): altura FIJA en
+   border-box en la fila 1 para que el `top` de la fila 2 la iguale exacto
+   y no se superpongan. */
+/* top:52px medido contra el alto real de la fila 1 (2 líneas: mes +
+   "N háb · M fer" — ~51px con el padding/tipografía actuales, confirmado
+   en el navegador). Si el contenido de esa fila cambia de tamaño en el
+   futuro, hay que re-medir este valor — no hay forma 100% robusta de
+   apilar 2 filas sticky sin fijar el alto de la primera en algún lado. */
+#screen-gestion_horas #hor-thead tr.hor-thead-r1 th { top: 0; vertical-align: top; }
+#screen-gestion_horas #hor-thead tr.hor-thead-r2 th { top: 52px; }
 #screen-gestion_horas .hor-fut { color: var(--texto-muy-suave); font-style: italic; }
 #screen-gestion_horas .hor-vg { background: #fdebd7 !important; color: #b25b00; }
 #screen-gestion_horas tr.hor-tot td { background: var(--azul-claro); font-weight: 700; color: var(--azul); border-top: 2px solid var(--borde-fuerte); }
