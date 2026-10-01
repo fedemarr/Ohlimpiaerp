@@ -132,6 +132,19 @@ test('Carga en lote: reparte por CUIT, tilda lo que cuadra y manda a "En revisi�
   await expect(page.locator('#tbody-mono-en-revision')).toContainText('Lote Mal Test');
   await expect(page.locator('#tbody-mono-en-revision')).toContainText('994302');
   await expect(page.locator('#tbody-mono-pagos')).not.toContainText('Lote Mal Test');
+
+  // PAGO_MENSUAL_kpis_lote_para_Fede.md §1: los 4 KPIs + la barra reflejan
+  // la MISMA lista visible. "Lote Mal Test" pasó a enRevision EN SU PROPIA
+  // fila (no se crea una aparte) — "En la lista" cuenta solo lo que queda
+  // en la tabla principal: únicamente "Lote Ok Test".
+  await expect(page.locator('#mono-kpi-tot')).toHaveText('1');
+  await expect(page.locator('#mono-kpi-tot-m')).toHaveText('$49.527,18');
+  await expect(page.locator('#mono-kpi-pag')).toHaveText('1');
+  await expect(page.locator('#mono-kpi-pag-m')).toHaveText('$49.527,18');
+  await expect(page.locator('#mono-kpi-res')).toHaveText('0');
+  await expect(page.locator('#mono-kpi-res-m')).toHaveText('$0,00');
+  await expect(page.locator('#mono-kpi-rev')).toHaveText('2');
+  await expect(page.locator('#mono-pagos-prog-lbl')).toHaveText('1 de 1 pagados · 100%');
 });
 
 test('El chip de comprobante es clickeable en Pago mensual, en "En revisión" y en el historial de pagos de la ficha', async ({ page }) => {

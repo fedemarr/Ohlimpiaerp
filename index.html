@@ -5168,6 +5168,15 @@
   </div>
 
   <div id="mono-tab-pagos" class="tab-content" style="padding-top:0;">
+    <!-- PAGO_MENSUAL_kpis_lote_para_Fede.md §1: 4 KPIs (cantidad + monto) +
+         barra de progreso, recalculados en vivo con cada tilde (manual, por
+         fila o por lote) — ver actualizarKpisMonoPagos() en legacy.js. -->
+    <div class="stats-grid" style="margin-top:14px;">
+      <div class="stat-card azul"><div class="stat-label">En la lista</div><div class="stat-valor" id="mono-kpi-tot">0</div><div class="stat-sub" id="mono-kpi-tot-m">$0</div></div>
+      <div class="stat-card verde"><div class="stat-label">✔ Pagados</div><div class="stat-valor" id="mono-kpi-pag">0</div><div class="stat-sub" id="mono-kpi-pag-m">$0</div></div>
+      <div class="stat-card rojo"><div class="stat-label">Restan</div><div class="stat-valor" id="mono-kpi-res">0</div><div class="stat-sub" id="mono-kpi-res-m">$0</div></div>
+      <div class="stat-card acento"><div class="stat-label">⚠ En revisión</div><div class="stat-valor" id="mono-kpi-rev">0</div><div class="stat-sub">comprobantes sin cuadrar</div></div>
+    </div>
     <div class="card" style="margin-top:0;border-radius:0 var(--radio-lg) var(--radio-lg) var(--radio-lg);">
       <div class="card-header">
         <h3>💳 Pago de monotributos del mes</h3>
@@ -5180,6 +5189,10 @@
       </div>
       <div class="alerta alerta-info" style="margin:0 20px 12px;font-size:12px;">
         Monotributo v2 (se paga en el MES EN CURSO): "Armar lista del mes" trae del padrón a TODOS los activos no dados de baja — ya no depende de quién cargó horas en Liquidación de horas ese período. Calcula el DESGLOSE completo de la cuota de ESTE mes (20 impuesto integrado · 21 SIPA · 24 obra social con adherentes · IIBB unificado). Mientras una fila NO esté tildada como pagada, cada vez que volvés a "Armar lista" se recalcula con los datos vigentes del padrón (por si corregiste una categoría/condición) — recién queda congelada de verdad al tildarla pagada. Subí el comprobante de cada uno (de a uno o en lote): el sistema lee CUIT/período/importe y tilda solo lo que cuadra; lo que no cuadra queda "En revisión", sin tocar nada.
+      </div>
+      <div style="margin:0 20px 14px;">
+        <div style="font-size:11px;color:var(--texto-suave);margin-bottom:3px;" id="mono-pagos-prog-lbl">0 de 0 pagados · 0%</div>
+        <div style="height:9px;background:var(--borde);border-radius:5px;overflow:hidden;"><div id="mono-pagos-prog-bar" style="height:100%;width:0%;background:var(--verde);border-radius:5px;transition:width .3s;"></div></div>
       </div>
       <div class="tabla-wrap">
         <table style="width:100%;border-collapse:collapse;font-size:12px;">

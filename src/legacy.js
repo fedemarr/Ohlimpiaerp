@@ -11630,12 +11630,36 @@ function eliminarMonoPagoMes(id){
 // (renderMonoEnRevisionPagos) — la lista principal queda solo con lo
 // resuelto (pagado o pendiente de subir ticket), Martina no tiene que
 // escanear el badge naranja mezclado entre las filas normales.
+// PAGO_MENSUAL_kpis_lote_para_Fede.md §1: 4 KPIs (cantidad + MONTO) + barra
+// de progreso, recalculados en vivo con cada tilde (manual, por fila o por
+// lote) — se llama desde renderMonoPagos(), nunca desde otro lado, así que
+// siempre refleja la MISMA lista que se ve en pantalla (nada que recalcular
+// aparte). `rows` ya excluye "en revisión" (esas tienen su propio KPI).
+function actualizarKpisMonoPagos(rows, enRevisionCount){
+  const money=n=>'$'+(n||0).toLocaleString('es-AR',{minimumFractionDigits:2,maximumFractionDigits:2});
+  const totalDe=p=>p.total||p.curCongelado||0;
+  const tot=rows.length, totM=rows.reduce((s,p)=>s+totalDe(p),0);
+  const pagadas=rows.filter(p=>p.pagado);
+  const pag=pagadas.length, pagM=pagadas.reduce((s,p)=>s+totalDe(p),0);
+  const res=tot-pag, resM=totM-pagM;
+  if($('mono-kpi-tot')) $('mono-kpi-tot').textContent=tot;
+  if($('mono-kpi-tot-m')) $('mono-kpi-tot-m').textContent=money(totM);
+  if($('mono-kpi-pag')) $('mono-kpi-pag').textContent=pag;
+  if($('mono-kpi-pag-m')) $('mono-kpi-pag-m').textContent=money(pagM);
+  if($('mono-kpi-res')) $('mono-kpi-res').textContent=res;
+  if($('mono-kpi-res-m')) $('mono-kpi-res-m').textContent=money(resM);
+  if($('mono-kpi-rev')) $('mono-kpi-rev').textContent=enRevisionCount||0;
+  const pct=tot?Math.round(pag/tot*100):0;
+  if($('mono-pagos-prog-lbl')) $('mono-pagos-prog-lbl').textContent=`${pag} de ${tot} pagados · ${pct}%`;
+  if($('mono-pagos-prog-bar')) $('mono-pagos-prog-bar').style.width=pct+'%';
+}
 function renderMonoPagos(){
   const mes=_mesMonoPagosSel();
   const tbody=$('tbody-mono-pagos'); if(!tbody) return;
   const todas=(DB.monoPagosMes||[]).filter(p=>p.periodo===mes);
   const rows=todas.filter(p=>!p.enRevision).sort((a,b)=>a.nombre.localeCompare(b.nombre));
   renderMonoEnRevisionPagos(todas.filter(p=>p.enRevision));
+  actualizarKpisMonoPagos(rows, todas.filter(p=>p.enRevision).length);
   if(!rows.length){
     tbody.innerHTML=`<tr><td colspan="11" style="padding:40px;text-align:center;color:var(--texto-muy-suave);">Sin lista armada para ${mes}. Usá "📥 Armar lista del mes".</td></tr>`;
     return;
