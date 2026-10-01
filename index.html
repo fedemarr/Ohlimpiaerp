@@ -5468,7 +5468,7 @@
     <button class="tab-btn" id="pp-tab-btn-catalogo" onclick="tabPP('catalogo',this)">🧴 Catálogo</button>
     <button class="tab-btn" id="pp-tab-btn-periodos" onclick="tabPP('periodos',this)">📅 Períodos</button>
     <button class="tab-btn" id="pp-tab-btn-mispedidos" onclick="tabPP('mispedidos',this)">📋 Mis pedidos</button>
-    <button class="tab-btn" id="pp-tab-btn-auditoria" onclick="tabPP('auditoria',this)">👤 Bandeja del auditor</button>
+    <button class="tab-btn" id="pp-tab-btn-auditoria" onclick="tabPP('auditoria',this)">👤 Bandeja del auditor <span id="pp-badge-auditoria" style="display:none;background:var(--rojo,#dc2626);color:#fff;border-radius:10px;font-size:10.5px;padding:1px 7px;margin-left:4px;">0</span></button>
     <button class="tab-btn" id="pp-tab-btn-compras" onclick="tabPP('compras',this)">🛒 Compras</button>
     <button class="tab-btn" id="pp-tab-btn-entregas" onclick="tabPP('entregas',this)">🚚 Entregas</button>
     <button class="tab-btn" id="pp-tab-btn-recargos" onclick="tabPP('recargos',this)">📈 Recargos</button>
@@ -5563,43 +5563,54 @@
   </div>
 
   <div id="pp-tab-auditoria" class="tab-content">
-    <div class="card" style="margin-top:0;border-radius:0 var(--radio-lg) var(--radio-lg) var(--radio-lg);">
-      <div class="card-header">
-        <h3>👤 Bandeja del auditor</h3>
-        <div class="filtros-bar">
-          <select id="pp-aud-periodo-sel" onchange="renderAuditoriaPP()"></select>
-        </div>
+    <div class="filtros-bar" style="margin-bottom:10px;">
+      <label style="font-size:12.5px;color:var(--texto-suave);">Período: <select id="pp-aud-periodo-sel" onchange="renderAuditoriaPP()"></select></label>
+    </div>
+    <!-- BANDEJA_AUDITOR_subtabs_para_Fede.md: "Pasaron directo a Compras"
+         deja de vivir en el medio de la pantalla y pasa a ser el subtab 2,
+         informativo. Mismo patrón .subtabs/.stab/.sub ya usado en Compras. -->
+    <div class="subtabs">
+      <span class="stab act" data-asub="para_revisar" onclick="subTabAuditoriaPP('para_revisar',this)">📥 Para revisar</span>
+      <span class="stab" data-asub="pagan" onclick="subTabAuditoriaPP('pagan',this)">👁 Servicios que pagan (informativo)</span>
+    </div>
+
+    <div class="sub act" id="pp-auditoria-sub-para_revisar">
+      <div class="card" style="margin-top:0;border-radius:var(--radio-lg);">
+        <div class="card-header"><h3>👤 Bandeja del auditor</h3></div>
+        <p style="font-size:12px;color:var(--texto-suave);padding:0 20px 10px;">Acá caen <b>solo los pedidos NO PAGAN</b> — los que consume la cooperativa, que se revisan siempre estén dentro o fuera del presupuesto. <b>Los PAGAN nunca pasan por acá, ni aunque excedan el 6%</b>: si el cliente factura los productos, el exceso lo paga el cliente y no hay nada que auditar — ver subtab "Servicios que pagan". La tabla se ordena sola: primero los que exceden el presupuesto, del mayor desvío al menor. Tocá la fila para revisar.</p>
+        <div class="tabla-wrap"><table style="width:100%;border-collapse:collapse;font-size:12.5px;">
+          <thead><tr style="background:#374151;color:white;">
+            <th style="padding:8px 12px;text-align:left;">Servicio</th><th style="padding:8px 12px;">Supervisor</th><th style="padding:8px 12px;text-align:left;">Motivo</th>
+            <th style="padding:8px 12px;">Presupuesto (costo)</th><th style="padding:8px 12px;">Pedido (costo)</th><th style="padding:8px 12px;">%</th>
+          </tr></thead>
+          <tbody id="tbody-pp-auditoria"></tbody>
+        </table></div>
       </div>
-      <p style="font-size:12px;color:var(--texto-suave);padding:0 20px 10px;">Acá caen <b>solo los pedidos NO PAGAN</b> — los que consume la cooperativa, que se revisan siempre estén dentro o fuera del presupuesto. <b>Los PAGAN nunca pasan por acá, ni aunque excedan el 6%</b>: si el cliente factura los productos, el exceso lo paga el cliente y no hay nada que auditar. Van directo a Compras y quedan listados abajo, solo para control. La tabla se ordena sola: primero los que exceden el presupuesto, del mayor desvío al menor. Tocá la fila para revisar.</p>
-      <div class="tabla-wrap"><table style="width:100%;border-collapse:collapse;font-size:12.5px;">
-        <thead><tr style="background:#374151;color:white;">
-          <th style="padding:8px 12px;text-align:left;">Servicio</th><th style="padding:8px 12px;">Supervisor</th><th style="padding:8px 12px;text-align:left;">Motivo</th>
-          <th style="padding:8px 12px;">Presupuesto (costo)</th><th style="padding:8px 12px;">Pedido (costo)</th><th style="padding:8px 12px;">%</th>
-        </tr></thead>
-        <tbody id="tbody-pp-auditoria"></tbody>
-      </table></div>
+      <div class="card" style="border-radius:var(--radio-lg);">
+        <div class="card-header"><h3>Resueltos este período</h3></div>
+        <p style="font-size:12px;color:var(--texto-suave);padding:0 20px 10px;">Pedidos que pasaron por la bandeja y ya se aprobaron — tocá la fila para ver el historial completo con el diff de cada paso.</p>
+        <div class="tabla-wrap"><table style="width:100%;border-collapse:collapse;font-size:12.5px;">
+          <thead><tr style="background:#374151;color:white;">
+            <th style="padding:8px 12px;text-align:left;">Servicio</th><th style="padding:8px 12px;">Supervisor</th><th style="padding:8px 12px;text-align:left;">Motivo</th>
+            <th style="padding:8px 12px;text-align:left;">Resolución</th><th style="padding:8px 12px;">Monto</th><th style="padding:8px 12px;">Fecha</th>
+          </tr></thead>
+          <tbody id="tbody-pp-auditoria-resueltos"></tbody>
+        </table></div>
+      </div>
     </div>
-    <div class="card" style="border-radius:var(--radio-lg);">
-      <div class="card-header"><h3>Pasaron directo a Compras (PAGAN — sin intervención del auditor)</h3></div>
-      <p style="font-size:12px;color:var(--texto-suave);padding:0 20px 10px;">Registro de control: qué pasó de largo y por cuánto. El % es informativo — no bloquea nada.</p>
-      <div class="tabla-wrap"><table style="width:100%;border-collapse:collapse;font-size:12.5px;">
-        <thead><tr style="background:#374151;color:white;">
-          <th style="padding:8px 12px;text-align:left;">Servicio</th><th style="padding:8px 12px;">Supervisor</th>
-          <th style="padding:8px 12px;">Presupuesto (costo)</th><th style="padding:8px 12px;">Pedido (costo)</th><th style="padding:8px 12px;">%</th><th style="padding:8px 12px;text-align:left;">Confirmado</th>
-        </tr></thead>
-        <tbody id="tbody-pp-auditoria-directo"></tbody>
-      </table></div>
-    </div>
-    <div class="card" style="border-radius:var(--radio-lg);">
-      <div class="card-header"><h3>Resueltos este período</h3></div>
-      <p style="font-size:12px;color:var(--texto-suave);padding:0 20px 10px;">Pedidos que pasaron por la bandeja y ya se aprobaron — tocá la fila para ver el historial completo con el diff de cada paso.</p>
-      <div class="tabla-wrap"><table style="width:100%;border-collapse:collapse;font-size:12.5px;">
-        <thead><tr style="background:#374151;color:white;">
-          <th style="padding:8px 12px;text-align:left;">Servicio</th><th style="padding:8px 12px;">Supervisor</th><th style="padding:8px 12px;text-align:left;">Motivo</th>
-          <th style="padding:8px 12px;text-align:left;">Resolución</th><th style="padding:8px 12px;">Monto</th><th style="padding:8px 12px;">Fecha</th>
-        </tr></thead>
-        <tbody id="tbody-pp-auditoria-resueltos"></tbody>
-      </table></div>
+
+    <div class="sub" id="pp-auditoria-sub-pagan">
+      <div class="card" style="margin-top:0;border-radius:var(--radio-lg);">
+        <div class="card-header"><h3>👁 Servicios que pagan (informativo)</h3></div>
+        <p style="font-size:12px;color:var(--texto-suave);padding:0 20px 10px;"><b>Solo lectura — acá no se revisa ni se ajusta nada.</b> Los pedidos de servicios que FACTURAN los productos van directo a Compras sin pasar por el auditor: si exceden el presupuesto, el exceso lo paga el cliente. Esta lista es puro registro de control — el % es informativo, no bloquea nada, no genera alertas ni suma al contador de la bandeja.</p>
+        <div class="tabla-wrap"><table style="width:100%;border-collapse:collapse;font-size:12.5px;">
+          <thead><tr style="background:#374151;color:white;">
+            <th style="padding:8px 12px;text-align:left;">Servicio</th><th style="padding:8px 12px;">Supervisor</th>
+            <th style="padding:8px 12px;">Presupuesto (costo)</th><th style="padding:8px 12px;">Pedido (costo)</th><th style="padding:8px 12px;">%</th><th style="padding:8px 12px;text-align:left;">Confirmado</th>
+          </tr></thead>
+          <tbody id="tbody-pp-auditoria-directo"></tbody>
+        </table></div>
+      </div>
     </div>
   </div>
 

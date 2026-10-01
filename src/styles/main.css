@@ -248,6 +248,11 @@ tbody tr{cursor:pointer;transition:background .1s;}
 .stab:hover{background:var(--borde);}
 .stab.act{background:var(--azul);color:#fff;}
 #pp-tab-compras .sub{display:none;}#pp-tab-compras .sub.act{display:block;}
+/* BANDEJA_AUDITOR_subtabs_para_Fede.md — mismo patrón de .stab/.sub que
+   Compras, scopeado acá también (NO es automático: Entregas usa las mismas
+   clases con subTabEntregasPP pero nunca tuvo esta regla, bug latente sin
+   detectar — no replicar ese caso). */
+#pp-tab-auditoria .sub{display:none;}#pp-tab-auditoria .sub.act{display:block;}
 
 /* FILTROS */
 .filtros-bar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;}

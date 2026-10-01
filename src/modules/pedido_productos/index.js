@@ -9,7 +9,7 @@ export {
   abrirDetallePeriodoPP, cerrarDetallePeriodoPP, filtrarDetallePeriodoPP, buscarDetallePeriodoPP, recordarFaltantesPeriodoPP,
   renderMisPedidosPP, abrirCargaPedidoPP, filtrarCargaPedidoPP, guardarItemPedidoPP,
   repetirPedidoMesAnteriorPP, guardarBorradorPedidoPP, confirmarPedidoPP, aceptarPropuestaAuditorPP,
-  renderAuditoriaPP, abrirAuditoriaPedidoPP, ajustarCantidadAuditoriaPP, aprobarPedidoPP, confirmarDevolverConPropuestaPP,
+  renderAuditoriaPP, subTabAuditoriaPP, abrirAuditoriaPedidoPP, ajustarCantidadAuditoriaPP, aprobarPedidoPP, confirmarDevolverConPropuestaPP,
   abrirHistorialPedidoPP,
   marcarEnCompraPP, marcarEntregadoPP, subTabComprasPP,
   costoAplicable, precioVentaPP,
@@ -70,7 +70,7 @@ import {
   abrirDetallePeriodoPP, cerrarDetallePeriodoPP, filtrarDetallePeriodoPP, buscarDetallePeriodoPP, recordarFaltantesPeriodoPP,
   renderMisPedidosPP, abrirCargaPedidoPP, filtrarCargaPedidoPP, guardarItemPedidoPP,
   repetirPedidoMesAnteriorPP, guardarBorradorPedidoPP, confirmarPedidoPP, aceptarPropuestaAuditorPP,
-  renderAuditoriaPP, abrirAuditoriaPedidoPP, ajustarCantidadAuditoriaPP, aprobarPedidoPP, confirmarDevolverConPropuestaPP,
+  renderAuditoriaPP, subTabAuditoriaPP, abrirAuditoriaPedidoPP, ajustarCantidadAuditoriaPP, aprobarPedidoPP, confirmarDevolverConPropuestaPP,
   abrirHistorialPedidoPP,
   marcarEnCompraPP, marcarEntregadoPP, subTabComprasPP,
 } from './pedido_productos.js';
@@ -138,6 +138,7 @@ window.guardarBorradorPedidoPP = guardarBorradorPedidoPP;
 window.confirmarPedidoPP = confirmarPedidoPP;
 window.aceptarPropuestaAuditorPP = aceptarPropuestaAuditorPP;
 window.renderAuditoriaPP = renderAuditoriaPP;
+window.subTabAuditoriaPP = subTabAuditoriaPP;
 window.abrirAuditoriaPedidoPP = abrirAuditoriaPedidoPP;
 window.ajustarCantidadAuditoriaPP = ajustarCantidadAuditoriaPP;
 window.aprobarPedidoPP = aprobarPedidoPP;

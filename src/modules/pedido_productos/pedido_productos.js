@@ -363,7 +363,7 @@ export function tabPP(tab, btn) {
   if (tab === 'catalogo') renderCatalogoPP();
   if (tab === 'periodos') renderPeriodosPP();
   if (tab === 'mispedidos') renderMisPedidosPP();
-  if (tab === 'auditoria') renderAuditoriaPP();
+  if (tab === 'auditoria') { renderAuditoriaPP(); subTabAuditoriaPP('para_revisar', null); }
   // Compras (puntos 6a/10) tiene 5 subtabs propias — arranca siempre por
   // Consolidado. Entregas (puntos 6b/11) es tab aparte, unidad servicio.
   if (tab === 'compras') subTabComprasPP('consolidado', null);
@@ -1605,15 +1605,36 @@ function _excedePP(pedido) {
   return motivosRevisionPP(pedido).some(m => m.codigo === 'excede');
 }
 
+// BANDEJA_AUDITOR_subtabs_para_Fede.md (30/09): "Pasaron directo a Compras"
+// deja de vivir en el medio de la pantalla principal y pasa a ser un 2do
+// subtab informativo, puramente de lectura. El contador de la pestaña
+// cuenta SOLO lo que cae en "Para revisar" — nunca lo resuelto ni lo PAGAN.
+function _actualizarBadgeAuditoriaPP(n) {
+  const badge = $('pp-badge-auditoria');
+  if (!badge) return;
+  badge.textContent = n;
+  badge.style.display = n ? 'inline-block' : 'none';
+}
+
 export function renderAuditoriaPP() {
-  const tbodyPend = $('tbody-pp-auditoria');
   const periodoId = ($('pp-aud-periodo-sel') || { value: '' }).value;
   if (!periodoId) {
-    if (tbodyPend) tbodyPend.innerHTML = '<tr><td colspan="6" style="padding:30px;text-align:center;color:var(--texto-muy-suave);">No hay ningún período habilitado todavía.</td></tr>';
+    ['tbody-pp-auditoria', 'tbody-pp-auditoria-directo', 'tbody-pp-auditoria-resueltos'].forEach(id => {
+      const el = $(id);
+      if (el) el.innerHTML = '<tr><td colspan="6" style="padding:30px;text-align:center;color:var(--texto-muy-suave);">No hay ningún período habilitado todavía.</td></tr>';
+    });
+    _actualizarBadgeAuditoriaPP(0);
     return;
   }
   const todos = (DB.ppPedidos || []).filter(p => !p.anulado && _idTrunc(p.periodoIdLocal) === _idTrunc(periodoId));
+  renderAuditoriaParaRevisarPP(todos);
+  renderAuditoriaPaganPP(todos);
+}
 
+// Subtab 1 · Para revisar (default): lo único que es trabajo pendiente del
+// auditor (NO PAGAN en revisión) + lo ya resuelto este período, para no
+// perder el rastro. El badge de la pestaña cuenta solo `pendientes`.
+function renderAuditoriaParaRevisarPP(todos) {
   // Auto-ordenada (25/09): primero lo que excede el presupuesto, por % de
   // más alto a más bajo; después los que están dentro, también por %. El
   // auditor abre la pantalla y arriba está lo que tiene que decidir.
@@ -1621,6 +1642,7 @@ export function renderAuditoriaPP() {
     .filter(p => ['confirmado_revision', 'observado'].includes(p.estado))
     .sort((a, b) => (_excedePP(b) ? 1 : 0) - (_excedePP(a) ? 1 : 0)
       || (_pctPresupuestoPP(b) || 0) - (_pctPresupuestoPP(a) || 0));
+  const tbodyPend = $('tbody-pp-auditoria');
   if (tbodyPend) {
     tbodyPend.innerHTML = pendientes.length ? pendientes.map(p => {
       const obj = (DB.objetivos || []).find(o => o.codigo === p.servicioCodigo);
@@ -1637,23 +1659,7 @@ export function renderAuditoriaPP() {
       </tr>`;
     }).join('') : '<tr><td colspan="6" style="padding:30px;text-align:center;color:var(--texto-muy-suave);">Nada pendiente de revisión en este período 🎉</td></tr>';
   }
-
-  const pasaronDirecto = todos.filter(p => p.estado === 'confirmado');
-  const tbodyDirecto = $('tbody-pp-auditoria-directo');
-  if (tbodyDirecto) {
-    tbodyDirecto.innerHTML = pasaronDirecto.length ? pasaronDirecto.map(p => {
-      const obj = (DB.objetivos || []).find(o => o.codigo === p.servicioCodigo);
-      const pct = _pctPresupuestoPP(p);
-      return `<tr>
-        <td style="padding:6px 12px;border:1px solid var(--borde);font-weight:500;">${obj ? obj.nombre : p.servicioCodigo}</td>
-        <td style="padding:6px 8px;border:1px solid var(--borde);color:var(--texto-suave);">${p.supervisor || '—'}</td>
-        <td style="padding:6px 8px;border:1px solid var(--borde);text-align:right;">${_money(presupuestoDelMesPP(p))}</td>
-        <td style="padding:6px 8px;border:1px solid var(--borde);text-align:right;">${_money(totalPedidoPP(p.id))}</td>
-        <td style="padding:6px 8px;border:1px solid var(--borde);text-align:right;${pct > 100 ? 'color:var(--rojo);' : 'color:var(--texto-suave);'}" title="Porcentaje del presupuesto (6% de la facturación) que consume este pedido. No bloquea nada: los PAGAN van directo a Compras siempre.">${pct != null ? pct.toFixed(0) + '%' : '—'}</td>
-        <td style="padding:6px 8px;border:1px solid var(--borde);color:var(--texto-suave);font-size:11.5px;">${p.confirmadoEn ? new Date(p.confirmadoEn).toLocaleString('es-AR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : '—'} · sin intervención del auditor</td>
-      </tr>`;
-    }).join('') : '<tr><td colspan="6" style="padding:20px;text-align:center;color:var(--texto-muy-suave);">Ninguno todavía</td></tr>';
-  }
+  _actualizarBadgeAuditoriaPP(pendientes.length);
 
   // FIX 8 (ronda 02/09): pedidos que pasaron por la bandeja (excede,
   // NO PAGAN, con autorización, etc.) y el auditor ya resolvió — antes
@@ -1674,6 +1680,40 @@ export function renderAuditoriaPP() {
       </tr>`;
     }).join('') : '<tr><td colspan="6" style="padding:20px;text-align:center;color:var(--texto-muy-suave);">Nada resuelto todavía en este período</td></tr>';
   }
+}
+
+// Subtab 2 · Servicios que pagan (informativo): 100% solo lectura — sin
+// botones, sin badge, sin sumar al contador. El exceso de presupuesto acá
+// lo paga el cliente, así que no hay nada que auditar ni revisar.
+function renderAuditoriaPaganPP(todos) {
+  const pasaronDirecto = todos.filter(p => p.estado === 'confirmado');
+  const tbodyDirecto = $('tbody-pp-auditoria-directo');
+  if (!tbodyDirecto) return;
+  tbodyDirecto.innerHTML = pasaronDirecto.length ? pasaronDirecto.map(p => {
+    const obj = (DB.objetivos || []).find(o => o.codigo === p.servicioCodigo);
+    const pct = _pctPresupuestoPP(p);
+    return `<tr>
+      <td style="padding:6px 12px;border:1px solid var(--borde);font-weight:500;">${obj ? obj.nombre : p.servicioCodigo}</td>
+      <td style="padding:6px 8px;border:1px solid var(--borde);color:var(--texto-suave);">${p.supervisor || '—'}</td>
+      <td style="padding:6px 8px;border:1px solid var(--borde);text-align:right;">${_money(presupuestoDelMesPP(p))}</td>
+      <td style="padding:6px 8px;border:1px solid var(--borde);text-align:right;">${_money(totalPedidoPP(p.id))}</td>
+      <td style="padding:6px 8px;border:1px solid var(--borde);text-align:right;${pct > 100 ? 'color:var(--rojo);' : 'color:var(--texto-suave);'}" title="Porcentaje del presupuesto (6% de la facturación) que consume este pedido. No bloquea nada: los PAGAN van directo a Compras siempre.">${pct != null ? pct.toFixed(0) + '%' : '—'}</td>
+      <td style="padding:6px 8px;border:1px solid var(--borde);color:var(--texto-suave);font-size:11.5px;">${p.confirmadoEn ? new Date(p.confirmadoEn).toLocaleString('es-AR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : '—'} · sin intervención del auditor</td>
+    </tr>`;
+  }).join('') : '<tr><td colspan="6" style="padding:20px;text-align:center;color:var(--texto-muy-suave);">Ninguno todavía</td></tr>';
+}
+
+// Mismo patrón que subTabComprasPP (único subtab ya construido en este
+// módulo con ocultamiento real vía CSS) — ver #pp-tab-auditoria .sub en
+// main.css. Las 2 subtabs ya tienen los datos pintados por
+// renderAuditoriaPP() (se llama una sola vez, barato) — acá solo se
+// togglea qué se ve, no hace falta re-renderizar al cambiar de subtab.
+export function subTabAuditoriaPP(sub, btn) {
+  document.querySelectorAll('#pp-tab-auditoria .stab').forEach(b => b.classList.remove('act'));
+  document.querySelectorAll('#pp-tab-auditoria .sub').forEach(s => s.classList.remove('act'));
+  if (btn) btn.classList.add('act');
+  else document.querySelector(`#pp-tab-auditoria .stab[data-asub="${sub}"]`)?.classList.add('act');
+  $('pp-auditoria-sub-' + sub)?.classList.add('act');
 }
 
 let _ppAuditoriaModalId = null;
