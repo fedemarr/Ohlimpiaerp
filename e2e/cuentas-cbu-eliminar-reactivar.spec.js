@@ -107,11 +107,11 @@ test('Eliminar una cuenta EN_TRAMITE (Pendientes) deja al asociado como SIN CUEN
   let c = await cuenta(page, 995302);
   expect(c.anulado).toBe(true);
 
-  // El legajo sigue en Pendientes (no desaparece), pero ahora como SIN CUENTA
-  // y sin botón "Eliminar" (ya no hay fila real que anular).
-  const filaDespues = page.locator('#tbody-cbu-pendientes tr', { hasText: 'CBU Tramite Test' });
-  await expect(filaDespues).toContainText('SIN CUENTA');
-  await expect(filaDespues).not.toContainText('🗑️ Eliminar');
+  // FIX (CUENTAS_BANCARIAS_anuladas_resembrado_para_Fede.md, 01/10): el
+  // legajo NO vuelve a aparecer en Pendientes — antes de este fix sí
+  // reaparecía como "SIN CUENTA" (fila "resembrada"), que es exactamente
+  // el bug real que reportó Lautaro (anular y resembrar en loop).
+  await expect(page.locator('#tbody-cbu-pendientes')).not.toContainText('CBU Tramite Test');
 
   await irACuentasCbu(page, 'anuladas');
   const filaAnulada = page.locator('#tbody-cbu-anuladas tr', { hasText: 'CBU Tramite Test' });

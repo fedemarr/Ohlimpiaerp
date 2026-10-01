@@ -59,6 +59,15 @@ export function getCuentaCbu(legajoNro) {
   return (DB.cuentasCbu || []).find(c => !c.anulado && String(c.legajoNro) === String(legajoNro)) || null;
 }
 
+// Como getCuentaCbu pero SIN filtrar anuladas — para distinguir "este
+// asociado nunca tuvo fila" de "tiene una fila, pero está anulada" (ver
+// CUENTAS_BANCARIAS_anuladas_resembrado_para_Fede.md: confundir los dos
+// casos es la causa del bug de resembrado — getCuentaCbu() sola no
+// alcanza para eso, siempre devuelve null para ambos).
+export function getCuentaCbuAny(legajoNro) {
+  return (DB.cuentasCbu || []).find(c => String(c.legajoNro) === String(legajoNro)) || null;
+}
+
 // Usado por Legajos (fuente única) — devuelve el CBU solo si la cuenta
 // está ACTIVA, null en cualquier otro caso (nunca inventa un valor).
 export function cbuVigenteLegajo(legajoNro) {
@@ -151,12 +160,22 @@ export async function crearFilaAltaCbu(legajoNro, nombreAsociado, { cbu, banco, 
 //
 // "No perder rastro": nunca se borra la fila físicamente. anulado ya
 // existía desde v138 y ya filtraba en getCuentaCbu/renderCbuPadron, pero
-// nunca se seteaba a true — esto cierra ese camino. Al anular, la fila
-// deja de contar como cuenta real: el legajo vuelve a aparecer en
-// Pendientes (como SIN_CUENTA) porque getCuentaCbu ya no la encuentra. Al
-// reactivar, reaparece sola donde corresponda según su `estado` real
-// (Padrón si era ACTIVA, Pendientes si era EN_TRAMITE) — no hace falta (ni
-// hay que) forzarla a un lugar fijo.
+// nunca se seteaba a true — esto cierra ese camino.
+//
+// CORRECCIÓN (CUENTAS_BANCARIAS_anuladas_resembrado_para_Fede.md, 01/10):
+// el comentario de acá decía que al anular "el legajo vuelve a aparecer en
+// Pendientes (como SIN_CUENTA)" como si fuera el comportamiento deseado —
+// en producción resultó ser el bug: anular y volver a aparecer en
+// Pendientes es un loop ("anular y resembrar"), porque Pendientes no tiene
+// forma de distinguir "nunca tuvo cuenta" de "tuvo y se anuló a
+// propósito". El fix real vive en cuentas_cbu.js (_estadoCbu) usando
+// getCuentaCbuAny(): mientras la fila siga anulada, el legajo NO vuelve a
+// Pendientes ni se cuenta en los KPIs — la anulación es la marca "no
+// sembrar" (misma idea que "✕ No va a monotributo" en el módulo de
+// Monotributo). La ÚNICA vuelta atrás es "Reactivar", que reaparece sola
+// donde corresponda según su `estado` real (Padrón si era ACTIVA,
+// Pendientes si era EN_TRAMITE) — no hace falta (ni hay que) forzarla a un
+// lugar fijo.
 export async function anularCuentaCbu(legajoNro) {
   const c = (DB.cuentasCbu || []).find(x => String(x.legajoNro) === String(legajoNro) && !x.anulado);
   if (!c) return null;

@@ -6,7 +6,7 @@ import { DB, currentUser } from '@shared/state.js';
 import { $, avatarEl } from '@shared/helpers.js';
 import { toast, abrirModal, cerrarModal } from '@shared/ui.js';
 import {
-  cbuChecksumValido, deducirBanco, getCuentaCbu, guardarCuentaCbu, historialCuentaCbu,
+  cbuChecksumValido, deducirBanco, getCuentaCbu, getCuentaCbuAny, guardarCuentaCbu, historialCuentaCbu,
   anularCuentaCbu, reactivarCuentaCbu,
 } from './consultas.js';
 
@@ -18,8 +18,22 @@ function _diasDesde(iso) { if (!iso) return null; return Math.floor((Date.now() 
 // Estado efectivo de un legajo: la fila de cuentas_cbu si existe, o un
 // "SIN_CUENTA" virtual si el asociado todavía no tiene ninguna fila (caso
 // de legajos ya cargados antes de este módulo, previo al import inicial).
+//
+// FIX (CUENTAS_BANCARIAS_anuladas_resembrado_para_Fede.md, 01/10): si la
+// ÚNICA fila del legajo está anulada, antes esto devolvía igual el
+// "SIN_CUENTA" virtual (getCuentaCbu() filtra anuladas) — indistinguible
+// de "nunca tuvo cuenta", así que Pendientes la resembraba en cada render
+// ("anular y resembrar en loop", caso real: 5562 Acuña, 3751 Tucciarone,
+// 4102/4103 Jaime, 151 Fernandez, 154 Marchetti). Ahora, si hay una fila
+// anulada, se devuelve ESA fila tal cual (con `anulado:true` y su estado
+// real) para que el llamador pueda excluirla explícitamente en vez de
+// confundirla con un legajo que nunca tuvo nada cargado.
 function _estadoCbu(legajoNro) {
-  return getCuentaCbu(legajoNro) || { legajoNro: String(legajoNro), estado: 'SIN_CUENTA' };
+  const c = getCuentaCbu(legajoNro);
+  if (c) return c;
+  const anulada = getCuentaCbuAny(legajoNro);
+  if (anulada && anulada.anulado) return anulada;
+  return { legajoNro: String(legajoNro), estado: 'SIN_CUENTA' };
 }
 
 const _CHIP_ESTADO = {
@@ -65,6 +79,9 @@ function _renderKpisCbu() {
   let activas = 0, enTramite = 0, sinCuenta = 0, sumaDiasTramite = 0;
   activos.forEach(l => {
     const c = _estadoCbu(l.nro);
+    // Anulada: no es "sin cuenta" (fue una decisión, no un olvido) — no
+    // entra en ningún conteo de Pendientes/Padrón, tiene el suyo propio.
+    if (c.anulado) return;
     if (c.estado === 'ACTIVA') activas++;
     else if (c.estado === 'EN_TRAMITE') { enTramite++; sumaDiasTramite += (_diasDesde(c.tramiteFecha) || 0); }
     else sinCuenta++;
@@ -79,6 +96,12 @@ function _renderKpisCbu() {
     badgePend.textContent = total;
     badgePend.style.display = total ? 'inline-block' : 'none';
   }
+  const totalAnuladas = (DB.cuentasCbu || []).filter(c => c.anulado).length;
+  const badgeAnul = $('cbu-badge-anuladas');
+  if (badgeAnul) {
+    badgeAnul.textContent = totalAnuladas;
+    badgeAnul.style.display = totalAnuladas ? 'inline-block' : 'none';
+  }
 }
 
 // ========== TAB PENDIENTES (bandeja) ==========
@@ -88,7 +111,9 @@ export function renderCbuPendientes() {
   if (!tbody) return;
   const filas = _legajoActivos()
     .map(l => ({ l, c: _estadoCbu(l.nro) }))
-    .filter(({ c }) => c.estado !== 'ACTIVA')
+    // Anulada = decisión humana de "por ahora no corresponde" — no se
+    // resiembra sola; solo "Reactivar" (tab Anuladas) la devuelve acá.
+    .filter(({ c }) => c.estado !== 'ACTIVA' && !c.anulado)
     .sort((a, b) => {
       // EN_TRAMITE primero (más días esperando primero), después SIN_CUENTA
       if (a.c.estado !== b.c.estado) return a.c.estado === 'EN_TRAMITE' ? -1 : 1;
