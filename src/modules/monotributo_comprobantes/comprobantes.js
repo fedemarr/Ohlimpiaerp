@@ -325,15 +325,33 @@ async function _registrarEnRevisionSinAsociar({ periodo, path, datosLeidos, moti
   await supaSync('monoPagosMes', fila);
 }
 
+// MONOTRIBUTO_bug_lote_para_Fede.md (01/10): el CUIT real y actualizado
+// vive en el LEGAJO — DB.monotributos (el Padrón) puede tener ese campo
+// desactualizado o vacío para asociados que de todos modos están bien en
+// la lista del mes (confirmado con Acevedo Mariana Isabel 4991: CUIT
+// correcto en el legajo, ausente/distinto en el padrón). La carga
+// individual nunca pisaba este bug porque no busca por CUIT — ya sabe de
+// qué fila es. El lote SÍ necesita resolver "¿de quién es este CUIT?", así
+// que tiene que usar la misma fuente confiable: el legajo primero, el
+// padrón solo como respaldo si el legajo no tiene el dato.
+function _cuitDeFilaPagoMes(fila) {
+  const legajo = (DB.legajos || []).find(l => String(l.nro) === String(fila.nroSocio));
+  if (legajo?.cuit) return normalizarCuit(legajo.cuit);
+  const persona = (DB.monotributos || []).find(m => String(m.nroSocio) === String(fila.nroSocio) || m.nombre === fila.nombre);
+  return normalizarCuit(persona?.cuit);
+}
+
 // ── Carga en lote (tab Pago mensual) ──
 // Mismo lector/matcher que confirmarComprobantePagoMensual, pero acá no se
 // sabe de antemano a qué fila corresponde cada PDF — el reparto es por
-// CUIT leído contra el padrón (DB.monotributos) y de ahí a la fila de
-// mono_pagos_mes de ESE período. Todo lo que no cierra (CUIT no
-// reconocido, sin fila pendiente ese mes, período/importe distintos) cae
-// en "en revisión" — nunca se inventa una asociación.
+// CUIT leído CONTRA LA LISTA DEL MES YA ARMADA (mismo universo que ve el
+// usuario, no una tabla aparte), vía el CUIT del legajo. Todo lo que no
+// cierra (CUIT no encontrado en la lista, período/importe distintos, o
+// repetido dentro de la misma tanda) cae en "en revisión" — nunca se
+// inventa una asociación.
 export async function confirmarComprobantesLotePagoMensual(files, periodo) {
   const resumen = { tildados: 0, enRevision: 0 };
+  const cuitsDeEstaTanda = new Set();
   for (const file of files) {
     let path;
     try { path = await _subirComprobante('lote', periodo, file); }
@@ -344,28 +362,33 @@ export async function confirmarComprobantesLotePagoMensual(files, periodo) {
     catch (e) { resumen.enRevision++; await _registrarEnRevisionSinAsociar({ periodo, path, motivo: 'No se pudo leer el PDF (' + e.message + ')' }); continue; }
 
     const cuitLeido = normalizarCuit(datosLeidos.cuit);
-    const persona = cuitLeido ? (DB.monotributos || []).find(m => normalizarCuit(m.cuit) === cuitLeido) : null;
-    if (!persona) {
+    if (!cuitLeido) {
       resumen.enRevision++;
-      await _registrarEnRevisionSinAsociar({
-        periodo, path, datosLeidos,
-        motivo: !cuitLeido ? 'No se pudo leer el CUIT del comprobante' : `El CUIT (${cuitLeido}) no corresponde a ningún monotributista del padrón`,
-      });
+      await _registrarEnRevisionSinAsociar({ periodo, path, datosLeidos, motivo: 'No se pudo leer el CUIT del comprobante' });
       continue;
     }
 
-    const fila = (DB.monoPagosMes || []).find(p => p.periodo === periodo && !p.pagado
-      && ((p.nroSocio && persona.nroSocio && String(p.nroSocio) === String(persona.nroSocio)) || (!p.nroSocio && !persona.nroSocio && p.nombre === persona.nombre)));
+    // Duplicado DENTRO de esta misma tanda (ej. el mismo PDF subido dos
+    // veces por error) — un solo aviso, no dos filas en revisión.
+    if (cuitsDeEstaTanda.has(cuitLeido)) {
+      resumen.enRevision++;
+      await _registrarEnRevisionSinAsociar({ periodo, path, datosLeidos, motivo: `CUIT ${cuitLeido} repetido en este lote — ya se procesó otro comprobante con el mismo CUIT en esta misma tanda` });
+      continue;
+    }
+    cuitsDeEstaTanda.add(cuitLeido);
+
+    const fila = (DB.monoPagosMes || []).find(p => p.periodo === periodo && !p.pagado && p.nroSocio && _cuitDeFilaPagoMes(p) === cuitLeido);
     if (!fila) {
       resumen.enRevision++;
-      await _registrarEnRevisionSinAsociar({
-        periodo, path, datosLeidos,
-        motivo: `${persona.nombre} (CUIT ${cuitLeido}) no tiene una fila pendiente en la lista de ${periodo} — ¿ya está pagado, o falta "Armar lista del mes"?`,
-      });
+      await _registrarEnRevisionSinAsociar({ periodo, path, datosLeidos, motivo: `CUIT ${cuitLeido} no está en la lista de ${periodo}` });
       continue;
     }
 
-    const resultado = matchComprobante(datosLeidos, { cuit: persona.cuit, nombre: persona.nombre, periodoEsperado: periodo, cuotaEsperada: fila.total });
+    // cuit:cuitLeido a propósito (no persona.cuit/monotributos.cuit): ya
+    // matcheamos por CUIT del legajo para encontrar `fila` — si acá no
+    // cuadra, tiene que ser por período o importe, nunca "CUIT no
+    // reconocido" de vuelta (pedido explícito del reporte).
+    const resultado = matchComprobante(datosLeidos, { cuit: cuitLeido, nombre: fila.nombre, periodoEsperado: periodo, cuotaEsperada: fila.total });
     fila.comprobantePath = path;
     fila.comprobanteTransaccion = datosLeidos.transaccion || '';
     fila.comprobanteImporteLeido = Number(datosLeidos.importe) || 0;
