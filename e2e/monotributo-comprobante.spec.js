@@ -14,6 +14,15 @@ function periodoActualMMAAAA() {
   return `${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
 }
 
+// Mismo cálculo que _mesActual() en comprobantes.js (fecha LOCAL, no UTC).
+// toISOString() usa UTC — entre ~21:00 y 00:00 hora argentina ya cae en el
+// mes siguiente en UTC y desalinea el período sembrado del que compara
+// matchComprobante(), dando un falso negativo sin bug real de por medio.
+function periodoActualYYYYMM() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+}
+
 async function mockInfra(page, { analizarBody }) {
   await page.route('**/storage/v1/**', (route) =>
     route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ Key: 'k' }) }));
@@ -131,7 +140,7 @@ test('Bandeja — comprobante con importe que NO cuadra queda "en revisión", na
 
 test('Pago mensual — comprobante que matchea tilda la fila ya armada por "Armar lista"', async ({ page }) => {
   const periodo = periodoActualMMAAAA();
-  const periodoYYYYMM = new Date().toISOString().slice(0, 7);
+  const periodoYYYYMM = periodoActualYYYYMM();
   await mockInfra(page, { analizarBody: { cuit: '20-994203-005', periodo, importe: 49527.18, fechaPago: '2026-09-05', transaccion: 'T-PM-1', confianza: 'alta' } });
   await loginComoAdmin(page);
   await stubSesion(page);

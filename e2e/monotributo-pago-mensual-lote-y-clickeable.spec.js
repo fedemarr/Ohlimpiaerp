@@ -15,6 +15,16 @@ function periodoActualMMAAAA() {
   return `${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
 }
 
+// Mismo cálculo que _mesActual() en comprobantes.js (fecha LOCAL, no UTC).
+// new Date().toISOString().slice(0,7) usa UTC — entre ~21:00 y 00:00 hora
+// argentina ya cayó en el día/mes siguiente en UTC, y desalinea el período
+// que arma este test del que calcula la app real, dando falsos negativos
+// sin que haya ningún bug de producción de por medio.
+function periodoActualYYYYMM() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+}
+
 // Mismo criterio que mockInfra/stubSesion en monotributo-comprobante.spec.js:
 // las rutas se registran ANTES del login (el init de la app ya dispara
 // REST reales apenas se hace goto('/')), y los stubs que necesitan el
@@ -54,7 +64,7 @@ async function stubSesionYStorage(page) {
 
 test('Carga en lote: reparte por CUIT, tilda lo que cuadra y manda a "En revisión" lo que no', async ({ page }) => {
   const periodo = periodoActualMMAAAA();
-  const periodoYYYYMM = new Date().toISOString().slice(0, 7);
+  const periodoYYYYMM = periodoActualYYYYMM();
   const respuestasPorArchivo = [
     { cuit: '20-994301-005', periodo, importe: 49527.18, fechaPago: '2026-09-05', transaccion: 'T-LOTE-1', confianza: 'alta' },
     { cuit: '20-994302-005', periodo, importe: 1, fechaPago: '2026-09-05', transaccion: 'T-LOTE-2', confianza: 'alta' },
@@ -84,15 +94,15 @@ test('Carga en lote: reparte por CUIT, tilda lo que cuadra y manda a "En revisi�
   // (994301), uno con CUIT que corresponde a otra persona pero el importe
   // no cierra (caso real "Acevedo Justina" del mockup), y uno con un CUIT
   // que no existe en el padrón (comprobante de otro servicio/persona).
-  const resumen = await page.evaluate(async () => {
+  const resumen = await page.evaluate(async (periodoYYYYMM) => {
     const mod = await import('/src/modules/monotributo_comprobantes/comprobantes.js');
     const files = [
       new File(['a'], 'ok.pdf', { type: 'application/pdf' }),
       new File(['b'], 'mal.pdf', { type: 'application/pdf' }),
       new File(['c'], 'desconocido.pdf', { type: 'application/pdf' }),
     ];
-    return mod.confirmarComprobantesLotePagoMensual(files, new Date().toISOString().slice(0, 7));
-  });
+    return mod.confirmarComprobantesLotePagoMensual(files, periodoYYYYMM);
+  }, periodoYYYYMM);
   expect(resumen.tildados).toBe(1);
   expect(resumen.enRevision).toBe(2);
 
@@ -125,7 +135,7 @@ test('Carga en lote: reparte por CUIT, tilda lo que cuadra y manda a "En revisi�
 });
 
 test('El chip de comprobante es clickeable en Pago mensual, en "En revisión" y en el historial de pagos de la ficha', async ({ page }) => {
-  const periodoYYYYMM = new Date().toISOString().slice(0, 7);
+  const periodoYYYYMM = periodoActualYYYYMM();
   await mockInfra(page, { respuestasPorArchivo: [] });
   await loginComoAdmin(page);
   await stubSesionYStorage(page);

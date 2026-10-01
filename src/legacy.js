@@ -11411,10 +11411,19 @@ function renderHistorialMono(){
 // siempre la misma lista, y los cambios de tabla/categoría no tocan
 // meses ya cerrados (política de vigencias del proyecto).
 // ══════════════════════════════════════════════════════════
+// Mes LOCAL (no UTC) — toISOString() usa UTC y entre ~21:00 y 00:00 hora
+// argentina ya cae en el mes/día siguiente en UTC, lo que hacía que el
+// selector saltara solo a "octubre" con la lista de "septiembre" armada
+// todavía (vacía para el usuario) justo en ese horario. Mismo criterio que
+// _mesActual() en comprobantes.js.
+function _mesActualLocalMono(){
+  const d=new Date();
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+}
 function _mesMonoPagosSel(){
   const el=$('mono-pagos-mes');
-  if(el && !el.value) el.value=new Date().toISOString().slice(0,7);
-  return el?.value||new Date().toISOString().slice(0,7);
+  if(el && !el.value) el.value=_mesActualLocalMono();
+  return el?.value||_mesActualLocalMono();
 }
 function getMonoPagoById(id){ return (DB.monoPagosMes||[]).find(x=>String(x.id)===String(id)); }
 
