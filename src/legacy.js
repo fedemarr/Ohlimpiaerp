@@ -1873,6 +1873,15 @@ function verObjetivo(idLocal){
   // cambio de estado (baja, reactivación, asignación de supervisor) pero
   // nunca se mostraba en ningún lado — quedaba escrito y nunca leído.
   const eventos=(DB.objetivoEventos||[]).filter(e=>e.objetivoIdLocal===idl).sort((a,b)=>(b.ejecutadoEn||'').localeCompare(a.ejecutadoEn||''));
+  // SERVICIO_LOGISTICA_v2: valor RESUELTO (propio si existe, si no el del
+  // cliente) — mismo criterio que usa Pedido de productos (esPaganPP). Antes
+  // acá se mostraba o.productos, un select que nadie más leía: el bug real
+  // de Ascensores ("SE FACTURA" en el cliente, "—" en el servicio).
+  const llevaProd=o.llevaProductos!==false;
+  const factResuelta=o.facturacionProductos||cli?.productosEnFactura||'';
+  const factLabel=!llevaProd?'No lleva productos':factResuelta==='SE FACTURA'?'✅ SE FACTURA (PAGAN)':factResuelta==='NO SE FACTURA'?'⛔ NO SE FACTURA (NO PAGAN)':'— Sin definir en el cliente —';
+  const logChips=[llevaProd?'🧴 Productos':null,o.llevaElementos!==false?'🧹 Elementos':null,o.llevaMaquinas!==false?'⚙ Máquinas':null].filter(Boolean);
+  const tieneLegacySinMigrar=!!((o.logProductos||o.logElementos||o.logMaquinas)&&!o.logisticaMigrado);
   const html=`<div class="info-grid">
     <div class="info-item"><div class="key">Código</div><div class="val" style="font-family:'DM Mono',monospace;">${o.codigo}</div></div>
     <div class="info-item"><div class="key">Cliente</div><div class="val">${cli?.nombre||'—'}</div></div>
@@ -1902,7 +1911,7 @@ function verObjetivo(idLocal){
     <div class="info-item"><div class="key">Cláusula actualización</div><div class="val">${o.clausulaActualizacion||'—'}</div></div>
     <div class="info-item"><div class="key">Período facturación</div><div class="val">${o.periodoFact}</div></div>
     <div class="info-item"><div class="key">Requiere OC</div><div class="val">${o.reqOC}</div></div>
-    <div class="info-item"><div class="key">Facturación de productos</div><div class="val">${o.productos||'—'}</div></div>
+    <div class="info-item"><div class="key">Facturación de productos</div><div class="val">${factLabel}</div></div>
   </div>
   <div style="margin-top:14px;font-size:11px;font-weight:700;text-transform:uppercase;color:var(--texto-suave);margin-bottom:8px;">Personal necesario</div>
   ${(o.puestos||[]).length?o.puestos.map(p=>{
@@ -1917,18 +1926,12 @@ function verObjetivo(idLocal){
     <div><div style="font-weight:600;font-size:12px;">${r.nombre}</div><div style="font-size:11px;color:var(--texto-suave);">${r.rol||'—'}${r.tel?` · <a href="tel:${r.tel}" style="color:var(--azul);">📞 ${r.tel}</a>`:''}</div></div>
     <div style="display:flex;gap:4px;">${r.aSatisfacer?'<span class="badge badge-acento" style="font-size:10px;">⭐ A satisfacer</span>':''}${r.recibeFactura?'<span class="badge badge-azul" style="font-size:10px;">🧾 Recibe factura</span>':''}</div>
   </div>`).join('')||'<p class="text-muted" style="font-size:12px;">Sin responsables cargados</p>'}
-  ${(o.logProductos||o.logElementos||o.logMaquinas)?`<div style="margin-top:14px;font-size:11px;font-weight:700;text-transform:uppercase;color:var(--texto-suave);margin-bottom:8px;">Necesidad logística</div>
-  <div class="info-grid">
-    ${o.logProductos?`<div class="info-item"><div class="key">Productos</div><div class="val">${o.logProductos}</div></div>`:''}
-    ${o.logElementos?`<div class="info-item"><div class="key">Elementos de limpieza</div><div class="val">${o.logElementos}</div></div>`:''}
-    ${o.logMaquinas?`<div class="info-item"><div class="key">Máquinas</div><div class="val">${o.logMaquinas}</div></div>`:''}
-  </div>`:''}
-  ${((o.productosLimpieza||[]).length||(o.elementosLimpieza||[]).length||(o.maquinasNecesarias||[]).length)?`<div style="margin-top:14px;font-size:11px;font-weight:700;text-transform:uppercase;color:var(--texto-suave);margin-bottom:8px;">Qué pide el servicio</div>
+  ${(logChips.length||o.notasLogistica)?`<div style="margin-top:14px;font-size:11px;font-weight:700;text-transform:uppercase;color:var(--texto-suave);margin-bottom:8px;">Necesidad logística</div>
   <div style="display:flex;flex-direction:column;gap:6px;">
-    ${(o.productosLimpieza||[]).length?`<div><span style="font-size:11px;color:var(--texto-suave);">Productos:</span> ${(o.productosLimpieza||[]).map(p=>`<span class="chip" style="font-size:10px;">${p}</span>`).join(' ')}</div>`:''}
-    ${(o.elementosLimpieza||[]).length?`<div><span style="font-size:11px;color:var(--texto-suave);">Elementos:</span> ${(o.elementosLimpieza||[]).map(p=>`<span class="chip" style="font-size:10px;">${p}</span>`).join(' ')}</div>`:''}
-    ${(o.maquinasNecesarias||[]).length?`<div><span style="font-size:11px;color:var(--texto-suave);">Máquinas:</span> ${(o.maquinasNecesarias||[]).map(p=>`<span class="chip" style="font-size:10px;">${p}</span>`).join(' ')}</div>`:''}
+    ${logChips.length?`<div>${logChips.map(c=>`<span class="chip" style="font-size:10px;">${c}</span>`).join(' ')}</div>`:''}
+    ${o.notasLogistica?`<div style="font-size:12px;color:var(--texto-suave);">${o.notasLogistica}</div>`:''}
   </div>`:''}
+  ${tieneLegacySinMigrar?`<div class="alerta alerta-warn" style="margin-top:10px;font-size:11.5px;">⚠ Tiene texto del formato viejo de Logística sin migrar — abrí "Editar servicio" → tab Logística para repartirlo.</div>`:''}
   ${o.notas?`<div class="alerta alerta-info" style="margin-top:12px;font-size:12px;"><strong>Notas:</strong> ${o.notas}</div>`:''}
   ${o.textoFactura?`<div class="alerta alerta-info" style="margin-top:12px;font-size:12px;"><strong>Texto en factura:</strong> ${o.textoFactura}</div>`:''}
   ${o.estado==='Baja'?`<div class="alerta alerta-danger" style="margin-top:12px;font-size:12px;"><strong>🚫 Dado de baja</strong> el ${o.fechaBaja} por ${o.dadoDeBajaPor}. Motivo: ${o.motivoBaja||'—'}</div>`:''}
@@ -1950,30 +1953,6 @@ function verObjetivo(idLocal){
 // P.10 (Delta Comercial v1.2) — bindeado a window por la misma razón que
 // contactosClienteTemp: los oninput/onclick inline del modal de objetivo
 // (respObjetivoTemp[i].nombre=this.value, etc.) corren en scope global.
-// Tema 6.b del relevamiento (10/08): selección múltiple de Productos/
-// Elementos/Máquinas que pide el servicio, parametrizable desde
-// DB.itemsLogisticaServicio. Objeto simple {productos,elementos,maquinas}
-// de arrays de nombres (no ids — mismo patrón liviano que perfil de
-// Pedidos) porque no hace falta relación, solo mostrar/guardar strings.
-let objMultiTemp={productos:[],elementos:[],maquinas:[]};
-function renderObjMulti(){
-  const cats=[['productos','obj-multi-productos'],['elementos','obj-multi-elementos'],['maquinas','obj-multi-maquinas']];
-  cats.forEach(([cat,elId])=>{
-    const el=$(elId);if(!el)return;
-    const catCatalogo={productos:'producto',elementos:'elemento',maquinas:'maquina'}[cat];
-    const items=(DB.itemsLogisticaServicio||[]).filter(it=>it.categoria===catCatalogo&&it.activo!==false).sort((a,b)=>(a.orden||0)-(b.orden||0));
-    el.innerHTML=items.length?items.map(it=>`
-      <label style="display:flex;align-items:center;gap:5px;font-size:12px;font-weight:400;background:var(--fondo);border:1px solid var(--borde);border-radius:20px;padding:4px 10px;cursor:pointer;">
-        <input type="checkbox" ${objMultiTemp[cat].includes(it.nombre)?'checked':''} onchange="toggleObjMulti('${cat}','${it.nombre.replace(/'/g,"\\'")}',this.checked)">
-        ${it.nombre}
-      </label>`).join('') : '<span class="text-muted" style="font-size:11px;">Sin catálogo cargado</span>';
-  });
-}
-function toggleObjMulti(cat,nombre,checked){
-  if(checked){ if(!objMultiTemp[cat].includes(nombre)) objMultiTemp[cat].push(nombre); }
-  else objMultiTemp[cat]=objMultiTemp[cat].filter(n=>n!==nombre);
-}
-
 let respObjetivoTemp=[];
 window.respObjetivoTemp=respObjetivoTemp;
 // CLIENTES_SERVICIOS_v2_para_Fede.md §Responsables: deja de ser carga
@@ -2079,14 +2058,14 @@ function modelosPrecioEsperados(clienteId){
 // asignación operativa", los datos del servicio son de solo lectura;
 // las únicas 2 excepciones editables son el EFT (obj-efts) y los
 // Responsables del cliente (tab aparte, no se toca acá).
-const OBJ_CAMPOS_BLOQUEABLES_PENDIENTE=['obj-cliente','obj-codigo','obj-nombre','obj-tipo','obj-dir','obj-localidad','obj-fecha-inicio','obj-valor','obj-valor-hora','obj-efts-fijo','obj-fecha-fin','obj-contrato','obj-notas-precio','obj-productos','obj-texto-factura','obj-log-productos','obj-log-elementos','obj-log-maquinas'];
+const OBJ_CAMPOS_BLOQUEABLES_PENDIENTE=['obj-cliente','obj-codigo','obj-nombre','obj-tipo','obj-dir','obj-localidad','obj-fecha-inicio','obj-valor','obj-valor-hora','obj-efts-fijo','obj-fecha-fin','obj-contrato','obj-notas-precio','obj-texto-factura','obj-ck-productos','obj-ck-elementos','obj-ck-maquinas','obj-notas-logistica'];
 // Los campos con chip de herencia (cláusula/coordinador/período/OC/modelo
 // de precio) manejan su propio disabled según HEREDADO vs PROPIO (ver
 // pisarHerenciaObj/resetHerenciasObj) — bloquear=true los fuerza a
 // solo-lectura igual que al resto (Pendiente asignación bloquea casi
 // todo), pero bloquear=false NO los debe re-habilitar de más: eso lo
 // decide únicamente su propio estado de herencia.
-const OBJ_CAMPOS_HERENCIA=['obj-clausula-actualizacion','obj-coordinador','obj-periodo-fact','obj-req-oc','obj-modelo-precio'];
+const OBJ_CAMPOS_HERENCIA=['obj-clausula-actualizacion','obj-coordinador','obj-periodo-fact','obj-req-oc','obj-modelo-precio','obj-facturacion-productos'];
 function bloquearCamposObjetivoPendiente(bloquear){
   OBJ_CAMPOS_BLOQUEABLES_PENDIENTE.forEach(id=>{const el=$(id);if(el) el.disabled=bloquear;});
   if(bloquear) OBJ_CAMPOS_HERENCIA.forEach(id=>{const el=$(id);if(el) el.disabled=true;});
@@ -2123,7 +2102,7 @@ function jurisdiccionDeLocalidad(localidad){
 // valor persistido siempre refleja el ÚLTIMO dato del cliente hasta que
 // alguien lo pisa. Simplificación consciente, no la única forma válida de
 // leer "referencia" del documento.
-const OBJ_HERENCIA_CHIP={'obj-clausula-actualizacion':'her-clausula','obj-coordinador':'her-coordinador','obj-periodo-fact':'her-periodo','obj-req-oc':'her-reqoc','obj-modelo-precio':'her-modelo-precio'};
+const OBJ_HERENCIA_CHIP={'obj-clausula-actualizacion':'her-clausula','obj-coordinador':'her-coordinador','obj-periodo-fact':'her-periodo','obj-req-oc':'her-reqoc','obj-modelo-precio':'her-modelo-precio','obj-facturacion-productos':'her-facturacion-productos'};
 let _objHeredados=new Set(Object.keys(OBJ_HERENCIA_CHIP));
 function pisarHerenciaObj(campoId,chipId){
   _objHeredados.delete(campoId);
@@ -2154,6 +2133,12 @@ function aplicarHerenciasDeCliente(clienteId){
   if(_objHeredados.has('obj-coordinador')&&$('obj-coordinador')) $('obj-coordinador').value=cli.coordinadorCuenta||'';
   if(_objHeredados.has('obj-periodo-fact')&&$('obj-periodo-fact')) $('obj-periodo-fact').value=cli.periodoFact||'';
   if(_objHeredados.has('obj-req-oc')&&$('obj-req-oc')) $('obj-req-oc').value=(cli.reqOC==='Sí'||cli.reqOC==='Sí — siempre'||cli.reqOC==='Sí — solo primera vez')?'Sí':'No';
+  // SERVICIO_LOGISTICA_v2: la Bandeja del auditor leía SIEMPRE
+  // cliente.productosEnFactura directo — acá se copia al servicio para que
+  // el campo mostrado en Logística sea el mismo que decide todo, nunca una
+  // segunda verdad desincronizada (ver pisarFacturacionProductosObj para
+  // el override "propio").
+  if(_objHeredados.has('obj-facturacion-productos')&&$('obj-facturacion-productos')) $('obj-facturacion-productos').value=cli.productosEnFactura||'';
   if(_objHeredados.has('obj-modelo-precio')&&$('obj-modelo-precio')){
     const esperados=modelosPrecioEsperados(clienteId);
     if(esperados&&esperados[0]){$('obj-modelo-precio').value=esperados[0];toggleModeloPrecio();}
@@ -2172,6 +2157,100 @@ function aplicarHerenciasDeCliente(clienteId){
     toggleObjComPeriodos();
   }
 }
+// ========== FACTURACIÓN DE PRODUCTOS (herencia con 2 estados extra) ==========
+// SERVICIO_LOGISTICA_v2_para_Fede.md §1: mismo patrón de HEREDADO/PROPIO que
+// el resto (OBJ_HERENCIA_CHIP), con dos diferencias puntuales que no entran
+// en el genérico pisarHerenciaObj/resetHerenciasObj:
+//  - El select cambia de opciones según el modo (heredado: "— Sin definir
+//    en el cliente —" / propio: etiquetas "...— propio de este servicio").
+//  - Tiene un botón "↩ Volver a heredar" explícito, no solo el click en la
+//    chip (pedido puntual del ticket) — pisarHerenciaObj no tiene inversa.
+// resetHerenciasObj() igual pisa el onclick de la chip al genérico cada vez
+// que abre el modal (recorre TODO OBJ_HERENCIA_CHIP) — por eso
+// abrirModalObjetivo lo vuelve a apuntar acá después de llamarlo.
+function pisarFacturacionProductosObj(){
+  pisarHerenciaObj('obj-facturacion-productos','her-facturacion-productos');
+  const sel=$('obj-facturacion-productos');
+  if(sel) sel.innerHTML='<option value="">— Elegir —</option><option value="SE FACTURA">✅ SE FACTURA (PAGAN) — propio de este servicio</option><option value="NO SE FACTURA">⛔ NO SE FACTURA (NO PAGAN) — propio de este servicio</option>';
+  if($('obj-fact-prod-volver')) $('obj-fact-prod-volver').style.display='inline-block';
+}
+function volverAHeredarFacturacionProductosObj(){
+  _objHeredados.add('obj-facturacion-productos');
+  const chip=$('her-facturacion-productos');
+  if(chip){chip.textContent='HEREDADO del cliente ✎';chip.className='chip';chip.style.background='var(--azul-claro)';chip.style.color='var(--azul)';chip.style.fontSize='9px';chip.style.cursor='pointer';chip.onclick=pisarFacturacionProductosObj;}
+  const sel=$('obj-facturacion-productos');
+  if(sel){sel.innerHTML='<option value="">— Sin definir en el cliente —</option><option value="SE FACTURA">✅ SE FACTURA (PAGAN)</option><option value="NO SE FACTURA">⛔ NO SE FACTURA (NO PAGAN)</option>';sel.disabled=true;}
+  if($('obj-fact-prod-volver')) $('obj-fact-prod-volver').style.display='none';
+  aplicarHerenciasDeCliente(parseInt($('obj-cliente')?.value)||0);
+}
+// Checkbox "Productos de limpieza" destildado → el flag de facturación deja
+// de tener sentido (nada que facturar) y pasa a un 3er estado derivado,
+// "no aplica" — NO es una opción cargable (ver doc, "para que nadie deje los
+// dos campos en contradicción"). Se vuelve a tildar → recupera heredado/
+// propio tal como estaba.
+function syncLlevaProductosObj(){
+  const lleva=$('obj-ck-productos')?.checked;
+  const sel=$('obj-facturacion-productos'),chip=$('her-facturacion-productos'),btnVolver=$('obj-fact-prod-volver'),hint=$('obj-fact-prod-hint');
+  if(!lleva){
+    if(sel){sel.innerHTML='<option value="">— NO LLEVA PRODUCTOS —</option>';sel.value='';sel.disabled=true;}
+    if(chip){chip.textContent='— no aplica';chip.className='chip';chip.style.background='var(--fondo)';chip.style.color='var(--texto-suave)';chip.style.cursor='default';chip.onclick=null;}
+    if(btnVolver) btnVolver.style.display='none';
+    if(hint) hint.textContent='El servicio no lleva productos — el cliente compra los suyos, queda fuera de Pedido de productos.';
+  } else {
+    if(hint) hint.textContent='Se define una sola vez en el cliente (Impositivo y facturación → "Productos en factura"). La Bandeja del auditor lee este valor resuelto. Si el servicio NO lleva productos (checkbox de arriba destildado), este campo pasa solo a "No lleva productos".';
+    if(_objHeredados.has('obj-facturacion-productos')) volverAHeredarFacturacionProductosObj();
+    else pisarFacturacionProductosObj();
+  }
+}
+// Reconstruye el bloque entero al abrir un servicio existente, en el orden
+// correcto: primero el checkbox (define si el campo aplica), después el
+// swap de opciones heredado/propio (pisarFacturacionProductosObj reescribe
+// el <select> entero), y el VALOR guardado recién al final — si se setea
+// antes de un swap de innerHTML, se pierde contra el option que quede
+// primero en la lista nueva.
+function restaurarFacturacionProductosObj(o){
+  const lleva=o.llevaProductos!==false;
+  if($('obj-ck-productos')) $('obj-ck-productos').checked=lleva;
+  if(o.heredado?.['obj-facturacion-productos']===false) pisarFacturacionProductosObj();
+  if(!lleva){ syncLlevaProductosObj(); return; }
+  if($('obj-facturacion-productos')) $('obj-facturacion-productos').value=o.facturacionProductos||'';
+}
+
+// ========== MIGRACIÓN DEL TEXTO VIEJO DE LOGÍSTICA ==========
+// SERVICIO_LOGISTICA_v2_para_Fede.md §4: mientras un servicio tenga texto en
+// los 3 campos libres viejos (logProductos/logElementos/logMaquinas) sin
+// confirmar repartido, se muestra en solo lectura — nunca se borra en
+// silencio. Heurística de destino simple (no exhaustiva): los casos
+// ambiguos los resuelve Lautaro a mano, mismo criterio que el doc.
+function renderLogisticaLegacyBanner(o){
+  const box=$('obj-logistica-legacy');if(!box)return;
+  const tieneTextoViejo=!!(o&&(o.logProductos||o.logElementos||o.logMaquinas)&&!o.logisticaMigrado);
+  box.style.display=tieneTextoViejo?'block':'none';
+  if(!tieneTextoViejo) return;
+  const partes=[];
+  if(o.logProductos) partes.push('Productos: '+o.logProductos);
+  if(o.logElementos) partes.push('Elementos: '+o.logElementos);
+  if(o.logMaquinas) partes.push('Máquinas: '+o.logMaquinas);
+  if($('obj-logistica-legacy-txt')) $('obj-logistica-legacy-txt').textContent=partes.join(' | ');
+  const todoTexto=(o.logProductos||'')+' '+(o.logElementos||'')+' '+(o.logMaquinas||'');
+  const destinos=[];
+  if(/SE FACTURA/i.test(todoTexto)) destinos.push('→ "SE FACTURA" / "NO SE FACTURA": revisá que coincida con el flag de arriba (Facturación de productos).');
+  if(/env[ií]a\s*remito/i.test(todoTexto)) destinos.push('→ "Envía remito": tildar "Remito de servicio" en Documentación requerida del cliente.');
+  if(!destinos.length) destinos.push('→ Lo que no sea facturación/remito, copialo a "Notas de logística" de arriba.');
+  if($('obj-logistica-legacy-dest')) $('obj-logistica-legacy-dest').innerHTML=destinos.map(d=>`<div>${d}</div>`).join('');
+}
+async function marcarLogisticaMigradaObj(){
+  if(!objetivoEditIdLocal) return;
+  const o=getObjetivoByIdLocal(objetivoEditIdLocal);
+  if(!o) return;
+  o.logisticaMigrado=true;
+  const ok=await supaSync('objetivos',objetivoParaGuardar(o));
+  if(!ok){o.logisticaMigrado=false;toast('⚠️ No se pudo guardar — reintentá');return;}
+  registrarEventoObjetivo(o,'logistica_pendiente','logistica_migrado','Texto viejo de Logística (Productos/Elementos/Máquinas) repartido y confirmado por '+(currentUser?.nombre||''));
+  renderLogisticaLegacyBanner(o);
+  toast('✔ Migración confirmada — queda en el historial del servicio');
+}
+
 // FIX (ticket "Dirección fiscal", 02/09): checkbox "Usar la dirección fiscal
 // del cliente" en el alta de servicio — copia dirección/localidad del
 // cliente al OBJETIVO (servicio), agilizando la carga cuando coinciden.
@@ -2233,18 +2312,26 @@ function abrirModalObjetivo(idLocal){
   adjuntosObjTemp.length=0;adjuntosObjTemp.push(...(o?(o.adjuntos||[]).map(a=>({...a})):[]));
   puestosObjTemp.length=0;puestosObjTemp.push(...(o?(o.puestos||[]).map(p=>({...p,dias:{...(p.dias||{})}})):[]));
   comisionesObjTemp.length=0;comisionesObjTemp.push(...(o?(o.comisiones||[]).map(c=>({...c,tramosPct:(c.tramosPct||[]).map(t=>({...t}))})):[]));
-  objMultiTemp={productos:[...(o?.productosLimpieza||[])],elementos:[...(o?.elementosLimpieza||[])],maquinas:[...(o?.maquinasNecesarias||[])]};
-  renderObjMulti();
   const titulo=$('obj-modal-title');
   if(titulo) titulo.textContent=o?'📍 Editar servicio':'📍 Nuevo servicio';
   resetHerenciasObj();
+  // resetHerenciasObj() pisa la chip de TODOS los campos de OBJ_HERENCIA_CHIP
+  // al handler genérico — "Facturación de productos" necesita el suyo
+  // propio (2 estados extra, ver pisarFacturacionProductosObj).
+  if($('her-facturacion-productos')) $('her-facturacion-productos').onclick=pisarFacturacionProductosObj;
   if(o){
     $('obj-cliente').value=o.clienteId;$('obj-codigo').value=o.codigo;
     $('obj-nombre').value=o.nombre;if($('obj-tipo'))$('obj-tipo').value=o.tipo||'';
     if($('obj-tipo-sitio'))$('obj-tipo-sitio').value=o.tipoSitio||'';
     $('obj-dir').value=o.dir||'';
     poblarLocalidadObjetivoSelect(o.localidad||'');
-    if($('obj-fecha-inicio')&&o.fechaInicio){const[dd,mm,yy]=o.fechaInicio.split('/');$('obj-fecha-inicio').value=`${yy}-${mm}-${dd}`;}
+    // FIX (hallado al probar SERVICIO_LOGISTICA_v2, 01/10/2026): guardarObjetivo
+    // arma esta fecha con toLocaleDateString('es-AR'), que NO acolcha con
+    // ceros (ej. "1/9/2026", no "01/09/2026"). Un <input type="date"> exige
+    // YYYY-MM-DD estricto y rechaza en silencio cualquier otro formato — sin
+    // el padStart, reabrir y re-guardar un servicio con día o mes de un solo
+    // dígito borraba su fecha de inicio en cada ciclo de edición.
+    if($('obj-fecha-inicio')&&o.fechaInicio){const[dd,mm,yy]=o.fechaInicio.split('/');$('obj-fecha-inicio').value=`${yy}-${String(mm).padStart(2,'0')}-${String(dd).padStart(2,'0')}`;}
     poblarModeloPrecioSegunCliente(o.clienteId);
     if($('obj-modelo-precio')) $('obj-modelo-precio').value=o.modeloPrecio||'';
     // DELTA_servicios_tipo_de_sitio_v1 — "Por horas variables" carga horas+
@@ -2260,9 +2347,8 @@ function abrirModalObjetivo(idLocal){
     // vigencia, acá sólo se muestra. Si no tiene regla (servicio nuevo o que
     // nunca se cargó), el campo sigue editable para poder sembrar el banco.
     refrescarReferenciaHorasObj(o.codigo);
-    if($('obj-fecha-fin')&&o.fechaFin){const[dd,mm,yy]=o.fechaFin.split('/');$('obj-fecha-fin').value=`${yy}-${mm}-${dd}`;} else if($('obj-fecha-fin')) $('obj-fecha-fin').value='';
+    if($('obj-fecha-fin')&&o.fechaFin){const[dd,mm,yy]=o.fechaFin.split('/');$('obj-fecha-fin').value=`${yy}-${String(mm).padStart(2,'0')}-${String(dd).padStart(2,'0')}`;} else if($('obj-fecha-fin')) $('obj-fecha-fin').value='';
     if($('obj-contrato')) $('obj-contrato').value=o.contrato||'';
-    if($('obj-productos')) $('obj-productos').value=o.productos||'';
     if($('obj-tercerizado')) $('obj-tercerizado').checked=!!o.tercerizado;
     toggleObjTercerizado();
     if($('obj-clausula-actualizacion')) $('obj-clausula-actualizacion').value=o.clausulaActualizacion||'';
@@ -2273,19 +2359,28 @@ function abrirModalObjetivo(idLocal){
     if($('obj-email-facturacion')) $('obj-email-facturacion').value=o.emailFacturacion||'';
     if($('obj-email-cc')) $('obj-email-cc').value=o.emailCc||'';
     $('obj-notas-precio').value=o.notas||'';
-    if($('obj-log-productos')) $('obj-log-productos').value=o.logProductos||'';
-    if($('obj-log-elementos')) $('obj-log-elementos').value=o.logElementos||'';
-    if($('obj-log-maquinas')) $('obj-log-maquinas').value=o.logMaquinas||'';
+    if($('obj-ck-elementos')) $('obj-ck-elementos').checked=o.llevaElementos!==false;
+    if($('obj-ck-maquinas')) $('obj-ck-maquinas').checked=o.llevaMaquinas!==false;
+    if($('obj-notas-logistica')) $('obj-notas-logistica').value=o.notasLogistica||'';
+    renderLogisticaLegacyBanner(o);
     // Restaura el estado PROPIO de los campos que ya se habían pisado
     // (si no está marcado en o.heredado, resetHerenciasObj ya lo dejó en
     // HEREDADO/disabled, que es el default correcto para servicios viejos
-    // que no tienen este campo todavía).
+    // que no tienen este campo todavía). Facturación de productos tiene su
+    // propio restaurador (2 estados extra, ver restaurarFacturacionProductosObj).
     Object.keys(OBJ_HERENCIA_CHIP).forEach(campoId=>{
+      if(campoId==='obj-facturacion-productos') return;
       if(o.heredado?.[campoId]===false) pisarHerenciaObj(campoId,OBJ_HERENCIA_CHIP[campoId]);
     });
+    restaurarFacturacionProductosObj(o);
   } else {
-    ['obj-cliente','obj-codigo','obj-nombre','obj-dir','obj-fecha-inicio','obj-valor','obj-efts','obj-efts-fijo','obj-valor-hora','obj-fecha-fin','obj-texto-factura','obj-email-facturacion','obj-email-cc','obj-notas-precio','obj-log-productos','obj-log-elementos','obj-log-maquinas'].forEach(id=>{const el=$(id);if(el)el.value='';});
+    ['obj-cliente','obj-codigo','obj-nombre','obj-dir','obj-fecha-inicio','obj-valor','obj-efts','obj-efts-fijo','obj-valor-hora','obj-fecha-fin','obj-texto-factura','obj-email-facturacion','obj-email-cc','obj-notas-precio','obj-notas-logistica'].forEach(id=>{const el=$(id);if(el)el.value='';});
     if($('obj-tipo-sitio')) $('obj-tipo-sitio').value='';
+    if($('obj-ck-productos')) $('obj-ck-productos').checked=true;
+    if($('obj-ck-elementos')) $('obj-ck-elementos').checked=true;
+    if($('obj-ck-maquinas')) $('obj-ck-maquinas').checked=true;
+    syncLlevaProductosObj();
+    renderLogisticaLegacyBanner(null);
     poblarLocalidadObjetivoSelect();
     poblarModeloPrecioSegunCliente(0);
   }
@@ -2383,20 +2478,29 @@ async function guardarObjetivo(){
     emailFacturacion:cleanText($('obj-email-facturacion')?.value||''),
     emailCc:cleanText($('obj-email-cc')?.value||''),
     notas:$('obj-notas-precio')?.value||'',
-    // 2.5.1 (Delta Comercial v1.3): "Facturación de productos" se movió
-    // de la tab Precio a la tab Logística y cambió de opciones/nombre
-    // (antes "productos", "Productos incluidos en precio").
-    productos:$('obj-productos')?.value,
     // PERIODOS_campanita_tercerizados_para_Fede.md — dato del servicio, no
     // un texto libre en el campo supervisor. Excluye el servicio de todo
     // Pedido de productos (ver esServicioTercerizadoPP en ese módulo).
     tercerizado:$('obj-tercerizado')?.checked||false,
-    logProductos:$('obj-log-productos')?.value||'',
-    logElementos:$('obj-log-elementos')?.value||'',
-    logMaquinas:$('obj-log-maquinas')?.value||'',
-    productosLimpieza:[...objMultiTemp.productos],
-    elementosLimpieza:[...objMultiTemp.elementos],
-    maquinasNecesarias:[...objMultiTemp.maquinas],
+    // SERVICIO_LOGISTICA_v2_para_Fede.md: reemplaza el viejo o.productos
+    // (select propio desincronizado del cliente — el bug real de Ascensores)
+    // por el valor RESUELTO (heredado o propio, ver aplicarHerenciasDeCliente
+    // / pisarFacturacionProductosObj). "No lleva productos" (checkbox
+    // destildado) se guarda como '' a propósito: no es una 3ra opción
+    // cargable, es un estado derivado — nunca se persiste un valor que
+    // contradiga el checkbox.
+    facturacionProductos:$('obj-ck-productos')?.checked===false?'':($('obj-facturacion-productos')?.value||''),
+    llevaProductos:$('obj-ck-productos')?.checked??true,
+    llevaElementos:$('obj-ck-elementos')?.checked??true,
+    llevaMaquinas:$('obj-ck-maquinas')?.checked??true,
+    notasLogistica:$('obj-notas-logistica')?.value||'',
+    // NO se tocan acá: logProductos/logElementos/logMaquinas (texto viejo,
+    // archivado hasta migrar — ver marcarLogisticaMigradaObj) ni
+    // productosLimpieza/elementosLimpieza/maquinasNecesarias (multi-select
+    // viejo) — el form ya no tiene inputs para esos campos, incluirlos acá
+    // con `?.value||''` los pisaría a vacío en cada guardado. Object.assign
+    // en el guardado de un existente solo toca las claves presentes en
+    // `datos`, así que omitirlas los deja intactos.
     responsables:[...respObjetivoTemp],
     adjuntos:[...adjuntosObjTemp],
   };
@@ -15199,7 +15303,6 @@ window.agregarPregunta = agregarPregunta;
 window.agregarRespObjetivo = agregarRespObjetivo;
 window.toggleRespObjetivoContacto = toggleRespObjetivoContacto;
 window.setRespObjetivoFlag = setRespObjetivoFlag;
-window.toggleObjMulti = toggleObjMulti;
 window.agregarSMVM = agregarSMVM;
 window.alertarAccionesVencidasModulo = alertarAccionesVencidasModulo;
 window.analizarCobrosIA = analizarCobrosIA;
@@ -15556,6 +15659,10 @@ window.recalcularPrecioObjetivo = recalcularPrecioObjetivo;
 window.poblarLocalidadObjetivoSelect = poblarLocalidadObjetivoSelect;
 window.aplicarHerenciasDeCliente = aplicarHerenciasDeCliente;
 window.pisarHerenciaObj = pisarHerenciaObj;
+window.pisarFacturacionProductosObj = pisarFacturacionProductosObj;
+window.volverAHeredarFacturacionProductosObj = volverAHeredarFacturacionProductosObj;
+window.syncLlevaProductosObj = syncLlevaProductosObj;
+window.marcarLogisticaMigradaObj = marcarLogisticaMigradaObj;
 window.toggleUsarDireccionFiscalObjetivo = toggleUsarDireccionFiscalObjetivo;
 window.aplicarDireccionFiscalAObjetivo = aplicarDireccionFiscalAObjetivo;
 window.agregarPuestoObj = agregarPuestoObj;

@@ -22,10 +22,13 @@ function recargoVigenteServicioPP(servicioCodigo) {
   const general = (DB.ppRecargoGeneral || []).filter(r => !r.anulado && !r.vigenciaHasta).sort((a, b) => (b.vigenciaDesde || '').localeCompare(a.vigenciaDesde || ''))[0];
   return general ? Number(general.pct) || 0 : RECARGO_GENERAL_DEFAULT;
 }
+// SERVICIO_LOGISTICA_v2_para_Fede.md §1: prioriza el valor RESUELTO que ya
+// guarda el servicio (facturacionProductos); si todavía no se re-guardó con
+// el campo nuevo, cae a leer el cliente directo como siempre.
 function esPaganPedido(pedido) {
   const obj = (DB.objetivos || []).find(o => o.codigo === pedido.servicioCodigo);
   const cliente = obj?.clienteIdLocal ? (DB.clientes || []).find(c => String(c.idLocal || c.id_local) === String(obj.clienteIdLocal)) : null;
-  return cliente?.productosEnFactura === 'SE FACTURA';
+  return (obj?.facturacionProductos || cliente?.productosEnFactura || '') === 'SE FACTURA';
 }
 // Solo cuenta lo que ya salió de depósito (ENTREGADO) — antes de eso no
 // impactó al servicio (mismo criterio que Entregas: "recién al ENTREGADO

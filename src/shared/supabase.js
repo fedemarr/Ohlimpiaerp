@@ -613,13 +613,21 @@ export function _toSnake(obj) {
     // v088 — Pedidos de personal: horario semanal estructurado (mismo shape
     // que un puesto de objetivos.puestos_necesarios)
     horarioSemanal: 'horario_semanal',
-    // 2.5/A.6 (Delta Comercial v1.3)
+    // 2.5/A.6 (Delta Comercial v1.3) — campos viejos de texto libre, ya NO
+    // editables desde el form (ver SERVICIO_LOGISTICA_v2_para_Fede.md), pero
+    // se mantienen leíbles/mapeados: el recuadro de migración los muestra
+    // hasta que alguien confirme el reparto, nunca se borran en silencio.
     logProductos: 'log_productos', logElementos: 'log_elementos', logMaquinas: 'log_maquinas',
-    // v079 — multi-select parametrizable (NO reemplaza los 3 de arriba,
-    // que siguen con su dato real de facturación en los 164 objetivos ya
-    // cargados)
+    // v079 — multi-select parametrizable, reemplazado por los 3 checkboxes
+    // de concepto (v176) — mismo criterio: el dato viejo no se toca.
     productosLimpieza: 'productos_limpieza', elementosLimpieza: 'elementos_limpieza',
     maquinasNecesarias: 'maquinas_necesarias',
+    // v177 — SERVICIO_LOGISTICA_v2: facturación de productos heredada del
+    // cliente (con override propio), 3 checkboxes de concepto fijos
+    // (reemplazan el multi-select) y Notas de logística único.
+    facturacionProductos: 'facturacion_productos', llevaProductos: 'lleva_productos',
+    llevaElementos: 'lleva_elementos', llevaMaquinas: 'lleva_maquinas',
+    notasLogistica: 'notas_logistica', logisticaMigrado: 'logistica_migrado',
     // Liquidación de horas v1.1 (v040)
     objCodigo: 'objetivo_codigo', horasEFT: 'horas_eft', horasContratadas: 'horas_contratadas',
     alertaEFT: 'alerta_eft', totalHorasFacturables: 'total_horas_facturables',
@@ -1156,6 +1164,10 @@ export function _toCamel(obj) {
     log_productos: 'logProductos', log_elementos: 'logElementos', log_maquinas: 'logMaquinas',
     productos_limpieza: 'productosLimpieza', elementos_limpieza: 'elementosLimpieza',
     maquinas_necesarias: 'maquinasNecesarias',
+    // v177 — SERVICIO_LOGISTICA_v2
+    facturacion_productos: 'facturacionProductos', lleva_productos: 'llevaProductos',
+    lleva_elementos: 'llevaElementos', lleva_maquinas: 'llevaMaquinas',
+    notas_logistica: 'notasLogistica', logistica_migrado: 'logisticaMigrado',
     // Liquidación de horas v1.1 (v040)
     objetivo_codigo: 'objCodigo', horas_eft: 'horasEFT', horas_contratadas: 'horasContratadas',
     alerta_eft: 'alertaEFT', total_horas_facturables: 'totalHorasFacturables',

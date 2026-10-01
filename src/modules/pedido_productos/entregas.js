@@ -405,7 +405,9 @@ export function abrirEntregaFinalPP(remitoId) {
   const pedido = getPedidoPP(r.pedidoIdLocal);
   const obj = pedido ? (DB.objetivos || []).find(o => o.codigo === pedido.servicioCodigo) : null;
   const cliente = obj?.clienteIdLocal ? (DB.clientes || []).find(c => String(c.idLocal || c.id_local) === String(obj.clienteIdLocal)) : null;
-  const pagan = cliente?.productosEnFactura === 'SE FACTURA';
+  // SERVICIO_LOGISTICA_v2_para_Fede.md §1: valor RESUELTO del servicio
+  // (propio o heredado), con fallback al cliente si todavía no se re-guardó.
+  const pagan = (obj?.facturacionProductos || cliente?.productosEnFactura || '') === 'SE FACTURA';
   $('pp-entrega-titulo').textContent = `Entrega — ${r.numero}`;
   $('pp-entrega-a').value = '';
   $('pp-entrega-foto').value = '';

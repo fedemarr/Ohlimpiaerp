@@ -7991,19 +7991,49 @@
             <span class="form-hint">La limpieza la hace un tercero — este servicio no aparece en Pedido de productos: no cuenta en el total, no figura en ningún filtro ni recibe recordatorios.</span>
           </div>
           <div id="obj-tab4-resto">
-          <div class="form-group"><label>Facturación de productos</label>
-            <select id="obj-productos"><option>Incluidos en el precio</option><option>Factura separada</option><option>Renglón aparte en la factura</option><option>No lleva productos</option></select>
+          <div class="form-section">Facturación de productos</div>
+          <div class="form-group">
+            <label>Facturación de productos</label>
+            <!-- OJO: el botón NO va dentro del <label> — un <button> es
+                 "labelable" y el navegador reenvía cualquier click hecho en
+                 CUALQUIER parte del label (incluida la chip) hacia el primer
+                 control labelable adentro, disparando "Volver a heredar" en
+                 el mismo click que "Hacer propio" y deshaciéndolo al toque. -->
+            <span class="chip" id="her-facturacion-productos" style="font-size:9px;background:var(--azul-claro);color:var(--azul);cursor:pointer;" onclick="pisarFacturacionProductosObj()">HEREDADO del cliente ✎</span>
+            <button type="button" class="btn btn-secondary btn-xs" id="obj-fact-prod-volver" style="display:none;margin-left:6px;" onclick="volverAHeredarFacturacionProductosObj()">↩ Volver a heredar</button>
+            <select id="obj-facturacion-productos" disabled>
+              <option value="">— Sin definir en el cliente —</option>
+              <option value="SE FACTURA">✅ SE FACTURA (PAGAN)</option>
+              <option value="NO SE FACTURA">⛔ NO SE FACTURA (NO PAGAN)</option>
+            </select>
+            <span class="form-hint" id="obj-fact-prod-hint">Se define una sola vez en el cliente (Impositivo y facturación → "Productos en factura"). La Bandeja del auditor lee este valor resuelto. Si el servicio NO lleva productos (checkbox de abajo destildado), este campo pasa solo a "No lleva productos".</span>
           </div>
-          <div class="form-section">Necesidad logística del servicio</div>
-          <div class="alerta alerta-info" style="font-size:12px;">Qué necesita el servicio para funcionar — el pedido/entrega real se gestiona en el módulo Logística.</div>
-          <div class="form-group"><label>Productos <span style="font-weight:400;color:var(--texto-suave);">(notas / facturación — texto libre, como antes)</span></label><textarea id="obj-log-productos" placeholder="Ej: Detergente neutro, lavandina, papel higiénico..."></textarea></div>
-          <div class="form-group"><label>Elementos de limpieza <span style="font-weight:400;color:var(--texto-suave);">(notas — texto libre, como antes)</span></label><textarea id="obj-log-elementos" placeholder="Ej: Trapos de piso, mopas, guantes..."></textarea></div>
-          <div class="form-group"><label>Máquinas <span style="font-weight:400;color:var(--texto-suave);">(notas — texto libre, como antes)</span></label><textarea id="obj-log-maquinas" placeholder="Ej: Enceradora, hidrolavadora..."></textarea></div>
 
-          <div class="form-section">Qué pide el servicio (selección múltiple)</div>
-          <div class="form-group"><label>Productos de limpieza</label><div id="obj-multi-productos" style="display:flex;flex-wrap:wrap;gap:8px;"></div></div>
-          <div class="form-group"><label>Elementos de limpieza</label><div id="obj-multi-elementos" style="display:flex;flex-wrap:wrap;gap:8px;"></div></div>
-          <div class="form-group"><label>Máquinas</label><div id="obj-multi-maquinas" style="display:flex;flex-wrap:wrap;gap:8px;"></div></div>
+          <div class="form-section">Qué necesita el servicio</div>
+          <div class="form-group">
+            <label style="display:flex;align-items:center;gap:6px;cursor:pointer;"><input type="checkbox" id="obj-ck-productos" checked onchange="syncLlevaProductosObj()"> 🧴 Productos de limpieza</label>
+            <span class="form-hint">Tildado → el servicio aparece en Pedido de productos (el supervisor le carga su pedido mensual). Sin tildar → no aparece: el cliente compra sus propios productos.</span>
+          </div>
+          <div class="form-group">
+            <label style="display:flex;align-items:center;gap:6px;cursor:pointer;"><input type="checkbox" id="obj-ck-elementos" checked> 🧹 Elementos de limpieza</label>
+            <span class="form-hint">Trapos, mopas, guantes… — informativo para Logística.</span>
+          </div>
+          <div class="form-group">
+            <label style="display:flex;align-items:center;gap:6px;cursor:pointer;"><input type="checkbox" id="obj-ck-maquinas" checked> ⚙ Máquinas</label>
+            <span class="form-hint">Enceradora, aspiradora… — informativo para Logística (conecta con el módulo Máquinas a futuro).</span>
+          </div>
+
+          <div class="form-group"><label>Notas de logística <span style="font-weight:400;color:var(--texto-suave);">(opcional)</span></label>
+            <textarea id="obj-notas-logistica" placeholder="Solo lo que no entra en los checkboxes — acceso, horarios de recepción, particularidades…"></textarea>
+          </div>
+
+          <div id="obj-logistica-legacy" class="alerta alerta-warn" style="display:none;font-size:12px;">
+            <b>⚠ Texto heredado del formato viejo — repartir y marcar migrado</b>
+            <div id="obj-logistica-legacy-txt" style="font-family:'DM Mono',monospace;background:var(--fondo);border:1px dashed var(--borde);border-radius:6px;padding:6px 10px;margin:6px 0 8px;"></div>
+            <div id="obj-logistica-legacy-dest" style="margin-bottom:6px;"></div>
+            <button type="button" class="btn btn-secondary btn-sm" onclick="marcarLogisticaMigradaObj()">✔ Ya repartido — marcar migrado</button>
+            <div class="form-hint" style="margin-top:6px;">Los campos de texto libre de Productos / Elementos / Máquinas de la versión anterior no se editan más desde acá. Mientras no se confirme el reparto, se muestran acá en solo lectura — nada se pierde en silencio.</div>
+          </div>
           </div>
         </div>
       </div>

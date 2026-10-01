@@ -31,11 +31,14 @@ function recargoGeneralVigente() {
 // Servicios PAGAN: nace SOLO del padrón (objetivos Operativos cuyo
 // cliente factura productos) — nunca una lista cargada aparte, así no se
 // puede desincronizar de Comercial.
+// SERVICIO_LOGISTICA_v2_para_Fede.md §1: prioriza o.facturacionProductos
+// (valor resuelto, propio o heredado) y cae a leer el cliente directo si el
+// servicio todavía no se volvió a guardar con el campo nuevo.
 function serviciosPaganPP() {
   return (DB.objetivos || []).filter(o => {
     if (o.estado !== 'Operativo' || o.anulado) return false;
     const cliente = o.clienteIdLocal ? (DB.clientes || []).find(c => String(c.idLocal || c.id_local) === String(o.clienteIdLocal)) : null;
-    return cliente?.productosEnFactura === 'SE FACTURA';
+    return (o.facturacionProductos || cliente?.productosEnFactura || '') === 'SE FACTURA';
   }).sort((a, b) => a.nombre.localeCompare(b.nombre));
 }
 

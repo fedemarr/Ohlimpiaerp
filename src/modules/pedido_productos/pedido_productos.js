@@ -129,10 +129,19 @@ function clienteDeObjetivoPP(objetivo) {
   if (!objetivo?.clienteIdLocal) return null;
   return (DB.clientes || []).find(c => String(c.idLocal || c.id_local) === String(objetivo.clienteIdLocal)) || null;
 }
+// SERVICIO_LOGISTICA_v2_para_Fede.md §1: el servicio ahora guarda el valor
+// YA RESUELTO (facturacionProductos — heredado del cliente o propio, ver
+// aplicarHerenciasDeCliente/pisarFacturacionProductosObj en legacy.js). Se
+// prioriza ese campo; el fallback a cliente.productosEnFactura cubre los
+// servicios que todavía no se volvieron a guardar desde que existe el campo
+// nuevo — nadie queda sin resolución mientras se van resguardando de a uno.
+function facturacionProductosResueltaPP(objetivo, cliente) {
+  return objetivo?.facturacionProductos || cliente?.productosEnFactura || '';
+}
 function esPaganPP(pedido) {
   const obj = (DB.objetivos || []).find(o => o.codigo === pedido.servicioCodigo);
   const cliente = obj ? clienteDeObjetivoPP(obj) : null;
-  return cliente?.productosEnFactura === 'SE FACTURA';
+  return facturacionProductosResueltaPP(obj, cliente) === 'SE FACTURA';
 }
 
 // Recargo vigente del SERVICIO (tab 📈 Recargos, punto 7 — TODO: pendiente
@@ -842,8 +851,14 @@ export function renderPeriodosPP() {
 function esServicioTercerizadoPP(codigo) {
   return !!(DB.objetivos || []).find(o => o.codigo === codigo)?.tercerizado;
 }
+// SERVICIO_LOGISTICA_v2_para_Fede.md §2: checkbox "Productos de limpieza"
+// destildado = el cliente compra los suyos — mismo criterio de exclusión que
+// tercerizado (ausencia del campo = true, no excluye nada por default).
+function noLlevaProductosPP(codigo) {
+  return (DB.objetivos || []).find(o => o.codigo === codigo)?.llevaProductos === false;
+}
 function pedidosDelPeriodoPP(periodo) {
-  return (DB.ppPedidos || []).filter(x => !x.anulado && _idTrunc(x.periodoIdLocal) === _idTrunc(periodo.id) && !esServicioTercerizadoPP(x.servicioCodigo));
+  return (DB.ppPedidos || []).filter(x => !x.anulado && _idTrunc(x.periodoIdLocal) === _idTrunc(periodo.id) && !esServicioTercerizadoPP(x.servicioCodigo) && !noLlevaProductosPP(x.servicioCodigo));
 }
 
 // ========== DETALLE DEL PERÍODO — "Estado de los pedidos" ==========
@@ -1119,7 +1134,7 @@ export function abrirPeriodoPP() {
 async function activarPeriodoPP(periodo) {
   periodo.estado = 'abierto';
   await supaSync('ppPeriodos', periodo);
-  const activos = (DB.objetivos || []).filter(o => o.estado === 'Operativo' && !o.tercerizado);
+  const activos = (DB.objetivos || []).filter(o => o.estado === 'Operativo' && !o.tercerizado && o.llevaProductos !== false);
   let creados = 0;
   for (const o of activos) {
     const facturacionNeta = (typeof window !== 'undefined' && window.calcularFacturacionMensualObjetivo) ? (window.calcularFacturacionMensualObjetivo(o) || 0) : 0;
