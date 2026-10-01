@@ -6252,6 +6252,7 @@
       <button class="tab-btn active" data-cbu-tab="pendientes" onclick="tabCbu('pendientes',this)">📥 Pendientes de CBU <span id="cbu-badge-pendientes" class="badge badge-rojo" style="display:none;font-size:10px;">0</span></button>
       <button class="tab-btn" data-cbu-tab="padron" onclick="tabCbu('padron',this)">Padrón</button>
       <button class="tab-btn" data-cbu-tab="historial" onclick="tabCbu('historial',this)">Historial de cambios</button>
+      <button class="tab-btn" data-cbu-tab="anuladas" onclick="tabCbu('anuladas',this)">🗑️ Anuladas</button>
     </div>
 
     <!-- PENDIENTES -->
@@ -6289,6 +6290,15 @@
       <div class="tabla-wrap"><table>
         <thead><tr><th>Fecha</th><th>Asociado</th><th>Cambio</th><th>Motivo</th><th>Cargado por</th></tr></thead>
         <tbody id="tbody-cbu-historial"></tbody>
+      </table></div>
+    </div>
+
+    <!-- ANULADAS (eliminadas, soft) -->
+    <div id="cbu-tab-anuladas" class="tab-content">
+      <p style="font-size:12px;color:var(--texto-suave);padding:10px 14px 0;">Cuentas eliminadas desde Pendientes o Padrón — no se borran, quedan acá hasta que alguien las reactive.</p>
+      <div class="tabla-wrap"><table>
+        <thead><tr><th>Asociado</th><th>Estado al eliminar</th><th>CBU</th><th>Eliminado por</th><th>Acción</th></tr></thead>
+        <tbody id="tbody-cbu-anuladas"></tbody>
       </table></div>
     </div>
   </div>

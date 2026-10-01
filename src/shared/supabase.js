@@ -652,6 +652,8 @@ export function _toSnake(obj) {
     cuitTitular: 'cuit_titular', esTercero: 'es_tercero', tramiteBanco: 'tramite_banco',
     tramiteFecha: 'tramite_fecha', tramitePor: 'tramite_por', tramiteObservaciones: 'tramite_observaciones',
     cbuAnterior: 'cbu_anterior', cbuNuevo: 'cbu_nuevo', bancoAnterior: 'banco_anterior', bancoNuevo: 'banco_nuevo',
+    // v176 — Cuentas CBU: eliminar (soft) → tab "Anuladas" + Reactivar
+    anuladoPor: 'anulado_por', anuladoEn: 'anulado_en',
     // v139 — Lotes de pago (Liquidaciones — pago de retiros)
     nroLote: 'nro_lote', confirmadoPor: 'confirmado_por', confirmadoEn: 'confirmado_en',
     loteIdLocal: 'lote_id_local', esExcepcion: 'es_excepcion', fechaAcreditacion: 'fecha_acreditacion',
@@ -1175,6 +1177,8 @@ export function _toCamel(obj) {
     cuit_titular: 'cuitTitular', es_tercero: 'esTercero', tramite_banco: 'tramiteBanco',
     tramite_fecha: 'tramiteFecha', tramite_por: 'tramitePor', tramite_observaciones: 'tramiteObservaciones',
     cbu_anterior: 'cbuAnterior', cbu_nuevo: 'cbuNuevo', banco_anterior: 'bancoAnterior', banco_nuevo: 'bancoNuevo',
+    // v176 — Cuentas CBU: eliminar (soft) → tab "Anuladas" + Reactivar
+    anulado_por: 'anuladoPor', anulado_en: 'anuladoEn',
     // v139 — Lotes de pago (Liquidaciones — pago de retiros)
     nro_lote: 'nroLote', confirmado_por: 'confirmadoPor', confirmado_en: 'confirmadoEn',
     lote_id_local: 'loteIdLocal', es_excepcion: 'esExcepcion', fecha_acreditacion: 'fechaAcreditacion',

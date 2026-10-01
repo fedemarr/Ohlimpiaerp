@@ -147,6 +147,36 @@ export async function crearFilaAltaCbu(legajoNro, nombreAsociado, { cbu, banco, 
   });
 }
 
+// ========== ELIMINAR (soft) / REACTIVAR ==========
+//
+// "No perder rastro": nunca se borra la fila físicamente. anulado ya
+// existía desde v138 y ya filtraba en getCuentaCbu/renderCbuPadron, pero
+// nunca se seteaba a true — esto cierra ese camino. Al anular, la fila
+// deja de contar como cuenta real: el legajo vuelve a aparecer en
+// Pendientes (como SIN_CUENTA) porque getCuentaCbu ya no la encuentra. Al
+// reactivar, reaparece sola donde corresponda según su `estado` real
+// (Padrón si era ACTIVA, Pendientes si era EN_TRAMITE) — no hace falta (ni
+// hay que) forzarla a un lugar fijo.
+export async function anularCuentaCbu(legajoNro) {
+  const c = (DB.cuentasCbu || []).find(x => String(x.legajoNro) === String(legajoNro) && !x.anulado);
+  if (!c) return null;
+  c.anulado = true;
+  c.anuladoPor = currentUser?.nombre || '';
+  c.anuladoEn = new Date().toISOString();
+  const ok = await supaSync('cuentasCbu', c);
+  if (!ok) { c.anulado = false; c.anuladoPor = ''; c.anuladoEn = null; return null; }
+  return c;
+}
+
+export async function reactivarCuentaCbu(legajoNro) {
+  const c = (DB.cuentasCbu || []).find(x => String(x.legajoNro) === String(legajoNro) && x.anulado);
+  if (!c) return null;
+  c.anulado = false;
+  const ok = await supaSync('cuentasCbu', c);
+  if (!ok) { c.anulado = true; return null; }
+  return c;
+}
+
 export function historialCuentaCbu(legajoNro) {
   return (DB.cuentasCbuHistorial || [])
     .filter(h => String(h.legajoNro) === String(legajoNro))

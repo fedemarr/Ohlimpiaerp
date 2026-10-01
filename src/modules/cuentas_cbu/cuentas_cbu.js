@@ -7,6 +7,7 @@ import { $, avatarEl } from '@shared/helpers.js';
 import { toast, abrirModal, cerrarModal } from '@shared/ui.js';
 import {
   cbuChecksumValido, deducirBanco, getCuentaCbu, guardarCuentaCbu, historialCuentaCbu,
+  anularCuentaCbu, reactivarCuentaCbu,
 } from './consultas.js';
 
 function _soloDigitos(s) { return (s || '').replace(/\D/g, ''); }
@@ -33,6 +34,7 @@ const RENDER_POR_TAB = {
   pendientes: renderCbuPendientes,
   padron: renderCbuPadron,
   historial: renderCbuHistorial,
+  anuladas: renderCbuAnuladas,
 };
 
 export function tabCbu(tab, btn) {
@@ -47,6 +49,15 @@ export function tabCbu(tab, btn) {
 export function renderCuentasCbu() {
   _renderKpisCbu();
   tabCbu('pendientes');
+}
+
+// Refresca KPIs + el tab que esté activo en pantalla, SIN forzar el salto a
+// Pendientes que hace renderCuentasCbu() — eliminar/reactivar una fila desde
+// Padrón o Anuladas no debería teletransportar a RRHH de vuelta a Pendientes.
+function _refrescarCbu() {
+  _renderKpisCbu();
+  const activo = document.querySelector('#screen-cuentas_cbu .tab-btn.active')?.dataset.cbuTab || 'pendientes';
+  (RENDER_POR_TAB[activo] || renderCbuPendientes)();
 }
 
 function _renderKpisCbu() {
@@ -94,8 +105,11 @@ export function renderCbuPendientes() {
     const tramiteCel = c.estado === 'EN_TRAMITE'
       ? `${c.tramiteBanco || '—'} · pedido ${_fmtFecha(c.tramiteFecha)}<br><span class="text-muted" style="font-size:10.5px;">${c.tramitePor || ''}${dias != null ? ' · hace ' + dias + ' día(s)' : ''}</span>`
       : '<span class="text-muted">— sin iniciar</span>';
+    // "Eliminar" solo tiene sentido si hay una fila REAL en cuentas_cbu que
+    // anular (EN_TRAMITE) — SIN_CUENTA es un estado virtual (_estadoCbu) sin
+    // nada en la base para dar de baja.
     const accion = c.estado === 'EN_TRAMITE'
-      ? `<button class="btn btn-primary btn-xs" onclick="abrirCargarCbuModal('${l.nro}')">Cargar CBU</button>`
+      ? `<button class="btn btn-primary btn-xs" onclick="abrirCargarCbuModal('${l.nro}')">Cargar CBU</button> <button class="btn btn-xs" style="background:#fee2e2;color:#991b1b;" onclick="eliminarCbuFila('${l.nro}')">🗑️ Eliminar</button>`
       : `<button class="btn btn-secondary btn-xs" onclick="abrirIniciarTramiteCbu('${l.nro}')">Iniciar trámite</button> <button class="btn btn-primary btn-xs" onclick="abrirCargarCbuModal('${l.nro}')">Cargar CBU</button>`;
     return `<tr>
       <td><div style="display:flex;align-items:center;gap:8px;">${avatarEl(l.nombre, 26)}<div><div style="font-weight:600;">${l.nro} · ${l.nombre}</div><div class="text-muted" style="font-size:10.5px;">alta ${l.ingreso || '—'}</div></div></div></td>
@@ -147,7 +161,7 @@ export function renderCbuPadron() {
       <td style="font-family:'DM Mono',monospace;font-size:12px;">${c.cbu}</td>
       <td>${esTercero ? '<span class="badge badge-naranja" title="El CUIT del titular no es el del asociado">⚠ TERCERO</span>' : '<span class="badge badge-verde">PROPIA</span>'}</td>
       <td style="font-size:12px;">${c.vigenteDesde ? c.vigenteDesde.slice(0, 7) : '—'}</td>
-      <td><button class="btn btn-secondary btn-xs" onclick="abrirCargarCbuModal('${c.legajoNro}')">Cambiar</button></td>
+      <td style="white-space:nowrap;"><button class="btn btn-secondary btn-xs" onclick="abrirCargarCbuModal('${c.legajoNro}')">Cambiar</button> <button class="btn btn-xs" style="background:#fee2e2;color:#991b1b;" onclick="eliminarCbuFila('${c.legajoNro}')">🗑️ Eliminar</button></td>
     </tr>`;
   }).join('');
 }
@@ -196,6 +210,48 @@ export function renderCbuHistorial() {
     <td style="font-size:12px;">${h.motivo || '—'}</td>
     <td style="font-size:12px;">${h.cargadoPor || '—'}</td>
   </tr>`).join('');
+}
+
+// ========== TAB ANULADAS (eliminadas, soft) ==========
+
+export function renderCbuAnuladas() {
+  const tbody = $('tbody-cbu-anuladas');
+  if (!tbody) return;
+  const filas = (DB.cuentasCbu || []).filter(c => c.anulado)
+    .sort((a, b) => String(b.anuladoEn || '').localeCompare(String(a.anuladoEn || '')));
+
+  if (!filas.length) {
+    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:24px;opacity:.5;">No hay cuentas eliminadas.</td></tr>';
+    return;
+  }
+  tbody.innerHTML = filas.map(c => `<tr>
+    <td><div style="display:flex;align-items:center;gap:8px;">${avatarEl(c.nombreAsociado || '?', 26)}<div style="font-weight:600;">${c.legajoNro} · ${c.nombreAsociado || '—'}</div></div></td>
+    <td>${_CHIP_ESTADO[c.estado] || c.estado}</td>
+    <td style="font-family:'DM Mono',monospace;font-size:12px;">${c.cbu ? '…' + c.cbu.slice(-6) : '—'}</td>
+    <td style="font-size:12px;">${c.anuladoPor || '—'}${c.anuladoEn ? '<br><span class="text-muted" style="font-size:10.5px;">' + new Date(c.anuladoEn).toLocaleString('es-AR') + '</span>' : ''}</td>
+    <td><button class="btn btn-primary btn-xs" onclick="reactivarCbuFila('${c.legajoNro}')">↩️ Reactivar</button></td>
+  </tr>`).join('');
+}
+
+// ========== ELIMINAR / REACTIVAR (acciones de fila, con confirm + toast) ==========
+
+export async function eliminarCbuFila(legajoNro) {
+  const c = (DB.cuentasCbu || []).find(x => String(x.legajoNro) === String(legajoNro) && !x.anulado);
+  if (!c) { toast('⚠️ No se encontró la cuenta'); return; }
+  if (!confirm(`¿Eliminar la cuenta de ${c.nombreAsociado || legajoNro}? Pasa al tab "Anuladas" — podés reactivarla después desde ahí.`)) return;
+  const ok = await anularCuentaCbu(legajoNro);
+  if (!ok) { toast('⚠️ No se pudo eliminar — reintentá'); return; }
+  _refrescarCbu();
+  toast(`✓ ${c.nombreAsociado || legajoNro} eliminada — pasó a "Anuladas"`);
+}
+
+export async function reactivarCbuFila(legajoNro) {
+  const c = (DB.cuentasCbu || []).find(x => String(x.legajoNro) === String(legajoNro) && x.anulado);
+  if (!c) { toast('⚠️ No se encontró la cuenta'); return; }
+  const ok = await reactivarCuentaCbu(legajoNro);
+  if (!ok) { toast('⚠️ No se pudo reactivar — reintentá'); return; }
+  _refrescarCbu();
+  toast(`✓ ${c.nombreAsociado || legajoNro} reactivada`);
 }
 
 // ========== MODAL: INICIAR TRÁMITE ==========

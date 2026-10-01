@@ -4,11 +4,13 @@
 export {
   cbuChecksumValido, deducirBanco, getCuentaCbu, cbuVigenteLegajo,
   guardarCuentaCbu, crearFilaAltaCbu, historialCuentaCbu,
+  anularCuentaCbu, reactivarCuentaCbu,
 } from './consultas.js';
 
 export {
   renderCuentasCbu, tabCbu,
   renderCbuPendientes, renderCbuPadron, filtrarPadronCbu, renderCbuHistorial, filtrarHistorialCbu,
+  renderCbuAnuladas, eliminarCbuFila, reactivarCbuFila,
   exportarPadronCbu,
   abrirIniciarTramiteCbu, onChangeBancoTramiteCbu, guardarIniciarTramiteCbu,
   abrirCargarCbuModal, validarCbuInputCuentas, chequearTitularCuentas, guardarCargaCbu,
@@ -32,6 +34,7 @@ export const cuentasCbuScreenConfig = {
 
 import {
   tabCbu, filtrarPadronCbu, filtrarHistorialCbu, exportarPadronCbu,
+  eliminarCbuFila, reactivarCbuFila,
   abrirIniciarTramiteCbu, onChangeBancoTramiteCbu, guardarIniciarTramiteCbu,
   abrirCargarCbuModal, validarCbuInputCuentas, chequearTitularCuentas, guardarCargaCbu,
   abrirImportCbuMasivo, seleccionarArchivoImportCbu, confirmarImportCbuMasivo,
@@ -41,6 +44,8 @@ window.tabCbu = tabCbu;
 window.filtrarPadronCbu = filtrarPadronCbu;
 window.filtrarHistorialCbu = filtrarHistorialCbu;
 window.exportarPadronCbu = exportarPadronCbu;
+window.eliminarCbuFila = eliminarCbuFila;
+window.reactivarCbuFila = reactivarCbuFila;
 window.abrirIniciarTramiteCbu = abrirIniciarTramiteCbu;
 window.onChangeBancoTramiteCbu = onChangeBancoTramiteCbu;
 window.guardarIniciarTramiteCbu = guardarIniciarTramiteCbu;
