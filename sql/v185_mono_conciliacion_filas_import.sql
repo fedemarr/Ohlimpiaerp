@@ -102,7 +102,7 @@ SELECT p.*,
 FROM public.mono_pagos_mes p
 LEFT JOIN v185_legajo_unico l ON l.nro::text = p.nro_socio
 LEFT JOIN v185_mono_unico m ON m.nro_socio = p.nro_socio
-WHERE p.periodo IN ('2026-09','2026-10')
+WHERE TRUE  -- sin filtro de per�odo: ver nota abajo
   AND (p.nombre IS NULL OR btrim(p.nombre) = ''
        OR btrim(p.nombre) ~ '^\(?\d+\)?\s*(\([A-Za-zÁ-Úá-ú]\))?\s*$');
 
@@ -124,27 +124,47 @@ SELECT p.id_local,
        (l.nro IS NOT NULL) AS tiene_legajo
 FROM public.mono_pagos_mes p
 LEFT JOIN v185_legajo_unico l ON l.nro::text = p.nro_socio
-WHERE p.periodo IN ('2026-09','2026-10')
+WHERE TRUE  -- sin filtro de período: ver nota abajo
   AND (p.nombre IS NULL OR btrim(p.nombre) = ''
        OR btrim(p.nombre) ~ '^\(?\d+\)?\s*(\([A-Za-zÁ-Úá-ú]\))?\s*$');
 
+-- ── 1ter. Por qué NO se filtra por período ─────────────────────────────────
+-- La primera versión filtraba `periodo IN ('2026-09','2026-10')` y abortó en
+-- producción:zcayó en 23 en vez de 29. La causa fue MÍA: el 29 salió de la
+-- consulta resumen de INVESTIGACION_…, que cuenta TODOS los períodos, y asumí
+-- que esos 29 eran los de septiembre y octubre. No lo eran — 6 están en otros
+-- períodos.
+--
+-- El filtro no era sólo un número equivocado: dejaba 6 filas duplicadas o
+-- huérfanas fuera de la conciliación, en períodos que pueden seguir abiertos.
+-- La regla que se aplica ("1 fila por persona por período, y sólo si tiene
+-- legajo") es válida para cualquier período, así que ahora no se filtra y la
+-- migración cubre todo lo que esté roto.
+
 -- ── 2. Aserción: si el panorama cambió, que no corra ──────────────────────
+-- El total de 29 sí se puede afirmar (viene de la investigación, que no filtra
+-- períodos). Lo que NO se afirma es cuántas hay que descartar: eso depende de
+-- cuántos duplicados y huérfanos hay en los períodos que no se habían mirado,
+-- y poner un número inventado hacía que la migración abortara sin dejar hacer
+-- su trabajo. En su lugar, las comprobaciones de verdad van al final (paso 7),
+-- sobre el resultado: que cada persona real quede con 1 fila y nombre real.
 DO $$
 DECLARE
   v_filas int;
-  v_a_manejar int;
+  v_personas int;
+  v_descartar int;
 BEGIN
   SELECT count(*) INTO v_filas FROM mono_pagos_mes_v185_backup;
-  SELECT count(*) INTO v_a_manejar
+  SELECT count(*) INTO v_personas
+  FROM (SELECT DISTINCT periodo, nro_socio FROM v185_marcadas WHERE tiene_legajo) t;
+  SELECT count(*) INTO v_descartar
   FROM v185_marcadas WHERE NOT tiene_legajo OR rn > 1;
 
   IF v_filas <> 29 THEN
     RAISE EXCEPTION 'Se esperaban 29 filas sospechosas y hay %. No se toca nada: volve a correr la investigación.', v_filas;
   END IF;
-  IF v_a_manejar <> 13 THEN
-    RAISE EXCEPTION 'Se esperaban 13 filas a descartar (huérfanos + duplicados) y hay %. No se toca nada.', v_a_manejar;
-  END IF;
-  RAISE NOTICE 'OK: 29 filas sospechosas, 13 a descartar, 16 a renombrar.';
+  RAISE NOTICE 'OK: % sospechosas, % personas con legajo a renombrar, % a descartar.',
+    v_filas, v_personas, v_descartar;
 END $$;
 
 -- ── 3. Nombre real en la fila que se conserva ─────────────────────────────
@@ -219,16 +239,74 @@ BEGIN
   END LOOP;
 END $$;
 
+-- ── 7. Post-condiciones: el resultado se chequea acá, no se promete ───────
+-- Si algo de esto no se cumple, la transacción aborta y no queda nada aplicado.
+-- Son las comprobaciones que importan: que no haya quedado ninguna fila
+-- sospechosa visible, que ninguna persona real haya quedado con más de una fila
+-- en su período, y que los nombres escritos sean los del legajo y no los de
+-- otro socio (que es como el dry run Fishing→Sosa).
+DO $$
+DECLARE
+  v_malas_visibles int;
+  v_sobre_duplicadas int;
+  v_nombres_malos int;
+BEGIN
+  -- 1) Ninguna fila sospechosa quedó visible en ningún período.
+  SELECT count(*) INTO v_malas_visibles
+  FROM public.mono_pagos_mes
+  WHERE (to_jsonb(mono_pagos_mes)->>'excluido_mes') IS DISTINCT FROM 'true'
+    AND (nombre IS NULL OR btrim(nombre) = ''
+         OR btrim(nombre) ~ '^\(?\d+\)?\s*(\([A-Za-zÁ-Úá-ú]\))?\s*$');
+
+  -- 2) Cada persona con legajo tiene exactamente 1 fila visible por período.
+  SELECT count(*) INTO v_sobre_duplicadas
+  FROM (
+    SELECT p.periodo, p.nro_socio, count(*) AS filas
+    FROM public.mono_pagos_mes p
+    JOIN v185_legajo_unico l ON l.nro::text = p.nro_socio
+    WHERE (to_jsonb(p)->>'excluido_mes') IS DISTINCT FROM 'true'
+    GROUP BY p.periodo, p.nro_socio
+    HAVING count(*) <> 1
+  ) t;
+
+  -- 3) Toda fila visible con legajo lleva el nombre de SU legajo.
+  SELECT count(*) INTO v_nombres_malos
+  FROM public.mono_pagos_mes p
+  JOIN v185_legajo_unico l ON l.nro::text = p.nro_socio
+  WHERE (to_jsonb(p)->>'excluido_mes') IS DISTINCT FROM 'true'
+    AND p.nombre IS DISTINCT FROM l.nombre;
+
+  IF v_malas_visibles > 0 THEN
+    RAISE EXCEPTION 'Quedaron % fila(s) sospechosas visibles. No se toca nada.', v_malas_visibles;
+  END IF;
+  IF v_sobre_duplicadas > 0 THEN
+    RAISE EXCEPTION 'Hay % (período,socio) con más de 1 fila visible. Se iba a pagar doble. No se toca nada.', v_sobre_duplicadas;
+  END IF;
+  IF v_nombres_malos > 0 THEN
+    RAISE EXCEPTION 'Hay % fila(s) con el nombre de otro socio. No se toca nada.', v_nombres_malos;
+  END IF;
+  RAISE NOTICE 'OK: 0 sospechosas visibles, 0 sobre-duplicados, 0 nombres cruzados.';
+END $$;
+
 COMMIT;
 
--- ── Verificación: esto tiene que dar 16 y 13 ──────────────────────────────
--- SELECT count(*) FILTER (WHERE excluido_mes IS TRUE) AS descartadas,
---        count(*) FILTER (WHERE excluido_mes IS NOT TRUE) AS conservadas
--- FROM public.mono_pagos_mes WHERE periodo IN ('2026-09','2026-10');
+-- ── Verificación (para correr después, aparte) ─────────────────────────────
+-- Las 3 consultas tienen que dar 0 filas / 0 filas / 0 filas.
 --
--- Y que no quede ninguna fila sospechosa visible:
+-- 1) Sospechosas que quedaron visibles:
 -- SELECT * FROM public.mono_pagos_mes
--- WHERE periodo IN ('2026-09','2026-10') AND excluido_mes IS NOT TRUE
---   AND (nombre IS NULL OR btrim(nombre)=''
+-- WHERE (to_jsonb(mono_pagos_mes)->>'excluido_mes') IS DISTINCT FROM 'true'
+--   AND (nombre IS NULL OR btrim(nombre) = ''
 --        OR btrim(nombre) ~ '^\(?\d+\)?\s*(\([A-Za-zÁ-Úá-ú]\))?\s*$');
--- tiene que dar 0 filas.
+--
+-- 2) Personas con más de 1 fila visible en su período:
+-- SELECT p.periodo, p.nro_socio, count(*)
+-- FROM public.mono_pagos_mes p JOIN public.legajos l ON l.nro::text = p.nro_socio
+-- WHERE (to_jsonb(p)->>'excluido_mes') IS DISTINCT FROM 'true'
+-- GROUP BY 1,2 HAVING count(*) <> 1;
+--
+-- 3) Lo que quedó, para revisión visual:
+-- SELECT periodo, nro_socio, nombre, total,
+--        (to_jsonb(mono_pagos_mes)->>'excluido_mes') AS excluido,
+--        en_revision_motivo
+-- FROM public.mono_pagos_mes ORDER BY periodo, nro_socio;
