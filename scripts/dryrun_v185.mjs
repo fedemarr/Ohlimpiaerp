@@ -103,6 +103,15 @@ for (const col of [
 }
 console.log('columnas de v181 simuladas (se revierten con el ROLLBACK)');
 
+// ── La previsión, antes de aplicar nada ────────────────────────────────────
+// La idea es que Fede pueda ver el resultado sin correr la migración. Si acá
+// y después de aplicar no coinciden, la previsión está mintiendo y es peor que
+// no tenerla. Así que se corre antes, se guarda, y se compara al final.
+const prevSql = fs.readFileSync('sql/PREVISUALIZACION_v185_READONLY.sql', 'utf8');
+const prevRows = (await c.query(prevSql.split(/;\s*\n/)[0])).rows;
+const decision = new Map(prevRows.map(r => [r.id_local ?? `${r.periodo}|${r.nro_socio}|${r.rn}`, r.decision]));
+console.log(`\nprevisión: ${prevRows.length} fila(s) — CONSERVAR=${prevRows.filter(r => r.decision === 'CONSERVAR').length} EXCLUIR=${prevRows.filter(r => r.decision === 'EXCLUIR').length}`);
+
 // ── La migración ───────────────────────────────────────────────────────────
 // Se le sacan BEGIN y COMMIT. El archivo trae los suyos y, al correrlo tal
 // cual, ese COMMIT cerraba la transacción del harness: el ROLLBACK de abajo no
@@ -155,7 +164,23 @@ const dist = await c.query(
    FROM mono_pagos_mes WHERE id_local ~ '^[0-9]+$' GROUP BY periodo ORDER BY periodo`);
 console.table(dist.rows);
 
+// ── La previsión dice lo mismo que lo que pasó? ───────────────────────────
+// Si no, la PREVISUALIZACION le está mintiendo a Fede y es peor que no
+// tenerla: mostraría un resultado y la migración haría otro.
+const real = (await c.query(
+  `SELECT periodo, nro_socio,
+          row_number() OVER (PARTITION BY periodo, nro_socio ORDER BY id_local) AS rn,
+          CASE WHEN (to_jsonb(mono_pagos_mes)->>'excluido_mes') = 'true'
+               THEN 'EXCLUIR' ELSE 'CONSERVAR' END AS decision
+   FROM mono_pagos_mes WHERE id_local ~ '^[0-9]+$' ORDER BY periodo, nro_socio, rn`)).rows;
+const clave = r => `${r.periodo}|${r.nro_socio}|${r.rn}`;
+const mapaPrev = new Map(prevRows.map(r => [clave(r), r.decision]));
+const dif = real.filter(r => mapaPrev.get(clave(r)) !== r.decision);
+todo = dif.length === 0 && todo;
+console.log(`${dif.length === 0 ? 'OK  ' : 'FALLA'} la previsión coincide con el resultado real (dif=${dif.length})`);
+if (dif.length) console.table(dif.slice(0, 10));
+
 await c.query('ROLLBACK');
 await c.end();
-console.log(todo ? '\nRESULTADO: la migración hace lo que dice, en todos los períodos.'
+console.log(todo ? '\nRESULTADO: la migración hace lo que dice, en todos los períodos, y la previsión acierta.'
                  : '\nRESULTADO: alguna post-condición NO se cumple.');
