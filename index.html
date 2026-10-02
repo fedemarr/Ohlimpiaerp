@@ -5149,6 +5149,7 @@
             <option value="baja">Baja</option>
             <option value="estado">Estado</option>
             <option value="tabla_importada">Tabla importada</option>
+            <option value="excluido_mes">Excluido del mes</option>
           </select>
           <select id="mono-hist-filtro" onchange="renderHistorialMono()" style="padding:6px 10px;border:1px solid var(--borde-fuerte);border-radius:var(--radio);font-size:13px;outline:none;">
             <option value="">Todos los resultados</option>
@@ -5204,7 +5205,10 @@
         </div>
       </div>
       <div style="margin:0 20px 14px;">
-        <div style="font-size:11px;color:var(--texto-suave);margin-bottom:3px;" id="mono-pagos-prog-lbl">0 de 0 pagados · 0%</div>
+        <div style="font-size:11px;color:var(--texto-suave);margin-bottom:3px;display:flex;justify-content:space-between;">
+          <span id="mono-pagos-prog-lbl">0 de 0 pagados · 0%</span>
+          <span id="mono-excluidos-mes-link" style="display:none;cursor:pointer;text-decoration:underline;color:#9a3412;" onclick="abrirExcluidosMesModal()">Excluidos este mes (0)</span>
+        </div>
         <div style="height:9px;background:var(--borde);border-radius:5px;overflow:hidden;"><div id="mono-pagos-prog-bar" style="height:100%;width:0%;background:var(--verde);border-radius:5px;transition:width .3s;"></div></div>
       </div>
       <div class="tabla-wrap">

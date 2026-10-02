@@ -370,6 +370,12 @@ export function _toSnake(obj) {
     comprobanteImporteLeido: 'comprobante_importe_leido', comprobanteFechaPago: 'comprobante_fecha_pago',
     enRevision: 'en_revision', enRevisionMotivo: 'en_revision_motivo',
     adherentesCantidadCongelada: 'adherentes_cantidad_congelada',
+    // v181 — Pago mensual: "Descartar" (en revisión) y "Excluir del mes"
+    // (lista principal) dejaron de ser un DELETE físico — ver
+    // MONOTRIBUTO_cierre_modulo_para_Fede_1.md §11.b/§12.b.
+    descartadoMotivo: 'descartado_motivo', descartadoPor: 'descartado_por', descartadoEn: 'descartado_en',
+    excluidoMes: 'excluido_mes', excluidoMesMotivo: 'excluido_mes_motivo',
+    excluidoMesPor: 'excluido_mes_por', excluidoMesEn: 'excluido_mes_en',
     // v121 — disponibilidad_entrevistas
     diasHabilitados: 'dias_habilitados', horaDesde: 'hora_desde', horaHasta: 'hora_hasta',
     maxPorTurno: 'max_por_turno',
@@ -953,6 +959,10 @@ export function _toCamel(obj) {
     comprobante_importe_leido: 'comprobanteImporteLeido', comprobante_fecha_pago: 'comprobanteFechaPago',
     en_revision: 'enRevision', en_revision_motivo: 'enRevisionMotivo',
     adherentes_cantidad_congelada: 'adherentesCantidadCongelada',
+    // v181 — ver _toSnake arriba
+    descartado_motivo: 'descartadoMotivo', descartado_por: 'descartadoPor', descartado_en: 'descartadoEn',
+    excluido_mes: 'excluidoMes', excluido_mes_motivo: 'excluidoMesMotivo',
+    excluido_mes_por: 'excluidoMesPor', excluido_mes_en: 'excluidoMesEn',
     // v121 — disponibilidad_entrevistas
     dias_habilitados: 'diasHabilitados', hora_desde: 'horaDesde', hora_hasta: 'horaHasta',
     max_por_turno: 'maxPorTurno',

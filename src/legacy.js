@@ -11497,7 +11497,7 @@ const MONO_TIPO_LABEL={
   categoria:'Categoría', condicion:'Condición', adherentes:'Adherentes',
   zona_iibb:'Zona / IIBB', alta_bandeja:'Alta por bandeja → padrón',
   no_va_monotributo:'No va a monotributo', baja:'Baja', estado:'Estado',
-  tabla_importada:'Tabla importada',
+  tabla_importada:'Tabla importada', excluido_mes:'Excluido del mes',
 };
 function renderHistorialMono(){
   const filtroResultado = $('mono-hist-filtro')?.value||'';
@@ -11656,16 +11656,154 @@ function abrirMesMonoPagos(){
 // no corresponde este mes). Bloqueado si ya está pagada: ese registro es
 // la fuente de la auditoría de pago real, no se borra por error de un
 // clic — primero hay que revertir el pago a mano si hiciera falta.
-function eliminarMonoPagoMes(id){
+// MONOTRIBUTO_cierre_modulo_para_Fede_1.md §11.b/§12.b: las "dos acciones
+// más peligrosas del tab" compartían la misma función (eliminarMonoPagoMes,
+// un DELETE físico real) y el mismo confirm() nativo del navegador — con un
+// texto que además se contradecía solo para el caso de "en revisión" (un
+// CUIT "no reconocido" nunca estuvo en la lista, no hay nada que "sacar" de
+// ahí). Se separan en dos acciones con modal propio, cada una con su
+// semántica real:
+//  - "Descartar" (en revisión, §11.b): el comprobante no se aplica a nadie.
+//    Queda marcado `descartado` — nunca se borra la fila, "descartado" es
+//    el registro en sí. La lista del período no se toca para nada.
+//  - "Excluir del mes" (lista principal, §12.b): la persona sigue en el
+//    Padrón, solo este período no se le cobra/paga. Marca `excluidoMes`
+//    (reversible con "Restaurar"), pide motivo obligatorio y deja evento
+//    en Historial de cambios — es una decisión real sobre una persona
+//    real, no una limpieza de datos basura.
+
+let _monoDescartarId=null;
+function ensureModalDescartarComprobante(){
+  if($('modal-descartar-comp')) return;
+  const m=document.createElement('div');
+  m.className='modal-overlay'; m.id='modal-descartar-comp';
+  m.innerHTML=`
+    <div class="modal" style="max-width:460px;">
+      <div class="modal-header"><h3>🗑️ Descartar comprobante</h3><button class="btn-close" onclick="cerrarModal('modal-descartar-comp')">×</button></div>
+      <div class="modal-body">
+        <div id="descartar-comp-detalle" style="font-weight:600;margin-bottom:10px;font-size:13px;"></div>
+        <div class="alerta alerta-info" style="margin:0 0 10px;font-size:12px;">El ticket queda registrado como descartado y no se va a aplicar a ningún pago. La lista del período NO se modifica — esto solo saca el comprobante de la cola "En revisión".</div>
+        <div class="form-group"><label>Motivo (opcional)</label><textarea id="descartar-comp-motivo" rows="2" style="width:100%;padding:8px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;box-sizing:border-box;"></textarea></div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="cerrarModal('modal-descartar-comp')">Cancelar</button>
+        <button class="btn btn-danger" onclick="confirmarDescartarComprobante()">Descartar</button>
+      </div>
+    </div>`;
+  document.body.appendChild(m);
+}
+function abrirModalDescartarComprobante(id){
   const p=getMonoPagoById(id); if(!p) return;
-  if(p.pagado){ toast('⚠️ Ya está tildada como pagada — no se puede eliminar desde acá'); return; }
-  if(!confirm(`¿Sacar a ${p.nombre} de la lista de ${p.periodo}?`)) return;
-  supaDel('monoPagosMes', idLocalTrunc(p.id)).then(ok=>{
-    if(!ok){ toast('⚠️ No se pudo eliminar en Supabase — reintentá'); return; }
-    DB.monoPagosMes=(DB.monoPagosMes||[]).filter(x=>String(x.id)!==String(id));
-    renderMonoPagos();
-    toast(`✅ ${p.nombre} sacado de la lista de ${p.periodo}`);
-  });
+  _monoDescartarId=id;
+  ensureModalDescartarComprobante();
+  $('descartar-comp-detalle').textContent=`${p.nombre||'(sin asociar)'} · comprobante ${p.comprobanteTransaccion||'(sin N° de transacción)'} · ${p.periodo}`;
+  $('descartar-comp-motivo').value='';
+  abrirModal('modal-descartar-comp');
+}
+function confirmarDescartarComprobante(){
+  const p=getMonoPagoById(_monoDescartarId); if(!p) return;
+  p.descartado=true;
+  p.descartadoMotivo=($('descartar-comp-motivo').value||'').trim();
+  p.descartadoPor=currentUser?.nombre||'';
+  p.descartadoEn=new Date().toISOString();
+  supaSync('monoPagosMes', p);
+  cerrarModal('modal-descartar-comp');
+  toast('🗑️ Comprobante descartado — quedó registrado, no se aplicó a ningún pago');
+  renderMonoPagos();
+}
+
+let _monoExcluirId=null;
+function ensureModalExcluirMes(){
+  if($('modal-excluir-mes')) return;
+  const m=document.createElement('div');
+  m.className='modal-overlay'; m.id='modal-excluir-mes';
+  m.innerHTML=`
+    <div class="modal" style="max-width:460px;">
+      <div class="modal-header"><h3>🗑️ Excluir del mes</h3><button class="btn-close" onclick="cerrarModal('modal-excluir-mes')">×</button></div>
+      <div class="modal-body">
+        <div id="excluir-mes-detalle" style="font-weight:600;margin-bottom:10px;font-size:13px;"></div>
+        <div class="alerta alerta-info" style="margin:0 0 10px;font-size:12px;">Este mes no se le cobra/paga el monotributo a esta persona. Es una exclusión de ESTE período, no una baja — el mes que viene vuelve a entrar normal a la lista. Se puede revertir desde "Excluidos este mes".</div>
+        <div class="form-group"><label>Motivo *</label><textarea id="excluir-mes-motivo" rows="2" style="width:100%;padding:8px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;box-sizing:border-box;"></textarea></div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="cerrarModal('modal-excluir-mes')">Cancelar</button>
+        <button class="btn btn-danger" onclick="confirmarExcluirMes()">Excluir del mes</button>
+      </div>
+    </div>`;
+  document.body.appendChild(m);
+}
+function abrirModalExcluirMes(id){
+  const p=getMonoPagoById(id); if(!p) return;
+  if(p.pagado){ toast('⚠️ Ya está tildada como pagada — no se puede excluir desde acá'); return; }
+  _monoExcluirId=id;
+  ensureModalExcluirMes();
+  $('excluir-mes-detalle').textContent=`${p.nombre} · ${p.periodo}`;
+  $('excluir-mes-motivo').value='';
+  abrirModal('modal-excluir-mes');
+}
+function confirmarExcluirMes(){
+  const p=getMonoPagoById(_monoExcluirId); if(!p) return;
+  const motivo=($('excluir-mes-motivo').value||'').trim();
+  if(!motivo){ toast('⚠️ Ingresá el motivo'); return; }
+  p.excluidoMes=true;
+  p.excluidoMesMotivo=motivo;
+  p.excluidoMesPor=currentUser?.nombre||'';
+  p.excluidoMesEn=new Date().toISOString();
+  supaSync('monoPagosMes', p);
+
+  if(!DB.monoCambios) DB.monoCambios=[];
+  const cambio={
+    id: Date.now()+Math.floor(Math.random()*1000),
+    nombre: p.nombre, fecha: new Date().toLocaleDateString('es-AR'),
+    tipo:'excluido_mes', antes:'En la lista de '+p.periodo, despues:'Excluido de '+p.periodo,
+    curAnterior:0, curNuevo:0, proyeccionAnual:null,
+    motivo, decidoPor: currentUser?.nombre||'Admin', resultado:'Aprobado',
+  };
+  DB.monoCambios.unshift(cambio);
+  supaSync('monoCambios', cambio);
+
+  cerrarModal('modal-excluir-mes');
+  toast(`🗑️ ${p.nombre} excluido de la lista de ${p.periodo}`);
+  renderMonoPagos();
+}
+function restaurarExclusionMes(id){
+  const p=getMonoPagoById(id); if(!p) return;
+  p.excluidoMes=false;
+  supaSync('monoPagosMes', p);
+  toast(`↩️ ${p.nombre} restaurado a la lista de ${p.periodo}`);
+  renderMonoPagos();
+  if($('modal-excluidos-mes')?.classList.contains('open')) abrirExcluidosMesModal();
+}
+
+function _renderExcluidosMesIndicador(mes){
+  const n=(DB.monoPagosMes||[]).filter(p=>p.periodo===mes && p.excluidoMes).length;
+  const el=$('mono-excluidos-mes-link');
+  if(!el) return;
+  el.textContent=`Excluidos este mes (${n})`;
+  el.style.display=n?'inline-block':'none';
+}
+function ensureModalExcluidosMes(){
+  if($('modal-excluidos-mes')) return;
+  const m=document.createElement('div');
+  m.className='modal-overlay'; m.id='modal-excluidos-mes';
+  m.innerHTML=`
+    <div class="modal" style="max-width:480px;">
+      <div class="modal-header"><h3>Excluidos este mes</h3><button class="btn-close" onclick="cerrarModal('modal-excluidos-mes')">×</button></div>
+      <div class="modal-body"><div id="excluidos-mes-lista"></div></div>
+      <div class="modal-footer"><button class="btn btn-secondary" onclick="cerrarModal('modal-excluidos-mes')">Cerrar</button></div>
+    </div>`;
+  document.body.appendChild(m);
+}
+function abrirExcluidosMesModal(){
+  const mes=_mesMonoPagosSel();
+  ensureModalExcluidosMes();
+  const filas=(DB.monoPagosMes||[]).filter(p=>p.periodo===mes && p.excluidoMes);
+  const cont=$('excluidos-mes-lista');
+  cont.innerHTML=filas.length?filas.map(p=>`<div style="display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--borde);padding:8px 4px;">
+    <div><b>${p.nombre}</b><div style="font-size:10.5px;color:var(--texto-suave);">${p.excluidoMesMotivo||'—'} · ${p.excluidoMesPor||'—'}</div></div>
+    <button class="btn btn-xs btn-secondary" onclick="restaurarExclusionMes('${p.id}')">↩️ Restaurar</button>
+  </div>`).join(''):'<p class="text-muted" style="font-size:12px;">Sin exclusiones este mes.</p>';
+  abrirModal('modal-excluidos-mes');
 }
 
 // Ticket "Pago mensual — carga en lote + comprobante clickeable" (30/09):
@@ -11731,11 +11869,17 @@ window.volverMesVigenteMonoPagos = volverMesVigenteMonoPagos;
 function renderMonoPagos(){
   const mes=_mesMonoPagosSel();
   _actualizarBannerMesMonoPagos(mes);
+  _renderExcluidosMesIndicador(mes);
   const tbody=$('tbody-mono-pagos'); if(!tbody) return;
   const todas=(DB.monoPagosMes||[]).filter(p=>p.periodo===mes);
-  const rows=todas.filter(p=>!p.enRevision).sort((a,b)=>a.nombre.localeCompare(b.nombre));
-  renderMonoEnRevisionPagos(todas.filter(p=>p.enRevision));
-  actualizarKpisMonoPagos(rows, todas.filter(p=>p.enRevision).length);
+  // §12.b: excluidoMes sale de la lista principal (sigue existiendo la
+  // fila, solo no se muestra ni se cuenta) — "Excluidos este mes" es la
+  // única forma de verlos/restaurarlos.
+  const rows=todas.filter(p=>!p.enRevision && !p.excluidoMes).sort((a,b)=>a.nombre.localeCompare(b.nombre));
+  // §11.b: descartado sale de la cola "En revisión" (queda la fila, con la
+  // marca, como registro — nunca se borra físicamente).
+  renderMonoEnRevisionPagos(todas.filter(p=>p.enRevision && !p.descartado));
+  actualizarKpisMonoPagos(rows, todas.filter(p=>p.enRevision && !p.descartado).length);
   if(!rows.length){
     tbody.innerHTML=`<tr><td colspan="10" style="padding:40px;text-align:center;color:var(--texto-muy-suave);">Sin lista armada para ${mes}. Usá "📥 Armar lista del mes".</td></tr>`;
     return;
@@ -11779,15 +11923,14 @@ function renderMonoPagos(){
            <button class="btn btn-xs" style="background:#dcfce7;color:#065f46;border:1px solid #9fdaba;margin-left:4px;" onclick="tildarPagoMono('${p.id}')">Tildar pagado</button>`}
     </td>
     <td style="padding:4px 6px;border:1px solid var(--borde);text-align:center;">
-      ${p.pagado?'':`<button class="btn btn-xs btn-secondary" title="Sacar de la lista" onclick="eliminarMonoPagoMes('${p.id}')">🗑️</button>`}
+      ${p.pagado?'':`<button class="btn btn-xs btn-secondary" title="Este mes no se le cobra/paga — es reversible" onclick="abrirModalExcluirMes('${p.id}')">Excluir del mes</button>`}
     </td>
   </tr>`;
   }).join('');
 }
 
 // Panel "En revisión (N)" — comprobantes que no cuadraron (uno por uno o en
-// lote) y necesitan que Martina decida. "Descartar" reusa eliminarMonoPagoMes
-// tal cual (nunca están pagados, así que su guard no bloquea).
+// lote) y necesitan que Martina decida.
 function renderMonoEnRevisionPagos(filas){
   const card=$('mono-card-en-revision'), tbody=$('tbody-mono-en-revision'), count=$('mono-en-revision-count');
   if(!card||!tbody) return;
@@ -11801,7 +11944,7 @@ function renderMonoEnRevisionPagos(filas){
     </td>
     <td style="padding:6px 8px;border:1px solid #92400e;font-size:11.5px;">${p.enRevisionMotivo||'—'}</td>
     <td style="padding:4px 6px;border:1px solid #92400e;text-align:center;">
-      <button class="btn btn-xs btn-secondary" title="Descartar este comprobante" onclick="eliminarMonoPagoMes('${p.id}')">🗑️ Descartar</button>
+      <button class="btn btn-xs btn-secondary" title="Descartar este comprobante" onclick="abrirModalDescartarComprobante('${p.id}')">🗑️ Descartar</button>
     </td>
   </tr>`).join('');
 }
@@ -15776,7 +15919,12 @@ window.calcularFacturacionMensualObjetivo = calcularFacturacionMensualObjetivo;
 window.abrirMesMonoPagos = abrirMesMonoPagos;
 window.renderMonoPagos = renderMonoPagos;
 window.tildarPagoMono = tildarPagoMono;
-window.eliminarMonoPagoMes = eliminarMonoPagoMes;
+window.abrirModalDescartarComprobante = abrirModalDescartarComprobante;
+window.confirmarDescartarComprobante = confirmarDescartarComprobante;
+window.abrirModalExcluirMes = abrirModalExcluirMes;
+window.confirmarExcluirMes = confirmarExcluirMes;
+window.restaurarExclusionMes = restaurarExclusionMes;
+window.abrirExcluidosMesModal = abrirExcluidosMesModal;
 window.exportarMonoPagosCSV = exportarMonoPagosCSV;
 window.tabObjModal = tabObjModal;
 window.tabPrecios = tabPrecios;
