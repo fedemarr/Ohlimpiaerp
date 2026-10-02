@@ -102,6 +102,7 @@ export const _SM = {
   // el viejo hasta migrar toda esa lógica a la fórmula por componentes.
   monoTablasOrg: 'mono_tablas',
   monoCasosImport: 'mono_casos_import',
+  monoVencimientos: 'mono_vencimientos', // v182 — vencimiento del mes (Pago mensual)
   supervisoresConfig: 'supervisores_config',
   supervisionVigencias: 'supervision_vigencias',
   horasVigencias: 'horas_vigencias',
@@ -376,6 +377,8 @@ export function _toSnake(obj) {
     descartadoMotivo: 'descartado_motivo', descartadoPor: 'descartado_por', descartadoEn: 'descartado_en',
     excluidoMes: 'excluido_mes', excluidoMesMotivo: 'excluido_mes_motivo',
     excluidoMesPor: 'excluido_mes_por', excluidoMesEn: 'excluido_mes_en',
+    // v182 — mono_vencimientos
+    actualizadoPor: 'actualizado_por', actualizadoEn: 'actualizado_en',
     // v121 — disponibilidad_entrevistas
     diasHabilitados: 'dias_habilitados', horaDesde: 'hora_desde', horaHasta: 'hora_hasta',
     maxPorTurno: 'max_por_turno',
@@ -963,6 +966,8 @@ export function _toCamel(obj) {
     descartado_motivo: 'descartadoMotivo', descartado_por: 'descartadoPor', descartado_en: 'descartadoEn',
     excluido_mes: 'excluidoMes', excluido_mes_motivo: 'excluidoMesMotivo',
     excluido_mes_por: 'excluidoMesPor', excluido_mes_en: 'excluidoMesEn',
+    // v182 — mono_vencimientos
+    actualizado_por: 'actualizadoPor', actualizado_en: 'actualizadoEn',
     // v121 — disponibilidad_entrevistas
     dias_habilitados: 'diasHabilitados', hora_desde: 'horaDesde', hora_hasta: 'horaHasta',
     max_por_turno: 'maxPorTurno',

@@ -38,6 +38,17 @@ function _hoyISO() {
 }
 function _norm(s) { return String(s || '').trim().toLowerCase().replace(/\s+/g, ' '); }
 
+// Mismo default que _vencimientoDefault() en legacy.js (Pago mensual) —
+// día 20 del mes en curso, salvo que ya se haya guardado uno explícito
+// para ese período en mono_vencimientos (DB.monoVencimientos, v182).
+function _vencimientoMesActual() {
+  const periodo = _mesActual();
+  const v = (DB.monoVencimientos || []).find(x => x.periodo === periodo);
+  if (v?.fecha) return v.fecha;
+  const [yy, mm] = periodo.split('-');
+  return `${yy}-${mm}-20`;
+}
+
 // Fecha de alta del legajo: viene como DD/MM/AAAA o ISO. Devuelve ISO o null.
 function _fechaAltaISO(l) {
   const raw = String(l.ingreso || l.fechaIngreso || '').trim();
@@ -141,7 +152,12 @@ export function renderMonoPendientes() {
     return;
   }
   tbody.innerHTML = filas.map(f => {
-    const lim = f.tramite?.fechaLimite || '';
+    // MONOTRIBUTO_cierre_modulo_para_Fede_1.md §17: el default de la fecha
+    // límite (pago fuera de tanda) ya apunta al vencimiento del mes en
+    // curso en vez de quedar vacío — Martina la ajusta si hace falta. Es
+    // solo el valor mostrado en el input; no se guarda nada hasta que ella
+    // lo toque (actualizarFechaLimiteMono sigue disparando el guardado).
+    const lim = f.tramite?.fechaLimite || _vencimientoMesActual();
     const semaforo = _estadoLimite(lim);
     const limiteHtml = `<input type="date" value="${lim}" style="font-size:11.5px;padding:2px 4px;" onchange="actualizarFechaLimiteMono('${f.l.nro}', this.value)">`
       + (semaforo ? `<div style="margin-top:2px;"><span class="badge ${semaforo.clase}" style="font-size:9.5px;">${semaforo.txt}</span></div>` : '');

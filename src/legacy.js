@@ -11838,7 +11838,7 @@ function abrirExcluidosMesModal(){
 // lote) — se llama desde renderMonoPagos(), nunca desde otro lado, así que
 // siempre refleja la MISMA lista que se ve en pantalla (nada que recalcular
 // aparte). `rows` ya excluye "en revisión" (esas tienen su propio KPI).
-function actualizarKpisMonoPagos(rows, enRevisionCount){
+function actualizarKpisMonoPagos(rows, enRevisionCount, vencimiento){
   const money=n=>'$'+(n||0).toLocaleString('es-AR',{minimumFractionDigits:2,maximumFractionDigits:2});
   const totalDe=p=>p.total||p.curCongelado||0;
   const tot=rows.length, totM=rows.reduce((s,p)=>s+totalDe(p),0);
@@ -11850,12 +11850,108 @@ function actualizarKpisMonoPagos(rows, enRevisionCount){
   if($('mono-kpi-pag')) $('mono-kpi-pag').textContent=pag;
   if($('mono-kpi-pag-m')) $('mono-kpi-pag-m').textContent=money(pagM);
   if($('mono-kpi-res')) $('mono-kpi-res').textContent=res;
-  if($('mono-kpi-res-m')) $('mono-kpi-res-m').textContent=money(resM);
+  // §17: el KPI "Restan" incorpora el vencimiento — "Restan 270 · $13,2M ·
+  // vence en 5 días".
+  if($('mono-kpi-res-m')){
+    let txt=money(resM);
+    if(res>0 && vencimiento){
+      const dias=_diasHasta(vencimiento);
+      txt += dias<0 ? ` · ⚠️ vencido hace ${-dias} d` : ` · vence en ${dias} d`;
+    }
+    $('mono-kpi-res-m').textContent=txt;
+  }
   if($('mono-kpi-rev')) $('mono-kpi-rev').textContent=enRevisionCount||0;
   const pct=tot?Math.round(pag/tot*100):0;
   if($('mono-pagos-prog-lbl')) $('mono-pagos-prog-lbl').textContent=`${pag} de ${tot} pagados · ${pct}%`;
   if($('mono-pagos-prog-bar')) $('mono-pagos-prog-bar').style.width=pct+'%';
 }
+// MONOTRIBUTO_cierre_modulo_para_Fede_1.md §17 (pedido de Martina): el
+// reloj que activa el proceso de pago. Default día 20 (ARCA lo corre por
+// feriados/fin de semana — se ajusta a mano); editable por mes.
+function _vencimientoDefault(periodo){
+  const [yy,mm]=periodo.split('-');
+  return `${yy}-${mm}-20`;
+}
+function _vencimientoDe(periodo){
+  const v=(DB.monoVencimientos||[]).find(x=>x.periodo===periodo);
+  return v?.fecha || _vencimientoDefault(periodo);
+}
+function _diasHasta(fechaISO){
+  const hoy=new Date(); hoy.setHours(0,0,0,0);
+  const d=new Date(fechaISO+'T00:00:00');
+  return Math.round((d-hoy)/86400000);
+}
+async function onChangeVencimientoMonoPagos(){
+  const periodo=_mesMonoPagosSel();
+  const fecha=$('mono-pagos-vencimiento')?.value;
+  if(!fecha) return;
+  let v=(DB.monoVencimientos||[]).find(x=>x.periodo===periodo);
+  if(!v){
+    v={id:Date.now(), periodo, fecha};
+    if(!DB.monoVencimientos) DB.monoVencimientos=[];
+    DB.monoVencimientos.push(v);
+  } else {
+    v.fecha=fecha;
+  }
+  v.actualizadoPor=currentUser?.nombre||'';
+  v.actualizadoEn=new Date().toISOString();
+  const ok=await supaSync('monoVencimientos', v);
+  if(!ok) toast('⚠️ No se pudo guardar el vencimiento en el servidor');
+  renderMonoPagos();
+}
+window.onChangeVencimientoMonoPagos = onChangeVencimientoMonoPagos;
+
+// Reloj individual: si la persona entró a la bandeja DESPUÉS del
+// vencimiento de la tanda (alta a mitad de mes), su reloj es la fecha
+// límite que le pusieron en la bandeja — no el vencimiento general — así
+// nadie figura IMPAGO por haber sido dado de alta el 25 (§18).
+function _fechaLimiteBandejaDe(nroSocio){
+  if(!nroSocio) return null;
+  const filas=(DB.monoTramites||[]).filter(t=>String(t.legajoNro)===String(nroSocio) && t.fechaLimite);
+  if(!filas.length) return null;
+  return filas.sort((a,b)=>String(b.fechaLimite).localeCompare(String(a.fechaLimite)))[0].fechaLimite;
+}
+// Semáforo de la fila (§18): el estado informa, el botón de acción (más
+// abajo en renderMonoPagos) hace. PAGADO usa la fecha REAL del pago
+// (comprobanteFechaPago, §16) para marcar "fuera de término" si corresponde.
+function _estadoPagoSemaforo(p, vencimientoMes){
+  const total=p.total||p.curCongelado||0;
+  const limite=_fechaLimiteBandejaDe(p.nroSocio)||vencimientoMes;
+  if(p.pagado){
+    const fechaReal=p.comprobanteFechaPago||null;
+    const fueraDeTermino=!!(fechaReal && limite && fechaReal>limite);
+    const fechaTxt=fechaReal?new Date(fechaReal+'T12:00:00').toLocaleDateString('es-AR'):'';
+    return `<span class="badge badge-verde" style="font-size:10px;">✓ PAGADO${fechaTxt?' '+fechaTxt:''}</span>`
+      + (fueraDeTermino?'<div style="margin-top:2px;"><span class="badge badge-naranja" style="font-size:9px;">⚠️ fuera de término</span></div>':'');
+  }
+  if(total<=0) return '<span class="form-hint">—</span>';
+  if(!limite) return '<span class="badge badge-naranja" style="font-size:10px;">A PAGAR</span>';
+  const dias=_diasHasta(limite);
+  if(dias<0) return `<span class="badge badge-rojo" style="font-size:10px;">🔴 IMPAGO</span>`;
+  return `<span class="badge badge-naranja" style="font-size:10px;">A PAGAR · vence en ${dias} d</span>`;
+}
+// Campanita a RRHH (crearNotificacion, mismo patrón ya usado para
+// "objetivo_asignacion_demorada" — idempotente por período, no espamea en
+// cada render). Ventana de aviso: 5 días antes del vencimiento.
+const MONO_VENCIMIENTO_AVISO_DIAS = 5;
+async function _avisarVencimientoMonoPagos(periodo, vencimiento, restan, restanMonto){
+  if(restan<=0) return;
+  const dias=_diasHasta(vencimiento);
+  if(dias>MONO_VENCIMIENTO_AVISO_DIAS) return;
+  const tipo = dias<0 ? 'mono_pago_vencido' : 'mono_pago_por_vencer';
+  const entidadIdLocal = periodo+(dias<0?'-vencido':'');
+  const yaNotificado=(DB.notificacionesSistema||[]).some(n=>n.tipo===tipo && n.entidadIdLocal===entidadIdLocal);
+  if(yaNotificado) return;
+  const { crearNotificacion } = await import('@shared/notificaciones.js');
+  const money='$'+restanMonto.toLocaleString('es-AR');
+  const mensaje = dias<0
+    ? `🔴 Monotributo ${periodo}: venció el ${new Date(vencimiento+'T12:00:00').toLocaleDateString('es-AR')} y quedan ${restan} sin pagar (${money}).`
+    : `⏰ Monotributo ${periodo} vence el ${new Date(vencimiento+'T12:00:00').toLocaleDateString('es-AR')} (en ${dias} día${dias===1?'':'s'}): restan ${restan} por pagar (${money}).`;
+  (DB.rrhh||[]).forEach(nombre=>{
+    crearNotificacion({tipo, entidadTipo:'monotributo', entidadIdLocal, destinatarioNombre:nombre, mensaje});
+  });
+}
+
 // MONOTRIBUTO_cierre_modulo_para_Fede_1.md §10: título grande con el mes +
 // chip de contexto — mismo patrón que "GRILLAS — SEPTIEMBRE DE 2026" en
 // Liquidación de horas (ver _mesActualISO()/liq-mes-banner más abajo en
@@ -11892,18 +11988,36 @@ function renderMonoPagos(){
   const mes=_mesMonoPagosSel();
   _actualizarBannerMesMonoPagos(mes);
   _renderExcluidosMesIndicador(mes);
+  const vencimiento=_vencimientoDe(mes);
+  if($('mono-pagos-vencimiento')) $('mono-pagos-vencimiento').value=vencimiento;
+  const diasVto=_diasHasta(vencimiento);
+  const chipVto=$('mono-pagos-vto-chip');
+  if(chipVto){
+    const clase = diasVto<0?'badge-rojo':diasVto<=MONO_VENCIMIENTO_AVISO_DIAS?'badge-naranja':'badge-azul';
+    const txt = diasVto<0?`⚠️ VENCIDA hace ${-diasVto} d`:diasVto===0?'⏰ vence HOY':`vence en ${diasVto} d`;
+    chipVto.innerHTML=`<span class="badge ${clase}" style="font-size:10px;">Vence ${new Date(vencimiento+'T12:00:00').toLocaleDateString('es-AR')} · ${txt}</span>`;
+  }
   const tbody=$('tbody-mono-pagos'); if(!tbody) return;
   const todas=(DB.monoPagosMes||[]).filter(p=>p.periodo===mes);
   // §12.b: excluidoMes sale de la lista principal (sigue existiendo la
   // fila, solo no se muestra ni se cuenta) — "Excluidos este mes" es la
   // única forma de verlos/restaurarlos.
-  const rows=todas.filter(p=>!p.enRevision && !p.excluidoMes).sort((a,b)=>a.nombre.localeCompare(b.nombre));
+  let rows=todas.filter(p=>!p.enRevision && !p.excluidoMes);
+  // §18: los IMPAGO (vencidos y sin pagar) arriba de todo.
+  rows.sort((a,b)=>{
+    const estA=!a.pagado && _diasHasta(_fechaLimiteBandejaDe(a.nroSocio)||vencimiento)<0;
+    const estB=!b.pagado && _diasHasta(_fechaLimiteBandejaDe(b.nroSocio)||vencimiento)<0;
+    if(estA!==estB) return estA?-1:1;
+    return a.nombre.localeCompare(b.nombre);
+  });
   // §11.b: descartado sale de la cola "En revisión" (queda la fila, con la
   // marca, como registro — nunca se borra físicamente).
   renderMonoEnRevisionPagos(todas.filter(p=>p.enRevision && !p.descartado));
-  actualizarKpisMonoPagos(rows, todas.filter(p=>p.enRevision && !p.descartado).length);
+  actualizarKpisMonoPagos(rows, todas.filter(p=>p.enRevision && !p.descartado).length, vencimiento);
+  const restan=rows.filter(p=>!p.pagado && (p.total||p.curCongelado||0)>0);
+  _avisarVencimientoMonoPagos(mes, vencimiento, restan.length, restan.reduce((s,p)=>s+(p.total||p.curCongelado||0),0));
   if(!rows.length){
-    tbody.innerHTML=`<tr><td colspan="10" style="padding:40px;text-align:center;color:var(--texto-muy-suave);">Sin lista armada para ${mes}. Usá "📥 Armar lista del mes".</td></tr>`;
+    tbody.innerHTML=`<tr><td colspan="11" style="padding:40px;text-align:center;color:var(--texto-muy-suave);">Sin lista armada para ${mes}. Usá "📥 Armar lista del mes".</td></tr>`;
     return;
   }
   tbody.innerHTML=rows.map(p=>{
@@ -11929,12 +12043,10 @@ function renderMonoPagos(){
         : `<button class="btn btn-xs btn-secondary" onclick="subirComprobanteMonoPagoMensual('${p.id}')">📎 Subir ticket</button>`}
     </td>
     <td style="padding:6px 8px;border:1px solid var(--borde);text-align:center;">
-      ${p.pagado
-        // MONOTRIBUTO_cierre_modulo_para_Fede_1.md §16: la fecha que se
-        // muestra es la del PAGO real (la del comprobante, o la elegida al
-        // tildar a mano) — nunca la de cuándo se subió/cargó el registro.
-        // Esa metadata (quién/cuándo lo cargó) queda en el title (hover).
-        ? `<div><span class="badge badge-verde" style="font-size:10px;">✓ Pagado</span><div style="font-size:9px;color:var(--texto-suave);margin-top:2px;" title="Cargado por ${p.pagadoPor||'—'}${p.pagadoEn?' el '+new Date(p.pagadoEn).toLocaleString('es-AR'):''}">${p.comprobanteFechaPago?new Date(p.comprobanteFechaPago+'T12:00:00').toLocaleDateString('es-AR'):(p.pagadoEn?new Date(p.pagadoEn).toLocaleDateString('es-AR'):'—')}</div></div>`
+      ${_estadoPagoSemaforo(p, vencimiento)}
+    </td>
+    <td style="padding:4px 6px;border:1px solid var(--borde);text-align:center;">
+      ${p.pagado ? ''
         // Bug reportado 11/09: filas en $0 no tienen nada que pagar — no
         // tiene sentido ofrecer "Tildar pagado".
         : total<=0 ? '<span class="form-hint">Sin monto a pagar</span>'

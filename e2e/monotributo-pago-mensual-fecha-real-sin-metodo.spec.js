@@ -40,7 +40,7 @@ test('Pago mensual — tilde manual: sin columna "Método de pago", pide fecha d
   await page.waitForTimeout(150);
 
   const filaPagada = page.locator('#tbody-mono-pagos tr', { hasText: 'FECHA PAGO REAL TEST' });
-  await expect(filaPagada).toContainText('✓ Pagado');
+  await expect(filaPagada).toContainText('✓ PAGADO');
   await expect(filaPagada).toContainText('5/9/2026');
 
   const pago = await page.evaluate(async () => {
