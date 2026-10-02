@@ -11696,18 +11696,50 @@ function actualizarKpisMonoPagos(rows, enRevisionCount){
   if($('mono-pagos-prog-lbl')) $('mono-pagos-prog-lbl').textContent=`${pag} de ${tot} pagados · ${pct}%`;
   if($('mono-pagos-prog-bar')) $('mono-pagos-prog-bar').style.width=pct+'%';
 }
+// MONOTRIBUTO_cierre_modulo_para_Fede_1.md §10: título grande con el mes +
+// chip de contexto — mismo patrón que "GRILLAS — SEPTIEMBRE DE 2026" en
+// Liquidación de horas (ver _mesActualISO()/liq-mes-banner más abajo en
+// este archivo). Evita el caso real que motivó el pedido: tildar pagos en
+// el mes equivocado sin darse cuenta.
+function _actualizarBannerMesMonoPagos(mes){
+  const [yy,mm]=mes.split('-');
+  const nombreMesLargo=new Date(parseInt(yy),parseInt(mm)-1,1).toLocaleDateString('es-AR',{month:'long',year:'numeric'}).toUpperCase();
+  const tit=$('mono-pagos-mes-titulo'); if(tit) tit.textContent='💵 PAGO DE MONOTRIBUTOS — '+nombreMesLargo;
+  const banner=$('mono-pagos-mes-banner'), aviso=$('mono-pagos-mes-aviso'), volver=$('mono-pagos-mes-volver');
+  if(!banner||!aviso) return;
+  const esActual=mes===_mesActualLocalMono();
+  if(esActual){
+    banner.style.background='#eef2ff'; banner.style.border='1px solid #c7d2fe';
+    if(tit) tit.style.color='#1e3a8a';
+    aviso.innerHTML='<span class="badge badge-verde" style="font-size:11px;">Mes en curso</span>';
+    if(volver) volver.style.display='none';
+  } else {
+    const esFuturo=mes>_mesActualLocalMono();
+    banner.style.background=esFuturo?'#fef3c7':'#fff7ed';
+    banner.style.border='2px solid '+(esFuturo?'#d97706':'#ea580c');
+    if(tit) tit.style.color=esFuturo?'#92400e':'#9a3412';
+    aviso.innerHTML=`<span class="badge badge-naranja" style="font-size:11px;">⚠️ Estás viendo ${nombreMesLargo} — no es el mes en curso</span>`;
+    if(volver) volver.style.display='inline-block';
+  }
+}
+function volverMesVigenteMonoPagos(){
+  const el=$('mono-pagos-mes'); if(el) el.value=_mesActualLocalMono();
+  renderMonoPagos();
+}
+window.volverMesVigenteMonoPagos = volverMesVigenteMonoPagos;
+
 function renderMonoPagos(){
   const mes=_mesMonoPagosSel();
+  _actualizarBannerMesMonoPagos(mes);
   const tbody=$('tbody-mono-pagos'); if(!tbody) return;
   const todas=(DB.monoPagosMes||[]).filter(p=>p.periodo===mes);
   const rows=todas.filter(p=>!p.enRevision).sort((a,b)=>a.nombre.localeCompare(b.nombre));
   renderMonoEnRevisionPagos(todas.filter(p=>p.enRevision));
   actualizarKpisMonoPagos(rows, todas.filter(p=>p.enRevision).length);
   if(!rows.length){
-    tbody.innerHTML=`<tr><td colspan="11" style="padding:40px;text-align:center;color:var(--texto-muy-suave);">Sin lista armada para ${mes}. Usá "📥 Armar lista del mes".</td></tr>`;
+    tbody.innerHTML=`<tr><td colspan="10" style="padding:40px;text-align:center;color:var(--texto-muy-suave);">Sin lista armada para ${mes}. Usá "📥 Armar lista del mes".</td></tr>`;
     return;
   }
-  const metodos=['Transferencia','Cheque','Efectivo','Débito automático','Otro'];
   tbody.innerHTML=rows.map(p=>{
     // Meses armados antes de v118 no tienen desglose fino — solo curCongelado
     // (el total de esa época). Se muestra igual, sin inventar un desglose que
@@ -11730,23 +11762,21 @@ function renderMonoPagos(){
         : p.pagado ? '<span class="form-hint">—</span>'
         : `<button class="btn btn-xs btn-secondary" onclick="subirComprobanteMonoPagoMensual('${p.id}')">📎 Subir ticket</button>`}
     </td>
-    <td style="padding:4px 6px;border:1px solid var(--borde);text-align:center;">
-      ${p.pagado
-        ? `<span style="font-size:11px;">${p.metodoPago||'—'}</span>`
-        : total<=0 ? '<span class="form-hint">—</span>'
-        : `<select style="font-size:11px;padding:2px 4px;" onchange="_monoPagoMetodoTemp['${p.id}']=this.value">
-             <option value="">Elegir...</option>
-             ${metodos.map(m=>`<option value="${m}">${m}</option>`).join('')}
-           </select>`}
-    </td>
     <td style="padding:6px 8px;border:1px solid var(--borde);text-align:center;">
       ${p.pagado
-        ? `<div><span class="badge badge-verde" style="font-size:10px;">✓ Pagado</span><div style="font-size:9px;color:var(--texto-suave);margin-top:2px;">${p.pagadoPor||'—'} · ${p.pagadoEn?new Date(p.pagadoEn).toLocaleDateString('es-AR'):''}</div></div>`
+        // MONOTRIBUTO_cierre_modulo_para_Fede_1.md §16: la fecha que se
+        // muestra es la del PAGO real (la del comprobante, o la elegida al
+        // tildar a mano) — nunca la de cuándo se subió/cargó el registro.
+        // Esa metadata (quién/cuándo lo cargó) queda en el title (hover).
+        ? `<div><span class="badge badge-verde" style="font-size:10px;">✓ Pagado</span><div style="font-size:9px;color:var(--texto-suave);margin-top:2px;" title="Cargado por ${p.pagadoPor||'—'}${p.pagadoEn?' el '+new Date(p.pagadoEn).toLocaleString('es-AR'):''}">${p.comprobanteFechaPago?new Date(p.comprobanteFechaPago+'T12:00:00').toLocaleDateString('es-AR'):(p.pagadoEn?new Date(p.pagadoEn).toLocaleDateString('es-AR'):'—')}</div></div>`
         // Bug reportado 11/09: filas en $0 no tienen nada que pagar — no
-        // tiene sentido ofrecer "Tildar pagado" (ni pedirle a RRHH que
-        // elija un método de pago para un monto inexistente).
+        // tiene sentido ofrecer "Tildar pagado".
         : total<=0 ? '<span class="form-hint">Sin monto a pagar</span>'
-        : `<button class="btn btn-xs" style="background:#dcfce7;color:#065f46;border:1px solid #9fdaba;" onclick="tildarPagoMono('${p.id}')">Tildar pagado</button>`}
+        // §15: se elimina la columna "Método de pago" — el tilde manual
+        // ya no pide elegir método (queda "Manual" fijo), en cambio pide
+        // la fecha real en que se pagó (default hoy).
+        : `<input type="date" id="mono-pago-fecha-${p.id}" value="${new Date().toISOString().slice(0,10)}" style="font-size:10.5px;padding:2px;width:92px;">
+           <button class="btn btn-xs" style="background:#dcfce7;color:#065f46;border:1px solid #9fdaba;margin-left:4px;" onclick="tildarPagoMono('${p.id}')">Tildar pagado</button>`}
     </td>
     <td style="padding:4px 6px;border:1px solid var(--borde);text-align:center;">
       ${p.pagado?'':`<button class="btn btn-xs btn-secondary" title="Sacar de la lista" onclick="eliminarMonoPagoMes('${p.id}')">🗑️</button>`}
@@ -11806,21 +11836,19 @@ function verComprobanteMono(path){
   import('@modules/monotributo_comprobantes/comprobantes.js').then(({ verComprobanteMono }) => verComprobanteMono(path));
 }
 window.verComprobanteMono = verComprobanteMono;
-// Método de pago elegido en el <select> antes de tildar — vive en memoria
-// de sesión nomás, se consume al tildar (no hace falta persistir el
-// "borrador" de selección).
-let _monoPagoMetodoTemp={};
+// MONOTRIBUTO_cierre_modulo_para_Fede_1.md §15/§16: el tilde manual ya no
+// pide método de pago (columna eliminada, queda "Manual" fijo) — pide la
+// fecha REAL en que se pagó (default hoy, editable antes de tildar).
 function tildarPagoMono(id){
   const p=getMonoPagoById(id); if(!p) return;
-  const metodo=_monoPagoMetodoTemp[id];
-  if(!metodo){ toast('⚠️ Elegí el método de pago antes de tildar'); return; }
+  const fecha=$('mono-pago-fecha-'+id)?.value || new Date().toISOString().slice(0,10);
   p.pagado=true;
-  p.metodoPago=metodo;
+  p.metodoPago='Manual';
   p.pagadoPor=currentUser?.nombre||'';
   p.pagadoEn=new Date().toISOString();
+  p.comprobanteFechaPago=fecha;
   supaSync('monoPagosMes', p);
-  delete _monoPagoMetodoTemp[id];
-  toast(`✓ Monotributo de ${p.nombre} tildado como pagado (${metodo})`);
+  toast(`✓ Monotributo de ${p.nombre} tildado como pagado (${new Date(fecha+'T12:00:00').toLocaleDateString('es-AR')})`);
   renderMonoPagos();
 }
 
@@ -11837,7 +11865,7 @@ function exportarMonoPagosCSV(){
       `"${p.nombre}"`, p.nroSocio||'', p.categoriaCongelada||'', p.condicionCongelada||'',
       p.impIntegradoCongelado??'', p.sipaCongelado??'', p.obraSocialCongelado??'', p.iibbCongelado??'',
       p.total||p.curCongelado||0,
-      p.metodoPago||'', p.pagado?'Sí':'No', p.pagadoPor||'', p.pagadoEn?new Date(p.pagadoEn).toLocaleDateString('es-AR'):'',
+      p.metodoPago||'', p.pagado?'Sí':'No', p.pagadoPor||'', p.comprobanteFechaPago?new Date(p.comprobanteFechaPago+'T12:00:00').toLocaleDateString('es-AR'):(p.pagadoEn?new Date(p.pagadoEn).toLocaleDateString('es-AR'):''),
     ].join(','));
   });
   const blob=new Blob(['﻿'+lineas.join('\n')],{type:'text/csv;charset=utf-8;'});
@@ -12821,18 +12849,39 @@ function ensureModalHistorialPagosMono(){
     </div>`;
   document.body.appendChild(div);
 }
+// MONOTRIBUTO_cierre_modulo_para_Fede_1.md §5: "El detalle completo (qué
+// meses, con qué cuota cada uno) vive en el modal del botón '💰 pagos'".
+// Antes esto solo listaba filas YA armadas en mono_pagos_mes — un mes
+// adeudado que nunca llegó a tener fila (porque nunca se corrió "Armar
+// lista" para ese período) quedaba invisible acá, aunque estadoPagoReal()
+// ya lo contara como deuda en la columna ESTADO del Padrón. Se completa
+// con esos meses "sin registro", con la cuota que le correspondería hoy
+// (estimada, aclarado como tal — no es un monto congelado real).
 function verHistorialPagosMono(id){
   const r=getMonoById(id); if(!r) return;
   ensureModalHistorialPagosMono();
   $('hist-pagos-mono-titulo').textContent='Historial de pagos — '+r.nombre;
   const pagos=(DB.monoPagosMes||[])
-    .filter(p=>(r.nroSocio&&String(p.nroSocio)===String(r.nroSocio))||(!r.nroSocio&&p.nombre===r.nombre))
-    .sort((a,b)=>String(b.periodo).localeCompare(String(a.periodo)));
+    .filter(p=>(r.nroSocio&&String(p.nroSocio)===String(r.nroSocio))||(!r.nroSocio&&p.nombre===r.nombre));
+  const pagosPorPeriodo=new Map(pagos.map(p=>[p.periodo,p]));
+  const deuda=estadoPagoReal(r);
+  const periodos=[...new Set([...pagos.map(p=>p.periodo), ...deuda.meses])].sort((a,b)=>b.localeCompare(a));
   const cont=$('hist-pagos-mono-lista');
-  if(!pagos.length){
+  if(!periodos.length){
     cont.innerHTML='<p class="text-muted" style="font-size:12px;">Sin períodos registrados todavía en Pago mensual.</p>';
   } else {
-    cont.innerHTML=pagos.map(p=>{
+    cont.innerHTML=periodos.map(periodo=>{
+      const p=pagosPorPeriodo.get(periodo);
+      if(!p){
+        // Mes adeudado sin ninguna fila armada — cuota ESTIMADA con los
+        // datos vigentes de hoy (nunca se congeló de verdad, no hay monto
+        // real para ese mes).
+        const desglose=window.calcularCuotaComponentes?window.calcularCuotaComponentes(r):{total:0};
+        return `<div style="display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--borde);padding:8px 4px;">
+          <div><b>${periodo}</b> <span style="font-size:11px;color:var(--texto-suave);">≈ $${(desglose.total||0).toLocaleString('es-AR')} (estimado)</span></div>
+          <div><span class="badge badge-rojo" style="font-size:10px;" title="Nunca se armó la lista de este período">⚠ Sin registro</span></div>
+        </div>`;
+      }
       const total=p.total||p.curCongelado||0;
       const estado=p.pagado
         ?`<span class="badge badge-verde" style="font-size:10px;">✓ Pagado</span>`

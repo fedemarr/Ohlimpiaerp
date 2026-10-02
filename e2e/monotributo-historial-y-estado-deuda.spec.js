@@ -90,3 +90,37 @@ test('Monotributo — Padrón: con 1-2 meses de deuda lista los meses, con 3+ re
   // 3+ meses: se resume con el más viejo.
   await expect(filaTres).toContainText('desde');
 });
+
+// MONOTRIBUTO_cierre_modulo_para_Fede_1.md §5: "el detalle completo vive
+// en el modal del botón '💰 pagos'" — tiene que mostrar TODOS los meses
+// adeudados, incluso los que nunca llegaron a tener una fila armada en
+// mono_pagos_mes (antes el modal solo listaba filas ya existentes).
+test('Monotributo — Padrón: el modal "💰 pagos" muestra los meses adeudados aunque nunca se haya armado la lista de ese período', async ({ page }) => {
+  await loginComoAdmin(page);
+
+  await page.evaluate(async () => {
+    const { DB } = await import('/src/shared/state.js');
+    function hace(mesesAtras) {
+      const d = new Date();
+      d.setMonth(d.getMonth() - mesesAtras);
+      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+    }
+    const persona = { id: Date.now(), nombre: 'DETALLE MODAL PAGOS', nroSocio: 995303, categoria: 'A', estado: 'Al día', zona: 'provincia', condicion: 'comun' };
+    DB.monotributos.push(persona);
+    window._idDetalleModalPagos = persona.id;
+    DB.monoPagosMes = DB.monoPagosMes || [];
+    // Solo UNA fila real armada (el mes más viejo); los otros 3 meses
+    // adeudados hasta el actual nunca tuvieron fila.
+    DB.monoPagosMes.push({ id: Date.now() + 1, periodo: hace(3), nroSocio: '995303', nombre: 'DETALLE MODAL PAGOS', total: 49527.18, pagado: false });
+  });
+  await page.evaluate(() => { window.navTo('monotributos'); window.tabMonotributos('padron', null); });
+  await page.waitForTimeout(150);
+
+  await page.evaluate((id) => window.verHistorialPagosMono(id), await page.evaluate(() => window._idDetalleModalPagos));
+  await page.waitForTimeout(150);
+  await expect(page.locator('#modal-hist-pagos-mono')).toBeVisible();
+  const lista = page.locator('#hist-pagos-mono-lista');
+  // 4 períodos en total: 1 con fila real + 3 "sin registro".
+  await expect(lista.locator('text=⚠ Sin registro')).toHaveCount(3);
+  await expect(lista).toContainText('estimado');
+});

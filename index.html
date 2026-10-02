@@ -4984,7 +4984,6 @@
         <div style="display:flex;gap:8px;align-items:center;">
           <select id="mono-anio" onchange="renderMonotributos()" style="padding:6px 10px;border:1px solid var(--borde-fuerte);border-radius:var(--radio);font-size:13px;outline:none;"></select>
           <button class="btn btn-sm btn-secondary" onclick="limpiarFiltrosColumnaMono()" title="Limpiar los filtros por columna">✕ Limpiar filtros</button>
-          <button class="btn btn-sm" style="background:#f59e0b;color:white;border:none;" onclick="tabMonotributos('alerta',null)">⚠️ Ver fuera de categoría</button>
           <button class="btn btn-secondary btn-sm" onclick="abrirImportadorPadronRRHH()">📥 Importar padrón RRHH</button>
           <button class="btn btn-secondary btn-sm" onclick="abrirImportadorMonotributo()">📥 Importar CSV</button>
         </div>
@@ -5190,17 +5189,19 @@
       <div class="stat-card acento"><div class="stat-label">⚠ En revisión</div><div class="stat-valor" id="mono-kpi-rev">0</div><div class="stat-sub">comprobantes sin cuadrar</div></div>
     </div>
     <div class="card" style="margin-top:0;border-radius:0 var(--radio-lg) var(--radio-lg) var(--radio-lg);">
+      <div id="mono-pagos-mes-banner" style="margin:16px 20px 0;border-radius:10px;padding:12px 18px;display:flex;align-items:center;gap:14px;flex-wrap:wrap;">
+        <div id="mono-pagos-mes-titulo" style="font-size:20px;font-weight:800;letter-spacing:.5px;"></div>
+        <div id="mono-pagos-mes-aviso" style="font-size:12.5px;font-weight:700;"></div>
+        <button id="mono-pagos-mes-volver" style="display:none;" class="btn btn-sm btn-secondary" onclick="volverMesVigenteMonoPagos()">← Volver al mes vigente</button>
+      </div>
       <div class="card-header">
-        <h3>💳 Pago de monotributos del mes</h3>
+        <h3 style="font-size:13px;color:var(--texto-suave);">💳 Pago de monotributos</h3>
         <div style="display:flex;gap:8px;align-items:center;">
           <input type="month" id="mono-pagos-mes" onchange="renderMonoPagos()">
           <button class="btn btn-sm btn-secondary" onclick="abrirMesMonoPagos()">📥 Armar lista del mes</button>
           <button class="btn btn-sm btn-secondary" onclick="subirComprobantesLotePagoMensual()">⬆ Subir comprobantes (varios)</button>
           <button class="btn btn-sm btn-secondary" onclick="exportarMonoPagosCSV()">⬇️ Exportar CSV</button>
         </div>
-      </div>
-      <div class="alerta alerta-info" style="margin:0 20px 12px;font-size:12px;">
-        Monotributo v2 (se paga en el MES EN CURSO): "Armar lista del mes" trae del padrón a TODOS los activos no dados de baja — ya no depende de quién cargó horas en Liquidación de horas ese período. Calcula el DESGLOSE completo de la cuota de ESTE mes (20 impuesto integrado · 21 SIPA · 24 obra social con adherentes · IIBB unificado). Mientras una fila NO esté tildada como pagada, cada vez que volvés a "Armar lista" se recalcula con los datos vigentes del padrón (por si corregiste una categoría/condición) — recién queda congelada de verdad al tildarla pagada. Subí el comprobante de cada uno (de a uno o en lote): el sistema lee CUIT/período/importe y tilda solo lo que cuadra; lo que no cuadra queda "En revisión", sin tocar nada.
       </div>
       <div style="margin:0 20px 14px;">
         <div style="font-size:11px;color:var(--texto-suave);margin-bottom:3px;" id="mono-pagos-prog-lbl">0 de 0 pagados · 0%</div>
@@ -5218,7 +5219,6 @@
             <th style="padding:8px;border:1px solid #6b7280;text-align:right;">IIBB</th>
             <th style="padding:8px;border:1px solid #6b7280;text-align:right;">TOTAL congelado</th>
             <th style="padding:8px;border:1px solid #6b7280;text-align:center;">Comprobante</th>
-            <th style="padding:8px;border:1px solid #6b7280;text-align:center;">Método de pago</th>
             <th style="padding:8px;border:1px solid #6b7280;text-align:center;">Pagado</th>
             <th style="padding:8px;border:1px solid #6b7280;text-align:center;"></th>
           </tr></thead>
