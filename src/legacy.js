@@ -11760,7 +11760,7 @@ function getMonoPagoById(id){ return (DB.monoPagosMes||[]).find(x=>String(x.id)=
 // horas (se consume/fija al pagar, no antes).
 function abrirMesMonoPagos(){
   const mes=_mesMonoPagosSel();
-  const existentesDelMes=(DB.monoPagosMes||[]).filter(p=>p.periodo===mes);
+  const existentesDelMes=(DB.monoPagosMes||[]).filter(p=>p.periodo===mes&&!p.excluidoMes);
   if(existentesDelMes.length){
     if(!confirm(`El mes ${mes} ya tiene una lista armada. ¿Recalcular los que todavía NO estén tildados como pagados (los ya pagados no se tocan) y agregar los que falten?`)) return;
   }
@@ -12134,7 +12134,7 @@ function renderMonoPagos(){
     chipVto.innerHTML=`<span class="badge ${clase}" style="font-size:10px;">Vence ${new Date(vencimiento+'T12:00:00').toLocaleDateString('es-AR')} · ${txt}</span>`;
   }
   const tbody=$('tbody-mono-pagos'); if(!tbody) return;
-  const todas=(DB.monoPagosMes||[]).filter(p=>p.periodo===mes);
+  const todas=(DB.monoPagosMes||[]).filter(p=>p.periodo===mes&&!p.excluidoMes);
   // §12.b: excluidoMes sale de la lista principal (sigue existiendo la
   // fila, solo no se muestra ni se cuenta) — "Excluidos este mes" es la
   // única forma de verlos/restaurarlos.
@@ -12281,16 +12281,24 @@ window.verComprobanteMono = verComprobanteMono;
 // MONOTRIBUTO_cierre_modulo_para_Fede_1.md §12 "Mientras tanto": una fila sin
 // nombre real NO se puede tildar.
 //
-// Por qué es urgente y no cosmético: en producción hay 29 filas así. Las 24 de
-// nro 5xxx comparten el MISMO total (49527.18) entre 8 personas distintas
-// (Sosa, Cocha, Sequeira, Martinez, Recalde, Avalos, Quiroga, Cacerez) — un
-// importe idéntico al centavo entre gente con situaciones distintas no puede
-// ser un pago real, es un valor constante que el import volcó en todas. Además
-// los N° 5578/5582/5583 aparecen SOLO dentro del campo nombre y nunca como
-// nro_socio: sus filas fueron pisadas por el import y esas personas no están
-// en ninguna lista. Y el Padrón quedó contaminado con nombres placeholder
-// ("SOCIO 5582 (sin legajo encontrado)"), así que "buscar en el Padrón" tampoco
-// sirve como prueba. Si alguien tilda las 24, paga ~$1,2M a fantasma.
+// Por qué es urgente y no cosmético: en producción hay 29 filas así, en
+// 2026-09 y 2026-10. OJO con la hipótesis inicial, que era FALSA y quedó
+// desmentida con los datos reales: NO son importes corruptos. Cada fila cuadra
+// con sus propios componentes y con el Padrón (DELTA 0.00), y que 8 personas
+// compartan 49527.18 es correcto: son todas categoría A, condición común, sin
+// adherentes ni IIBB, o sea el mismo cálculo. La mitad tiene legajo real y el
+// nombre correcto; lo que hay que impedir es pagar DOS veces a la misma persona.
+//
+// Lo que sí está roto:
+//   - DUPLICADOS. Sequeira Nicole (5581) tiene 4 filas en cada período y Díaz
+//     Daniela (5579) tiene 2 en 2026-10: son filas pisadas por un import
+//     anterior, no personas distintas.
+//   - HUÉRFANOS. Los N° 113, 4734 y 5495 no existen en legajos. Sin legajo no
+//     hay forma de saber a quién corresponde el importe.
+//   - PLACEHOLDERS. El Padrón quedó contaminado con "SOCIO 5582 (sin legajo
+//     encontrado)", así que "buscar en el Padrón" tampoco sirve como prueba.
+// Ninguna de las 29 está pagada, así que acá no se está tapando un pago ya
+// hecho: se evita el que se haría al tildar a ciegas.
 //
 // Detecta exactamente lo mismo que
 // sql/INVESTIGACION_filas_sin_nombre_READONLY.sql, para que la app y la
@@ -12334,7 +12342,10 @@ function tildarPagoMono(id){
 // método de pago porque solo vuelca los datos, no asume uno.
 function exportarMonoPagosCSV(){
   const mes=_mesMonoPagosSel();
-  const rows=(DB.monoPagosMes||[]).filter(p=>p.periodo===mes);
+  // Las excluidas del mes no se cobran: el CSV es lo que se manda al banco, así
+  // que una fila excluida ahí termina en una transferencia. "Excluir del mes"
+  // (v181) las saca de la lista y del KPI, pero faltaba sacarlas de acá.
+  const rows=(DB.monoPagosMes||[]).filter(p=>p.periodo===mes&&!p.excluidoMes);
   if(!rows.length){ toast('⚠️ No hay lista armada para este período'); return; }
   const header=['Nombre','N° Socio','Categoría','Condición','20 Imp. integrado','21 SIPA','24 Obra social','IIBB','Total','Método de pago','Pagado','Pagado por','Fecha de pago'];
   const lineas=[header.join(',')];

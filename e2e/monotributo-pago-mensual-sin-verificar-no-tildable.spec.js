@@ -4,12 +4,14 @@ import { loginComoAdmin } from './helpers.js';
 // MONOTRIBUTO_cierre_modulo_para_Fede_1.md 12 "Mientras tanto": las filas que
 // el import viejo dejo sin nombre real NO se pueden tildar.
 //
-// No es cosmetico. En produccion hay 29 filas asi y 8 personas distintas
-// (Sosa, Cocha, Sequeira, Martinez, Recalde, Avalos, Quiroga, Cacerez) comparten
-// el mismo total de $49.527,18 al centavo - imposible que sea un pago real. Y
-// los N 5578/5582/5583 aparecen solo dentro del campo nombre, nunca como
-// nro_socio: el import les piso la fila y esas personas no estan en ninguna
-// lista. Tildar las 24 seria payingles ~$1,2M a fantasma.
+// No es cosmetico. En produccion hay 29 filas asi, en 2026-09 y 2026-10.
+// OJO: la hipotesis inicial era FALSA y los datos reales la desmentieron. NO
+// son importes corruptos: cada fila cuadra con sus componentes y con el Padron,
+// y que 8 personas compartan $49.527,18 al centavo es correcto porque son
+// todas categoria A, condicion comun, sin adherentes ni IIBB. Lo que esta roto
+// es que hay DUPLICADOS (Sequeira Nicole, 4 filas por periodo; Diaz Daniela, 2
+// en 2026-10) y HUERFANOS (113, 4734 y 5495 no existen en legajos). Sin esto se
+// paga dos veces a la misma persona. Ninguna de las 29 esta pagada todavia.
 //
 // La deteccion tiene que calcar la de
 // sql/INVESTIGACION_filas_sin_nombre_READONLY.sql, o la app y la conciliacion
@@ -141,6 +143,57 @@ test('Pago mensual - el CSV que va al banco marca las filas sin verificar', asyn
   // inadvertido un $49.527,18 sin verificar.
   expect(csv).toContain('[SIN VERIFICAR - NO PAGAR] 5578');
   expect(csv).toContain('995705');
+});
+
+test('Pago mensual - el CSV del banco no incluye las filas excluidas del mes', async ({ page }) => {
+  await loginComoAdmin(page);
+
+  const periodo = mesActualISO();
+  await page.evaluate((periodo) => {
+    return import('/src/shared/state.js').then(({ DB }) => {
+      DB.monoPagosMes = DB.monoPagosMes || [];
+      const base = { periodo, pagado: false, enRevision: false };
+      DB.monoPagosMes.push({ ...base, id: Date.now() + 1, nroSocio: '995720', nombre: 'Pago Valido', total: 1000 });
+      // Estas dos son lo que deja v185: nombre humano (ya no "sin verificar"),
+      // pero excluidas del mes. El CSV es lo que se manda al banco, asi que
+      // tienen que estar AFUERA del archivo.
+      DB.monoPagosMes.push({
+        ...base, id: Date.now() + 2, nroSocio: '995721', nombre: 'Duplicado Excluido',
+        total: 49527.18, excluidoMes: true,
+        enRevisionMotivo: 'Duplicado del import viejo (v185): la persona ya tiene su fila en el período.',
+      });
+      DB.monoPagosMes.push({
+        ...base, id: Date.now() + 3, nroSocio: '995722', nombre: 'Huerfano Excluido',
+        total: 49527.18, excluidoMes: true,
+        enRevisionMotivo: 'Sin legajo asociado (v185): N° 995722 no existe en legajos, no es una persona real.',
+      });
+    });
+  }, periodo);
+
+  await page.evaluate(() => { window.navTo('monotributos'); window.tabMonotributos('pagos', null); });
+  await page.waitForTimeout(200);
+
+  const csv = await page.evaluate(() => new Promise((resolve, reject) => {
+    const origCreate = URL.createObjectURL;
+    URL.createObjectURL = (blob) => { blob.text().then(resolve); return origCreate.call(URL, blob); };
+    const origClick = HTMLAnchorElement.prototype.click;
+    HTMLAnchorElement.prototype.click = function () {};
+    try { window.exportarMonoPagosCSV(); } catch (e) { reject(e); }
+    setTimeout(() => {
+      URL.createObjectURL = origCreate;
+      HTMLAnchorElement.prototype.click = origClick;
+      resolve('');
+    }, 500);
+  }));
+
+  expect(csv).toContain('Pago Valido');
+  expect(csv).toContain('995720');
+  // El caso que antes se colaba: nombre limpio, asi que la marca
+  // [SIN VERIFICAR] no lo frenaba. Sólo el filtro por excluidoMes lo saca.
+  expect(csv).not.toContain('995721');
+  expect(csv).not.toContain('Duplicado Excluido');
+  expect(csv).not.toContain('995722');
+  expect(csv).not.toContain('Huerfano Excluido');
 });
 
 test('Pago mensual - el comprobante tampoco puede confirmar una fila del import viejo', async ({ page }) => {
