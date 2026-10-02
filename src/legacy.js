@@ -11289,18 +11289,33 @@ function renderAlertasMonotributo(anio, vigencia){
   const vig = vigencia||getVigenciaActual();
   const tabla = getTablaVigente(vig);
 
-  const fuera = (DB.monotributos||[]).filter((r,idx)=>{
-    if(r.estado==='Baja') return false;
+  const activos = (DB.monotributos||[]).filter(r=>r.estado!=='Baja');
+  const fuera = activos.filter(r=>{
     const proy = getProyeccionAnual(r.nombre, anioUsar);
     const limite = getLimiteCategoria(r.categoria, vig);
     return proy > limite;
   });
 
+  // MONOTRIBUTO_cierre_modulo_para_Fede_1.md §19: el tilde verde mentía —
+  // "todos dentro de categoría" con proyección $0 para TODO el padrón no
+  // significa que estén bien, significa que no hay ningún retiro
+  // conectado (getProyeccionAnual lee DB.lqsPagos — ver registrarPago() en
+  // Liquidaciones, legacy.js:9888: nunca llama supaSync, es 100% en
+  // memoria y se pierde en cada reload. Root cause real, no se toca en
+  // este ticket — es un problema de Liquidaciones, no de Monotributo).
+  // Mejor un "sin datos" honesto que un "todo bien" vacío.
+  const hayProyeccionReal = activos.some(r => getProyeccionAnual(r.nombre, anioUsar) > 0);
   if(!fuera.length){
-    el.innerHTML=`<div style="padding:40px;text-align:center;color:var(--texto-muy-suave);">
-      <div style="font-size:40px;margin-bottom:12px;">✅</div>
-      <div style="font-size:14px;">Todos los asociados están dentro de su categoría para ${anioUsar}.</div>
-    </div>`;
+    el.innerHTML = hayProyeccionReal
+      ? `<div style="padding:40px;text-align:center;color:var(--texto-muy-suave);">
+          <div style="font-size:40px;margin-bottom:12px;">✅</div>
+          <div style="font-size:14px;">Todos los asociados están dentro de su categoría para ${anioUsar}.</div>
+        </div>`
+      : `<div style="padding:40px;text-align:center;color:#92400e;">
+          <div style="font-size:40px;margin-bottom:12px;">⚠️</div>
+          <div style="font-size:14px;font-weight:600;">Proyección sin datos — falta conectar los retiros del período.</div>
+          <div style="font-size:12px;margin-top:6px;color:var(--texto-suave);">Ningún asociado tiene un retiro liquidado registrado todavía para ${anioUsar}, así que la proyección anual da $0 para todos — esto NO significa que estén dentro de categoría.</div>
+        </div>`;
     return;
   }
 
@@ -11497,15 +11512,135 @@ function renderCasosImport(){
     </td>
   </tr>`).join('');
 }
+// MONOTRIBUTO_cierre_modulo_para_Fede_1.md §20: "Marcar resuelto" tiene
+// que RESOLVER, no esconder. Antes era un confirm() que solo flipeaba
+// `resuelto=true` (ni siquiera persistía — sin supaSync, se perdía en
+// cada reload) sin tocar ningún dato real: el caso desaparecía de la
+// vista y el padrón seguía mal. Ahora: elegís qué se decidió, si fue
+// corregir un dato se aplica en el Padrón ahí mismo y queda su propio
+// evento en Historial; el cierre del caso en sí también queda registrado
+// (tipo 'caso_import') — ningún cierre es silencioso.
+let _monoCasoResolverId=null;
+function ensureModalResolverCaso(){
+  if($('modal-resolver-caso')) return;
+  const m=document.createElement('div');
+  m.className='modal-overlay'; m.id='modal-resolver-caso';
+  m.innerHTML=`
+    <div class="modal" style="max-width:480px;">
+      <div class="modal-header"><h3>Resolver caso del import</h3><button class="btn-close" onclick="cerrarModal('modal-resolver-caso')">×</button></div>
+      <div class="modal-body">
+        <div id="resolver-caso-detalle" style="font-weight:600;margin-bottom:10px;font-size:13px;"></div>
+        <div class="form-group"><label>¿Qué se decidió? *</label>
+          <select id="resolver-caso-accion" onchange="onChangeAccionResolverCaso()">
+            <option value="">Elegir...</option>
+            <option value="categoria">Corregir categoría</option>
+            <option value="condicion">Corregir condición</option>
+            <option value="adherentes">Corregir adherentes</option>
+            <option value="iibb">Corregir IIBB (aporta/no aporta)</option>
+            <option value="no_aplica">El dato está bien — el caso no aplica</option>
+          </select>
+        </div>
+        <div id="resolver-caso-valor-row" style="display:none;" class="form-group">
+          <label id="resolver-caso-valor-label">Valor nuevo</label>
+          <select id="resolver-caso-valor-categoria" style="display:none;width:100%;">${['A','B','C','D','E','F','G','H','I','J','K'].map(c=>`<option>${c}</option>`).join('')}</select>
+          <select id="resolver-caso-valor-condicion" style="display:none;width:100%;">
+            <option value="comun">Común</option><option value="asociado_cooperativa">Asociado cooperativa</option><option value="jubilado">Jubilado</option><option value="no_aportante">No aportante</option>
+          </select>
+          <input type="number" id="resolver-caso-valor-adherentes" style="display:none;width:100%;" min="0">
+          <select id="resolver-caso-valor-iibb" style="display:none;width:100%;"><option value="true">Aporta</option><option value="false">No aporta</option></select>
+        </div>
+        <div class="form-group"><label>Motivo / observación *</label><textarea id="resolver-caso-motivo" rows="2" style="width:100%;padding:8px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;box-sizing:border-box;"></textarea></div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="cerrarModal('modal-resolver-caso')">Cancelar</button>
+        <button class="btn btn-primary" onclick="confirmarResolverCaso()">Resolver</button>
+      </div>
+    </div>`;
+  document.body.appendChild(m);
+}
 function resolverCasoImport(id){
   const caso=(DB.monoCasosImport||[]).find(c=>c.id===id);
   if(!caso) return;
-  if(!confirm('¿Marcar como resuelto el caso de '+caso.nombre+'?')) return;
+  _monoCasoResolverId=id;
+  ensureModalResolverCaso();
+  $('resolver-caso-detalle').textContent=`${caso.nombre} (N° ${caso.nroSocio||'—'}) — ${caso.detalle||''}`;
+  $('resolver-caso-accion').value='';
+  $('resolver-caso-motivo').value='';
+  onChangeAccionResolverCaso();
+  abrirModal('modal-resolver-caso');
+}
+function onChangeAccionResolverCaso(){
+  const accion=$('resolver-caso-accion').value;
+  const row=$('resolver-caso-valor-row');
+  ['categoria','condicion','adherentes','iibb'].forEach(k=>{ const el=$('resolver-caso-valor-'+k); if(el) el.style.display='none'; });
+  if(accion && accion!=='no_aplica'){
+    row.style.display='block';
+    const el=$('resolver-caso-valor-'+accion); if(el) el.style.display='block';
+    $('resolver-caso-valor-label').textContent = {
+      categoria:'Categoría correcta', condicion:'Condición correcta', adherentes:'Cantidad de adherentes correcta', iibb:'¿Aporta IIBB?',
+    }[accion];
+  } else {
+    row.style.display='none';
+  }
+}
+async function confirmarResolverCaso(){
+  const caso=(DB.monoCasosImport||[]).find(c=>c.id===_monoCasoResolverId);
+  if(!caso) return;
+  const accion=$('resolver-caso-accion').value;
+  const motivo=($('resolver-caso-motivo').value||'').trim();
+  if(!accion){ toast('⚠️ Elegí qué se decidió'); return; }
+  if(!motivo){ toast('⚠️ Ingresá el motivo'); return; }
+
+  if(accion!=='no_aplica'){
+    const persona=(DB.monotributos||[]).find(m=>String(m.nroSocio)===String(caso.nroSocio));
+    if(!persona){ toast('⚠️ No se encontró a '+caso.nombre+' en el Padrón — no se puede aplicar el cambio'); return; }
+    let antes, despues, tipoCambio, curAnterior=0, curNuevo=0;
+    if(accion==='categoria'){
+      antes=persona.categoria; despues=$('resolver-caso-valor-categoria').value;
+      persona.categoria=despues; tipoCambio='categoria';
+    } else if(accion==='condicion'){
+      antes=CONDICION_LABEL[persona.condicion]||persona.condicion; const nuevaCond=$('resolver-caso-valor-condicion').value;
+      despues=CONDICION_LABEL[nuevaCond]||nuevaCond; persona.condicion=nuevaCond; tipoCambio='condicion';
+    } else if(accion==='adherentes'){
+      antes=String(persona.adherentesCantidad||0); despues=$('resolver-caso-valor-adherentes').value;
+      persona.adherentesCantidad=parseInt(despues)||0; tipoCambio='adherentes';
+    } else if(accion==='iibb'){
+      antes=persona.iibbAporta?'Aporta':'No aporta'; const nuevoIibb=$('resolver-caso-valor-iibb').value==='true';
+      despues=nuevoIibb?'Aporta':'No aporta'; persona.iibbAporta=nuevoIibb; tipoCambio='zona_iibb';
+    }
+    await supaSync('monotributos', persona);
+    if(!DB.monoCambios) DB.monoCambios=[];
+    const cambio={
+      id: Date.now()+Math.floor(Math.random()*1000),
+      nombre: persona.nombre, fecha: new Date().toLocaleDateString('es-AR'),
+      tipo: tipoCambio, antes, despues, curAnterior, curNuevo, proyeccionAnual:null,
+      motivo: 'Caso del import: '+motivo, decidoPor: currentUser?.nombre||'Admin', resultado:'Aprobado',
+    };
+    DB.monoCambios.unshift(cambio);
+    await supaSync('monoCambios', cambio);
+  }
+
   caso.resuelto=true;
   caso.resueltoPor=currentUser?.nombre||'Admin';
   caso.resueltoEn=new Date().toLocaleDateString('es-AR');
-  toast('✓ Caso de '+caso.nombre+' marcado como resuelto');
+  caso.resolucion = accion==='no_aplica' ? 'No aplica — dato correcto' : ('Corregido: '+accion);
+  await supaSync('monoCasosImport', caso);
+
+  if(!DB.monoCambios) DB.monoCambios=[];
+  const cierre={
+    id: Date.now()+Math.floor(Math.random()*1000)+1,
+    nombre: caso.nombre, fecha: new Date().toLocaleDateString('es-AR'),
+    tipo:'caso_import', antes:'Caso pendiente', despues: caso.resolucion,
+    curAnterior:0, curNuevo:0, proyeccionAnual:null,
+    motivo, decidoPor: currentUser?.nombre||'Admin', resultado:'Aprobado',
+  };
+  DB.monoCambios.unshift(cierre);
+  await supaSync('monoCambios', cierre);
+
+  cerrarModal('modal-resolver-caso');
+  toast('✓ Caso de '+caso.nombre+' resuelto');
   renderCasosImport();
+  if(window.renderMonotributos) renderMonotributos();
 }
 
 // ── Historial de cambios ──
@@ -11520,6 +11655,7 @@ const MONO_TIPO_LABEL={
   zona_iibb:'Zona / IIBB', alta_bandeja:'Alta por bandeja → padrón',
   no_va_monotributo:'No va a monotributo', baja:'Baja', estado:'Estado',
   tabla_importada:'Tabla importada', excluido_mes:'Excluido del mes',
+  caso_import:'Caso del import',
 };
 function renderHistorialMono(){
   const filtroResultado = $('mono-hist-filtro')?.value||'';
@@ -16168,6 +16304,8 @@ window.tabMantenimiento = tabMantenimiento;
 window.tabMonotributos = tabMonotributos;
 window.renderCasosImport = renderCasosImport;
 window.resolverCasoImport = resolverCasoImport;
+window.onChangeAccionResolverCaso = onChangeAccionResolverCaso;
+window.confirmarResolverCaso = confirmarResolverCaso;
 window.abrirImportadorMonotributo = abrirImportadorMonotributo;
 window.abrirImportadorPadronRRHH = abrirImportadorPadronRRHH;
 window.seleccionarArchivoPadronRRHH = seleccionarArchivoPadronRRHH;
