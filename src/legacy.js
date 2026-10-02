@@ -12164,7 +12164,7 @@ function renderMonoPagos(){
     const celda = v => tieneDesglose ? '$'+(v||0).toLocaleString('es-AR') : '<span class="form-hint">—</span>';
     const total = p.total||p.curCongelado||0;
     return `<tr style="background:${p.pagado?'#f0fdf4':'white'};">
-    <td style="padding:6px 14px;border:1px solid var(--borde);font-weight:500;">${p.nombre}${p.categoriaCongelada?` <span class="form-hint">(${p.categoriaCongelada}${p.condicionCongelada&&p.condicionCongelada!=='comun'?' · '+(CONDICION_LABEL[p.condicionCongelada]||p.condicionCongelada):''})</span>`:''}</td>
+    <td style="padding:6px 14px;border:1px solid var(--borde);font-weight:500;">${_pagoMesNombreSinVerificar(p)?'<span title="Registro del import viejo: el nombre no es una persona real. No se puede tildar hasta conciliarlo." style="color:#b45309;">⚠ </span>':''}${p.nombre}${p.categoriaCongelada?` <span class="form-hint">(${p.categoriaCongelada}${p.condicionCongelada&&p.condicionCongelada!=='comun'?' · '+(CONDICION_LABEL[p.condicionCongelada]||p.condicionCongelada):''})</span>`:''}</td>
     <td style="padding:6px 8px;border:1px solid var(--borde);font-size:11px;">${p.nroSocio||'—'}</td>
     <td style="padding:6px 8px;border:1px solid var(--borde);text-align:right;"><b>${p.adherentesCantidadCongelada||0}</b></td>
     <td style="padding:6px 8px;border:1px solid var(--borde);text-align:right;">${celda(p.impIntegradoCongelado)}</td>
@@ -12183,6 +12183,10 @@ function renderMonoPagos(){
     </td>
     <td style="padding:4px 6px;border:1px solid var(--borde);text-align:center;">
       ${p.pagado ? ''
+        // §12 "Mientras tanto": registro del import viejo sin nombre real — no
+        // se tilda ni se paga. Es la única defensa contra pagarle la cuota a un
+        // duplicado o a alguien que no está en ninguna lista.
+        : _pagoMesNombreSinVerificar(p) ? '<span class="form-hint" style="color:#b45309;font-weight:600;">🚫 sin verificar</span>'
         // Bug reportado 11/09: filas en $0 no tienen nada que pagar — no
         // tiene sentido ofrecer "Tildar pagado".
         : total<=0 ? '<span class="form-hint">Sin monto a pagar</span>'
@@ -12274,11 +12278,44 @@ function verComprobanteMono(path){
   import('@modules/monotributo_comprobantes/comprobantes.js').then(({ verComprobanteMono }) => verComprobanteMono(path));
 }
 window.verComprobanteMono = verComprobanteMono;
+// MONOTRIBUTO_cierre_modulo_para_Fede_1.md §12 "Mientras tanto": una fila sin
+// nombre real NO se puede tildar.
+//
+// Por qué es urgente y no cosmético: en producción hay 29 filas así. Las 24 de
+// nro 5xxx comparten el MISMO total (49527.18) entre 8 personas distintas
+// (Sosa, Cocha, Sequeira, Martinez, Recalde, Avalos, Quiroga, Cacerez) — un
+// importe idéntico al centavo entre gente con situaciones distintas no puede
+// ser un pago real, es un valor constante que el import volcó en todas. Además
+// los N° 5578/5582/5583 aparecen SOLO dentro del campo nombre y nunca como
+// nro_socio: sus filas fueron pisadas por el import y esas personas no están
+// en ninguna lista. Y el Padrón quedó contaminado con nombres placeholder
+// ("SOCIO 5582 (sin legajo encontrado)"), así que "buscar en el Padrón" tampoco
+// sirve como prueba. Si alguien tilda las 24, paga ~$1,2M a fantasma.
+//
+// Detecta exactamente lo mismo que
+// sql/INVESTIGACION_filas_sin_nombre_READONLY.sql, para que la app y la
+// conciliación no divergan:
+//   - nombre vacío
+//   - nombre que es un número, con o sin categoría entre paréntesis ("113 (B)")
+//   - placeholders "SOCIO 5581 (sin legajo encontrado)" de una conciliación previa
+function _pagoMesNombreSinVerificar(p){
+  const n=String(p?.nombre??'').trim();
+  if(!n) return true;
+  if(/^SOCIO\s+\d+\s*\(\s*sin\s+legajo\s+encontrado\s*\)$/i.test(n)) return true;
+  return /^\(?\d+\)?\s*(\([A-Za-zÁ-Úá-ú]\))?$/.test(n);
+}
 // MONOTRIBUTO_cierre_modulo_para_Fede_1.md §15/§16: el tilde manual ya no
 // pide método de pago (columna eliminada, queda "Manual" fijo) — pide la
 // fecha REAL en que se pagó (default hoy, editable antes de tildar).
 function tildarPagoMono(id){
   const p=getMonoPagoById(id); if(!p) return;
+  // El botón ya no se renderiza para estas filas (ver renderMonoPagos), pero
+  // el guard va también acá porque el HTML inline es llamable a mano desde la
+  // consola y el onclick queda en el DOM de filas ya pintadas.
+  if(_pagoMesNombreSinVerificar(p)){
+    toast(`🚫 No se puede tildar "${p.nombre||'(sin nombre)'}": es un registro del import viejo, no una persona real. Hay que conciliarlo contra la planilla antes de pagarlo (MONOTRIBUTO_cierre_modulo_para_Fede_1.md §12).`);
+    return;
+  }
   const fecha=$('mono-pago-fecha-'+id)?.value || new Date().toISOString().slice(0,10);
   p.pagado=true;
   p.metodoPago='Manual';
@@ -12299,8 +12336,12 @@ function exportarMonoPagosCSV(){
   const header=['Nombre','N° Socio','Categoría','Condición','20 Imp. integrado','21 SIPA','24 Obra social','IIBB','Total','Método de pago','Pagado','Pagado por','Fecha de pago'];
   const lineas=[header.join(',')];
   rows.forEach(p=>{
+    // El CSV es lo que se manda al banco: si una fila del import viejo llega
+    // acá, la plata se mueve de verdad. No la dropeo (que la lista del mes no
+    // parezca más corta de lo que es) pero la marco para que se vea al pagar.
+    const nombreCsv=_pagoMesNombreSinVerificar(p)?`[SIN VERIFICAR - NO PAGAR] ${p.nombre||''}`:p.nombre;
     lineas.push([
-      `"${p.nombre}"`, p.nroSocio||'', p.categoriaCongelada||'', p.condicionCongelada||'',
+      `"${nombreCsv}"`, p.nroSocio||'', p.categoriaCongelada||'', p.condicionCongelada||'',
       p.impIntegradoCongelado??'', p.sipaCongelado??'', p.obraSocialCongelado??'', p.iibbCongelado??'',
       p.total||p.curCongelado||0,
       p.metodoPago||'', p.pagado?'Sí':'No', p.pagadoPor||'', p.comprobanteFechaPago?new Date(p.comprobanteFechaPago+'T12:00:00').toLocaleDateString('es-AR'):(p.pagadoEn?new Date(p.pagadoEn).toLocaleDateString('es-AR'):''),
