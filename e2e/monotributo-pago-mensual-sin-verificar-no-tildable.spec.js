@@ -142,3 +142,58 @@ test('Pago mensual - el CSV que va al banco marca las filas sin verificar', asyn
   expect(csv).toContain('[SIN VERIFICAR - NO PAGAR] 5578');
   expect(csv).toContain('995705');
 });
+
+test('Pago mensual - el comprobante tampoco puede confirmar una fila del import viejo', async ({ page }) => {
+  await loginComoAdmin(page);
+
+  const periodo = mesActualISO();
+  // 4 filas malas del mismo nro_socio (5581), todas con el CUIT de Sequeira
+  // Nicole — el caso real de produccion. El lote matchea por CUIT, asi que sin
+  // el guard un solo pago con su comprobante las tildaba de a una.
+  await page.evaluate((periodo) => {
+    return import('/src/shared/state.js').then(({ DB }) => {
+      DB.monotributos = DB.monotributos || [];
+      DB.monotributos.push({
+        nroSocio: '995710', nombre: 'Sequeira Nicole Test', cuit: '27431832432',
+        categoria: 'B', condicion: 'comun', adherentesCantidad: 0, iibbAporta: false,
+        estado: 'Activo',
+      });
+      DB.monoPagosMes = DB.monoPagosMes || [];
+      ['5578', '5580', '5578', '5580'].forEach((nombre, i) => {
+        DB.monoPagosMes.push({
+          id: Date.now() * 10 + 20 + i, periodo, nroSocio: '995710', nombre,
+          total: 49527.18, pagado: false, enRevision: false,
+        });
+      });
+    });
+  }, periodo);
+
+  const resultado = await page.evaluate(async () => {
+    const { DB } = await import('/src/shared/state.js');
+    const mod = await import('/src/modules/monotributo_comprobantes/comprobantes.js');
+    const mala = DB.monoPagosMes.find(x => x.nombre === '5578');
+    // El guard corta ANTES de subir el archivo, asi que un File falso alcanza:
+    // si el guard no estuviera, esto reventaria en el upload.
+    const file = new File(['contenido'], 'comprobante.pdf', { type: 'application/pdf' });
+    return mod.confirmarComprobantePagoMensual(mala.id, file);
+  });
+
+  expect(resultado.ok).toBe(false);
+
+  const estado = await page.evaluate(async () => {
+    const { DB } = await import('/src/shared/state.js');
+    return DB.monoPagosMes.filter(x => x.nroSocio === '995710').map(p => ({
+      pagado: p.pagado, enRevision: p.enRevision, path: p.comprobantePath ?? null,
+    }));
+  });
+  // Ninguna de las 4 queda pagada ni con comprobante colgado.
+  expect(estado).toHaveLength(4);
+  for (const f of estado) {
+    expect(f.pagado).toBe(false);
+    expect(f.path).toBeNull();
+  }
+
+  // El toast del camino comprobante es distinto al del tilde manual, pero
+  // dice lo mismo: registro del import viejo, no se aplica.
+  await expect(page.locator('text=registro del import viejo')).toBeVisible();
+});

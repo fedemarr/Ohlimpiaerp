@@ -12304,6 +12304,9 @@ function _pagoMesNombreSinVerificar(p){
   if(/^SOCIO\s+\d+\s*\(\s*sin\s+legajo\s+encontrado\s*\)$/i.test(n)) return true;
   return /^\(?\d+\)?\s*(\([A-Za-zÁ-Úá-ú]\))?$/.test(n);
 }
+// Los modulos ES no alcanzan las funciones de legacy.js, que es un monolito
+// sin exports — se expone por window como el resto (ver window.tildarPagoMono).
+window._pagoMesNombreSinVerificar = _pagoMesNombreSinVerificar;
 // MONOTRIBUTO_cierre_modulo_para_Fede_1.md §15/§16: el tilde manual ya no
 // pide método de pago (columna eliminada, queda "Manual" fijo) — pide la
 // fecha REAL en que se pagó (default hoy, editable antes de tildar).

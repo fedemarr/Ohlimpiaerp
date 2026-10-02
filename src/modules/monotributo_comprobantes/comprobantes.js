@@ -293,10 +293,24 @@ export async function confirmarComprobanteBandeja(legajoNro, file, datosManual =
 // ── Punto de entrada 2: tab Pago mensual ──
 // La persona YA existe en el Padrón y ya tiene una fila armada en
 // mono_pagos_mes (por "Armar lista del mes") — esto solo la confirma.
+
+// MONOTRIBUTO_cierre_modulo_para_Fede_1.md §12. Texto compartido por el tilde
+// manual (legacy.js) y por los dos caminos de comprobante (este archivo), para
+// que el motivo se lea igual en todos lados.
+const MONO_SIN_VERIFICAR_MOTIVO = 'ver MONOTRIBUTO_cierre_modulo_para_Fede_1.md §12';
 export async function confirmarComprobantePagoMensual(pagoMesId, file) {
   const pago = (DB.monoPagosMes || []).find(p => String(p.id) === String(pagoMesId));
   if (!pago) { toast('⚠️ No se encontró la fila de pago'); return { ok: false }; }
   if (pago.pagado) { toast('⚠️ Esta fila ya está pagada'); return { ok: false }; }
+  // MONOTRIBUTO_cierre_modulo_para_Fede_1.md §12: una fila del import viejo no
+  // se confirma con un comprobante. El chequeo de CUIT/importe de abajo NO
+  // alcanza como defensa: en producción hay 4 filas malas con el mismo
+  // nro_socio 5581 (Sequeira Nicole), así que un solo pago con su ticket
+  // matchea por CUIT y tilda varias filas distintas.
+  if (window._pagoMesNombreSinVerificar?.(pago)) {
+    toast(`🚫 "${pago.nombre || '(sin nombre)'}" es un registro del import viejo, no una persona real. Conciliarlo antes de confirmar el pago (ver MONOTRIBUTO_cierre_modulo_para_Fede_1.md §12).`);
+    return { ok: false };
+  }
   const persona = (DB.monotributos || []).find(r => (pago.nroSocio && String(r.nroSocio) === String(pago.nroSocio)) || r.nombre === pago.nombre);
   if (!persona) { toast('⚠️ No se encontró a esta persona en el Padrón'); return { ok: false }; }
 
@@ -460,10 +474,27 @@ export async function confirmarComprobantesLotePagoMensual(files, periodoVentana
       procesados++; avisar(); continue;
     }
 
+    // §12: las filas del import viejo no matchean ni por CUIT. Sin este filtro
+    // el nro 5581 tiene 4 filas malas (todas con el CUIT de Sequeira Nicole) y
+    // un solo pago con su comprobante las tildaba todas de a una.
+    const filasSinVerificar = (DB.monoPagosMes || []).filter(
+      p => p.periodo === periodoLeido && !p.pagado && p.nroSocio
+        && window._pagoMesNombreSinVerificar?.(p) && _cuitDeFilaPagoMes(p) === cuitLeido);
+    for (const _f of filasSinVerificar) {
+      _f.enRevision = true;
+      _f.enRevisionMotivo = `Registro del import viejo (sin nombre real) — el comprobante no se puede aplicar a esta fila. Conciliar contra la planilla. (${MONO_SIN_VERIFICAR_MOTIVO})`;
+      await supaSync('monoPagosMes', _f);
+    }
+
     const fila = (DB.monoPagosMes || []).find(p => p.periodo === periodoLeido && !p.pagado && p.nroSocio && _cuitDeFilaPagoMes(p) === cuitLeido);
     if (!fila) {
       resumen.enRevision++;
-      await _registrarEnRevisionSinAsociar({ periodo: periodoLeido, path, datosLeidos, motivo: `CUIT ${cuitLeido} no está en la lista de ${periodoLeido}` });
+      await _registrarEnRevisionSinAsociar({
+        periodo: periodoLeido, path, datosLeidos,
+        motivo: filasSinVerificar.length
+          ? `${filasSinVerificar.length} fila(s) del import viejo sin nombre real — ${MONO_SIN_VERIFICAR_MOTIVO}`
+          : `CUIT ${cuitLeido} no está en la lista de ${periodoLeido}`,
+      });
       procesados++; avisar(); continue;
     }
 
