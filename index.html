@@ -5203,7 +5203,7 @@
         <div style="display:flex;gap:8px;align-items:center;">
           <input type="month" id="mono-pagos-mes" onchange="renderMonoPagos()">
           <button class="btn btn-sm btn-secondary" onclick="abrirMesMonoPagos()">📥 Armar lista del mes</button>
-          <button class="btn btn-sm btn-secondary" onclick="subirComprobantesLotePagoMensual()">⬆ Subir comprobantes (varios)</button>
+          <button id="mono-lote-btn" class="btn btn-sm btn-secondary" onclick="subirComprobantesLotePagoMensual()">⬆ Subir comprobantes (varios)</button>
           <button class="btn btn-sm btn-secondary" onclick="exportarMonoPagosCSV()">⬇️ Exportar CSV</button>
         </div>
       </div>
@@ -5213,6 +5213,9 @@
           <span id="mono-excluidos-mes-link" style="display:none;cursor:pointer;text-decoration:underline;color:#9a3412;" onclick="abrirExcluidosMesModal()">Excluidos este mes (0)</span>
         </div>
         <div style="height:9px;background:var(--borde);border-radius:5px;overflow:hidden;"><div id="mono-pagos-prog-bar" style="height:100%;width:0%;background:var(--verde);border-radius:5px;transition:width .3s;"></div></div>
+      </div>
+      <div id="mono-lote-progreso" style="display:none;margin:0 20px 14px;padding:8px 12px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;">
+        <div id="mono-lote-progreso-lbl" style="font-size:12px;font-weight:600;color:#1e40af;">Procesando…</div>
       </div>
       <div class="tabla-wrap">
         <table style="width:100%;border-collapse:collapse;font-size:12px;">

@@ -371,56 +371,109 @@ function _cuitDeFilaPagoMes(fila) {
   return normalizarCuit(persona?.cuit);
 }
 
-// ── Carga en lote (tab Pago mensual) ──
-// Mismo lector/matcher que confirmarComprobantePagoMensual, pero acá no se
-// sabe de antemano a qué fila corresponde cada PDF — el reparto es por
-// CUIT leído CONTRA LA LISTA DEL MES YA ARMADA (mismo universo que ve el
-// usuario, no una tabla aparte), vía el CUIT del legajo. Todo lo que no
-// cierra (CUIT no encontrado en la lista, período/importe distintos, o
-// repetido dentro de la misma tanda) cae en "en revisión" — nunca se
-// inventa una asociación.
-export async function confirmarComprobantesLotePagoMensual(files, periodo) {
-  const resumen = { tildados: 0, enRevision: 0 };
+// Un N° de transacción ya aplicado a una fila PAGADA (de cualquier
+// período — el mismo ticket re-subido semanas después tiene que
+// detectarse igual) — MONOTRIBUTO_cierre_modulo_para_Fede_1.md §11.b.
+function _transaccionYaAplicada(transaccion) {
+  if (!transaccion) return null;
+  return (DB.monoPagosMes || []).find(p => p.pagado && p.comprobanteTransaccion === transaccion) || null;
+}
+
+// §23: "el período lo decide el TICKET, no la ventana" — cada comprobante
+// se aplica a la lista de SU período leído, nunca al que esté
+// seleccionado en pantalla (caso real: Lautaro subió tickets de
+// septiembre parado en octubre). `periodoVentana` solo se usa como
+// fallback para el path de storage de los que ni período pudieron leer.
+export async function confirmarComprobantesLotePagoMensual(files, periodoVentana, onProgress) {
+  const resumen = { tildados: 0, enRevision: 0, yaAplicados: 0, porPeriodo: {} };
   const cuitsDeEstaTanda = new Set();
+  const transaccionesDeEstaTanda = new Set();
+  let procesados = 0;
+  const avisar = () => { if (typeof onProgress === 'function') onProgress(procesados, files.length, resumen); };
+  avisar();
+
   for (const file of files) {
     let path;
-    try { path = await _subirComprobante('lote', periodo, file); }
-    catch (e) { resumen.enRevision++; await _registrarEnRevisionSinAsociar({ periodo, path: null, motivo: 'No se pudo subir el archivo (' + e.message + ')' }); continue; }
+    try { path = await _subirComprobante('lote', periodoVentana, file); }
+    catch (e) { resumen.enRevision++; await _registrarEnRevisionSinAsociar({ periodo: periodoVentana, path: null, motivo: 'No se pudo subir el archivo (' + e.message + ')' }); procesados++; avisar(); continue; }
 
     let datosLeidos;
     try { datosLeidos = await analizarDocumentoPDF({ tipo: 'comprobante-monotributo', path }); }
-    catch (e) { resumen.enRevision++; await _registrarEnRevisionSinAsociar({ periodo, path, motivo: 'No se pudo leer el PDF (' + e.message + ')' }); continue; }
+    catch (e) { resumen.enRevision++; await _registrarEnRevisionSinAsociar({ periodo: periodoVentana, path, motivo: 'No se pudo leer el PDF (' + e.message + ')' }); procesados++; avisar(); continue; }
 
     const cuitLeido = normalizarCuit(datosLeidos.cuit);
     if (!cuitLeido) {
       resumen.enRevision++;
-      await _registrarEnRevisionSinAsociar({ periodo, path, datosLeidos, motivo: 'No se pudo leer el CUIT del comprobante' });
-      continue;
+      await _registrarEnRevisionSinAsociar({ periodo: periodoVentana, path, datosLeidos, motivo: 'No se pudo leer el CUIT del comprobante' });
+      procesados++; avisar(); continue;
     }
 
-    // Duplicado DENTRO de esta misma tanda (ej. el mismo PDF subido dos
-    // veces por error) — un solo aviso, no dos filas en revisión.
+    // Transacción ya aplicada a una fila PAGADA (de cualquier corrida
+    // anterior) — ni entra a la cola de revisión, se avisa y se descarta.
+    const transaccion = datosLeidos.transaccion || '';
+    const yaAplicada = transaccion && _transaccionYaAplicada(transaccion);
+    if (yaAplicada) {
+      resumen.yaAplicados++;
+      procesados++; avisar(); continue;
+    }
+    // Duplicado DENTRO de esta misma tanda, por N° de transacción (mismo
+    // ticket subido dos veces en la misma corrida) — y, como red
+    // adicional, por CUIT (dos tickets distintos de la misma persona en
+    // el mismo lote casi seguro es un error de carga).
+    if (transaccion && transaccionesDeEstaTanda.has(transaccion)) {
+      resumen.enRevision++;
+      await _registrarEnRevisionSinAsociar({ periodo: periodoVentana, path, datosLeidos, motivo: `Transacción ${transaccion} repetida en este lote — DUPLICADO del comprobante ya procesado en esta misma tanda` });
+      procesados++; avisar(); continue;
+    }
     if (cuitsDeEstaTanda.has(cuitLeido)) {
       resumen.enRevision++;
-      await _registrarEnRevisionSinAsociar({ periodo, path, datosLeidos, motivo: `CUIT ${cuitLeido} repetido en este lote — ya se procesó otro comprobante con el mismo CUIT en esta misma tanda` });
-      continue;
+      await _registrarEnRevisionSinAsociar({ periodo: periodoVentana, path, datosLeidos, motivo: `CUIT ${cuitLeido} repetido en este lote — ya se procesó otro comprobante con el mismo CUIT en esta misma tanda` });
+      procesados++; avisar(); continue;
     }
+    if (transaccion) transaccionesDeEstaTanda.add(transaccion);
     cuitsDeEstaTanda.add(cuitLeido);
 
-    const fila = (DB.monoPagosMes || []).find(p => p.periodo === periodo && !p.pagado && p.nroSocio && _cuitDeFilaPagoMes(p) === cuitLeido);
+    const periodoLeido = normalizarPeriodoLeido(datosLeidos.periodo);
+    if (!periodoLeido) {
+      resumen.enRevision++;
+      await _registrarEnRevisionSinAsociar({ periodo: periodoVentana, path, datosLeidos, motivo: 'Período ilegible en el comprobante' });
+      procesados++; avisar(); continue;
+    }
+    // Chequeo extra: fecha de pago vs período del ticket contradiciéndose
+    // groseramente (ej. pago ene-2026 con factura 10/2026) — probablemente
+    // un ticket viejo rescaneado, no se asocia solo.
+    if (datosLeidos.fechaPago && /^\d{4}-\d{2}/.test(datosLeidos.fechaPago)) {
+      const mesPago = datosLeidos.fechaPago.slice(0, 7);
+      const difMeses = Math.abs((parseInt(periodoLeido.slice(0, 4)) * 12 + parseInt(periodoLeido.slice(5, 7)))
+        - (parseInt(mesPago.slice(0, 4)) * 12 + parseInt(mesPago.slice(5, 7))));
+      if (difMeses >= 3) {
+        resumen.enRevision++;
+        await _registrarEnRevisionSinAsociar({ periodo: periodoLeido, path, datosLeidos, motivo: `La fecha de pago (${datosLeidos.fechaPago}) y el período del comprobante (${datosLeidos.periodo}) se contradicen — revisar a mano` });
+        procesados++; avisar(); continue;
+      }
+    }
+
+    const todasDelPeriodo = (DB.monoPagosMes || []).some(p => p.periodo === periodoLeido);
+    if (!todasDelPeriodo) {
+      resumen.enRevision++;
+      await _registrarEnRevisionSinAsociar({ periodo: periodoLeido, path, datosLeidos, motivo: `La lista de ${periodoLeido} no está armada todavía` });
+      procesados++; avisar(); continue;
+    }
+
+    const fila = (DB.monoPagosMes || []).find(p => p.periodo === periodoLeido && !p.pagado && p.nroSocio && _cuitDeFilaPagoMes(p) === cuitLeido);
     if (!fila) {
       resumen.enRevision++;
-      await _registrarEnRevisionSinAsociar({ periodo, path, datosLeidos, motivo: `CUIT ${cuitLeido} no está en la lista de ${periodo}` });
-      continue;
+      await _registrarEnRevisionSinAsociar({ periodo: periodoLeido, path, datosLeidos, motivo: `CUIT ${cuitLeido} no está en la lista de ${periodoLeido}` });
+      procesados++; avisar(); continue;
     }
 
     // cuit:cuitLeido a propósito (no persona.cuit/monotributos.cuit): ya
     // matcheamos por CUIT del legajo para encontrar `fila` — si acá no
     // cuadra, tiene que ser por período o importe, nunca "CUIT no
     // reconocido" de vuelta (pedido explícito del reporte).
-    const resultado = matchComprobante(datosLeidos, { cuit: cuitLeido, nombre: fila.nombre, periodoEsperado: periodo, cuotaEsperada: fila.total });
+    const resultado = matchComprobante(datosLeidos, { cuit: cuitLeido, nombre: fila.nombre, periodoEsperado: periodoLeido, cuotaEsperada: fila.total });
     fila.comprobantePath = path;
-    fila.comprobanteTransaccion = datosLeidos.transaccion || '';
+    fila.comprobanteTransaccion = transaccion;
     fila.comprobanteImporteLeido = Number(datosLeidos.importe) || 0;
     fila.comprobanteFechaPago = datosLeidos.fechaPago || null;
     fila.enRevision = !resultado.ok;
@@ -431,13 +484,31 @@ export async function confirmarComprobantesLotePagoMensual(files, periodo) {
       fila.pagadoPor = currentUser?.nombre || '';
       fila.pagadoEn = new Date().toISOString();
       resumen.tildados++;
+      resumen.porPeriodo[periodoLeido] = (resumen.porPeriodo[periodoLeido] || 0) + 1;
     } else {
       resumen.enRevision++;
     }
     await supaSync('monoPagosMes', fila);
+    procesados++; avisar();
   }
 
-  toast(`✓ Lote procesado (${files.length} comprobante${files.length === 1 ? '' : 's'}): ${resumen.tildados} tildado(s), ${resumen.enRevision} en revisión.`);
+  const periodosMezclados = Object.keys(resumen.porPeriodo);
+  let msg = `✓ Lote procesado (${files.length} comprobante${files.length === 1 ? '' : 's'}): ${resumen.tildados} tildado(s), ${resumen.enRevision} en revisión`;
+  if (resumen.yaAplicados) msg += `, ${resumen.yaAplicados} ya aplicado(s) antes (ignorado)`;
+  msg += '.';
+  if (periodosMezclados.length > 1) {
+    msg += ' Aplicados a ' + periodosMezclados.map(p => `${resumen.porPeriodo[p]} → ${p}`).join(' · ') + '.';
+  }
+  toast(msg);
   if (window.renderMonoPagos) window.renderMonoPagos();
+  try {
+    const { crearNotificacion } = await import('@shared/notificaciones.js');
+    (DB.rrhh || []).forEach(nombre => {
+      crearNotificacion({
+        tipo: 'mono_lote_procesado', entidadTipo: 'monotributo', entidadIdLocal: 'lote-' + Date.now(),
+        destinatarioNombre: nombre, mensaje: `Lote de ${files.length} comprobantes de monotributo procesado: ${msg}`,
+      });
+    });
+  } catch (e) { /* notificación best-effort, nunca bloquea el resultado del lote */ }
   return resumen;
 }

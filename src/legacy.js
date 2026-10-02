@@ -12098,10 +12098,35 @@ window.subirComprobanteMonoPagoMensual = subirComprobanteMonoPagoMensual;
 // dinámico de arriba; el reparto por CUIT/período/importe vive en
 // confirmarComprobantesLotePagoMensual (comprobantes.js), acá solo se
 // arma el input múltiple y se le pasa el período seleccionado.
+//
+// MONOTRIBUTO_cierre_modulo_para_Fede_1.md §22: panel de progreso en vivo
+// + el botón se deshabilita mientras procesa (una carga a la vez — sin
+// esto, no saber si "funcionó" invita a resubir el lote entero y duplicar
+// todo en cascada). El progreso sigue actualizándose aunque se navegue a
+// otro tab/pantalla (los elementos siguen en el DOM, solo deja de
+// verse — $() con guard no rompe nada si no están visibles).
+let _monoLoteEnProceso = false;
 function subirComprobantesLotePagoMensual(){
+  if(_monoLoteEnProceso){ toast('⏳ Ya hay un lote procesándose — esperá a que termine'); return; }
   const mes=_mesMonoPagosSel();
   import('@modules/monotributo_comprobantes/comprobantes.js').then(({ elegirVariosArchivosComprobante, confirmarComprobantesLotePagoMensual }) => {
-    elegirVariosArchivosComprobante(files => confirmarComprobantesLotePagoMensual(files, mes));
+    elegirVariosArchivosComprobante(async files => {
+      _monoLoteEnProceso=true;
+      const btn=$('mono-lote-btn'), panel=$('mono-lote-progreso');
+      if(btn){ btn.disabled=true; btn.dataset.txtOrig=btn.textContent; }
+      if(panel) panel.style.display='block';
+      const onProgress=(procesados, total, resumen)=>{
+        const lbl=$('mono-lote-progreso-lbl');
+        if(lbl) lbl.textContent=`Procesando ${procesados} de ${total}… ✔️ ${resumen.tildados} · ⚠️ ${resumen.enRevision} · ⊘ ${resumen.yaAplicados}`;
+      };
+      try{
+        await confirmarComprobantesLotePagoMensual(files, mes, onProgress);
+      } finally {
+        _monoLoteEnProceso=false;
+        if(btn){ btn.disabled=false; btn.textContent=btn.dataset.txtOrig||'⬆ Subir comprobantes (varios)'; }
+        if(panel) setTimeout(()=>{ if(panel) panel.style.display='none'; }, 6000);
+      }
+    });
   });
 }
 window.subirComprobantesLotePagoMensual = subirComprobantesLotePagoMensual;
