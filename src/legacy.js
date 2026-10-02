@@ -11077,15 +11077,30 @@ function limpiarFiltrosColumnaMono(){
 }
 
 // ── Helpers de cálculo ──
+// §7: las vigencias históricas (2024-01, 2026-08) siguen hardcodeadas en
+// DB.monoTablas (nunca se persistieron en Supabase — ver nota larga en
+// confirmarImportacion() más abajo); las importadas desde "Importar
+// tabla" viven en DB.monoTablasOrg (mono_tablas), que SÍ persiste. Se
+// combinan las dos fuentes sin tocar ninguna de las dos.
+function _vigenciasOrgArca(){
+  return [...new Set((DB.monoTablasOrg||[]).filter(t=>t.organismo==='ARCA' && t.categoria!=='JUBILADO' && t.categoria!=='ASOC_COOPERATIVA').map(t=>t.vigenciaDesde.slice(0,7)))];
+}
 function getVigenciaActual(){
   const hoy = new Date().toISOString().slice(0,7);
-  const vigencias = Object.keys(DB.monoTablas||{}).sort();
+  const vigencias = [...new Set([...Object.keys(DB.monoTablas||{}), ..._vigenciasOrgArca()])].sort();
   // Última vigencia que no supere la fecha actual
   return vigencias.filter(v=>v<=hoy).pop() || vigencias[0] || '2024-01';
 }
 
 function getTablaVigente(vigencia){
-  return (DB.monoTablas||{})[vigencia] || [];
+  if((DB.monoTablas||{})[vigencia]) return DB.monoTablas[vigencia];
+  const filas=(DB.monoTablasOrg||[]).filter(t=>t.organismo==='ARCA' && t.vigenciaDesde.slice(0,7)===vigencia && t.categoria!=='JUBILADO' && t.categoria!=='ASOC_COOPERATIVA');
+  if(!filas.length) return [];
+  return filas.map(t=>({
+    cat:t.categoria, limiteAnual:t.topeIngresosAnual||0,
+    impuestoIntegrado:t.impuestoIntegrado||0, aportesSIPA:t.sipa||0, obraSocial:t.obraSocial||0,
+    cur:Math.round(((t.impuestoIntegrado||0)+(t.sipa||0)+(t.obraSocial||0))*100)/100,
+  })).sort((a,b)=>a.cat.localeCompare(b.cat));
 }
 
 function getLimiteCategoria(cat, vigencia){
@@ -11155,9 +11170,16 @@ function getFilaMonoOrg(organismo, categoria, vigenciaDesde){
 // Última vigencia de ARCA cargada en mono_tablas — separado de
 // getVigenciaActual() (que sigue leyendo el DB.monoTablas viejo) porque
 // son dos fuentes de datos distintas hasta terminar de migrar todo.
-function getVigenciaActualOrg(){
+// MONOTRIBUTO_cierre_modulo_para_Fede_1.md §7: "las tres tablas... vienen
+// de resoluciones distintas y no cambian juntas" — antes esto SIEMPRE
+// miraba la vigencia de ARCA (hardcodeado), así que importar una tabla
+// IIBB (ARBA/AGIP) nueva no se veía en renderTablasIIBB() salvo que ARCA
+// también tuviera una vigencia para esa fecha. Parametrizado por organismo
+// (default 'ARCA' para no romper a calcularCuotaComponentes/
+// filasSipaEspecial, que siempre lo llamaban sin argumento).
+function getVigenciaActualOrg(organismo='ARCA'){
   const hoy = new Date().toISOString().slice(0,10);
-  const vigencias = [...new Set((DB.monoTablasOrg||[]).filter(t=>t.organismo==='ARCA').map(t=>t.vigenciaDesde))].sort();
+  const vigencias = [...new Set((DB.monoTablasOrg||[]).filter(t=>t.organismo===organismo).map(t=>t.vigenciaDesde))].sort();
   return vigencias.filter(v=>v<=hoy).pop() || vigencias[vigencias.length-1] || null;
 }
 
@@ -12021,79 +12043,210 @@ function exportarMonoPagosCSV(){
 }
 
 // ── Importar tabla de categorías ──
+// MONOTRIBUTO_cierre_modulo_para_Fede_1.md §7: "los dos botones están
+// muertos". Confirmado al investigar — PEOR de lo que dice el doc:
+// - El modal "modal-importar-tabla" NUNCA existió en index.html — el botón
+//   viejo llamaba abrirModal() sobre un id que no existe en el DOM.
+// - El parser viejo (parsearTablaImportada) solo entendía el formato 2024
+//   (curBase/curCapital/curConFamilia/curCapitalConFamilia) — ni siquiera
+//   el formato que usa la tabla real de hoy (impuesto integrado/SIPA/obra
+//   social).
+// - confirmarImportacion() escribía en DB.monoTablas (objeto hardcodeado
+//   en memoria) y llamaba supaSync('monoTablas', ...) — 'monoTablas' NO
+//   tiene entrada en _SM (a propósito, ver supabase.js:96-103, para no
+//   pisar el objeto con el array de mono_tablas) — supaSync hace
+//   early-return silencioso. Nada de lo importado sobrevivía un F5.
+//
+// Se reconstruye de cero: el modal ahora elige QUÉ tabla (ARCA/ARBA/AGIP,
+// las 3 que pide el doc, cada una con su propia vigencia), valida (A-K
+// completo, montos crecientes) con preview antes de confirmar, y escribe
+// en DB.monoTablasOrg (mono_tablas, la tabla real que SÍ persiste y que
+// calcularCuotaComponentes() ya usa) — afecta cuotas desde ya, no una
+// tabla decorativa. getTablaVigente()/getVigenciaActual() (más abajo) se
+// extienden para leer de ahí también, sin tocar las vigencias históricas
+// hardcodeadas (2024-01, 2026-08).
+const _MONO_IMPORT_CATS = ['A','B','C','D','E','F','G','H','I','J','K'];
+const _MONO_IMPORT_ORG_CODIGO = {ARCA:'1', ARBA:'2', AGIP:'3'};
+const _MONO_IMPORT_CAMPOS = {
+  ARCA: [
+    {campo:'limiteAnual', label:'Límite anual', dbCol:'topeIngresosAnual'},
+    {campo:'impuestoIntegrado', label:'Impuesto integrado', dbCol:'impuestoIntegrado'},
+    {campo:'aportesSIPA', label:'Aportes SIPA', dbCol:'sipa'},
+    {campo:'obraSocial', label:'Obra social', dbCol:'obraSocial'},
+  ],
+  ARBA: [{campo:'cuota', label:'Cuota mensual', dbCol:'cuota'}],
+  AGIP: [{campo:'cuota', label:'Cuota mensual', dbCol:'cuota'}],
+};
+
 function abrirModalImportarTabla(){
-  if($('import-vigencia')) $('import-vigencia').value = new Date().toISOString().slice(0,7);
-  if($('import-tabla-raw')) $('import-tabla-raw').value = '';
-  if($('import-preview')) $('import-preview').innerHTML = '';
+  ensureModalImportarTabla();
+  $('import-tabla-tipo').value='ARCA';
+  onChangeTipoImportarTabla();
+  $('import-vigencia').value = new Date().toISOString().slice(0,7);
+  $('import-tabla-raw').value = '';
+  $('import-preview').innerHTML = '';
+  $('import-tabla-btn-confirmar').disabled=true;
   abrirModal('modal-importar-tabla');
 }
+function onChangeTipoImportarTabla(){
+  const tipo=$('import-tabla-tipo').value;
+  const campos=_MONO_IMPORT_CAMPOS[tipo].map(c=>c.label).join(' · ');
+  $('import-tabla-ayuda').textContent = tipo==='ARCA'
+    ? `Pegá 11 filas (A a K), una por renglón: Categoría, ${campos} (en ese orden, separado por tab/coma/punto y coma — tal cual sale de copiar un Excel).`
+    : `Pegá 11 filas (A a K), una por renglón: Categoría, ${campos}.`;
+  $('import-preview').innerHTML='';
+  $('import-tabla-btn-confirmar').disabled=true;
+}
+function ensureModalImportarTabla(){
+  if($('modal-importar-tabla')) return;
+  const m=document.createElement('div');
+  m.className='modal-overlay'; m.id='modal-importar-tabla';
+  m.innerHTML=`
+    <div class="modal" style="max-width:720px;">
+      <div class="modal-header"><h3>⬆️ Importar tabla de categorías</h3><button class="btn-close" onclick="cerrarModal('modal-importar-tabla')">×</button></div>
+      <div class="modal-body">
+        <div class="form-grid form-grid-2">
+          <div class="form-group"><label>Tabla *</label>
+            <select id="import-tabla-tipo" onchange="onChangeTipoImportarTabla()">
+              <option value="ARCA">① Tabla ARCA (categorías, impuesto integrado, SIPA, obra social)</option>
+              <option value="ARBA">② IIBB ARBA — Provincia</option>
+              <option value="AGIP">③ IIBB AGIP — Capital</option>
+            </select>
+          </div>
+          <div class="form-group"><label>Vigencia desde *</label><input type="month" id="import-vigencia"></div>
+        </div>
+        <p id="import-tabla-ayuda" style="font-size:12px;color:var(--texto-suave);margin:0 0 8px;"></p>
+        <div class="form-group"><label>Datos (pegar desde Excel)</label>
+          <textarea id="import-tabla-raw" rows="6" style="width:100%;padding:8px;border:1px solid #cbd5e1;border-radius:8px;font-size:12.5px;font-family:'DM Mono',monospace;box-sizing:border-box;" oninput="$('import-tabla-btn-confirmar').disabled=true;"></textarea>
+        </div>
+        <button class="btn btn-secondary btn-sm" onclick="previsualizarImportacion()">👁 Previsualizar</button>
+        <div id="import-preview" style="margin-top:12px;"></div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="cerrarModal('modal-importar-tabla')">Cancelar</button>
+        <button class="btn btn-primary" id="import-tabla-btn-confirmar" disabled onclick="confirmarImportacion()">Confirmar importación</button>
+      </div>
+    </div>`;
+  document.body.appendChild(m);
+}
 
+// Parser por posición (igual criterio que el resto de los importadores del
+// sistema): primera columna categoría, el resto en el orden de
+// _MONO_IMPORT_CAMPOS[tipo]. Tolera tab/coma/punto y coma, "$", separador
+// de miles con punto y decimal con coma (formato argentino).
+function _parsearNumeroArgMono(s){
+  const limpio=String(s||'').trim().replace(/\$/g,'').replace(/\s/g,'');
+  if(!limpio) return 0;
+  // "1.234.567,89" → "1234567.89" ; tolera también "1234567.89" tal cual.
+  const normalizado = limpio.includes(',') ? limpio.replace(/\./g,'').replace(',','.') : limpio;
+  return parseFloat(normalizado)||0;
+}
+function _parsearTablaImportadaV2(raw, tipo){
+  const campos=_MONO_IMPORT_CAMPOS[tipo];
+  const lineas=raw.split(/\r\n|\r|\n/).map(l=>l.trim()).filter(l=>l!=='' && !/^cat/i.test(l));
+  const filas=[];
+  lineas.forEach(linea=>{
+    const cols=linea.split(/\t|;|,/).map(c=>c.trim().replace(/^"|"$/g,''));
+    const cat=(cols[0]||'').trim().toUpperCase();
+    if(!/^[A-K]$/.test(cat)) return; // ignora encabezados u otras filas sueltas
+    const fila={cat};
+    campos.forEach((c,i)=>{ fila[c.campo]=_parsearNumeroArgMono(cols[i+1]); });
+    filas.push(fila);
+  });
+  return filas;
+}
+// Validación (§7): "todas las categorías presentes (A a K), montos
+// crecientes por categoría" — una tabla mal pegada pifia la cuota de
+// cientos de personas, no se confirma nada sin ver esto primero.
+function _validarTablaImportada(filas, tipo){
+  const errores=[];
+  const porCat=new Map(filas.map(f=>[f.cat,f]));
+  const faltantes=_MONO_IMPORT_CATS.filter(c=>!porCat.has(c));
+  if(faltantes.length) errores.push(`Faltan categorías: ${faltantes.join(', ')}`);
+  const campoPrincipal=_MONO_IMPORT_CAMPOS[tipo][0].campo;
+  let anterior=null;
+  for(const cat of _MONO_IMPORT_CATS){
+    const f=porCat.get(cat); if(!f) continue;
+    if(!f[campoPrincipal] || f[campoPrincipal]<=0) errores.push(`Categoría ${cat}: ${_MONO_IMPORT_CAMPOS[tipo][0].label.toLowerCase()} inválido o en cero`);
+    if(anterior!=null && f[campoPrincipal]<=anterior) errores.push(`Categoría ${cat}: ${_MONO_IMPORT_CAMPOS[tipo][0].label.toLowerCase()} no es mayor que la categoría anterior`);
+    anterior=f[campoPrincipal];
+  }
+  const vistos=new Set();
+  filas.forEach(f=>{ if(vistos.has(f.cat)) errores.push(`Categoría ${f.cat} repetida en los datos pegados`); vistos.add(f.cat); });
+  return errores;
+}
+let _monoImportPreviewOk=false;
 function previsualizarImportacion(){
-  const raw = $('import-tabla-raw')?.value.trim();
-  const preview = $('import-preview');
-  if(!raw || !preview){ toast('Pegá los datos primero'); return; }
-  const parsed = parsearTablaImportada(raw);
-  if(!parsed.length){ preview.innerHTML='<div style="color:#dc2626;padding:8px;">No se pudieron interpretar los datos. Verificá el formato.</div>'; return; }
+  const tipo=$('import-tabla-tipo').value;
+  const raw=$('import-tabla-raw')?.value.trim();
+  const preview=$('import-preview');
+  _monoImportPreviewOk=false;
+  $('import-tabla-btn-confirmar').disabled=true;
+  if(!raw){ toast('Pegá los datos primero'); return; }
+  const filas=_parsearTablaImportadaV2(raw, tipo);
+  if(!filas.length){ preview.innerHTML='<div style="color:#dc2626;padding:8px;font-size:12.5px;">No se pudo interpretar ninguna fila — revisá el formato (Categoría primero, después los valores en orden).</div>'; return; }
+  const errores=_validarTablaImportada(filas, tipo);
+  const campos=_MONO_IMPORT_CAMPOS[tipo];
+  const filasPorCat=new Map(filas.map(f=>[f.cat,f]));
   preview.innerHTML = `
-    <div style="font-size:12px;color:#065f46;margin-bottom:8px;">✅ ${parsed.length} categorías detectadas</div>
-    <div class="tabla-wrap" style="overflow-x:auto;max-height:200px;overflow-y:auto;">
+    ${errores.length?`<div style="color:#dc2626;font-size:12px;margin-bottom:8px;font-weight:600;">⚠ ${errores.length} problema(s):</div><ul style="color:#dc2626;font-size:12px;margin:0 0 10px 18px;">${errores.map(e=>`<li>${e}</li>`).join('')}</ul>`
+     :`<div style="font-size:12px;color:#065f46;margin-bottom:8px;">✅ ${filas.length} categorías detectadas, sin problemas — vigencia desde ${$('import-vigencia').value||'(falta elegir)'}.</div>`}
+    <div class="tabla-wrap" style="overflow-x:auto;max-height:260px;overflow-y:auto;">
       <table style="border-collapse:collapse;font-size:11px;width:100%;">
         <thead><tr style="background:#374151;color:white;">
           <th style="padding:4px 8px;border:1px solid #6b7280;">Cat.</th>
-          <th style="padding:4px 8px;border:1px solid #6b7280;">Límite anual</th>
-          <th style="padding:4px 8px;border:1px solid #6b7280;">CUR Provincia</th>
-          <th style="padding:4px 8px;border:1px solid #6b7280;">CUR Capital</th>
-          <th style="padding:4px 8px;border:1px solid #6b7280;">CUR Prov+Fam</th>
-          <th style="padding:4px 8px;border:1px solid #6b7280;">CUR Cap+Fam</th>
+          ${campos.map(c=>`<th style="padding:4px 8px;border:1px solid #6b7280;text-align:right;">${c.label}</th>`).join('')}
         </tr></thead>
-        <tbody>${parsed.map(r=>`<tr>
-        </tr>`).join('')}</tbody>
+        <tbody>${_MONO_IMPORT_CATS.map(cat=>{
+          const f=filasPorCat.get(cat);
+          return `<tr style="${!f?'background:#fef2f2;':''}">
+            <td style="padding:3px 8px;border:1px solid #d1d5db;text-align:center;font-weight:700;">${cat}</td>
+            ${campos.map(c=>`<td style="padding:3px 8px;border:1px solid #d1d5db;text-align:right;">${f?'$'+f[c.campo].toLocaleString('es-AR'):'<span style="color:#dc2626;">falta</span>'}</td>`).join('')}
+          </tr>`;
+        }).join('')}</tbody>
       </table>
     </div>`;
+  _monoImportPreviewOk = errores.length===0;
+  $('import-tabla-btn-confirmar').disabled = !_monoImportPreviewOk;
 }
-
-function parsearTablaImportada(raw){
-  // Intentar parsear varios formatos:
-  // 1. CSV con columnas: cat, limiteAnual, curBase, curCapital, curConFamilia, curCapitalConFamilia
-  // 2. Texto tabulado (copiado de Excel)
-  // 3. JSON array
-  try {
-    const json = JSON.parse(raw);
-    if(Array.isArray(json)) return json;
-  } catch(e){}
-
-  const lineas = raw.split('\n').map(l=>l.trim()).filter(l=>l && !/^cat/i.test(l));
-  const resultado = [];
-  lineas.forEach(linea=>{
-    const cols = linea.split(/[	,;]+/).map(c=>c.trim().replace(/\$/g,'').replace(/\./g,'').replace(',','.'));
-    if(cols.length >= 2){
-      const cat = cols[0].toUpperCase();
-      if(!/^[A-K]$/.test(cat)) return;
-      resultado.push({
-        cat,
-        limiteAnual:       parseFloat(cols[1])||0,
-        curBase:           parseFloat(cols[2])||0,
-        curCapital:        parseFloat(cols[3])||0,
-        curConFamilia:     parseFloat(cols[4])||0,
-        curCapitalConFamilia: parseFloat(cols[5])||0,
-      });
+async function confirmarImportacion(){
+  const tipo=$('import-tabla-tipo').value;
+  const vigenciaMes=$('import-vigencia')?.value;
+  const raw=$('import-tabla-raw')?.value.trim();
+  if(!vigenciaMes){ toast('⚠️ Elegí la vigencia'); return; }
+  if(!raw || !_monoImportPreviewOk){ toast('⚠️ Previsualizá primero y corregí los problemas marcados'); return; }
+  const filas=_parsearTablaImportadaV2(raw, tipo);
+  const vigenciaDesde=vigenciaMes+'-01';
+  const codigo=_MONO_IMPORT_ORG_CODIGO[tipo];
+  const yymm=vigenciaMes.replace('-','').slice(2);
+  const btn=$('import-tabla-btn-confirmar'); if(btn) btn.disabled=true;
+  let n=0;
+  for(const f of filas){
+    const fila={ id: `${codigo}${f.cat}${yymm}`, organismo:tipo, categoria:f.cat, vigenciaDesde };
+    _MONO_IMPORT_CAMPOS[tipo].forEach(c=>{ fila[c.dbCol]=f[c.campo]; });
+    const ok=await supaSync('monoTablasOrg', fila);
+    if(ok){
+      if(!DB.monoTablasOrg) DB.monoTablasOrg=[];
+      const idx=DB.monoTablasOrg.findIndex(t=>t.organismo===tipo && t.categoria===f.cat && t.vigenciaDesde===vigenciaDesde);
+      if(idx>=0) DB.monoTablasOrg[idx]=fila; else DB.monoTablasOrg.push(fila);
+      n++;
     }
-  });
-  return resultado;
-}
+  }
+  if(n<filas.length){ toast(`⚠️ Se importaron ${n} de ${filas.length} categorías — reintentá, algo falló en el servidor`); return; }
 
-function confirmarImportacion(){
-  const vigencia = $('import-vigencia')?.value;
-  const raw = $('import-tabla-raw')?.value.trim();
-  if(!vigencia){ toast('Ingresá la vigencia'); return; }
-  if(!raw){ toast('Pegá los datos de la tabla'); return; }
-  const parsed = parsearTablaImportada(raw);
-  if(!parsed.length){ toast('No se pudieron interpretar los datos'); return; }
-  if(!DB.monoTablas) DB.monoTablas={};
-  DB.monoTablas[vigencia] = parsed;
-  supaSync('monoTablas', {id:vigencia, vigencia, tabla_data:parsed});
+  if(!DB.monoCambios) DB.monoCambios=[];
+  const cambio={
+    id: Date.now()+Math.floor(Math.random()*1000),
+    nombre:'—', fecha:new Date().toLocaleDateString('es-AR'),
+    tipo:'tabla_importada', antes:'—', despues:`${tipo} vigente desde ${vigenciaMes}`,
+    curAnterior:0, curNuevo:0, proyeccionAnual:null,
+    motivo:`Importación de tabla ${tipo} — ${n} categorías`, decidoPor:currentUser?.nombre||'Admin', resultado:'Aprobado',
+  };
+  DB.monoCambios.unshift(cambio);
+  supaSync('monoCambios', cambio);
+
   cerrarModal('modal-importar-tabla');
-  toast('✅ Tabla importada — '+parsed.length+' categorías para vigencia '+vigencia);
+  toast(`✅ Tabla ${tipo} importada — ${n} categorías, vigente desde ${vigenciaMes}`);
   renderTablasCategorias();
 }
 
@@ -12794,10 +12947,11 @@ function tabMonotributos(tab, btn){
 }
 
 function renderTablasCategorias(){
-  // Poblar selector de vigencias
+  // Poblar selector de vigencias — combina las históricas hardcodeadas
+  // (DB.monoTablas) con las importadas vía "Importar tabla" (DB.monoTablasOrg).
   const sel=$('mono-tabla-vigencia');
   if(sel){
-    const vigencias=Object.keys(DB.monoTablas||{}).sort().reverse();
+    const vigencias=[...new Set([...Object.keys(DB.monoTablas||{}), ..._vigenciasOrgArca()])].sort().reverse();
     sel.innerHTML=vigencias.map(v=>`<option value="${v}">${v}</option>`).join('');
     if(!sel.value&&vigencias.length) sel.value=vigencias[0];
   }
@@ -12887,7 +13041,7 @@ let _monoIibbTab = 'ARBA';
 function tabMonoIibb(organismo){ _monoIibbTab = organismo; renderTablasIIBB(); }
 function renderTablasIIBB(){
   const el = $('mono-tabla-iibb-body'); if(!el) return;
-  const vig = getVigenciaActualOrg();
+  const vig = getVigenciaActualOrg(_monoIibbTab);
   const btnArba=$('btn-mono-iibb-arba'), btnAgip=$('btn-mono-iibb-agip');
   if(btnArba) btnArba.className = 'btn btn-sm '+(_monoIibbTab==='ARBA'?'btn-primary':'btn-secondary');
   if(btnAgip) btnAgip.className = 'btn btn-sm '+(_monoIibbTab==='AGIP'?'btn-primary':'btn-secondary');
@@ -13041,31 +13195,6 @@ function verHistorialPagosMono(id){
   abrirModal('modal-hist-pagos-mono');
 }
 window.verHistorialPagosMono = verHistorialPagosMono;
-
-// ── Nueva vigencia de tabla ──
-function abrirModalNuevaVigencia(){
-  abrirModal('modal-nueva-vigencia-mono');
-}
-function guardarNuevaVigencia(){
-  const desde=$('nvig-desde')?.value;
-  const jsonStr=$('nvig-json')?.value.trim();
-  if(!desde){toast('Ingresá la fecha de vigencia');return;}
-  let tabla;
-  try{
-    tabla=JSON.parse(jsonStr);
-    if(!Array.isArray(tabla)) throw new Error();
-  } catch(e){
-    // Si no es JSON, copiar la tabla vigente actual
-    tabla=JSON.parse(JSON.stringify(getTablaVigente(getVigenciaActual())));
-  }
-  if(!DB.monoTablas) DB.monoTablas={};
-  DB.monoTablas[desde]=tabla;
-  supaSync('monoTablas', {id:desde, vigencia:desde, tabla_data:tabla});
-  cerrarModal('modal-nueva-vigencia-mono');
-  toast('✅ Nueva vigencia guardada: '+desde);
-  renderTablasCategorias();
-}
-
 
 // ══════════════════════════════════════════════════════════
 // FUNCIONES AUXILIARES MONOTRIBUTOS
@@ -15542,12 +15671,12 @@ window.abrirModalConcepto = abrirModalConcepto;
 window.abrirModalDescuento = abrirModalDescuento;
 window.abrirModalFeriado = abrirModalFeriado;
 window.abrirModalImportarTabla = abrirModalImportarTabla;
+window.onChangeTipoImportarTabla = onChangeTipoImportarTabla;
 window.abrirModalMotivoEFT = abrirModalMotivoEFT;
 window.abrirModalMotivoNF = abrirModalMotivoNF;
 window.abrirModalMotivoTipo = abrirModalMotivoTipo;
 window.abrirModalNuevaGrilla = abrirModalNuevaGrilla;
 window.abrirModalNuevaRetencion = abrirModalNuevaRetencion;
-window.abrirModalNuevaVigencia = abrirModalNuevaVigencia;
 window.abrirModalNuevoAdminLiq = abrirModalNuevoAdminLiq;
 window.abrirModalNuevoMant = abrirModalNuevoMant;
 window.abrirModalNuevoMonotributo = abrirModalNuevoMonotributo;
@@ -15718,7 +15847,6 @@ window.autocompletarLeadClienteExistente = autocompletarLeadClienteExistente;
 window.guardarMonotributo = guardarMonotributo;
 window.guardarMotivoEFT = guardarMotivoEFT;
 window.guardarMotivoNF = guardarMotivoNF;
-window.guardarNuevaVigencia = guardarNuevaVigencia;
 window.guardarObjetivo = guardarObjetivo;
 window.guardarParitaria = guardarParitaria;
 window.guardarPropuestaPrecio = guardarPropuestaPrecio;
@@ -15765,7 +15893,6 @@ window.notificarseAuth = notificarseAuth;
 window.nuevoObjetivoDesde = nuevoObjetivoDesde;
 window.onChangeMagDesde = onChangeMagDesde;
 window.overrideVHCat = overrideVHCat;
-window.parsearTablaImportada = parsearTablaImportada;
 window.poblarSelectCategoriaLiq = poblarSelectCategoriaLiq;
 window.poblarSelectFuncionUsuario = poblarSelectFuncionUsuario;
 window.poblarSelectMotivoEFT = poblarSelectMotivoEFT;
